@@ -100,12 +100,14 @@ export default function HeroCarousel({ tr }: { tr?: HeroTr }) {
 
         {/* 3-panel steps slide */}
         {slide.type === "steps" && (
-          <div className="absolute inset-0 grid grid-cols-3">
-            {slide.panels.map((panel, i) => (
-              <div key={i} className="relative overflow-hidden">
-                <Image src="/hero-banner.jpg" alt={panel.label} fill className={`object-cover ${panel.objectPos}`} />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/70" />
-                <div className="absolute bottom-0 left-0 right-0 p-5 md:p-7">
+          <div className="absolute inset-0">
+            {/* Single panoramic image spans all 3 panels */}
+            <Image src="/hero-banner.jpg" alt="How it works" fill className="object-cover object-center" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/75" />
+            {/* Text labels overlaid in 3 columns */}
+            <div className="absolute inset-0 grid grid-cols-3">
+              {slide.panels.map((panel, i) => (
+                <div key={i} className="relative flex flex-col justify-end p-5 md:p-7">
                   <div className="flex items-center gap-3 mb-1">
                     <span className="flex items-center justify-center w-9 h-9 rounded-full text-base font-extrabold border-2 shrink-0"
                       style={{ borderColor: panel.accentColor, color: panel.accentColor }}>
@@ -116,13 +118,13 @@ export default function HeroCarousel({ tr }: { tr?: HeroTr }) {
                     </span>
                   </div>
                   <p className="text-white/80 text-sm leading-snug ml-12">{panel.desc}</p>
+                  {i < 2 && (
+                    <div className="absolute top-0 right-0 bottom-0 w-px opacity-40"
+                      style={{ background: `linear-gradient(to bottom, transparent, ${panel.accentColor}, transparent)` }} />
+                  )}
                 </div>
-                {i < 2 && (
-                  <div className="absolute top-0 right-0 bottom-0 w-px opacity-40"
-                    style={{ background: `linear-gradient(to bottom, transparent, ${panel.accentColor}, transparent)` }} />
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>
