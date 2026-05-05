@@ -1,14 +1,19 @@
 import { getBookings } from "@/app/actions/bookings"
 import { BookingsTable } from "@/components/admin/bookings-table"
+import { TodayView } from "@/components/admin/today-view"
+import { UpcomingView } from "@/components/admin/upcoming-view"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Package, TruckIcon, CheckCircle2, Clock } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Package, TruckIcon, CheckCircle2, Clock, LogOut } from "lucide-react"
+import { logoutAction } from "./login/actions"
 
 export const dynamic = "force-dynamic"
 
 export default async function AdminDashboard() {
   const bookings = await getBookings()
 
-  // Calculate stats
+  const today = new Date().toISOString().split("T")[0]
+
   const stats = {
     total: bookings.length,
     pending: bookings.filter((b) => b.status === "pending" || b.status === "confirmed").length,
@@ -16,15 +21,37 @@ export default async function AdminDashboard() {
     completed: bookings.filter((b) => b.status === "delivered").length,
   }
 
-  return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <div>
-          <h1 className="text-4xl font-bold text-primary">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage bookings and track orders</p>
-        </div>
+  const todayPickups = bookings.filter((b) => b.pickup_date === today && b.status !== "cancelled")
+  const todayDeliveries = bookings.filter((b) => b.delivery_date === today && b.status !== "cancelled")
 
-        {/* Stats Cards */}
+  return (
+    <div className="min-h-screen bg-[#f8faff]">
+      {/* Header */}
+      <header className="bg-[#1e3a8a] px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <svg width="28" height="28" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="20" cy="20" r="20" fill="#1e40af" />
+            <path d="M7 20.5 Q10.5 15 14 20.5 Q17.5 26 21 20.5 Q24.5 15 28 20.5 Q29.5 23 31 20.5"
+              stroke="#67e8f9" strokeWidth="2.8" strokeLinecap="round" fill="none" />
+          </svg>
+          <span className="text-white font-extrabold text-lg tracking-tight">
+            Wash<span className="text-[#67e8f9]">Fold</span>
+            <span className="ml-1.5 text-white/40 text-xs font-semibold uppercase tracking-widest">Admin</span>
+          </span>
+        </div>
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </form>
+      </header>
+
+      <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
+        {/* Stats */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -35,31 +62,28 @@ export default async function AdminDashboard() {
               <div className="text-2xl font-bold">{stats.total}</div>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-600" />
+              <Clock className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.pending}</div>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-              <TruckIcon className="h-4 w-4 text-blue-600" />
+              <TruckIcon className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.inProgress}</div>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <CardTitle className="text-sm font-medium">Delivered</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.completed}</div>
@@ -67,16 +91,57 @@ export default async function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Bookings Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>All Bookings</CardTitle>
-            <CardDescription>View and manage customer orders</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BookingsTable bookings={bookings} />
-          </CardContent>
-        </Card>
+        {/* Tabs */}
+        <Tabs defaultValue="today">
+          <TabsList className="bg-white border border-gray-200 shadow-sm">
+            <TabsTrigger value="today" className="gap-2">
+              Today
+              {(todayPickups.length + todayDeliveries.length) > 0 && (
+                <span className="bg-[#1e3a8a] text-white text-xs rounded-full px-1.5 py-0.5 leading-none font-bold">
+                  {todayPickups.length + todayDeliveries.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+            <TabsTrigger value="all">All Bookings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="today">
+            <Card>
+              <CardHeader>
+                <CardTitle>Today&apos;s Schedule</CardTitle>
+                <CardDescription>Pickups and deliveries for today</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TodayView pickups={todayPickups} deliveries={todayDeliveries} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="upcoming">
+            <Card>
+              <CardHeader>
+                <CardTitle>Upcoming Orders</CardTitle>
+                <CardDescription>Future pickups and deliveries</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UpcomingView bookings={bookings} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="all">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Bookings</CardTitle>
+                <CardDescription>Full order history — click a row to update status</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BookingsTable bookings={bookings} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

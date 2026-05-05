@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { sendBookingNotification } from "@/lib/sms"
+import { createShipdayOrder } from "@/lib/shipday"
 import { format } from "date-fns"
 
 export interface BookingData {
@@ -46,6 +47,26 @@ export async function createBooking(data: BookingData) {
     throw new Error("Failed to create booking")
   }
 
+  // Dispatch to Shipday
+  try {
+    await createShipdayOrder({
+      id: booking.id,
+      customer_name: booking.customer_name,
+      customer_email: booking.customer_email,
+      customer_phone: booking.customer_phone,
+      customer_address: booking.customer_address,
+      pickup_date: booking.pickup_date,
+      pickup_time_window: booking.pickup_time_window,
+      delivery_date: booking.delivery_date,
+      delivery_time_window: booking.delivery_time_window,
+      num_comforters: booking.num_comforters,
+      total_amount: booking.total_amount,
+    })
+  } catch (error) {
+    console.error("[shipday] Error dispatching order:", error)
+  }
+
+  // Send SMS confirmation
   try {
     const pickupDate = format(new Date(data.pickupDate), "MMMM d")
     await sendBookingNotification(booking.id, "booking_confirmed", data.customerName, pickupDate, data.pickupTimeWindow)
