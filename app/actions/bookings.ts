@@ -48,7 +48,14 @@ export async function createBooking(data: BookingData) {
     .single()
 
   if (error) {
-    console.error("[v0] Error creating booking:", error)
+    console.error("[booking] Supabase insert failed:", JSON.stringify({
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    }))
     throw new Error("Failed to create booking")
   }
 
