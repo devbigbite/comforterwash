@@ -92,6 +92,7 @@ export async function handleSuccessfulPayment(sessionId: string) {
         deliveryDate: meta.deliveryDate,
         deliveryTimeWindow: meta.deliveryTimeWindow,
         numComforters: parseInt(meta.numComforters ?? meta.quantity ?? "1"),
+        comforterSize: meta.comforterSize ?? undefined,
         totalAmount: preAuthCents,
         stripePaymentIntentId: session.payment_intent as string,
         serviceType: (meta.serviceType as "comforter_wash" | "wash_fold" | "wash_only") ?? "comforter_wash",
@@ -100,6 +101,8 @@ export async function handleSuccessfulPayment(sessionId: string) {
         preAuthCents,
         subscriptionFrequency: meta.subscriptionFrequency ?? "one_time",
         pricePerLbCents: meta.pricePerLbCents ? parseInt(meta.pricePerLbCents) : undefined,
+        promoCode: meta.promoCode ?? undefined,
+        promoDiscountCents: meta.promoDiscountCents ? parseInt(meta.promoDiscountCents) : undefined,
       })
     }
 

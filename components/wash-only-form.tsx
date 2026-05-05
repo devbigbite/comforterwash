@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,8 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
+import { PromoCodeField } from "@/components/promo-code-field"
+import { getExcludedDates } from "@/app/actions/holidays"
 
 const PRICE_PER_LB = 199  // $1.99 in cents
 const MIN_POUNDS = 20
@@ -117,15 +119,26 @@ export function WashOnlyForm() {
     agreedToTerms: false,
     smsConsent: false,
   })
+  const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
+  const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
 
-  const totalCents = Math.max(formData.pounds * PRICE_PER_LB, MIN_POUNDS * PRICE_PER_LB)
+  useEffect(() => {
+    getExcludedDates().then(dates => setExcludedDates(new Set(dates)))
+  }, [])
+
+  const isExcluded = (d: Date) => excludedDates.has(d.toISOString().split("T")[0])
+
+  const subtotalCents = Math.max(formData.pounds * PRICE_PER_LB, MIN_POUNDS * PRICE_PER_LB)
+  const discountCents = promo ? Math.min(promo.discountCents, subtotalCents) : 0
+  const totalCents = subtotalCents - discountCents
   const preAuthCents = Math.ceil(totalCents * 1.25)
   const totalDisplay = (totalCents / 100).toFixed(2)
 
-  const isPickupAvailable = (d: Date) => { const day = d.getDay(); return day === 1 || day === 2 || day === 3 }
+  const isPickupAvailable = (d: Date) => { const day = d.getDay(); return (day === 1 || day === 2 || day === 3) && !isExcluded(d) }
   const isDeliveryAvailable = (d: Date) => {
     const day = d.getDay()
     if (day !== 1 && day !== 2 && day !== 3) return false
+    if (isExcluded(d)) return false
     if (formData.pickupDate) {
       const min = new Date(formData.pickupDate); min.setDate(min.getDate() + 3); min.setHours(0, 0, 0, 0)
       return d >= min
@@ -188,6 +201,8 @@ export function WashOnlyForm() {
               numComforters: "0",
               detergent: formData.detergent,
               fabricSoftener: formData.fabricSoftener.toString(),
+              promoCode: promo?.code ?? "",
+              promoDiscountCents: String(discountCents),
             }}
           />
           <button className="w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors" onClick={() => setStep(4)}>
@@ -387,6 +402,14 @@ export function WashOnlyForm() {
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Almost done!</h3>
               <p className="text-sm text-gray-400">Review your order and sign below</p>
             </div>
+
+            <PromoCodeField
+              serviceType="wash_only"
+              subtotalCents={subtotalCents}
+              onApply={(code, dc) => setPromo({ code, discountCents: dc })}
+              onRemove={() => setPromo(null)}
+            />
+
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[
                 { label: "Service", value: "Wash Only (no folding)" },
@@ -403,6 +426,12 @@ export function WashOnlyForm() {
                   <span className="font-medium text-[#0D2240] text-right">{row.value}</span>
                 </div>
               ))}
+              {promo && (
+                <div className="flex justify-between gap-4 text-green-700">
+                  <span className="shrink-0">Promo ({promo.code})</span>
+                  <span className="font-semibold">−${(discountCents / 100).toFixed(2)}</span>
+                </div>
+              )}
               <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
                 <span className="text-[#0D2240]">Estimated Total</span>
                 <span className="text-[#E8726A]">${totalDisplay}</span>

@@ -24,6 +24,9 @@ export interface BookingData {
   preAuthCents?: number
   subscriptionFrequency?: string   // one_time | weekly | biweekly
   pricePerLbCents?: number         // locked-in rate at booking time
+  comforterSize?: string           // twin | full | queen | king
+  promoCode?: string
+  promoDiscountCents?: number
 }
 
 function toDateString(val: string): string {
@@ -66,6 +69,9 @@ export async function createBooking(data: BookingData) {
       payment_status: data.preAuthCents ? "pre_authorized" : "paid",
       subscription_frequency: data.subscriptionFrequency ?? "one_time",
       price_per_lb_cents: data.pricePerLbCents ?? null,
+      comforter_size: data.comforterSize ?? null,
+      promo_code: data.promoCode ?? null,
+      promo_discount_cents: data.promoDiscountCents ?? 0,
     })
     .select()
     .single()

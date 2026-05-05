@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -10,8 +10,14 @@ import { Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
+import { PromoCodeField } from "./promo-code-field"
 
-const PRICE_PER_COMFORTER = 3300
+const COMFORTER_SIZES = [
+  { id: "twin",  label: "Twin",  note: "Up to 50\"×70\"",  cents: 2900 },
+  { id: "full",  label: "Full",  note: "Up to 54\"×75\"",  cents: 3300 },
+  { id: "queen", label: "Queen", note: "Up to 60\"×80\"",  cents: 3800 },
+  { id: "king",  label: "King",  note: "Up to 108\"×90\"", cents: 4300 },
+]
 
 const TIME_WINDOWS = [
   { value: "9am-1pm", label: "9am – 1pm" },
@@ -154,6 +160,13 @@ function TimeSlotPicker({ value, onChange }: { value: string; onChange: (v: stri
 // ── Main form ────────────────────────────────────────────────────────────────
 export function BookingForm() {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
+  const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    import("@/app/actions/holidays").then(m => m.getExcludedDates()).then(dates => {
+      setExcludedDates(new Set(dates))
+    })
+  }, [])
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -164,6 +177,7 @@ export function BookingForm() {
     pickupTimeWindow: "",
     deliveryTimeWindow: "",
     comforterCount: 1,
+    comforterSize: "queen",
     numBags: 1,
     detergent: "standard",
     fabricSoftener: false,
@@ -173,20 +187,33 @@ export function BookingForm() {
     smsConsent: false,
   })
 
-  const totalPrice = formData.comforterCount * PRICE_PER_COMFORTER
+  const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
+
+  const sizeOption = COMFORTER_SIZES.find(s => s.id === formData.comforterSize) ?? COMFORTER_SIZES[2]
+  const subtotal = formData.comforterCount * sizeOption.cents
+  const discountCents = promo?.discountCents ?? 0
+  const totalPrice = Math.max(0, subtotal - discountCents)
   const totalDisplay = (totalPrice / 100).toFixed(2)
+  const pricePerDisplay = (sizeOption.cents / 100).toFixed(2)
 
   const handlePickupSelect = (date: Date) => {
     const suggested = getEarliestDelivery(date)
     setFormData((p) => ({ ...p, pickupDate: date, deliveryDate: suggested, deliveryTimeWindow: p.deliveryTimeWindow }))
   }
 
+  const isExcluded = (d: Date) => {
+    const str = d.toISOString().split("T")[0]
+    return excludedDates.has(str)
+  }
+
   const isPickupAvailable = (d: Date) => {
+    if (isExcluded(d)) return false
     const day = d.getDay()
     return day === 1 || day === 2 || day === 3
   }
 
   const isDeliveryAvailable = (d: Date) => {
+    if (isExcluded(d)) return false
     const day = d.getDay()
     if (day !== 1 && day !== 2 && day !== 3) return false
     if (formData.pickupDate) {
@@ -236,7 +263,7 @@ export function BookingForm() {
                   : "",
               },
               { label: "Address", value: formData.address },
-              { label: "Comforters", value: `${formData.comforterCount} × $33.00` },
+              { label: "Comforters", value: `${formData.comforterCount} × $${pricePerDisplay} (${sizeOption.label})` },
               { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
               { label: "Add-Ons", value: addOnsSummary },
             ].map((row) => (
@@ -252,8 +279,8 @@ export function BookingForm() {
           </div>
 
           <Checkout
-            amountCents={formData.comforterCount * 2900}
-            label={`Comforter Wash × ${formData.comforterCount}`}
+            amountCents={totalPrice}
+            label={`Comforter Wash × ${formData.comforterCount} (${sizeOption.label})`}
             manualCapture={false}
             metadata={{
               customerName: formData.name,
@@ -270,9 +297,12 @@ export function BookingForm() {
               serviceType: "comforter_wash",
               numComforters: String(formData.comforterCount),
               numBags: String(formData.comforterCount),
+              comforterSize: formData.comforterSize,
               detergent: formData.detergent,
               fabricSoftener: formData.fabricSoftener.toString(),
               oxiClean: formData.oxiClean.toString(),
+              promoCode: promo?.code ?? "",
+              promoDiscountCents: String(promo?.discountCents ?? 0),
             }}
           />
           <button
@@ -325,40 +355,63 @@ export function BookingForm() {
         {step === 1 && (
           <div className="space-y-7">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">How many comforters?</h3>
-              <p className="text-sm text-gray-400">$33 each · any size · free bag included</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Select comforter size</h3>
+              <p className="text-sm text-gray-400">Pricing varies by size — select all that apply if sending multiple</p>
+            </div>
+
+            {/* Size selector */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {COMFORTER_SIZES.map((s) => (
+                <button key={s.id} type="button"
+                  onClick={() => setFormData(p => ({ ...p, comforterSize: s.id }))}
+                  className={cn(
+                    "flex flex-col items-start p-4 rounded-2xl border-2 transition-all text-left",
+                    formData.comforterSize === s.id
+                      ? "border-[#E8726A] bg-[#fdf6f3]"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  )}>
+                  <div className="flex items-center justify-between w-full mb-1">
+                    <span className={cn("font-extrabold text-sm", formData.comforterSize === s.id ? "text-[#0D2240]" : "text-gray-700")}>{s.label}</span>
+                    <span className={cn("font-extrabold text-sm", formData.comforterSize === s.id ? "text-[#E8726A]" : "text-gray-400")}>${(s.cents / 100).toFixed(0)}</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400">{s.note}</span>
+                </button>
+              ))}
             </div>
 
             {/* Counter */}
-            <div className="flex items-center justify-center gap-6 py-1">
-              <button
-                type="button"
-                onClick={() => setFormData((p) => ({ ...p, comforterCount: Math.max(1, p.comforterCount - 1), numBags: Math.max(1, p.comforterCount - 1) }))}
-                disabled={formData.comforterCount <= 1}
-                className="w-11 h-11 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors"
-              >
-                −
-              </button>
-              <div className="text-center min-w-[70px]">
-                <div className="text-5xl font-extrabold text-[#0D2240] leading-none tabular-nums">
-                  {formData.comforterCount}
+            <div>
+              <p className="text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-3">How many {sizeOption.label} comforters?</p>
+              <div className="flex items-center justify-center gap-6 py-1">
+                <button
+                  type="button"
+                  onClick={() => setFormData((p) => ({ ...p, comforterCount: Math.max(1, p.comforterCount - 1), numBags: Math.max(1, p.comforterCount - 1) }))}
+                  disabled={formData.comforterCount <= 1}
+                  className="w-11 h-11 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors"
+                >
+                  −
+                </button>
+                <div className="text-center min-w-[70px]">
+                  <div className="text-5xl font-extrabold text-[#0D2240] leading-none tabular-nums">
+                    {formData.comforterCount}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    comforter{formData.comforterCount > 1 ? "s" : ""}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-400 mt-1">
-                  comforter{formData.comforterCount > 1 ? "s" : ""}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData((p) => ({ ...p, comforterCount: p.comforterCount + 1, numBags: p.comforterCount + 1 }))}
+                  className="w-11 h-11 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors"
+                >
+                  +
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setFormData((p) => ({ ...p, comforterCount: p.comforterCount + 1, numBags: p.comforterCount + 1 }))}
-                className="w-11 h-11 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors"
-              >
-                +
-              </button>
             </div>
 
             {/* Price */}
             <div className="bg-[#fdf6f5] rounded-xl p-4 flex items-center justify-between">
-              <span className="text-[#0D2240]/60 font-medium text-sm">{formData.comforterCount} × $33.00</span>
+              <span className="text-[#0D2240]/60 font-medium text-sm">{formData.comforterCount} × ${pricePerDisplay} ({sizeOption.label})</span>
               <span className="text-2xl font-extrabold text-[#E8726A]">${totalDisplay}</span>
             </div>
 
@@ -606,8 +659,7 @@ export function BookingForm() {
                     : "",
                 },
                 { label: "Address", value: formData.address },
-                { label: "Comforters", value: `${formData.comforterCount} × $33.00` },
-                { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
+                { label: "Comforters", value: `${formData.comforterCount} × $${pricePerDisplay} (${sizeOption.label})` },
                 { label: "Add-Ons", value: addOnsSummary },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between gap-4">
@@ -615,11 +667,25 @@ export function BookingForm() {
                   <span className="font-medium text-[#0D2240] text-right">{row.value}</span>
                 </div>
               ))}
+              {discountCents > 0 && (
+                <div className="flex justify-between gap-4 text-green-600">
+                  <span className="shrink-0">Promo ({promo!.code})</span>
+                  <span className="font-semibold">−${(discountCents / 100).toFixed(2)}</span>
+                </div>
+              )}
               <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
                 <span className="text-[#0D2240]">Total</span>
                 <span className="text-[#E8726A]">${totalDisplay}</span>
               </div>
             </div>
+
+            {/* Promo code */}
+            <PromoCodeField
+              serviceType="comforter_wash"
+              subtotalCents={subtotal}
+              onApply={(code, discountCents) => setPromo({ code, discountCents })}
+              onRemove={() => setPromo(null)}
+            />
 
             {/* Conditions */}
             <details className="group">
