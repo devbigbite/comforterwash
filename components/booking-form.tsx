@@ -13,16 +13,22 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "./promo-code-field"
 import { useLang } from "@/components/lang-provider"
 import { getComforterPromo } from "@/app/actions/settings"
+import { getPricingConfig } from "@/app/actions/pricing"
 
 // ── Pricing ─────────────────────────────────────────────────────────────────
-const PROMO_PRICE_CENTS = 3300  // $33 flat
+// Defaults — overwritten on mount from Supabase
+let PROMO_PRICE_CENTS = 3300
 
-const COMFORTER_SIZES = [
-  { id: "twin",  label: "Twin",  note: "Up to 50\"×70\"",  cents: 2900 },
-  { id: "full",  label: "Full",  note: "Up to 54\"×75\"",  cents: 3300 },
-  { id: "queen", label: "Queen", note: "Up to 60\"×80\"",  cents: 3800 },
-  { id: "king",  label: "King",  note: "Up to 108\"×90\"", cents: 4300 },
-]
+let SIZE_CENTS = { twin: 2900, full: 3300, queen: 3800, king: 4300 }
+
+function buildSizes() {
+  return [
+    { id: "twin",  label: "Twin",  note: "Up to 50\"×70\"",  cents: SIZE_CENTS.twin },
+    { id: "full",  label: "Full",  note: "Up to 54\"×75\"",  cents: SIZE_CENTS.full },
+    { id: "queen", label: "Queen", note: "Up to 60\"×80\"",  cents: SIZE_CENTS.queen },
+    { id: "king",  label: "King",  note: "Up to 108\"×90\"", cents: SIZE_CENTS.king },
+  ]
+}
 
 const TIME_WINDOWS = [
   { value: "9am-1pm", label: "9am – 1pm" },
@@ -152,18 +158,26 @@ export function BookingForm() {
   })
 
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
+  const [comforterSizes, setComforterSizes] = useState(buildSizes())
+  const [promoPriceCents, setPromoPriceCents] = useState(PROMO_PRICE_CENTS)
 
   useEffect(() => {
     import("@/app/actions/holidays").then(m => m.getExcludedDates()).then(dates => setExcludedDates(new Set(dates)))
     getComforterPromo().then(setPromoActive)
+    getPricingConfig().then(cfg => {
+      PROMO_PRICE_CENTS = cfg.comforterPromoCents
+      SIZE_CENTS = { twin: cfg.comforterTwinCents, full: cfg.comforterFullCents, queen: cfg.comforterQueenCents, king: cfg.comforterKingCents }
+      setPromoPriceCents(cfg.comforterPromoCents)
+      setComforterSizes(buildSizes())
+    })
   }, [])
 
   // ── Pricing math ─────────────────────────────────────────────────────────
   const totalCount = Object.values(quantities).reduce((a, b) => a + b, 0)
 
   const subtotalCents = promoActive
-    ? totalCount * PROMO_PRICE_CENTS
-    : COMFORTER_SIZES.reduce((acc, s) => acc + quantities[s.id as SizeId] * s.cents, 0)
+    ? totalCount * promoPriceCents
+    : comforterSizes.reduce((acc, s) => acc + quantities[s.id as SizeId] * s.cents, 0)
 
   const discountCents = promo ? Math.min(promo.discountCents, subtotalCents) : 0
   const totalCents = Math.max(0, subtotalCents - discountCents)
@@ -198,7 +212,7 @@ export function BookingForm() {
   const canStep4 = formData.agreedToTerms && formData.smsConsent && formData.signature.trim().length > 0
 
   // ── Summary line items ───────────────────────────────────────────────────
-  const selectedSizes = COMFORTER_SIZES.filter(s => quantities[s.id as SizeId] > 0)
+  const selectedSizes = comforterSizes.filter(s => quantities[s.id as SizeId] > 0)
 
   const addOnsSummary = [
     formData.detergent !== "standard" ? DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label : null,
@@ -206,7 +220,7 @@ export function BookingForm() {
     formData.oxiClean ? tf.oxiCleanLabel : null,
   ].filter(Boolean).join(", ") || tf.standard
 
-  const sizesMetadata = COMFORTER_SIZES
+  const sizesMetadata = comforterSizes
     .filter(s => quantities[s.id as SizeId] > 0)
     .map(s => `${s.label}:${quantities[s.id as SizeId]}`)
     .join(",")
@@ -240,7 +254,7 @@ export function BookingForm() {
             {/* Per-size breakdown */}
             {selectedSizes.map(s => {
               const qty = quantities[s.id as SizeId]
-              const linePrice = promoActive ? qty * PROMO_PRICE_CENTS : qty * s.cents
+              const linePrice = promoActive ? qty * promoPriceCents : qty * s.cents
               return (
                 <div key={s.id} className="flex justify-between gap-4 text-sm">
                   <span className="text-gray-400 shrink-0">
@@ -333,7 +347,7 @@ export function BookingForm() {
                 <span className="text-2xl shrink-0">🏷️</span>
                 <div>
                   <p className="font-extrabold text-sm leading-tight">Limited-Time Promotion</p>
-                  <p className="text-white/80 text-xs">Every comforter — any size — just <strong className="text-white">$33</strong></p>
+                  <p className="text-white/80 text-xs">Every comforter — any size — just <strong className="text-white">${(promoPriceCents / 100).toFixed(0)}</strong></p>
                 </div>
               </div>
             )}
@@ -345,11 +359,11 @@ export function BookingForm() {
 
             {/* Per-size tiles with individual counters */}
             <div className="grid grid-cols-2 gap-3">
-              {COMFORTER_SIZES.map((s) => {
+              {comforterSizes.map((s) => {
                 const qty = quantities[s.id as SizeId]
                 const isSelected = qty > 0
                 const origPrice = `$${(s.cents / 100).toFixed(0)}`
-                const promoSavings = s.cents > PROMO_PRICE_CENTS
+                const promoSavings = s.cents > promoPriceCents
 
                 return (
                   <div key={s.id}
@@ -364,7 +378,7 @@ export function BookingForm() {
                         {promoActive ? (
                           <div className="flex items-center gap-1.5 justify-end">
                             <span className="text-xs line-through text-red-400 font-semibold">{origPrice}</span>
-                            <span className="font-extrabold text-sm text-[#E8726A]">$33</span>
+                            <span className="font-extrabold text-sm text-[#E8726A]">${(promoPriceCents / 100).toFixed(0)}</span>
                             {promoSavings && (
                               <span className="text-[9px] bg-green-100 text-green-700 font-bold px-1 py-0.5 rounded">SAVE</span>
                             )}
@@ -590,7 +604,7 @@ export function BookingForm() {
               {/* Per-size breakdown */}
               {selectedSizes.map(s => {
                 const qty = quantities[s.id as SizeId]
-                const linePrice = promoActive ? qty * PROMO_PRICE_CENTS : qty * s.cents
+                const linePrice = promoActive ? qty * promoPriceCents : qty * s.cents
                 return (
                   <div key={s.id} className="flex justify-between gap-4">
                     <span className="text-gray-400 shrink-0 flex items-center gap-1.5">

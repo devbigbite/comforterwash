@@ -11,10 +11,12 @@ import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
+import { getPricingConfig } from "@/app/actions/pricing"
+import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { useLang } from "@/components/lang-provider"
 
-const PRICE_PER_LB = 199  // $1.99 in cents
-const MIN_POUNDS = 20
+let PRICE_PER_LB = 199  // $1.99 in cents — overwritten on mount
+let MIN_POUNDS = 20
 const LBS_PER_BAG = 15
 
 function bagsToEstLbs(bags: number) {
@@ -24,13 +26,6 @@ function bagsToEstLbs(bags: number) {
 const TIME_WINDOWS = [
   { value: "9am-1pm", label: "9am – 1pm" },
   { value: "3pm-7pm", label: "3pm – 7pm" },
-]
-
-const DETERGENT_OPTIONS = [
-  { id: "standard", label: "Our Standard Detergent", note: "Included · fresh-scented" },
-  { id: "tide", label: "Tide", note: "Popular choice" },
-  { id: "gain", label: "Gain", note: "Fresh floral scent" },
-  { id: "fragrance_free", label: "Fragrance-Free / Hypoallergenic", note: "Great for sensitive skin" },
 ]
 
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -120,28 +115,52 @@ export function WashOnlyForm() {
     deliveryTimeWindow: "",
     numBags: 2,
     pounds: bagsToEstLbs(2),
-    detergent: "standard",
-    fabricSoftener: false,
+    detergentId: "" as string,
+    selectedExtras: {} as Record<string, boolean>,
     signature: "",
     agreedToTerms: false,
     smsConsent: false,
   })
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
+  const [priceCents, setPriceCents] = useState(PRICE_PER_LB)
+  const [minLbs, setMinLbs] = useState(MIN_POUNDS)
+  const [detergentOptions, setDetergentOptions] = useState<ServiceOption[]>([])
+  const [extraOptions, setExtraOptions] = useState<ServiceOption[]>([])
 
   useEffect(() => {
     getExcludedDates().then(dates => setExcludedDates(new Set(dates)))
+    getPricingConfig().then(cfg => {
+      PRICE_PER_LB = cfg.washOnlyCents
+      MIN_POUNDS = cfg.washOnlyMinLbs
+      setPriceCents(cfg.washOnlyCents)
+      setMinLbs(cfg.washOnlyMinLbs)
+    })
+    Promise.all([getServiceOptions("detergent"), getServiceOptions("extra")]).then(([dets, exts]) => {
+      setDetergentOptions(dets)
+      setExtraOptions(exts)
+      if (dets.length > 0) setFormData(f => ({ ...f, detergentId: dets[0].id }))
+      if (exts.length > 0) {
+        const init: Record<string, boolean> = {}
+        exts.forEach(e => { init[e.id] = false })
+        setFormData(f => ({ ...f, selectedExtras: init }))
+      }
+    })
   }, [])
 
   const isExcluded = (d: Date) => excludedDates.has(d.toISOString().split("T")[0])
 
-  const subtotalCents = Math.max(formData.pounds * PRICE_PER_LB, MIN_POUNDS * PRICE_PER_LB)
+  const selectedDetergent = detergentOptions.find(d => d.id === formData.detergentId)
+  const selectedExtrasList = extraOptions.filter(e => formData.selectedExtras[e.id])
+  const extrasCents = (selectedDetergent?.price_cents ?? 0) + selectedExtrasList.reduce((s, e) => s + e.price_cents, 0)
+  const baseCents = Math.max(formData.pounds * priceCents, minLbs * priceCents)
+  const subtotalCents = baseCents + extrasCents
   const discountCents = promo ? Math.min(promo.discountCents, subtotalCents) : 0
   const totalCents = subtotalCents - discountCents
   const preAuthCents = Math.ceil(totalCents * 1.25)
   const totalDisplay = (totalCents / 100).toFixed(2)
 
-  const priceLabel = "$1.99/lb"
+  const priceLabel = `$${(priceCents / 100).toFixed(2)}/lb`
 
   const isPickupAvailable = (d: Date) => { const day = d.getDay(); return (day === 1 || day === 2 || day === 3) && !isExcluded(d) }
   const isDeliveryAvailable = (d: Date) => {
@@ -167,10 +186,11 @@ export function WashOnlyForm() {
             <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">{tw.orderSummary}</h3>
             {[
               { label: tf.labelService, value: "Wash Only (no folding)" },
-              { label: tf.labelRate, value: "$1.99/lb" },
+              { label: tf.labelRate, value: priceLabel },
               { label: tf.labelBags, value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
               { label: tf.labelEstWeight, value: `~${formData.pounds} lbs` },
-              { label: tw.detergentLabel, value: DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? "" },
+              { label: tw.detergentLabel, value: selectedDetergent?.name ?? "" },
+              ...(selectedExtrasList.length > 0 ? [{ label: tf.labelExtras ?? "Extras", value: selectedExtrasList.map(e => e.name).join(", ") }] : []),
               { label: tf.labelPickup, value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
               { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
               { label: tf.labelAddress, value: formData.address },
@@ -204,12 +224,13 @@ export function WashOnlyForm() {
               smsConsent: formData.smsConsent.toString(),
               serviceType: "wash_only",
               subscriptionFrequency: "one_time",
-              pricePerLbCents: String(PRICE_PER_LB),
+              pricePerLbCents: String(priceCents),
               pounds: String(formData.pounds),
               numBags: String(formData.numBags),
               numComforters: "0",
-              detergent: formData.detergent,
-              fabricSoftener: formData.fabricSoftener.toString(),
+              detergent: selectedDetergent?.name ?? "",
+              extras: selectedExtrasList.map(e => e.name).join(", "),
+              extrasCents: String(extrasCents),
               promoCode: promo?.code ?? "",
               promoDiscountCents: String(discountCents),
             }}
@@ -292,7 +313,7 @@ export function WashOnlyForm() {
                 <div className="text-right">
                   <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">{tf.preAuthEst}</p>
                   <p className="text-2xl font-extrabold text-[#E8726A]">${totalDisplay}</p>
-                  <p className="text-xs text-gray-400">at $1.99/lb</p>
+                  <p className="text-xs text-gray-400">at {priceLabel}</p>
                 </div>
               </div>
             </div>
@@ -334,34 +355,50 @@ export function WashOnlyForm() {
               <p className="text-sm text-gray-400">{two.clothesWashedNote}</p>
             </div>
             <div className="space-y-2">
-              {DETERGENT_OPTIONS.map((opt) => (
+              {detergentOptions.map((opt) => (
                 <label key={opt.id}
                   className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
-                    formData.detergent === opt.id ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                    formData.detergentId === opt.id ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
                   <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                    formData.detergent === opt.id ? "border-[#E8726A] bg-[#E8726A]" : "border-gray-300")}>
-                    {formData.detergent === opt.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                    formData.detergentId === opt.id ? "border-[#E8726A] bg-[#E8726A]" : "border-gray-300")}>
+                    {formData.detergentId === opt.id && <div className="w-2 h-2 rounded-full bg-white" />}
                   </div>
                   <input type="radio" className="sr-only" name="detergent" value={opt.id}
-                    checked={formData.detergent === opt.id}
-                    onChange={() => setFormData(p => ({ ...p, detergent: opt.id }))} />
+                    checked={formData.detergentId === opt.id}
+                    onChange={() => setFormData(p => ({ ...p, detergentId: opt.id }))} />
                   <div className="flex-1">
-                    <p className="font-semibold text-[#0D2240] text-sm">{opt.label}</p>
-                    <p className="text-xs text-gray-400">{opt.note}</p>
+                    <p className="font-semibold text-[#0D2240] text-sm">{opt.name}</p>
+                    <p className="text-xs text-gray-400">{opt.description}</p>
                   </div>
-                  {opt.id === "standard" && <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>}
+                  {opt.price_cents === 0
+                    ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
+                    : <span className="text-[10px] font-bold text-[#0D2240] bg-[#0D2240]/10 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}</span>
+                  }
                 </label>
               ))}
             </div>
-            <label className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
-              formData.fabricSoftener ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
-              <Checkbox checked={formData.fabricSoftener} onCheckedChange={(c) => setFormData(p => ({ ...p, fabricSoftener: c as boolean }))} className="shrink-0" />
-              <span className="text-xl shrink-0">🌸</span>
-              <div>
-                <p className="font-semibold text-[#0D2240] text-sm">{tf.fabricSoftenerLabel}</p>
-                <p className="text-xs text-gray-400">{tf.fabricSoftenerWashDesc}</p>
+            {extraOptions.length > 0 && (
+              <div className="space-y-2">
+                {extraOptions.map((opt) => (
+                  <label key={opt.id} className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                    formData.selectedExtras[opt.id] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                    <Checkbox
+                      checked={!!formData.selectedExtras[opt.id]}
+                      onCheckedChange={(c) => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [opt.id]: c as boolean } }))}
+                      className="shrink-0"
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-[#0D2240] text-sm">{opt.name}</p>
+                      <p className="text-xs text-gray-400">{opt.description}</p>
+                    </div>
+                    {opt.price_cents === 0
+                      ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
+                      : <span className="text-[10px] font-bold text-[#0D2240] bg-[#0D2240]/10 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}</span>
+                    }
+                  </label>
+                ))}
               </div>
-            </label>
+            )}
             <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>{tf.back}</Button>
               <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]" onClick={() => setStep(3)}>
@@ -422,10 +459,11 @@ export function WashOnlyForm() {
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[
                 { label: tf.labelService, value: "Wash Only (no folding)" },
-                { label: tf.labelRate, value: "$1.99/lb" },
+                { label: tf.labelRate, value: priceLabel },
                 { label: tf.labelEstWeight, value: `~${formData.pounds} lbs` },
                 { label: tf.labelBags, value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
-                { label: tw.detergentLabel, value: DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? "" },
+                { label: tw.detergentLabel, value: selectedDetergent?.name ?? "" },
+                ...(selectedExtrasList.length > 0 ? [{ label: tf.labelExtras ?? "Extras", value: selectedExtrasList.map(e => e.name).join(", ") }] : []),
                 { label: tf.labelPickup, value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
                 { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
                 { label: tf.labelAddress, value: formData.address },
