@@ -5,20 +5,17 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format } from "date-fns"
-import { CalendarIcon, Info } from "lucide-react"
+import { Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 
-const PRICE_PER_COMFORTER = 2900 // $29.00 in cents
+const PRICE_PER_COMFORTER = 2900
 
 const TIME_WINDOWS = [
-  { value: "9am-1pm", label: "9:00 AM – 1:00 PM" },
-  { value: "3pm-7pm", label: "3:00 PM – 7:00 PM" },
+  { value: "9am-1pm", label: "9am – 1pm" },
+  { value: "3pm-7pm", label: "3pm – 7pm" },
 ]
 
 const STEPS = [
@@ -27,22 +24,127 @@ const STEPS = [
   { id: 3, label: "Confirm" },
 ]
 
-/** Returns the earliest valid Mon/Tue/Wed that is ≥72h after the pickup date */
+const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+
 function getEarliestDelivery(pickup: Date): Date {
   const d = new Date(pickup)
-  d.setHours(d.getHours() + 72)
-  // Advance to next Mon/Tue/Wed (days 1, 2, 3)
-  while ([0, 4, 5, 6].includes(d.getDay())) {
-    d.setDate(d.getDate() + 1)
-  }
+  d.setDate(d.getDate() + 3)
+  while ([0, 4, 5, 6].includes(d.getDay())) d.setDate(d.getDate() + 1)
   return d
 }
 
-function isValidDeliveryDay(date: Date) {
-  const day = date.getDay()
-  return day === 1 || day === 2 || day === 3
+// ── Horizontal date strip ────────────────────────────────────────────────────
+function DateStrip({
+  label,
+  sublabel,
+  selected,
+  onSelect,
+  isAvailable,
+}: {
+  label: string
+  sublabel?: string
+  selected: Date | undefined
+  onSelect: (d: Date) => void
+  isAvailable: (d: Date) => boolean
+}) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // Show 28 days starting tomorrow
+  const dates = Array.from({ length: 28 }, (_, i) => {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i + 1)
+    return d
+  })
+
+  function isSameDay(a: Date, b: Date) {
+    return a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
+  }
+
+  function dayHint(d: Date) {
+    const diff = Math.round((d.getTime() - today.getTime()) / 86400000)
+    if (diff === 1) return "tomorrow"
+    return ""
+  }
+
+  return (
+    <div>
+      <div className="flex items-baseline gap-2 mb-3">
+        <span className="font-bold text-[#0D2240] text-sm">{label}</span>
+        {sublabel && <span className="text-xs text-gray-400">{sublabel}</span>}
+      </div>
+      <div className="overflow-x-auto pb-1 -mx-1 scrollbar-thin">
+        <div className="flex gap-2 px-1 w-max">
+          {dates.map((d, i) => {
+            const avail = isAvailable(d)
+            const sel = !!selected && isSameDay(d, selected)
+            const hint = dayHint(d)
+            return (
+              <button
+                key={i}
+                type="button"
+                disabled={!avail}
+                onClick={() => onSelect(d)}
+                className={cn(
+                  "flex flex-col items-center justify-center w-[62px] rounded-2xl border-2 py-2.5 transition-all shrink-0",
+                  sel
+                    ? "bg-[#E8726A] border-[#E8726A] text-white shadow-md"
+                    : avail
+                    ? "bg-white border-gray-200 text-[#0D2240] hover:border-[#E8726A] hover:shadow-sm cursor-pointer"
+                    : "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
+                )}
+              >
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", sel ? "text-white/80" : avail ? "text-gray-400" : "text-gray-300")}>
+                  {DAY_ABBR[d.getDay()]}
+                </span>
+                <span className={cn("text-xl font-extrabold leading-tight my-0.5", sel ? "text-white" : avail ? "text-[#0D2240]" : "text-gray-300")}>
+                  {d.getDate()}
+                </span>
+                <span className={cn("text-[10px] font-bold uppercase", sel ? "text-white/70" : avail ? "text-gray-400" : "text-gray-300")}>
+                  {MON_ABBR[d.getMonth()]}
+                </span>
+                {hint && (
+                  <span className={cn("text-[9px] mt-0.5 font-medium", sel ? "text-white/60" : "text-[#E8726A]")}>
+                    {hint}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
 }
 
+// ── Time slot pill picker ────────────────────────────────────────────────────
+function TimeSlotPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <p className="text-xs text-center text-gray-400 mb-3 mt-4">Available time slots</p>
+      <div className="flex gap-2 justify-center flex-wrap">
+        {TIME_WINDOWS.map((w) => (
+          <button
+            key={w.value}
+            type="button"
+            onClick={() => onChange(w.value)}
+            className={cn(
+              "px-6 py-2.5 rounded-xl font-bold text-sm transition-all",
+              value === w.value
+                ? "bg-[#E8726A] text-white shadow-sm"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            )}
+          >
+            {w.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Main form ────────────────────────────────────────────────────────────────
 export function BookingForm() {
   const [step, setStep] = useState<1 | 2 | 3 | "payment">(1)
   const [formData, setFormData] = useState({
@@ -63,17 +165,31 @@ export function BookingForm() {
   const totalPrice = formData.comforterCount * PRICE_PER_COMFORTER
   const totalDisplay = (totalPrice / 100).toFixed(2)
 
-  const handlePickupSelect = (date: Date | undefined) => {
-    if (!date) return
-    const suggestedDelivery = getEarliestDelivery(date)
-    setFormData((prev) => ({ ...prev, pickupDate: date, deliveryDate: suggestedDelivery }))
+  const handlePickupSelect = (date: Date) => {
+    const suggested = getEarliestDelivery(date)
+    setFormData((p) => ({ ...p, pickupDate: date, deliveryDate: suggested, deliveryTimeWindow: p.deliveryTimeWindow }))
+  }
+
+  const isPickupAvailable = (d: Date) => {
+    const day = d.getDay()
+    return day === 1 || day === 2 || day === 3
+  }
+
+  const isDeliveryAvailable = (d: Date) => {
+    const day = d.getDay()
+    if (day !== 1 && day !== 2 && day !== 3) return false
+    if (formData.pickupDate) {
+      const min = new Date(formData.pickupDate)
+      min.setDate(min.getDate() + 3)
+      min.setHours(0, 0, 0, 0)
+      return d >= min
+    }
+    return true
   }
 
   const canProceedStep1 =
-    !!formData.pickupDate &&
-    !!formData.deliveryDate &&
-    !!formData.pickupTimeWindow &&
-    !!formData.deliveryTimeWindow
+    !!formData.pickupDate && !!formData.deliveryDate &&
+    !!formData.pickupTimeWindow && !!formData.deliveryTimeWindow
 
   const canProceedStep2 =
     !!formData.name && !!formData.email && !!formData.phone && !!formData.address
@@ -81,33 +197,13 @@ export function BookingForm() {
   const canProceedStep3 =
     formData.agreedToTerms && formData.smsConsent && formData.signature.trim().length > 0
 
-  const handleProceedToPayment = () => {
-    if (!formData.pickupDate || !formData.deliveryDate) return
-
-    const dayOfWeek = formData.deliveryDate.getDay()
-    if (dayOfWeek !== 1 && dayOfWeek !== 2 && dayOfWeek !== 3) {
-      alert("Delivery is only available on Mondays, Tuesdays, and Wednesdays")
-      return
-    }
-    const hoursDiff =
-      (formData.deliveryDate.getTime() - formData.pickupDate.getTime()) / (1000 * 60 * 60)
-    if (hoursDiff < 72) {
-      alert("Delivery date must be at least 72 hours after pickup date")
-      return
-    }
-
-    setStep("payment")
-  }
-
-  // ── Payment screen ──
+  // ── Payment screen ──────────────────────────────────────────────────────
   if (step === "payment") {
     return (
       <Card className="shadow-lg border-0 ring-1 ring-gray-100">
         <CardContent className="pt-6 space-y-5">
-          <div className="rounded-xl bg-[#f0f6ff] p-4 space-y-2.5">
-            <h3 className="font-bold text-[#1e3a8a] text-sm uppercase tracking-wide mb-3">
-              Booking Summary
-            </h3>
+          <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5">
+            <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">Booking Summary</h3>
             {[
               { label: "Name", value: formData.name },
               {
@@ -123,19 +219,16 @@ export function BookingForm() {
                   : "",
               },
               { label: "Address", value: formData.address },
-              {
-                label: "Comforters",
-                value: `${formData.comforterCount} × $29.00`,
-              },
+              { label: "Comforters", value: `${formData.comforterCount} × $29.00` },
             ].map((row) => (
               <div key={row.label} className="flex justify-between gap-4 text-sm">
                 <span className="text-gray-400 shrink-0">{row.label}</span>
-                <span className="font-medium text-[#1e3a8a] text-right">{row.value}</span>
+                <span className="font-medium text-[#0D2240] text-right">{row.value}</span>
               </div>
             ))}
-            <div className="border-t border-[#1e3a8a]/10 pt-2.5 flex justify-between font-extrabold text-base">
-              <span className="text-[#1e3a8a]">Total</span>
-              <span className="text-[#1e3a8a]">${totalDisplay}</span>
+            <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
+              <span className="text-[#0D2240]">Total</span>
+              <span className="text-[#E8726A]">${totalDisplay}</span>
             </div>
           </div>
 
@@ -156,19 +249,18 @@ export function BookingForm() {
               smsConsent: formData.smsConsent.toString(),
             }}
           />
-          <Button
-            variant="ghost"
-            className="w-full text-gray-400 hover:text-gray-600"
+          <button
+            className="w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors"
             onClick={() => setStep(3)}
           >
             ← Back to review
-          </Button>
+          </button>
         </CardContent>
       </Card>
     )
   }
 
-  // ── Step wizard ──
+  // ── Step wizard ─────────────────────────────────────────────────────────
   return (
     <Card className="shadow-lg border-0 ring-1 ring-gray-100">
       <CardContent className="pt-6">
@@ -182,232 +274,138 @@ export function BookingForm() {
                   className={cn(
                     "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all",
                     step === s.id
-                      ? "bg-[#1e3a8a] text-white ring-4 ring-[#1e3a8a]/20"
+                      ? "bg-[#0D2240] text-white ring-4 ring-[#0D2240]/15"
                       : (step as number) > s.id
-                      ? "bg-[#67e8f9] text-[#1e3a8a]"
+                      ? "bg-[#E8726A] text-white"
                       : "bg-gray-100 text-gray-400"
                   )}
                 >
                   {(step as number) > s.id ? "✓" : s.id}
                 </div>
-                <span
-                  className={cn(
-                    "text-[10px] font-semibold uppercase tracking-wide hidden sm:block",
-                    step === s.id ? "text-[#1e3a8a]" : "text-gray-300"
-                  )}
-                >
+                <span className={cn("text-[10px] font-semibold uppercase tracking-wide hidden sm:block",
+                  step === s.id ? "text-[#0D2240]" : "text-gray-300")}>
                   {s.label}
                 </span>
               </div>
               {i < STEPS.length - 1 && (
-                <div
-                  className={cn(
-                    "flex-1 h-0.5 mx-2 mb-4 transition-colors",
-                    (step as number) > s.id ? "bg-[#67e8f9]" : "bg-gray-100"
-                  )}
-                />
+                <div className={cn("flex-1 h-0.5 mx-2 mb-4 transition-colors",
+                  (step as number) > s.id ? "bg-[#E8726A]" : "bg-gray-100")} />
               )}
             </div>
           ))}
         </div>
 
-        {/* ── STEP 1: Service Details ── */}
+        {/* ── STEP 1: Service + Dates ── */}
         {step === 1 && (
-          <div className="space-y-6">
+          <div className="space-y-7">
             <div>
-              <h3 className="text-xl font-extrabold text-[#1e3a8a] mb-1">How many comforters?</h3>
-              <p className="text-sm text-gray-400">$29 each · any size · free premium bag included</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">How many comforters?</h3>
+              <p className="text-sm text-gray-400">$29 each · any size · free bag included</p>
             </div>
 
             {/* Counter */}
-            <div className="flex items-center justify-center gap-6 py-2">
+            <div className="flex items-center justify-center gap-6 py-1">
               <button
                 type="button"
-                onClick={() =>
-                  setFormData((p) => ({ ...p, comforterCount: Math.max(1, p.comforterCount - 1) }))
-                }
+                onClick={() => setFormData((p) => ({ ...p, comforterCount: Math.max(1, p.comforterCount - 1) }))}
                 disabled={formData.comforterCount <= 1}
-                className="w-12 h-12 rounded-full border-2 border-[#1e3a8a] text-[#1e3a8a] font-bold text-2xl flex items-center justify-center disabled:opacity-25 hover:bg-[#1e3a8a] hover:text-white transition-colors"
-                aria-label="Remove comforter"
+                className="w-11 h-11 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors"
               >
                 −
               </button>
-              <div className="text-center min-w-[80px]">
-                <div className="text-6xl font-extrabold text-[#1e3a8a] leading-none tabular-nums">
+              <div className="text-center min-w-[70px]">
+                <div className="text-5xl font-extrabold text-[#0D2240] leading-none tabular-nums">
                   {formData.comforterCount}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">
+                <div className="text-xs text-gray-400 mt-1">
                   comforter{formData.comforterCount > 1 ? "s" : ""}
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  setFormData((p) => ({ ...p, comforterCount: p.comforterCount + 1 }))
-                }
-                className="w-12 h-12 rounded-full border-2 border-[#1e3a8a] text-[#1e3a8a] font-bold text-2xl flex items-center justify-center hover:bg-[#1e3a8a] hover:text-white transition-colors"
-                aria-label="Add comforter"
+                onClick={() => setFormData((p) => ({ ...p, comforterCount: p.comforterCount + 1 }))}
+                className="w-11 h-11 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors"
               >
                 +
               </button>
             </div>
 
-            {/* Price display */}
-            <div className="bg-[#f0f6ff] rounded-xl p-4 flex items-center justify-between">
-              <span className="text-[#1e3a8a] font-semibold text-sm">
-                {formData.comforterCount} × $29.00
-              </span>
-              <span className="text-2xl font-extrabold text-[#1e3a8a]">${totalDisplay}</span>
+            {/* Price */}
+            <div className="bg-[#fdf6f5] rounded-xl p-4 flex items-center justify-between">
+              <span className="text-[#0D2240]/60 font-medium text-sm">{formData.comforterCount} × $29.00</span>
+              <span className="text-2xl font-extrabold text-[#E8726A]">${totalDisplay}</span>
             </div>
 
-            {/* Care label info — collapsed by default, no friction */}
+            {/* Care label note */}
             <details className="group">
-              <summary className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#1e3a8a] transition-colors cursor-pointer list-none">
+              <summary className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#0D2240] transition-colors cursor-pointer list-none">
                 <Info className="h-3.5 w-3.5 shrink-0" />
                 <span className="font-medium">What types of comforters can we wash?</span>
-                <span className="ml-auto text-xs text-gray-300">tap to expand</span>
+                <span className="ml-auto text-xs text-gray-300 group-open:hidden">tap</span>
               </summary>
-              <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm space-y-2">
-                <p className="font-semibold text-amber-700">Quick check: look at your care label.</p>
-                <p className="text-amber-600 text-xs leading-relaxed">
-                  We wash in cold/warm water and tumble dry. We <strong>cannot</strong> process items
-                  labeled "Do Not Tumble Dry," "Hang Dry," or "Dry Clean Only," weighted comforters,
-                  fuzzy comforters, or featherbeds. Every comforter must have a care label.
-                </p>
+              <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-4 text-xs text-amber-700 leading-relaxed space-y-1.5">
+                <p className="font-semibold">Check your care label before booking.</p>
+                <p>We wash in cold/warm water and tumble dry. We <strong>cannot</strong> process items labeled "Dry Clean Only," "Do Not Tumble Dry," weighted comforters, or featherbeds. Every comforter must have a care label.</p>
               </div>
             </details>
 
-            {/* Dates */}
-            <div className="space-y-4 pt-2">
-              {/* Pickup date */}
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-[#1e3a8a] text-sm">
-                  Pickup Date
-                  <span className="ml-1.5 text-gray-400 font-normal text-xs">Mon–Wed only</span>
-                </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start font-normal h-12 border-gray-200 hover:border-[#1e3a8a] transition-colors text-sm",
-                        !formData.pickupDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-[#1e3a8a]" />
-                      {formData.pickupDate
-                        ? format(formData.pickupDate, "EEEE, MMMM d")
-                        : "Choose pickup date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.pickupDate}
-                      onSelect={handlePickupSelect}
-                      disabled={(date) => {
-                        if (date < new Date()) return true
-                        const d = date.getDay()
-                        return d !== 1 && d !== 2 && d !== 3
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Pickup time */}
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-[#1e3a8a] text-sm">Pickup Time</Label>
-                <Select
-                  value={formData.pickupTimeWindow}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, pickupTimeWindow: v }))}
-                >
-                  <SelectTrigger className="h-12 border-gray-200 hover:border-[#1e3a8a] text-sm">
-                    <SelectValue placeholder="Choose time window" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_WINDOWS.map((w) => (
-                      <SelectItem key={w.value} value={w.value}>
-                        {w.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Delivery date */}
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-[#1e3a8a] text-sm">
-                  Delivery Date
-                  <span className="ml-1.5 text-gray-400 font-normal text-xs">
-                    Mon–Wed · 72hrs after pickup
-                  </span>
-                </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start font-normal h-12 border-gray-200 hover:border-[#1e3a8a] transition-colors text-sm",
-                        !formData.deliveryDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-[#1e3a8a]" />
-                      {formData.deliveryDate
-                        ? format(formData.deliveryDate, "EEEE, MMMM d")
-                        : "Choose delivery date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.deliveryDate}
-                      onSelect={(date) => setFormData((p) => ({ ...p, deliveryDate: date }))}
-                      disabled={(date) => {
-                        if (date < new Date()) return true
-                        if (!isValidDeliveryDay(date)) return true
-                        if (formData.pickupDate) {
-                          const min = new Date(formData.pickupDate)
-                          min.setHours(min.getHours() + 72)
-                          return date < min
-                        }
-                        return false
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                {formData.pickupDate && formData.deliveryDate && (
-                  <p className="text-xs text-[#67e8f9] font-medium">
-                    ✓ Delivery auto-suggested based on your pickup date
-                  </p>
+            <div className="space-y-6 border-t border-gray-100 pt-6">
+              {/* Pickup section */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">1</span>
+                  <h4 className="font-bold text-[#0D2240] text-sm">Pickup Date &amp; Time</h4>
+                  <span className="text-xs text-gray-400">— Mon, Tue, Wed only</span>
+                </div>
+                <p className="text-xs text-gray-400 mb-4 ml-6.5">When would you like your pickup?</p>
+                <DateStrip
+                  label=""
+                  selected={formData.pickupDate}
+                  onSelect={handlePickupSelect}
+                  isAvailable={isPickupAvailable}
+                />
+                {formData.pickupDate && (
+                  <TimeSlotPicker
+                    value={formData.pickupTimeWindow}
+                    onChange={(v) => setFormData((p) => ({ ...p, pickupTimeWindow: v }))}
+                  />
                 )}
               </div>
 
-              {/* Delivery time */}
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-[#1e3a8a] text-sm">Delivery Time</Label>
-                <Select
-                  value={formData.deliveryTimeWindow}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, deliveryTimeWindow: v }))}
-                >
-                  <SelectTrigger className="h-12 border-gray-200 hover:border-[#1e3a8a] text-sm">
-                    <SelectValue placeholder="Choose time window" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_WINDOWS.map((w) => (
-                      <SelectItem key={w.value} value={w.value}>
-                        {w.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Delivery section */}
+              {formData.pickupDate && formData.pickupTimeWindow && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                    <h4 className="font-bold text-[#0D2240] text-sm">Delivery Date &amp; Time</h4>
+                    <span className="text-xs text-gray-400">— 72hrs after pickup</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-4">
+                    When would you like your delivery?
+                    {formData.deliveryDate && (
+                      <span className="text-[#E8726A] font-medium ml-1">
+                        (suggested: {format(formData.deliveryDate, "EEE, MMM d")})
+                      </span>
+                    )}
+                  </p>
+                  <DateStrip
+                    label=""
+                    selected={formData.deliveryDate}
+                    onSelect={(d) => setFormData((p) => ({ ...p, deliveryDate: d }))}
+                    isAvailable={isDeliveryAvailable}
+                  />
+                  {formData.deliveryDate && (
+                    <TimeSlotPicker
+                      value={formData.deliveryTimeWindow}
+                      onChange={(v) => setFormData((p) => ({ ...p, deliveryTimeWindow: v }))}
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
             <Button
-              className="w-full h-12 text-base font-bold bg-[#1e3a8a] hover:bg-[#1d4ed8] mt-2"
+              className="w-full h-12 text-base font-bold bg-[#0D2240] hover:bg-[#1a3a5c] mt-2"
               disabled={!canProceedStep1}
               onClick={() => setStep(2)}
             >
@@ -420,62 +418,34 @@ export function BookingForm() {
         {step === 2 && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-extrabold text-[#1e3a8a] mb-1">Where should we go?</h3>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Where should we go?</h3>
               <p className="text-sm text-gray-400">Pickup and delivery to the same address</p>
             </div>
 
             <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-[#1e3a8a] text-sm">Full Name</Label>
-                <Input
-                  placeholder="Jane Smith"
-                  value={formData.name}
-                  onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-                  className="h-12 border-gray-200 focus:border-[#1e3a8a] text-sm"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-[#1e3a8a] text-sm">Email</Label>
-                <Input
-                  type="email"
-                  placeholder="jane@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
-                  className="h-12 border-gray-200 focus:border-[#1e3a8a] text-sm"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-[#1e3a8a] text-sm">Phone</Label>
-                <Input
-                  type="tel"
-                  placeholder="(407) 555-0100"
-                  value={formData.phone}
-                  onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
-                  className="h-12 border-gray-200 focus:border-[#1e3a8a] text-sm"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-[#1e3a8a] text-sm">
-                  Pickup &amp; Delivery Address
-                </Label>
-                <Input
-                  placeholder="123 Oak Street, Orlando FL 32801"
-                  value={formData.address}
-                  onChange={(e) => setFormData((p) => ({ ...p, address: e.target.value }))}
-                  className="h-12 border-gray-200 focus:border-[#1e3a8a] text-sm"
-                />
-              </div>
+              {[
+                { label: "Full Name", key: "name", placeholder: "Jane Smith", type: "text" },
+                { label: "Email", key: "email", placeholder: "jane@example.com", type: "email" },
+                { label: "Phone", key: "phone", placeholder: "(407) 555-0100", type: "tel" },
+                { label: "Pickup & Delivery Address", key: "address", placeholder: "123 Oak St, Orlando FL 32827", type: "text" },
+              ].map(({ label, key, placeholder, type }) => (
+                <div key={key} className="space-y-1.5">
+                  <Label className="font-semibold text-[#0D2240] text-sm">{label}</Label>
+                  <Input
+                    type={type}
+                    placeholder={placeholder}
+                    value={(formData as Record<string, unknown>)[key] as string}
+                    onChange={(e) => setFormData((p) => ({ ...p, [key]: e.target.value }))}
+                    className="h-12 border-gray-200 focus:border-[#E8726A] text-sm"
+                  />
+                </div>
+              ))}
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>
-                ← Back
-              </Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>← Back</Button>
               <Button
-                className="flex-[2] h-12 text-sm font-bold bg-[#1e3a8a] hover:bg-[#1d4ed8]"
+                className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
                 disabled={!canProceedStep2}
                 onClick={() => setStep(3)}
               >
@@ -489,12 +459,12 @@ export function BookingForm() {
         {step === 3 && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-extrabold text-[#1e3a8a] mb-1">Almost done!</h3>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Almost done!</h3>
               <p className="text-sm text-gray-400">Review your booking and sign below</p>
             </div>
 
             {/* Summary card */}
-            <div className="rounded-xl bg-[#f0f6ff] p-4 space-y-2.5 text-sm">
+            <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[
                 {
                   label: "Pickup",
@@ -513,99 +483,70 @@ export function BookingForm() {
               ].map((row) => (
                 <div key={row.label} className="flex justify-between gap-4">
                   <span className="text-gray-400 shrink-0">{row.label}</span>
-                  <span className="font-medium text-[#1e3a8a] text-right">{row.value}</span>
+                  <span className="font-medium text-[#0D2240] text-right">{row.value}</span>
                 </div>
               ))}
-              <div className="border-t border-[#1e3a8a]/10 pt-2.5 flex justify-between font-extrabold text-base">
-                <span className="text-[#1e3a8a]">Total</span>
-                <span className="text-[#1e3a8a]">${totalDisplay}</span>
+              <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
+                <span className="text-[#0D2240]">Total</span>
+                <span className="text-[#E8726A]">${totalDisplay}</span>
               </div>
             </div>
 
-            {/* Conditions — collapsed by default */}
+            {/* Conditions */}
             <details className="group">
-              <summary className="flex items-center justify-between cursor-pointer text-sm font-semibold text-[#1e3a8a] bg-gray-50 rounded-xl px-4 py-3 hover:bg-[#f0f6ff] transition-colors list-none">
+              <summary className="flex items-center justify-between cursor-pointer text-sm font-semibold text-[#0D2240] bg-gray-50 rounded-xl px-4 py-3 hover:bg-[#fdf6f5] transition-colors list-none">
                 <span>📋 Conditions of Service</span>
                 <span className="text-gray-400 text-xs font-normal">tap to read</span>
               </summary>
-              <div className="mt-2 rounded-xl border border-gray-100 bg-white p-4 max-h-52 overflow-y-auto text-xs text-gray-500 space-y-2.5 leading-relaxed">
-                <p>
-                  <strong>CONDITIONS:</strong> We exercise utmost care in processing articles entrusted
-                  to us and use such processes which, in our opinion, are best suited to the nature and
-                  condition of each individual article. Nevertheless, we cannot assume responsibility for
-                  inherent weaknesses of or defects in materials that are not readily apparent or
-                  identifiable prior to processing.
-                </p>
-                <p>
-                  Any visible stain will be pre-treated, but that is not a guarantee that any stain,
-                  dirt or blemish will be removed. Responsibility also is disclaimed for trimmings,
-                  buckles, beads, buttons, bells and sequins. In laundering we cannot guarantee against
-                  color loss and shrinkage, or against damage to weak and tender fabrics. Any claim must
-                  be reported and presented within 48 hours. Unless a list accompanied the bundle, our
-                  count must be accepted. The company&apos;s liability with respect to any lost or
-                  damaged article shall not exceed 5 times our charge for processing it. We are not
-                  responsible for unclaimed items within 72 hours of willful and clear effort to deliver
-                  the item(s) back to the owner.
-                </p>
-                <p>
-                  We will send applicable reminders and information regarding processing through SMS and
-                  Email.
-                </p>
+              <div className="mt-2 rounded-xl border border-gray-100 bg-white p-4 max-h-48 overflow-y-auto text-xs text-gray-500 space-y-2.5 leading-relaxed">
+                <p><strong>CONDITIONS:</strong> We exercise utmost care in processing articles entrusted to us and use such processes which, in our opinion, are best suited to the nature and condition of each individual article. Nevertheless, we cannot assume responsibility for inherent weaknesses of or defects in materials that are not readily apparent prior to processing.</p>
+                <p>Any visible stain will be pre-treated, but that is not a guarantee that any stain, dirt or blemish will be removed. Responsibility also is disclaimed for trimmings, buckles, beads, buttons, and sequins. In laundering we cannot guarantee against color loss and shrinkage, or against damage to weak and tender fabrics. Any claim must be reported within 48 hours. The company&apos;s liability with respect to any lost or damaged article shall not exceed 5 times our charge for processing it.</p>
+                <p>We will send applicable reminders and information regarding processing through SMS and Email.</p>
               </div>
             </details>
 
             {/* Agreements */}
             <div className="space-y-3">
-              <label className="flex items-start gap-3 cursor-pointer group">
+              <label className="flex items-start gap-3 cursor-pointer">
                 <Checkbox
                   checked={formData.agreedToTerms}
-                  onCheckedChange={(c) =>
-                    setFormData((p) => ({ ...p, agreedToTerms: c as boolean }))
-                  }
+                  onCheckedChange={(c) => setFormData((p) => ({ ...p, agreedToTerms: c as boolean }))}
                   className="mt-0.5 shrink-0"
                 />
                 <span className="text-sm text-gray-600 leading-relaxed">
                   I have read and agree to all Conditions of Service.
                 </span>
               </label>
-
-              <label className="flex items-start gap-3 cursor-pointer bg-[#f0f6ff] rounded-xl p-3">
+              <label className="flex items-start gap-3 cursor-pointer bg-[#fdf6f5] rounded-xl p-3">
                 <Checkbox
                   checked={formData.smsConsent}
-                  onCheckedChange={(c) =>
-                    setFormData((p) => ({ ...p, smsConsent: c as boolean }))
-                  }
+                  onCheckedChange={(c) => setFormData((p) => ({ ...p, smsConsent: c as boolean }))}
                   className="mt-0.5 shrink-0"
                 />
                 <span className="text-sm text-gray-600 leading-relaxed">
-                  <strong>I consent to SMS &amp; email updates</strong> for pickup/delivery
-                  notifications and service reminders at the contact info I provided.
+                  <strong>I consent to SMS &amp; email updates</strong> for pickup/delivery notifications at the contact info I provided.
                 </span>
               </label>
             </div>
 
             {/* Signature */}
             <div className="space-y-1.5">
-              <Label className="font-semibold text-[#1e3a8a] text-sm">Electronic Signature</Label>
+              <Label className="font-semibold text-[#0D2240] text-sm">Electronic Signature</Label>
               <Input
                 placeholder="Type your full name to sign"
                 value={formData.signature}
                 onChange={(e) => setFormData((p) => ({ ...p, signature: e.target.value }))}
-                className="h-12 font-serif text-lg italic border-gray-200 focus:border-[#1e3a8a]"
+                className="h-12 font-serif text-lg italic border-gray-200 focus:border-[#E8726A]"
               />
-              <p className="text-xs text-gray-400">
-                Typing your name constitutes a legal electronic signature.
-              </p>
+              <p className="text-xs text-gray-400">Typing your name constitutes a legal electronic signature.</p>
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>
-                ← Back
-              </Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>← Back</Button>
               <Button
-                className="flex-[2] h-12 text-sm font-bold bg-[#1e3a8a] hover:bg-[#1d4ed8]"
+                className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
                 disabled={!canProceedStep3}
-                onClick={handleProceedToPayment}
+                onClick={() => setStep("payment")}
               >
                 Proceed to Payment →
               </Button>
