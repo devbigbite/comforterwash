@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 
 interface WorkOrder {
   id: string
+  short_code: string | null
   customer_name: string
   service_type: string
   delivery_date: string
@@ -55,7 +56,7 @@ export default function OperatorHome() {
 
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, customer_name, service_type, delivery_date, status, num_bags, facility_processing_mode")
+        .select("id, short_code, customer_name, service_type, delivery_date, status, num_bags, facility_processing_mode")
         .in("id", bookingIds)
         .not("facility_processing_mode", "eq", "partner_attendant") // partner portal handles those
         .order("delivery_date")
@@ -70,6 +71,7 @@ export default function OperatorHome() {
         const mostAdvanced = [...statuses].sort((a, z) => STATUS_ORDER.indexOf(z) - STATUS_ORDER.indexOf(a))[0]
         return {
           id: b.id,
+          short_code: b.short_code ?? null,
           customer_name: b.customer_name,
           service_type: b.service_type,
           delivery_date: b.delivery_date,
@@ -87,20 +89,38 @@ export default function OperatorHome() {
   }, [])
 
   async function lookup() {
-    const cleaned = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
-    if (cleaned.length < 6) { setError("Enter at least 6 characters"); return }
+    const cleaned = code.trim().replace(/\D/g, "") // digits only
+    if (cleaned.length < 4) { setError("Enter at least 4 digits"); return }
     setLookupLoading(true)
     setError("")
     const supabase = createClient()
-    const { data } = await supabase
+    // Exact 6-digit match
+    const { data: byCode } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("short_code", cleaned)
+      .maybeSingle()
+    if (byCode) { router.push(`/operator/order/${byCode.id}`); return }
+    // Fallback prefix match for legacy orders
+    const { data: byId } = await supabase
       .from("bookings")
       .select("id")
       .ilike("id", `${cleaned}%`)
       .limit(1)
       .maybeSingle()
     setLookupLoading(false)
-    if (!data) { setError("Order not found."); return }
-    router.push(`/operator/order/${data.id}`)
+    if (!byId) { setError("Order not found. Check the number on the bag label."); return }
+    router.push(`/operator/order/${byId.id}`)
+  }
+
+  // Hidden input captures barcode scanner keystrokes (scanners type fast then send Enter)
+  function handleScannerInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 6)
+    setCode(digits)
+    setError("")
+  }
+  function handleScannerKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" && code.length >= 4) lookup()
   }
 
   return (
@@ -110,8 +130,28 @@ export default function OperatorHome() {
         <div className="w-16 h-16 rounded-3xl bg-[#E8726A] flex items-center justify-center text-3xl mx-auto mb-4">
           🏭
         </div>
-        <h1 className="text-3xl font-extrabold text-white mb-1">Operator</h1>
-        <p className="text-white/40 text-sm">Wash · Dry · Fold</p>
+        <h1 className="text-3xl font-extrabold text-white mb-1">Operator Station</h1>
+        <p className="text-white/50 text-sm">Laundry processing · Wash · Dry · Fold</p>
+      </div>
+
+      {/* Capability description */}
+      <div className="px-4 pb-4 max-w-sm mx-auto">
+        <div className="bg-white/8 rounded-2xl px-5 py-4 space-y-3">
+          <p className="text-white/70 text-xs font-bold uppercase tracking-widest">What you can do here</p>
+          <div className="space-y-2.5">
+            {[
+              { icon: "⚖️", text: "Enter actual bag weight — triggers final billing and captures pre-authorization" },
+              { icon: "🧺", text: "Track each bag through Washer → Dryer → Folded → Ready stages" },
+              { icon: "📋", text: "View all orders currently in process at this facility" },
+              { icon: "✅", text: "Mark orders ready for driver pickup when all bags are folded" },
+            ].map(({ icon, text }) => (
+              <div key={text} className="flex items-start gap-3">
+                <span className="text-base shrink-0 mt-0.5">{icon}</span>
+                <p className="text-white/50 text-xs leading-relaxed">{text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="px-4 space-y-4 pb-10 max-w-sm mx-auto">
@@ -148,7 +188,7 @@ export default function OperatorHome() {
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="text-white/60 font-mono text-xs">{o.id.slice(0, 8).toUpperCase()}</span>
+                      <span className="text-white/60 font-mono text-xs tracking-widest">{o.short_code ?? o.id.slice(0, 5).toUpperCase()}</span>
                       <p className="text-white/30 text-xs mt-0.5">Del: {o.delivery_date}</p>
                     </div>
                   </div>
@@ -159,35 +199,78 @@ export default function OperatorHome() {
         )}
 
         {!queueLoading && queue.length === 0 && (
-          <div className="text-center py-4">
-            <p className="text-white/30 text-sm">No bags at facility right now.</p>
-            <p className="text-white/20 text-xs mt-1">Use the lookup below to find an order by code.</p>
+          <div className="bg-white/5 rounded-2xl px-5 py-5 text-center">
+            <p className="text-2xl mb-2">🧺</p>
+            <p className="text-white/50 text-sm font-semibold">No bags at the facility right now.</p>
+            <p className="text-white/30 text-xs mt-1 leading-relaxed">
+              When a driver checks in bags, they&apos;ll appear here ready to process.<br />
+              Use the lookup below to find a specific order by its bag label code.
+            </p>
           </div>
         )}
 
-        {/* Manual lookup */}
+        {/* Manual lookup — custom numeric keypad */}
         <div className="bg-white rounded-3xl p-5 shadow-2xl">
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-            Look up by order code
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+            Find an order
           </label>
+
+          {/* Hidden input — captures barcode scanner without showing system keyboard */}
           <input
-            type="text"
-            value={code}
-            onChange={(e) => { setCode(e.target.value.toUpperCase()); setError("") }}
-            onKeyDown={(e) => e.key === "Enter" && lookup()}
-            placeholder="e.g. 6618649D"
-            className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-xl font-mono font-bold text-[#0D2240] text-center tracking-widest focus:outline-none focus:border-[#E8726A] transition-colors uppercase"
-            autoComplete="off"
-            autoCapitalize="characters"
-          />
-          {error && <p className="text-sm text-red-500 font-medium mt-2 text-center">{error}</p>}
+            type="text" aria-hidden="true" tabIndex={-1}
+            value={code} onChange={handleScannerInput} onKeyDown={handleScannerKey}
+            className="sr-only" autoComplete="off" />
+
+          {/* Display */}
+          <div className={`w-full rounded-2xl border-2 px-4 py-3 mb-1 text-center transition-colors ${error ? "border-red-300 bg-red-50" : code.length > 0 ? "border-[#E8726A]" : "border-gray-200"}`}>
+            {code.length > 0 ? (
+              <span className="text-3xl font-mono font-bold text-[#0D2240] tracking-[0.4em]">{code}</span>
+            ) : (
+              <span className="text-xl font-mono text-gray-300 tracking-widest">_ _ _ _ _ _</span>
+            )}
+          </div>
+          {error && <p className="text-sm text-red-500 font-medium mb-2 text-center">{error}</p>}
+
+          {/* Numeric keypad */}
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            {["1","2","3","4","5","6","7","8","9"].map(n => (
+              <button key={n} type="button"
+                onClick={() => { if (code.length < 6) { setCode(c => c + n); setError("") } }}
+                className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">
+                {n}
+              </button>
+            ))}
+            {/* Bottom row: clear, 0, backspace */}
+            <button type="button"
+              onClick={() => { setCode(""); setError("") }}
+              className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 active:bg-red-100 text-gray-400 font-bold text-sm transition-colors select-none">
+              CLR
+            </button>
+            <button type="button"
+              onClick={() => { if (code.length < 6) { setCode(c => c + "0"); setError("") } }}
+              className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">
+              0
+            </button>
+            <button type="button"
+              onClick={() => { setCode(c => c.slice(0, -1)); setError("") }}
+              className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 active:bg-amber-100 text-gray-500 font-bold text-xl transition-colors select-none">
+              ⌫
+            </button>
+          </div>
+
           <button
             onClick={lookup}
-            disabled={lookupLoading || code.length < 6}
-            className="w-full mt-3 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-3.5 rounded-2xl transition-colors"
-          >
+            disabled={lookupLoading || code.length < 4}
+            className="w-full mt-3 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors">
             {lookupLoading ? "Looking up…" : "Find Order →"}
           </button>
+
+          <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
+            <span className="text-sm mt-0.5">📷</span>
+            <p className="text-[11px] text-gray-400 leading-relaxed">
+              <strong className="text-gray-500">Using a barcode scanner?</strong> It will auto-fill the number and submit.
+            </p>
+          </div>
         </div>
 
         <div className="text-center">

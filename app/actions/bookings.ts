@@ -30,8 +30,12 @@ export interface BookingData {
 }
 
 function toDateString(val: string): string {
-  // Convert ISO timestamp or any date string to YYYY-MM-DD for the date column
   return new Date(val).toISOString().split("T")[0]
+}
+
+/** Generates a 6-digit numeric order code (100000–999999). Numeric-only = one keyboard on mobile. */
+function generateShortCode(): string {
+  return String(Math.floor(Math.random() * 900000) + 100000)
 }
 
 export async function createBooking(data: BookingData) {
@@ -48,6 +52,7 @@ export async function createBooking(data: BookingData) {
   const { data: booking, error } = await supabase
     .from("bookings")
     .insert({
+      short_code: generateShortCode(),
       customer_name: data.customerName,
       customer_email: data.customerEmail,
       customer_phone: data.customerPhone,
