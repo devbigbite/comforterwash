@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import PhotoUploader from "./photo-uploader"
+import LabelReference from "./label-reference"
 
 const BAG_STATUS_FLOW = ["pending", "picked_up", "at_facility", "in_washer", "in_dryer", "folded", "ready", "delivered"]
 
@@ -127,6 +128,14 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+        {/* Label reference — write on bags */}
+        <LabelReference
+          orderCode={orderCode}
+          customerName={booking.customer_name}
+          customerAddress={booking.customer_address ?? ""}
+          bags={(bags ?? []).map(b => ({ id: b.id, bag_number: b.bag_number, label_code: b.label_code }))}
+        />
+
         {/* Order summary strip */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div className="grid grid-cols-3 gap-3 text-center text-sm">
