@@ -2,6 +2,8 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { LangProvider } from "@/components/lang-provider"
+import type { Locale } from "@/lib/i18n"
 import "./globals.css"
 
 const inter = Inter({
@@ -19,13 +21,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
+  searchParams,
 }: Readonly<{
   children: React.ReactNode
+  searchParams?: { lang?: string }
 }>) {
+  const initialLocale: Locale =
+    searchParams?.lang === "es" ? "es" : "en"
+
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang={initialLocale} className={inter.variable}>
       <body className="font-sans antialiased">
-        {children}
+        <LangProvider initialLocale={initialLocale}>
+          {children}
+        </LangProvider>
         <Analytics />
       </body>
     </html>

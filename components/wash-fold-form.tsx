@@ -11,7 +11,12 @@ import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 
 const PRICE_PER_LB = 250   // $2.50 in cents
-const MIN_POUNDS = 8        // $20 minimum ÷ $2.50 = 8 lbs
+const MIN_POUNDS = 20       // 20 lb minimum
+const LBS_PER_BAG = 15      // ~15 lbs per standard laundry bag
+
+function bagsToEstLbs(bags: number) {
+  return Math.max(bags * LBS_PER_BAG, MIN_POUNDS)
+}
 
 const TIME_WINDOWS = [
   { value: "9am-1pm", label: "9am – 1pm" },
@@ -127,8 +132,8 @@ export function WashFoldForm() {
     deliveryDate: undefined as Date | undefined,
     pickupTimeWindow: "",
     deliveryTimeWindow: "",
-    pounds: MIN_POUNDS,
-    numBags: 1,
+    numBags: 2,
+    pounds: bagsToEstLbs(2),
     detergent: "standard",
     fabricSoftener: false,
     oxiClean: false,
@@ -138,7 +143,7 @@ export function WashFoldForm() {
     smsConsent: false,
   })
 
-  const totalCents = Math.max(formData.pounds * PRICE_PER_LB, 2000) // $20 minimum
+  const totalCents = Math.max(formData.pounds * PRICE_PER_LB, MIN_POUNDS * PRICE_PER_LB) // 20 lb minimum
   const totalDisplay = (totalCents / 100).toFixed(2)
 
   const handlePickupSelect = (date: Date) => {
@@ -179,8 +184,8 @@ export function WashFoldForm() {
             <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">Order Summary</h3>
             {[
               { label: "Service", value: "Wash & Fold" },
-              { label: "Est. Weight", value: `~${formData.pounds} lbs` },
               { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
+              { label: "Est. Weight", value: `~${formData.pounds} lbs (estimated)` },
               { label: "Add-Ons", value: addOnsSummary },
               { label: "Pickup", value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
               { label: "Delivery", value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
@@ -192,11 +197,11 @@ export function WashFoldForm() {
               </div>
             ))}
             <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
-              <span className="text-[#0D2240]">Total (est.)</span>
+              <span className="text-[#0D2240]">Pre-authorization (est.)</span>
               <span className="text-[#E8726A]">${totalDisplay}</span>
             </div>
             <p className="text-[10px] text-gray-400 leading-relaxed">
-              Charged at $2.50/lb · $20 minimum. Final charge adjusted to actual weight after pickup.
+              Charged at $2.50/lb · 20 lb minimum. Final charge adjusted to actual weight after pickup.
             </p>
           </div>
           <Checkout
@@ -254,98 +259,73 @@ export function WashFoldForm() {
           ))}
         </div>
 
-        {/* ── STEP 1: Service + Dates ── */}
+        {/* ── STEP 1: Bags + Dates ── */}
         {step === 1 && (
           <div className="space-y-7">
+            {/* Bag counter — primary question */}
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Estimate your laundry weight</h3>
-              <p className="text-sm text-gray-400">$2.50/lb · $20 minimum · final charge adjusted to actual weight</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">How many bags are you leaving for us?</h3>
+              <p className="text-sm text-gray-400">One standard laundry bag holds about 15 lbs. We&apos;ll weigh everything at pickup and adjust the final charge.</p>
             </div>
 
-            {/* Pounds counter */}
             <div className="space-y-4">
               <div className="flex items-center justify-center gap-6 py-1">
                 <button type="button"
-                  onClick={() => setFormData(p => ({ ...p, pounds: Math.max(MIN_POUNDS, p.pounds - 1) }))}
-                  disabled={formData.pounds <= MIN_POUNDS}
-                  className="w-11 h-11 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors">
+                  onClick={() => setFormData(p => {
+                    const bags = Math.max(1, p.numBags - 1)
+                    return { ...p, numBags: bags, pounds: bagsToEstLbs(bags) }
+                  })}
+                  disabled={formData.numBags <= 1}
+                  className="w-12 h-12 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors">
                   −
                 </button>
-                <div className="text-center min-w-[80px]">
-                  <div className="text-5xl font-extrabold text-[#0D2240] leading-none tabular-nums">{formData.pounds}</div>
-                  <div className="text-xs text-gray-400 mt-1">pounds (est.)</div>
+                <div className="text-center min-w-[90px]">
+                  <div className="text-6xl font-extrabold text-[#0D2240] leading-none tabular-nums">{formData.numBags}</div>
+                  <div className="text-sm text-gray-400 mt-1.5 font-medium">bag{formData.numBags > 1 ? "s" : ""}</div>
                 </div>
                 <button type="button"
-                  onClick={() => setFormData(p => ({ ...p, pounds: p.pounds + 1 }))}
-                  className="w-11 h-11 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors">
+                  onClick={() => setFormData(p => {
+                    const bags = p.numBags + 1
+                    return { ...p, numBags: bags, pounds: bagsToEstLbs(bags) }
+                  })}
+                  className="w-12 h-12 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors">
                   +
                 </button>
               </div>
+              {/* Quick-select */}
               <div className="flex gap-2 justify-center flex-wrap">
-                {[10, 15, 20, 25, 30].map((lb) => (
-                  <button key={lb} type="button"
-                    onClick={() => setFormData(p => ({ ...p, pounds: lb }))}
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button key={n} type="button"
+                    onClick={() => setFormData(p => ({ ...p, numBags: n, pounds: bagsToEstLbs(n) }))}
                     className={cn("px-4 py-1.5 rounded-full text-xs font-bold border-2 transition-all",
-                      formData.pounds === lb
+                      formData.numBags === n
                         ? "bg-[#0D2240] border-[#0D2240] text-white"
                         : "border-gray-200 text-gray-500 hover:border-[#0D2240]")}>
-                    {lb} lbs
+                    {n} bag{n > 1 ? "s" : ""}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="bg-[#fdf6f5] rounded-xl p-4 flex items-center justify-between">
-              <div className="text-sm text-[#0D2240]/60">
-                <span className="font-medium">{formData.pounds} lbs × $2.50</span>
-                {formData.pounds < MIN_POUNDS && <span className="text-[#E8726A] ml-1.5">(min. $20)</span>}
-              </div>
-              <span className="text-2xl font-extrabold text-[#E8726A]">${totalDisplay}</span>
-            </div>
-
-            {/* Weight guide */}
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-xs text-blue-700 space-y-1.5">
-              <p className="font-semibold">Weight guide:</p>
-              <p>Small load (~10 lbs): jeans + a few shirts + underwear</p>
-              <p>Medium load (~15 lbs): a full week of clothes for one person</p>
-              <p>Large load (~20-25 lbs): family laundry or bedding</p>
-              <p className="text-blue-500 mt-1">Don&apos;t stress about exact weight — we&apos;ll weigh it at pickup and adjust.</p>
-            </div>
-
-            {/* How many bags */}
-            <div className="space-y-3 border-t border-gray-100 pt-5">
-              <div>
-                <h4 className="font-bold text-[#0D2240] text-sm mb-0.5">How many bags will you put out?</h4>
-                <p className="text-xs text-gray-400">Our driver will expect this many bags at pickup. Each bag gets a tracking label.</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <button type="button"
-                  onClick={() => setFormData(p => ({ ...p, numBags: Math.max(1, p.numBags - 1) }))}
-                  disabled={formData.numBags <= 1}
-                  className="w-10 h-10 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors">
-                  −
-                </button>
-                <div className="text-center min-w-[60px]">
-                  <div className="text-4xl font-extrabold text-[#0D2240] leading-none tabular-nums">{formData.numBags}</div>
-                  <div className="text-xs text-gray-400 mt-1">bag{formData.numBags > 1 ? "s" : ""}</div>
+            {/* Estimate card */}
+            <div className="bg-[#fdf6f5] rounded-xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">Estimated weight</p>
+                  <p className="text-sm font-bold text-[#0D2240]">~{formData.pounds} lbs ({formData.numBags} bag{formData.numBags > 1 ? "s" : ""} × ~15 lbs)</p>
                 </div>
-                <button type="button"
-                  onClick={() => setFormData(p => ({ ...p, numBags: p.numBags + 1 }))}
-                  className="w-10 h-10 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors">
-                  +
-                </button>
-                <div className="flex gap-1.5 ml-2">
-                  {[1, 2, 3, 4].map((n) => (
-                    <button key={n} type="button"
-                      onClick={() => setFormData(p => ({ ...p, numBags: n }))}
-                      className={cn("w-9 h-9 rounded-full text-xs font-bold border-2 transition-all",
-                        formData.numBags === n
-                          ? "bg-[#E8726A] border-[#E8726A] text-white"
-                          : "border-gray-200 text-gray-500 hover:border-[#E8726A]")}>
-                      {n}
-                    </button>
-                  ))}
+                <div className="text-right">
+                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">Pre-authorization</p>
+                  <p className="text-2xl font-extrabold text-[#E8726A]">${totalDisplay}</p>
                 </div>
+              </div>
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <svg className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  <span className="font-bold">This is an estimate.</span> We weigh your laundry at pickup and charge the exact amount — you only pay for what you actually bring.
+                </p>
               </div>
             </div>
 

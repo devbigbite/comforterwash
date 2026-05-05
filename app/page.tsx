@@ -1,7 +1,11 @@
+"use client"
+
 import { ZipChecker } from "@/components/zip-checker"
 import HeroCarousel from "@/components/hero-carousel"
 import Image from "next/image"
 import Link from "next/link"
+import { useLang } from "@/components/lang-provider"
+import { LangToggle } from "@/components/lang-toggle"
 
 function Logo({ size = 40 }: { size?: number }) {
   return (
@@ -16,6 +20,7 @@ function Logo({ size = 40 }: { size?: number }) {
 }
 
 export default function Home() {
+  const { translations: tr } = useLang()
   return (
     <main className="min-h-screen bg-white font-sans">
 
@@ -33,8 +38,9 @@ export default function Home() {
             <span className="hidden sm:inline">Mon–Wed · 8AM – 6PM</span>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/login" className="hover:text-white transition-colors">Sign In</Link>
-            <Link href="/account" className="hover:text-white transition-colors">My Account</Link>
+            <Link href="/login" className="hover:text-white transition-colors">{tr.common.signIn}</Link>
+            <Link href="/account" className="hover:text-white transition-colors">{tr.common.myAccount}</Link>
+            <LangToggle />
           </div>
         </div>
       </div>
@@ -53,11 +59,11 @@ export default function Home() {
           </Link>
           <nav className="hidden md:flex items-center gap-1 ml-6">
             {[
-              { label: "Pick Up & Delivery", href: "#services" },
-              { label: "How It Works", href: "#how" },
-              { label: "Pricing", href: "#pricing" },
-              { label: "Service Areas", href: "#areas" },
-              { label: "FAQ", href: "#faq" },
+              { label: tr.nav.pickupDelivery, href: "#services" },
+              { label: tr.nav.howItWorks, href: "#how" },
+              { label: tr.nav.pricing, href: "#pricing" },
+              { label: tr.nav.serviceAreas, href: "#areas" },
+              { label: tr.nav.faq, href: "#faq" },
             ].map((n) => (
               <a key={n.label} href={n.href} className="px-3 py-2 text-sm font-semibold text-[#0D2240]/60 hover:text-[#E8726A] transition-colors rounded-lg hover:bg-orange-50 uppercase tracking-wide text-xs">
                 {n.label}
@@ -72,16 +78,65 @@ export default function Home() {
       </header>
 
       {/* ── Hero — scrolling carousel ───────────────────────────────────── */}
-      <HeroCarousel />
+      <HeroCarousel tr={tr.hero} />
+
+      {/* ── Our Services — immediately after hero ──────────────────────── */}
+      <section id="services" className="bg-[#0D2240] px-4 py-14">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-2xl font-extrabold text-white uppercase tracking-wide text-center mb-2">{tr.services.heading}</h2>
+          <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-8" />
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            {[
+              {
+                href: "/book/comforter-wash",
+                icon: "🛏️",
+                title: tr.services.comforterTitle,
+                desc: tr.services.comforterDesc,
+                price: "$29",
+                unit: tr.services.perComforter ?? "per comforter",
+              },
+              {
+                href: "/book/wash-fold",
+                icon: "👕",
+                title: tr.services.washFoldTitle,
+                desc: tr.services.washFoldDesc,
+                price: "$2.50",
+                unit: tr.services.washFoldUnit,
+              },
+            ].map((svc) => (
+              <Link
+                key={svc.title}
+                href={svc.href}
+                className="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#E8726A] rounded-2xl p-6 flex gap-5 items-start transition-all"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-3xl shrink-0">{svc.icon}</div>
+                <div className="flex-1">
+                  <h3 className="font-extrabold text-white uppercase tracking-wide text-sm mb-1">{svc.title}</h3>
+                  <p className="text-white/50 text-xs leading-relaxed mb-3">{svc.desc}</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[#E8726A] font-extrabold text-xl">{svc.price}</span>
+                      <span className="text-white/40 text-xs ml-1">{svc.unit}</span>
+                    </div>
+                    <span className="text-[#E8726A] text-xs font-bold uppercase tracking-wide group-hover:translate-x-1 transition-transform inline-block">
+                      Book Now »
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ── Why Choose Us ──────────────────────────────────────────────── */}
       <section className="bg-white px-4 py-16">
         <div className="mx-auto max-w-4xl text-center">
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide mb-3">
-            Why Choose WashFold Orlando?
+            {tr.why.heading}
           </h2>
           <p className="text-[#E8726A] font-bold text-sm uppercase tracking-[0.2em] mb-5">
-            Unmatched Quality and Service in Every Load
+            {tr.why.subheading}
           </p>
           <p className="text-[#0D2240]/60 text-base leading-relaxed max-w-2xl mx-auto mb-5">
             At WashFold Orlando, we understand the demands of your busy family life. We&apos;re dedicated to providing top-notch laundry services that cater to your unique needs — serving Orlando and surrounding areas with professional wash &amp; fold and comforter washing, all designed with your convenience in mind.
@@ -118,9 +173,9 @@ export default function Home() {
       <section id="how" className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">
-            Clean Laundry in 3 Simple Steps!
+            {tr.steps.heading}
           </h2>
-          <p className="text-center text-gray-400 text-sm mb-10">No trips to the laundromat. No waiting. Just fresh clothes at your door.</p>
+          <p className="text-center text-gray-400 text-sm mb-10">{tr.steps.subheading}</p>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-8">
             {[
@@ -181,61 +236,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Our Services ───────────────────────────────────────────────── */}
-      <section id="services" className="bg-[#0D2240] px-4 py-16">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-extrabold text-white uppercase tracking-wide text-center mb-2">Our Services</h2>
-          <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
-
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            {[
-              {
-                href: "/book/comforter-wash",
-                icon: "🛏️",
-                title: "Comforter Wash",
-                desc: "Professional washing for any size comforter. Pick up dirty, deliver clean — flat rate, no surprises.",
-                price: "$29",
-                unit: "per comforter",
-              },
-              {
-                href: "/book/wash-fold",
-                icon: "👕",
-                title: "Wash & Fold",
-                desc: "Drop off your family's clothes dirty, get them back sorted, washed, dried, and neatly folded.",
-                price: "$2.50",
-                unit: "per lb · $20 min",
-              },
-            ].map((svc) => (
-              <Link
-                key={svc.title}
-                href={svc.href}
-                className="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#E8726A] rounded-2xl p-6 flex gap-5 items-start transition-all"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-3xl shrink-0">{svc.icon}</div>
-                <div className="flex-1">
-                  <h3 className="font-extrabold text-white uppercase tracking-wide text-sm mb-1">{svc.title}</h3>
-                  <p className="text-white/50 text-xs leading-relaxed mb-3">{svc.desc}</p>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-[#E8726A] font-extrabold text-xl">{svc.price}</span>
-                      <span className="text-white/40 text-xs ml-1">{svc.unit}</span>
-                    </div>
-                    <span className="text-[#E8726A] text-xs font-bold uppercase tracking-wide group-hover:translate-x-1 transition-transform inline-block">
-                      Details »
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── Special Offers ─────────────────────────────────────────────── */}
       <section className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">
-            Special Offers to Make Laundry Day Even Easier!
+            {tr.offers.heading}
           </h2>
           <p className="text-center text-gray-400 text-sm mb-10 max-w-xl mx-auto">
             Laundry day has never looked this good. At WashFold Orlando, we believe convenience should come with rewards.
@@ -296,7 +301,7 @@ export default function Home() {
       {/* ── Pricing ────────────────────────────────────────────────────── */}
       <section id="pricing" className="bg-white px-4 py-16">
         <div className="mx-auto max-w-3xl">
-          <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">Simple Pricing</h2>
+          <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.pricing.heading}</h2>
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div className="border-2 border-gray-100 hover:border-[#E8726A] rounded-3xl p-8 text-center transition-colors">
@@ -312,7 +317,7 @@ export default function Home() {
             <div className="border-2 border-gray-100 hover:border-[#E8726A] rounded-3xl p-8 text-center transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">👕</div>
               <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">Wash &amp; Fold</h3>
-              <p className="text-gray-400 text-sm mb-4">$20 minimum · sorted &amp; folded</p>
+              <p className="text-gray-400 text-sm mb-4">20 lb minimum · sorted &amp; folded</p>
               <p className="text-5xl font-extrabold text-[#E8726A] mb-1">$2.50<span className="text-2xl">/lb</span></p>
               <p className="text-gray-400 text-xs mb-6">per pound of laundry</p>
               <Link href="/book/wash-fold" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
@@ -327,7 +332,7 @@ export default function Home() {
       {/* ── Testimonials ───────────────────────────────────────────────── */}
       <section className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">What Our Customers Say</h2>
+          <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.testimonials.heading}</h2>
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             {[
@@ -361,7 +366,7 @@ export default function Home() {
             {[
               { q: "What's the difference between the two services?", a: "Comforter Wash is specifically for comforters — we wash and deliver them at a flat $29 each. Wash & Fold is for regular clothes charged by weight at $2.50/lb." },
               { q: "What days do you do pickups?", a: "Pickups and deliveries happen Monday through Wednesday in two time windows: 9AM–1PM or 3PM–7PM." },
-              { q: "How does the Wash & Fold weight work?", a: "You estimate your weight when booking, and we weigh your laundry at pickup. We'll confirm the final price after weighing. $20 minimum applies." },
+              { q: "How does the Wash & Fold weight work?", a: "You estimate your weight when booking, and we weigh your laundry at pickup. We'll confirm the final price after weighing. 20 lb minimum applies." },
               { q: "What if I'm not home?", a: "No problem! Leave your laundry in a bag outside. Our driver will collect it and send you a text confirmation." },
               { q: "Can I track my order?", a: "Yes! Once your order is picked up you'll receive a tracking link via text so you can follow every step of the process." },
             ].map((item) => (

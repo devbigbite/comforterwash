@@ -1,8 +1,7 @@
-"use server"
-
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { notFound } from "next/navigation"
+import DeleteGroupButton from "./delete-group-button"
 
 async function addGroup(formData: FormData) {
   "use server"
@@ -152,15 +151,12 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                           <span>{group.machines?.length ?? 0} machine{group.machines?.length !== 1 ? "s" : ""}</span>
                         </div>
                       </div>
-                      <form action={deleteGroup}>
-                        <input type="hidden" name="groupId" value={group.id} />
-                        <input type="hidden" name="facilityId" value={id} />
-                        <button type="submit"
-                          className="text-xs text-red-400 hover:text-red-600 transition-colors"
-                          onClick={(e) => { if (!confirm(`Delete group "${group.name}"? This removes all its machines.`)) e.preventDefault() }}>
-                          Delete group
-                        </button>
-                      </form>
+                      <DeleteGroupButton
+                        groupName={group.name}
+                        groupId={group.id}
+                        facilityId={id}
+                        action={deleteGroup}
+                      />
                     </div>
 
                     {/* Individual machines */}

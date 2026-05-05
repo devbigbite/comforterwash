@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
+import PhotoUploader from "./photo-uploader"
 
 const BAG_STATUS_FLOW = ["pending", "picked_up", "at_facility", "in_washer", "in_dryer", "folded", "ready", "delivered"]
 
@@ -25,6 +26,22 @@ const STATUS_COLOR: Record<string, string> = {
   folded: "bg-yellow-500 text-white",
   ready: "bg-green-500 text-white",
   delivered: "bg-[#0D2240] text-white",
+}
+
+async function recordPhotoEvent(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const photoUrl = formData.get("photoUrl") as string
+  if (!bookingId || !photoUrl) return
+  const supabase = createAdminClient()
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "photo_pickup",
+    photo_url: photoUrl,
+    notes: "Pickup photo",
+    created_by: "driver",
+  })
+  revalidatePath(`/operator/order/${bookingId}`)
 }
 
 async function advanceBag(formData: FormData) {
@@ -127,6 +144,9 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
             </div>
           </div>
         </div>
+
+        {/* Photo capture */}
+        <PhotoUploader bookingId={booking.id} action={recordPhotoEvent} />
 
         {/* Bags */}
         {bags?.map((bag) => {
