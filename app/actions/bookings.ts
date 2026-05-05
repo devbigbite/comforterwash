@@ -19,6 +19,7 @@ export interface BookingData {
   stripePaymentIntentId?: string
   serviceType?: "comforter_wash" | "wash_fold"
   pounds?: number
+  numBags?: number
 }
 
 function toDateString(val: string): string {
@@ -47,6 +48,7 @@ export async function createBooking(data: BookingData) {
       status: "confirmed",
       service_type: data.serviceType ?? "comforter_wash",
       pounds: data.pounds ?? null,
+      num_bags: data.numBags ?? data.numComforters ?? 1,
     })
     .select()
     .single()
@@ -54,6 +56,29 @@ export async function createBooking(data: BookingData) {
   if (error) {
     console.error("[booking] Supabase insert failed:", error.message)
     throw new Error("Failed to create booking")
+  }
+
+  // Auto-create order bags
+  try {
+    const orderCode = booking.id.slice(0, 8).toUpperCase()
+    const numBags = data.numBags ?? data.numComforters ?? 1
+    const bags = Array.from({ length: numBags }, (_, i) => ({
+      booking_id: booking.id,
+      bag_number: i + 1,
+      label_code: `${orderCode}-B${i + 1}`,
+      status: "pending",
+    }))
+    await supabase.from("order_bags").insert(bags)
+
+    // Create initial booking_created event
+    await supabase.from("order_events").insert({
+      booking_id: booking.id,
+      event_type: "booking_created",
+      notes: `Order placed. ${numBags} bag${numBags > 1 ? "s" : ""} expected at pickup.`,
+      created_by: "system",
+    })
+  } catch (bagErr) {
+    console.error("[bags] Error creating order bags:", bagErr)
   }
 
   // Dispatch to Shipday

@@ -20,4 +20,5 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: ["/admin/:path*"],
+  // /operator and /track are intentionally public — no auth required
 }

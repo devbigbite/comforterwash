@@ -41,11 +41,14 @@ export default async function AdminDashboard() {
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <a
-            href="/admin/zip-codes"
-            className="text-white/60 hover:text-white text-sm transition-colors"
-          >
+          <a href="/admin/facilities" className="text-white/60 hover:text-white text-sm transition-colors">
+            Facilities
+          </a>
+          <a href="/admin/zip-codes" className="text-white/60 hover:text-white text-sm transition-colors">
             Service Areas
+          </a>
+          <a href="/operator" className="text-white/60 hover:text-white text-sm transition-colors">
+            Operator →
           </a>
           <form action={logoutAction}>
             <button
