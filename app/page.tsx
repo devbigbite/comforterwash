@@ -27,13 +27,14 @@ const OFFER_OVERLAYS = ["bg-[#0D2240]/60", "bg-[#E8726A]/50", "bg-[#1a3a5c]/60"]
 
 export default function Home() {
   const { translations: tr } = useLang()
-  const [offers, setOffers] = useState<LandingOffer[]>(DEFAULT_OFFERS)
+  // null until loaded — prevents flash of disabled offers on first render
+  const [offers, setOffers] = useState<LandingOffer[] | null>(null)
   const [images, setImages] = useState<SiteImages>(DEFAULT_IMAGES)
   useEffect(() => {
     getLandingOffers().then(setOffers)
     getSiteImages().then(setImages)
   }, [])
-  const visibleOffers = offers.filter(o => o.enabled)
+  const visibleOffers = (offers ?? []).filter(o => o.enabled)
   return (
     <main className="min-h-screen bg-white font-sans">
 
@@ -91,7 +92,10 @@ export default function Home() {
       </header>
 
       {/* ── Hero — scrolling carousel ───────────────────────────────────── */}
-      <HeroCarousel tr={tr.hero} image={images.hero_banner} />
+      <HeroCarousel
+        tr={tr.hero}
+        images={{ slide1: images.slide_1, slide2: images.slide_2, slide3: images.slide_3 }}
+      />
 
       {/* ── Our Services — immediately after hero ──────────────────────── */}
       <section id="services" className="bg-[#0D2240] px-4 py-14">
@@ -271,21 +275,28 @@ export default function Home() {
           </p>
 
           <div className={`grid grid-cols-1 gap-6 ${visibleOffers.length === 3 ? "sm:grid-cols-3" : visibleOffers.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-1 max-w-sm mx-auto"}`}>
-            {visibleOffers.map((offer, i) => (
-              <div key={offer.title} className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative h-44 overflow-hidden">
-                  <Image src={images.offers_bg} alt={offer.title} fill className="object-cover" unoptimized={images.offers_bg.startsWith("http")} />
-                  <div className={`absolute inset-0 ${OFFER_OVERLAYS[i % OFFER_OVERLAYS.length]}`} />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-white font-extrabold text-4xl drop-shadow-lg">{offer.badge}</span>
+            {(offers ?? [])
+              .map((offer, originalIdx) => ({ offer, originalIdx }))
+              .filter(({ offer }) => offer.enabled)
+              .map(({ offer, originalIdx }, visibleIdx) => {
+                const imgKey = `offer_${originalIdx + 1}` as keyof SiteImages
+                const imgSrc = images[imgKey]
+                return (
+                  <div key={offer.title} className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
+                    <div className="relative h-44 overflow-hidden">
+                      <Image src={imgSrc} alt={offer.title} fill className="object-cover" unoptimized={imgSrc.startsWith("http")} />
+                      <div className={`absolute inset-0 ${OFFER_OVERLAYS[visibleIdx % OFFER_OVERLAYS.length]}`} />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-white font-extrabold text-4xl drop-shadow-lg">{offer.badge}</span>
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-sm mb-2">{offer.title}</h3>
+                      <p className="text-gray-400 text-sm leading-relaxed">{offer.desc}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="p-5">
-                  <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-sm mb-2">{offer.title}</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">{offer.desc}</p>
-                </div>
-              </div>
-            ))}
+                )
+              })}
           </div>
         </div>
       </section>
