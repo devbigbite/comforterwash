@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { setLandingOffer, type LandingOffer } from "@/app/actions/settings"
+import { setLandingOffer } from "@/app/actions/settings"
+import type { LandingOffer } from "@/lib/offers-config"
 
 const OVERLAYS = [
   "bg-[#0D2240]/60",

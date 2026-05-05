@@ -7,7 +7,8 @@ import Link from "next/link"
 import { useLang } from "@/components/lang-provider"
 import { LangToggle } from "@/components/lang-toggle"
 import { useState, useEffect } from "react"
-import { getLandingOffers, type LandingOffer, DEFAULT_OFFERS } from "@/app/actions/settings"
+import { getLandingOffers } from "@/app/actions/settings"
+import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
 
 function Logo({ size = 40 }: { size?: number }) {
   return (
