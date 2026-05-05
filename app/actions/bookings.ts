@@ -17,6 +17,8 @@ export interface BookingData {
   numComforters: number
   totalAmount: number
   stripePaymentIntentId?: string
+  serviceType?: "comforter_wash" | "wash_fold"
+  pounds?: number
 }
 
 function toDateString(val: string): string {
@@ -43,6 +45,8 @@ export async function createBooking(data: BookingData) {
       stripe_payment_intent_id: data.stripePaymentIntentId,
       payment_status: "paid",
       status: "confirmed",
+      service_type: data.serviceType ?? "comforter_wash",
+      pounds: data.pounds ?? null,
     })
     .select()
     .single()
