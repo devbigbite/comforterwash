@@ -41,3 +41,9 @@ export default function WashOnlyPage() {
       <div className="mx-auto max-w-2xl px-4 py-10">
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 text-sm text-blue-700">
           <strong>What is Wash Only?</strong> Your clothes are washed and dried using your preferred detergent, then returned clean in the bag — unfolded.
+        </div>
+        <WashOnlyForm />
+      </div>
+    </main>
+  )
+}

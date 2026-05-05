@@ -37,4 +37,12 @@ export default function WashFoldPage() {
           <span className="text-white font-bold text-sm">Wash &amp; Fold</span>
         </div>
         <h1 className="text-3xl font-extrabold text-white mb-1">Schedule Your Pickup</h1>
-        <p className="text-white/60 text-sm">$2.40/lb one-time
+        <p className="text-white/60 text-sm">$2.40/lb one-time · $2.15/lb with subscription · 20 lb minimum</p>
+      </div>
+
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <WashFoldForm />
+      </div>
+    </main>
+  )
+}

@@ -6,6 +6,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { useLang } from "@/components/lang-provider"
 import { LangToggle } from "@/components/lang-toggle"
+import { useState, useEffect } from "react"
+import { getLandingOffers, type LandingOffer, DEFAULT_OFFERS } from "@/app/actions/settings"
 
 function Logo({ size = 40 }: { size?: number }) {
   return (
@@ -19,8 +21,15 @@ function Logo({ size = 40 }: { size?: number }) {
   )
 }
 
+const OFFER_OVERLAYS = ["bg-[#0D2240]/60", "bg-[#E8726A]/50", "bg-[#1a3a5c]/60"]
+
 export default function Home() {
   const { translations: tr } = useLang()
+  const [offers, setOffers] = useState<LandingOffer[]>(DEFAULT_OFFERS)
+  useEffect(() => {
+    getLandingOffers().then(setOffers)
+  }, [])
+  const visibleOffers = offers.filter(o => o.enabled)
   return (
     <main className="min-h-screen bg-white font-sans">
 
@@ -256,34 +265,12 @@ export default function Home() {
             {tr.offers.subheading}
           </p>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {[
-              {
-                image: "/sweet-sleep.jpg",
-                overlay: "bg-[#0D2240]/60",
-                badge: tr.offers.offer1Badge,
-                title: tr.offers.offer1Title,
-                desc: tr.offers.offer1Desc,
-              },
-              {
-                image: "/sweet-sleep.jpg",
-                overlay: "bg-[#E8726A]/50",
-                badge: tr.offers.offer2Badge,
-                title: tr.offers.offer2Title,
-                desc: tr.offers.offer2Desc,
-              },
-              {
-                image: "/sweet-sleep.jpg",
-                overlay: "bg-[#1a3a5c]/60",
-                badge: tr.offers.offer3Badge,
-                title: tr.offers.offer3Title,
-                desc: tr.offers.offer3Desc,
-              },
-            ].map((offer) => (
+          <div className={`grid grid-cols-1 gap-6 ${visibleOffers.length === 3 ? "sm:grid-cols-3" : visibleOffers.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-1 max-w-sm mx-auto"}`}>
+            {visibleOffers.map((offer, i) => (
               <div key={offer.title} className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative h-44 overflow-hidden">
-                  <Image src={offer.image} alt={offer.title} fill className="object-cover" />
-                  <div className={`absolute inset-0 ${offer.overlay}`} />
+                  <Image src="/sweet-sleep.jpg" alt={offer.title} fill className="object-cover" />
+                  <div className={`absolute inset-0 ${OFFER_OVERLAYS[i % OFFER_OVERLAYS.length]}`} />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="text-white font-extrabold text-4xl drop-shadow-lg">{offer.badge}</span>
                   </div>
