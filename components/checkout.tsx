@@ -6,14 +6,15 @@ import { loadStripe } from "@stripe/stripe-js"
 import { startCheckoutSession, handleSuccessfulPayment } from "@/app/actions/stripe"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle2 } from "lucide-react"
+import { useLang } from "@/components/lang-provider"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 interface CheckoutProps {
-  amountCents: number          // total to authorize (pre-auth ceiling)
-  label: string                // shown on Stripe checkout UI
+  amountCents: number
+  label: string
   metadata?: Record<string, string>
-  manualCapture?: boolean      // true for weight-based services
+  manualCapture?: boolean
   onSuccess?: () => void
 }
 
@@ -21,6 +22,8 @@ export default function Checkout({ amountCents, label, metadata, manualCapture =
   const [paymentComplete, setPaymentComplete] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const sessionIdRef = useRef<string | null>(null)
+  const { translations: tr } = useLang()
+  const t = tr.checkout
 
   const fetchClientSecret = useCallback(async () => {
     const { clientSecret, sessionId } = await startCheckoutSession(
@@ -40,18 +43,16 @@ export default function Checkout({ amountCents, label, metadata, manualCapture =
       setPaymentComplete(true)
       onSuccess?.()
     } else {
-      setError("Payment went through but we couldn't save your booking. Please contact us.")
+      setError(t.saveError)
     }
-  }, [onSuccess])
+  }, [onSuccess, t.saveError])
 
   if (paymentComplete) {
     return (
       <Alert className="border-green-500 bg-green-50">
         <CheckCircle2 className="h-4 w-4 text-green-600" />
         <AlertDescription className="text-green-800">
-          {manualCapture
-            ? "Payment authorized! Your card will be charged the exact amount once we weigh your laundry at pickup."
-            : "Payment successful! Your booking is confirmed. You'll receive an SMS update shortly."}
+          {manualCapture ? t.preAuthSuccess : t.paySuccess}
         </AlertDescription>
       </Alert>
     )

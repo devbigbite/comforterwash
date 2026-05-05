@@ -2,10 +2,13 @@
 
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useLang } from "@/components/lang-provider"
 
 export function ZipChecker() {
   const [zip, setZip] = useState("")
   const [status, setStatus] = useState<"idle" | "loading" | "yes" | "no">("idle")
+  const { translations: tr } = useLang()
+  const t = tr.zip
 
   async function checkZip() {
     const cleaned = zip.trim()
@@ -28,7 +31,7 @@ export function ZipChecker() {
           type="text"
           inputMode="numeric"
           maxLength={5}
-          placeholder="Enter your ZIP code"
+          placeholder={t.placeholder}
           value={zip}
           onChange={(e) => {
             setZip(e.target.value.replace(/\D/g, ""))
@@ -42,20 +45,20 @@ export function ZipChecker() {
           disabled={zip.length < 5 || status === "loading"}
           className="rounded-xl bg-[#E8726A] px-5 py-3 text-sm font-bold text-white hover:bg-[#d45f57] transition-colors disabled:opacity-50"
         >
-          {status === "loading" ? "..." : "Check"}
+          {status === "loading" ? "..." : t.check}
         </button>
       </div>
 
       {status === "yes" && (
         <div className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 font-medium">
           <span className="text-green-500 text-base">✓</span>
-          Great news — we serve your area! Scroll down to book.
+          {t.available}
         </div>
       )}
       {status === "no" && (
         <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 font-medium">
           <span className="text-amber-500 text-base">○</span>
-          We don&apos;t serve that ZIP yet — but we&apos;re expanding! Check back soon.
+          {t.unavailable}
         </div>
       )}
     </div>

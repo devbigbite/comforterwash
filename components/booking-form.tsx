@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "./promo-code-field"
+import { useLang } from "@/components/lang-provider"
 
 const COMFORTER_SIZES = [
   { id: "twin",  label: "Twin",  note: "Up to 50\"×70\"",  cents: 2900 },
@@ -24,20 +25,13 @@ const TIME_WINDOWS = [
   { value: "3pm-7pm", label: "3pm – 7pm" },
 ]
 
-const STEPS = [
-  { id: 1, label: "Service" },
-  { id: 2, label: "Add-Ons" },
-  { id: 3, label: "Your Info" },
-  { id: 4, label: "Confirm" },
-]
-
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
-const DETERGENT_OPTIONS = [
-  { id: "standard", label: "Our Standard Detergent", note: "Included · fresh-scented" },
-  { id: "tide", label: "Tide", note: "Popular choice" },
-  { id: "gain", label: "Gain", note: "Fresh floral scent" },
+const DETERGENT_OPTS = [
+  { id: "standard",       labelKey: "standard" as const,        noteKey: "stdNote" as const },
+  { id: "tide",           label: "Tide",                         note: "Popular choice" },
+  { id: "gain",           label: "Gain",                         note: "Fresh floral scent" },
   { id: "fragrance_free", label: "Fragrance-Free / Hypoallergenic", note: "Great for sensitive skin" },
 ]
 
@@ -48,19 +42,15 @@ function getEarliestDelivery(pickup: Date): Date {
   return d
 }
 
-// ── Horizontal date strip ────────────────────────────────────────────────────
 function DateStrip({
-  label,
-  sublabel,
-  selected,
-  onSelect,
-  isAvailable,
+  label, sublabel, selected, onSelect, isAvailable, tomorrow,
 }: {
   label: string
   sublabel?: string
   selected: Date | undefined
   onSelect: (d: Date) => void
   isAvailable: (d: Date) => boolean
+  tomorrow: string
 }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -77,8 +67,7 @@ function DateStrip({
 
   function dayHint(d: Date) {
     const diff = Math.round((d.getTime() - today.getTime()) / 86400000)
-    if (diff === 1) return "tomorrow"
-    return ""
+    return diff === 1 ? tomorrow : ""
   }
 
   return (
@@ -131,11 +120,10 @@ function DateStrip({
   )
 }
 
-// ── Time slot pill picker ────────────────────────────────────────────────────
-function TimeSlotPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function TimeSlotPicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   return (
     <div>
-      <p className="text-xs text-center text-gray-400 mb-3 mt-4">Available time slots</p>
+      <p className="text-xs text-center text-gray-400 mb-3 mt-4">{label}</p>
       <div className="flex gap-2 justify-center flex-wrap">
         {TIME_WINDOWS.map((w) => (
           <button
@@ -157,8 +145,25 @@ function TimeSlotPicker({ value, onChange }: { value: string; onChange: (v: stri
   )
 }
 
-// ── Main form ────────────────────────────────────────────────────────────────
 export function BookingForm() {
+  const { translations: tr } = useLang()
+  const tf = tr.form
+  const tb = tr.bookingForm
+
+  const STEPS = [
+    { id: 1, label: tf.stepService },
+    { id: 2, label: tf.stepAddOns },
+    { id: 3, label: tf.stepYourInfo },
+    { id: 4, label: tf.stepConfirm },
+  ]
+
+  const DETERGENT_OPTIONS = [
+    { id: "standard",       label: tf.standard,                        note: "Included · fresh-scented" },
+    { id: "tide",           label: "Tide",                              note: "Popular choice" },
+    { id: "gain",           label: "Gain",                              note: "Fresh floral scent" },
+    { id: "fragrance_free", label: "Fragrance-Free / Hypoallergenic",   note: "Great for sensitive skin" },
+  ]
+
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
 
@@ -167,6 +172,7 @@ export function BookingForm() {
       setExcludedDates(new Set(dates))
     })
   }, [])
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -237,9 +243,16 @@ export function BookingForm() {
 
   const addOnsSummary = [
     formData.detergent !== "standard" ? DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label : null,
-    formData.fabricSoftener ? "Fabric Softener" : null,
-    formData.oxiClean ? "OXI Clean" : null,
-  ].filter(Boolean).join(", ") || "Standard"
+    formData.fabricSoftener ? tf.fabricSoftenerLabel : null,
+    formData.oxiClean ? tf.oxiCleanLabel : null,
+  ].filter(Boolean).join(", ") || tf.standard
+
+  const CONTACT_FIELDS = [
+    { label: tf.fullName,             key: "name",    placeholder: "Jane Smith",                         type: "text" },
+    { label: tf.email,                key: "email",   placeholder: "jane@example.com",                   type: "email" },
+    { label: tf.phone,                key: "phone",   placeholder: "(407) 555-0100",                     type: "tel" },
+    { label: tf.pickupDeliveryAddress, key: "address", placeholder: "123 Oak St, Orlando FL 32827",      type: "text" },
+  ]
 
   // ── Payment screen ──────────────────────────────────────────────────────
   if (step === "payment") {
@@ -247,25 +260,15 @@ export function BookingForm() {
       <Card className="shadow-lg border-0 ring-1 ring-gray-100">
         <CardContent className="pt-6 space-y-5">
           <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5">
-            <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">Booking Summary</h3>
+            <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">{tb.bookingSummary}</h3>
             {[
-              { label: "Name", value: formData.name },
-              {
-                label: "Pickup",
-                value: formData.pickupDate
-                  ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find((w) => w.value === formData.pickupTimeWindow)?.label}`
-                  : "",
-              },
-              {
-                label: "Delivery",
-                value: formData.deliveryDate
-                  ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find((w) => w.value === formData.deliveryTimeWindow)?.label}`
-                  : "",
-              },
-              { label: "Address", value: formData.address },
-              { label: "Comforters", value: `${formData.comforterCount} × $${pricePerDisplay} (${sizeOption.label})` },
-              { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
-              { label: "Add-Ons", value: addOnsSummary },
+              { label: tf.labelName,      value: formData.name },
+              { label: tf.labelPickup,    value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find((w) => w.value === formData.pickupTimeWindow)?.label}` : "" },
+              { label: tf.labelDelivery,  value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find((w) => w.value === formData.deliveryTimeWindow)?.label}` : "" },
+              { label: tf.labelAddress,   value: formData.address },
+              { label: tb.labelComforters, value: `${formData.comforterCount} × $${pricePerDisplay} (${sizeOption.label})` },
+              { label: tf.labelBags,      value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
+              { label: tf.labelAddOns,    value: addOnsSummary },
             ].map((row) => (
               <div key={row.label} className="flex justify-between gap-4 text-sm">
                 <span className="text-gray-400 shrink-0">{row.label}</span>
@@ -273,7 +276,7 @@ export function BookingForm() {
               </div>
             ))}
             <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
-              <span className="text-[#0D2240]">Total</span>
+              <span className="text-[#0D2240]">{tf.total}</span>
               <span className="text-[#E8726A]">${totalDisplay}</span>
             </div>
           </div>
@@ -309,14 +312,13 @@ export function BookingForm() {
             className="w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors"
             onClick={() => setStep(4)}
           >
-            ← Back to review
+            {tf.backToReview}
           </button>
         </CardContent>
       </Card>
     )
   }
 
-  // ── Step wizard ─────────────────────────────────────────────────────────
   return (
     <Card className="shadow-lg border-0 ring-1 ring-gray-100">
       <CardContent className="pt-6">
@@ -355,8 +357,8 @@ export function BookingForm() {
         {step === 1 && (
           <div className="space-y-7">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Select comforter size</h3>
-              <p className="text-sm text-gray-400">Pricing varies by size — select all that apply if sending multiple</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tb.selectSize}</h3>
+              <p className="text-sm text-gray-400">{tb.selectSizeNote}</p>
             </div>
 
             {/* Size selector */}
@@ -381,7 +383,9 @@ export function BookingForm() {
 
             {/* Counter */}
             <div>
-              <p className="text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-3">How many {sizeOption.label} comforters?</p>
+              <p className="text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-3">
+                {tb.howManyComforters} {sizeOption.label} {formData.comforterCount > 1 ? tb.comfortersSuffix : tb.comforterSuffix}?
+              </p>
               <div className="flex items-center justify-center gap-6 py-1">
                 <button
                   type="button"
@@ -396,7 +400,7 @@ export function BookingForm() {
                     {formData.comforterCount}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
-                    comforter{formData.comforterCount > 1 ? "s" : ""}
+                    {formData.comforterCount > 1 ? tb.comfortersSuffix : tb.comforterSuffix}
                   </div>
                 </div>
                 <button
@@ -419,12 +423,12 @@ export function BookingForm() {
             <details className="group">
               <summary className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#0D2240] transition-colors cursor-pointer list-none">
                 <Info className="h-3.5 w-3.5 shrink-0" />
-                <span className="font-medium">What types of comforters can we wash?</span>
-                <span className="ml-auto text-xs text-gray-300 group-open:hidden">tap</span>
+                <span className="font-medium">{tb.careTitle}</span>
+                <span className="ml-auto text-xs text-gray-300 group-open:hidden">{tb.careTap}</span>
               </summary>
               <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-4 text-xs text-amber-700 leading-relaxed space-y-1.5">
-                <p className="font-semibold">Check your care label before booking.</p>
-                <p>We wash in cold/warm water and tumble dry. We <strong>cannot</strong> process items labeled "Dry Clean Only," "Do Not Tumble Dry," weighted comforters, or featherbeds. Every comforter must have a care label.</p>
+                <p className="font-semibold">{tb.careWarningTitle}</p>
+                <p>{tb.careWarningText}</p>
               </div>
             </details>
 
@@ -433,18 +437,20 @@ export function BookingForm() {
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">1</span>
-                  <h4 className="font-bold text-[#0D2240] text-sm">Pickup Date &amp; Time</h4>
-                  <span className="text-xs text-gray-400">— Mon, Tue, Wed only</span>
+                  <h4 className="font-bold text-[#0D2240] text-sm">{tb.pickupDateTitle}</h4>
+                  <span className="text-xs text-gray-400">— {tb.pickupDaysNote}</span>
                 </div>
-                <p className="text-xs text-gray-400 mb-4 ml-6.5">When would you like your pickup?</p>
+                <p className="text-xs text-gray-400 mb-4 ml-6.5">{tb.pickupWhen}</p>
                 <DateStrip
                   label=""
                   selected={formData.pickupDate}
                   onSelect={handlePickupSelect}
                   isAvailable={isPickupAvailable}
+                  tomorrow={tf.tomorrow}
                 />
                 {formData.pickupDate && (
                   <TimeSlotPicker
+                    label={tf.availableTimeSlots}
                     value={formData.pickupTimeWindow}
                     onChange={(v) => setFormData((p) => ({ ...p, pickupTimeWindow: v }))}
                   />
@@ -456,14 +462,14 @@ export function BookingForm() {
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">2</span>
-                    <h4 className="font-bold text-[#0D2240] text-sm">Delivery Date &amp; Time</h4>
-                    <span className="text-xs text-gray-400">— 72hrs after pickup</span>
+                    <h4 className="font-bold text-[#0D2240] text-sm">{tb.deliveryDateTitle}</h4>
+                    <span className="text-xs text-gray-400">— {tb.deliveryGapNote}</span>
                   </div>
                   <p className="text-xs text-gray-400 mb-4">
-                    When would you like your delivery?
+                    {tb.deliveryWhen}
                     {formData.deliveryDate && (
                       <span className="text-[#E8726A] font-medium ml-1">
-                        (suggested: {format(formData.deliveryDate, "EEE, MMM d")})
+                        ({tb.deliverySuggested} {format(formData.deliveryDate, "EEE, MMM d")})
                       </span>
                     )}
                   </p>
@@ -472,9 +478,11 @@ export function BookingForm() {
                     selected={formData.deliveryDate}
                     onSelect={(d) => setFormData((p) => ({ ...p, deliveryDate: d }))}
                     isAvailable={isDeliveryAvailable}
+                    tomorrow={tf.tomorrow}
                   />
                   {formData.deliveryDate && (
                     <TimeSlotPicker
+                      label={tf.availableTimeSlots}
                       value={formData.deliveryTimeWindow}
                       onChange={(v) => setFormData((p) => ({ ...p, deliveryTimeWindow: v }))}
                     />
@@ -488,7 +496,7 @@ export function BookingForm() {
               disabled={!canProceedStep1}
               onClick={() => setStep(2)}
             >
-              Continue: Add-Ons →
+              {tf.continueAddOns}
             </Button>
           </div>
         )}
@@ -497,13 +505,13 @@ export function BookingForm() {
         {step === 2 && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Customize your wash</h3>
-              <p className="text-sm text-gray-400">All add-ons are optional — skip to continue with standard service</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tb.customizeWash}</h3>
+              <p className="text-sm text-gray-400">{tb.addOnsOptional}</p>
             </div>
 
             {/* Detergent choice */}
             <div>
-              <h4 className="font-bold text-[#0D2240] text-sm mb-3">Detergent Preference</h4>
+              <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.detergentPreference}</h4>
               <div className="space-y-2">
                 {DETERGENT_OPTIONS.map((opt) => (
                   <label
@@ -536,7 +544,7 @@ export function BookingForm() {
                       <p className="text-xs text-gray-400">{opt.note}</p>
                     </div>
                     {opt.id === "standard" && (
-                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Free</span>
+                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
                     )}
                   </label>
                 ))}
@@ -545,21 +553,11 @@ export function BookingForm() {
 
             {/* Treatment add-ons */}
             <div>
-              <h4 className="font-bold text-[#0D2240] text-sm mb-3">Treatment Add-Ons</h4>
+              <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.treatmentAddOns}</h4>
               <div className="space-y-2">
                 {[
-                  {
-                    key: "fabricSoftener" as const,
-                    label: "Fabric Softener",
-                    desc: "Leaves your comforter feeling extra soft and fluffy",
-                    icon: "🌸",
-                  },
-                  {
-                    key: "oxiClean" as const,
-                    label: "OXI Clean",
-                    desc: "Deep stain treatment — great for whites or stained comforters",
-                    icon: "✨",
-                  },
+                  { key: "fabricSoftener" as const, label: tf.fabricSoftenerLabel, desc: tf.fabricSoftenerComforterDesc, icon: "🌸" },
+                  { key: "oxiClean"       as const, label: tf.oxiCleanLabel,        desc: tf.oxiCleanDesc,                icon: "✨" },
                 ].map((addon) => (
                   <label
                     key={addon.key}
@@ -586,9 +584,9 @@ export function BookingForm() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>{tf.back}</Button>
               <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]" onClick={() => setStep(3)}>
-                Continue: Your Info →
+                {tf.continueYourInfo}
               </Button>
             </div>
           </div>
@@ -598,17 +596,12 @@ export function BookingForm() {
         {step === 3 && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Where should we go?</h3>
-              <p className="text-sm text-gray-400">Pickup and delivery to the same address</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.whereToGo}</h3>
+              <p className="text-sm text-gray-400">{tf.sameAddressNote}</p>
             </div>
 
             <div className="space-y-4">
-              {[
-                { label: "Full Name", key: "name", placeholder: "Jane Smith", type: "text" },
-                { label: "Email", key: "email", placeholder: "jane@example.com", type: "email" },
-                { label: "Phone", key: "phone", placeholder: "(407) 555-0100", type: "tel" },
-                { label: "Pickup & Delivery Address", key: "address", placeholder: "123 Oak St, Orlando FL 32827", type: "text" },
-              ].map(({ label, key, placeholder, type }) => (
+              {CONTACT_FIELDS.map(({ label, key, placeholder, type }) => (
                 <div key={key} className="space-y-1.5">
                   <Label className="font-semibold text-[#0D2240] text-sm">{label}</Label>
                   <Input
@@ -623,13 +616,13 @@ export function BookingForm() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>{tf.back}</Button>
               <Button
                 className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
                 disabled={!canProceedStep3}
                 onClick={() => setStep(4)}
               >
-                Continue: Confirm →
+                {tf.continueConfirm}
               </Button>
             </div>
           </div>
@@ -639,28 +632,18 @@ export function BookingForm() {
         {step === 4 && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Almost done!</h3>
-              <p className="text-sm text-gray-400">Review your booking and sign below</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.almostDone}</h3>
+              <p className="text-sm text-gray-400">{tf.reviewAndSign}</p>
             </div>
 
             {/* Summary card */}
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[
-                {
-                  label: "Pickup",
-                  value: formData.pickupDate
-                    ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find((w) => w.value === formData.pickupTimeWindow)?.label}`
-                    : "",
-                },
-                {
-                  label: "Delivery",
-                  value: formData.deliveryDate
-                    ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find((w) => w.value === formData.deliveryTimeWindow)?.label}`
-                    : "",
-                },
-                { label: "Address", value: formData.address },
-                { label: "Comforters", value: `${formData.comforterCount} × $${pricePerDisplay} (${sizeOption.label})` },
-                { label: "Add-Ons", value: addOnsSummary },
+                { label: tf.labelPickup,   value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find((w) => w.value === formData.pickupTimeWindow)?.label}` : "" },
+                { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find((w) => w.value === formData.deliveryTimeWindow)?.label}` : "" },
+                { label: tf.labelAddress,  value: formData.address },
+                { label: tb.labelComforters, value: `${formData.comforterCount} × $${pricePerDisplay} (${sizeOption.label})` },
+                { label: tf.labelAddOns,   value: addOnsSummary },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between gap-4">
                   <span className="text-gray-400 shrink-0">{row.label}</span>
@@ -669,12 +652,12 @@ export function BookingForm() {
               ))}
               {discountCents > 0 && (
                 <div className="flex justify-between gap-4 text-green-600">
-                  <span className="shrink-0">Promo ({promo!.code})</span>
+                  <span className="shrink-0">{tf.promo} ({promo!.code})</span>
                   <span className="font-semibold">−${(discountCents / 100).toFixed(2)}</span>
                 </div>
               )}
               <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
-                <span className="text-[#0D2240]">Total</span>
+                <span className="text-[#0D2240]">{tf.total}</span>
                 <span className="text-[#E8726A]">${totalDisplay}</span>
               </div>
             </div>
@@ -690,13 +673,13 @@ export function BookingForm() {
             {/* Conditions */}
             <details className="group">
               <summary className="flex items-center justify-between cursor-pointer text-sm font-semibold text-[#0D2240] bg-gray-50 rounded-xl px-4 py-3 hover:bg-[#fdf6f5] transition-colors list-none">
-                <span>📋 Conditions of Service</span>
-                <span className="text-gray-400 text-xs font-normal">tap to read</span>
+                <span>📋 {tf.conditionsTitle}</span>
+                <span className="text-gray-400 text-xs font-normal">{tf.conditionsTap}</span>
               </summary>
               <div className="mt-2 rounded-xl border border-gray-100 bg-white p-4 max-h-48 overflow-y-auto text-xs text-gray-500 space-y-2.5 leading-relaxed">
-                <p><strong>CONDITIONS:</strong> We exercise utmost care in processing articles entrusted to us and use such processes which, in our opinion, are best suited to the nature and condition of each individual article. Nevertheless, we cannot assume responsibility for inherent weaknesses of or defects in materials that are not readily apparent prior to processing.</p>
-                <p>Any visible stain will be pre-treated, but that is not a guarantee that any stain, dirt or blemish will be removed. Responsibility also is disclaimed for trimmings, buckles, beads, buttons, and sequins. In laundering we cannot guarantee against color loss and shrinkage, or against damage to weak and tender fabrics. Any claim must be reported within 48 hours. The company&apos;s liability with respect to any lost or damaged article shall not exceed 5 times our charge for processing it.</p>
-                <p>We will send applicable reminders and information regarding processing through SMS and Email.</p>
+                <p><strong>CONDITIONS:</strong> {tf.conditionsText1}</p>
+                <p>{tf.conditionsText2}</p>
+                <p>{tf.conditionsText3}</p>
               </div>
             </details>
 
@@ -709,7 +692,7 @@ export function BookingForm() {
                   className="mt-0.5 shrink-0"
                 />
                 <span className="text-sm text-gray-600 leading-relaxed">
-                  I have read and agree to all Conditions of Service.
+                  {tf.agreeTerms}
                 </span>
               </label>
               <label className="flex items-start gap-3 cursor-pointer bg-[#fdf6f5] rounded-xl p-3">
@@ -719,31 +702,31 @@ export function BookingForm() {
                   className="mt-0.5 shrink-0"
                 />
                 <span className="text-sm text-gray-600 leading-relaxed">
-                  <strong>I consent to SMS &amp; email updates</strong> for pickup/delivery notifications at the contact info I provided.
+                  <strong>{tf.smsConsentBold}</strong>{tf.smsConsentSuffix}
                 </span>
               </label>
             </div>
 
             {/* Signature */}
             <div className="space-y-1.5">
-              <Label className="font-semibold text-[#0D2240] text-sm">Electronic Signature</Label>
+              <Label className="font-semibold text-[#0D2240] text-sm">{tf.signatureLabel}</Label>
               <Input
-                placeholder="Type your full name to sign"
+                placeholder={tf.signaturePlaceholder}
                 value={formData.signature}
                 onChange={(e) => setFormData((p) => ({ ...p, signature: e.target.value }))}
                 className="h-12 font-serif text-lg italic border-gray-200 focus:border-[#E8726A]"
               />
-              <p className="text-xs text-gray-400">Typing your name constitutes a legal electronic signature.</p>
+              <p className="text-xs text-gray-400">{tf.signatureNote}</p>
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(3)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(3)}>{tf.back}</Button>
               <Button
                 className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
                 disabled={!canProceedStep4}
                 onClick={() => setStep("payment")}
               >
-                Proceed to Payment →
+                {tf.proceedToPayment}
               </Button>
             </div>
           </div>

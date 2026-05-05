@@ -11,6 +11,7 @@ import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
+import { useLang } from "@/components/lang-provider"
 
 // ─── constants ───────────────────────────────────────────────────────────────
 const MIN_POUNDS = 20
@@ -31,22 +32,8 @@ const TIME_WINDOWS = [
   { value: "3pm-7pm", label: "3pm – 7pm" },
 ]
 
-const STEPS = [
-  { id: 1, label: "Service" },
-  { id: 2, label: "Add-Ons" },
-  { id: 3, label: "Your Info" },
-  { id: 4, label: "Confirm" },
-]
-
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
-
-const DETERGENT_OPTIONS = [
-  { id: "standard",       label: "Our Standard Detergent",        note: "Included · fresh-scented" },
-  { id: "tide",           label: "Tide",                           note: "Popular choice" },
-  { id: "gain",           label: "Gain",                           note: "Fresh floral scent" },
-  { id: "fragrance_free", label: "Fragrance-Free / Hypoallergenic", note: "Great for sensitive skin" },
-]
 
 // ─── weekday schedule helpers ────────────────────────────────────────────────
 const WEEKDAYS = [
@@ -57,8 +44,6 @@ const WEEKDAYS = [
   { id: "friday",    label: "Friday",    short: "Fri", num: 5 },
 ]
 
-/** Returns weekday IDs that are valid delivery days given a pickup day.
- *  Rules: ≥ 3 calendar-day gap (Friday pickups require ≥ 5 days → Wednesday+). */
 function getValidDeliveryDays(pickupDayId: string): string[] {
   const pickup = WEEKDAYS.find(d => d.id === pickupDayId)
   if (!pickup) return []
@@ -69,7 +54,6 @@ function getValidDeliveryDays(pickupDayId: string): string[] {
   }).map(d => d.id)
 }
 
-/** Returns the next calendar date (from tomorrow) for a given weekday ID. */
 function nextOccurrence(dayId: string, after?: Date): Date {
   const dayNums: Record<string, number> = {
     monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5
@@ -77,7 +61,6 @@ function nextOccurrence(dayId: string, after?: Date): Date {
   const target = dayNums[dayId]
   const base = after ? new Date(after) : new Date()
   base.setHours(0, 0, 0, 0)
-  // getDay(): 0=Sun,1=Mon...6=Sat; convert to Mon=1..Fri=5,Sun=0,Sat=6
   const todayNum = base.getDay()
   let diff = target - todayNum
   if (diff <= 0) diff += 7
@@ -86,12 +69,10 @@ function nextOccurrence(dayId: string, after?: Date): Date {
   return result
 }
 
-/** First delivery date for a recurring schedule, respecting the minimum gap. */
 function firstDeliveryDate(pickupDate: Date, deliveryDayId: string, pickupDayId: string): Date {
   const minGap = pickupDayId === "friday" ? 5 : 3
   const earliest = new Date(pickupDate)
   earliest.setDate(earliest.getDate() + minGap)
-  // Find the next occurrence of deliveryDayId that is >= earliest
   const candidate = nextOccurrence(deliveryDayId, new Date(pickupDate))
   return candidate >= earliest ? candidate : nextOccurrence(deliveryDayId, earliest)
 }
@@ -113,17 +94,12 @@ function DateStrip({
   })
   const isSameDay = (a: Date, b: Date) =>
     a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
-  const dayHint = (d: Date) => {
-    const diff = Math.round((d.getTime() - today.getTime()) / 86400000)
-    return diff === 1 ? "tomorrow" : ""
-  }
   return (
     <div className="overflow-x-auto pb-1 -mx-1">
       <div className="flex gap-2 px-1 w-max">
         {dates.map((d, i) => {
           const avail = isAvailable(d)
           const sel = !!selected && isSameDay(d, selected)
-          const hint = dayHint(d)
           return (
             <button key={i} type="button" disabled={!avail} onClick={() => onSelect(d)}
               className={cn(
@@ -135,7 +111,6 @@ function DateStrip({
               <span className={cn("text-[10px] font-bold uppercase tracking-wider", sel ? "text-white/80" : avail ? "text-gray-400" : "text-gray-300")}>{DAY_ABBR[d.getDay()]}</span>
               <span className={cn("text-xl font-extrabold leading-tight my-0.5", sel ? "text-white" : avail ? "text-[#0D2240]" : "text-gray-300")}>{d.getDate()}</span>
               <span className={cn("text-[10px] font-bold uppercase", sel ? "text-white/70" : avail ? "text-gray-400" : "text-gray-300")}>{MON_ABBR[d.getMonth()]}</span>
-              {hint && <span className={cn("text-[9px] mt-0.5 font-medium", sel ? "text-white/60" : "text-[#E8726A]")}>{hint}</span>}
             </button>
           )
         })}
@@ -144,10 +119,10 @@ function DateStrip({
   )
 }
 
-function TimeSlotPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function TimeSlotPicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   return (
     <div>
-      <p className="text-xs text-center text-gray-400 mb-3 mt-4">Available time slots</p>
+      <p className="text-xs text-center text-gray-400 mb-3 mt-4">{label}</p>
       <div className="flex gap-2 justify-center flex-wrap">
         {TIME_WINDOWS.map((w) => (
           <button key={w.value} type="button" onClick={() => onChange(w.value)}
@@ -199,20 +174,35 @@ function WeekdayPicker({
 
 // ─── main component ───────────────────────────────────────────────────────────
 export function WashFoldForm() {
+  const { translations: tr } = useLang()
+  const tf = tr.form
+  const tw = tr.washFoldForm
+
+  const STEPS = [
+    { id: 1, label: tf.stepService },
+    { id: 2, label: tf.stepAddOns },
+    { id: 3, label: tf.stepYourInfo },
+    { id: 4, label: tf.stepConfirm },
+  ]
+
+  const DETERGENT_OPTIONS = [
+    { id: "standard",       label: tf.standard,                          note: "Included · fresh-scented" },
+    { id: "tide",           label: "Tide",                               note: "Popular choice" },
+    { id: "gain",           label: "Gain",                               note: "Fresh floral scent" },
+    { id: "fragrance_free", label: "Fragrance-Free / Hypoallergenic",    note: "Great for sensitive skin" },
+  ]
+
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "", address: "",
-    // one-time dates
     pickupDate:          undefined as Date | undefined,
     deliveryDate:        undefined as Date | undefined,
     pickupTimeWindow:    "",
     deliveryTimeWindow:  "",
-    // recurring schedule
     recurringPickupDay:      "",
     recurringPickupTime:     "",
     recurringDeliveryDay:    "",
     recurringDeliveryTime:   "",
-    // shared
     numBags:     2,
     pounds:      bagsToEstLbs(2),
     frequency:   "one_time" as "one_time" | "weekly" | "biweekly",
@@ -235,7 +225,6 @@ export function WashFoldForm() {
   const isRecurring  = formData.frequency !== "one_time"
   const isExcluded   = (d: Date) => excludedDates.has(d.toISOString().split("T")[0])
 
-  // ── pricing ────────────────────────────────────────────────────────────────
   const pricePerLbCents = FREQUENCY_PRICING[formData.frequency].cents
   const subtotalCents   = Math.max(formData.pounds * pricePerLbCents, MIN_POUNDS * pricePerLbCents)
   const discountCents   = promo ? Math.min(promo.discountCents, subtotalCents) : 0
@@ -244,8 +233,7 @@ export function WashFoldForm() {
   const totalDisplay    = (totalCents / 100).toFixed(2)
   const priceLabel      = FREQUENCY_PRICING[formData.frequency].label
 
-  // ── one-time date helpers ──────────────────────────────────────────────────
-  const minGapForDay = (d: Date) => d.getDay() === 5 ? 5 : 3  // Friday → 5 days, else 3
+  const minGapForDay = (d: Date) => d.getDay() === 5 ? 5 : 3
   const isWeekday    = (d: Date) => d.getDay() >= 1 && d.getDay() <= 5
   const isPickupAvailable   = (d: Date) => isWeekday(d) && !isExcluded(d)
   const isDeliveryAvailable = (d: Date) => {
@@ -264,25 +252,16 @@ export function WashFoldForm() {
     const gap  = minGapForDay(date)
     const delv = new Date(date)
     delv.setDate(delv.getDate() + gap)
-    // advance to next weekday if needed
     while (!isWeekday(delv)) delv.setDate(delv.getDate() + 1)
     setFormData(p => ({ ...p, pickupDate: date, deliveryDate: delv }))
   }
 
-  // ── recurring schedule computed values ─────────────────────────────────────
-  const firstPickup   = formData.recurringPickupDay
-    ? nextOccurrence(formData.recurringPickupDay)
-    : undefined
-
+  const firstPickup   = formData.recurringPickupDay ? nextOccurrence(formData.recurringPickupDay) : undefined
   const firstDelivery = (firstPickup && formData.recurringDeliveryDay && formData.recurringPickupDay)
     ? firstDeliveryDate(firstPickup, formData.recurringDeliveryDay, formData.recurringPickupDay)
     : undefined
+  const validDeliveryDays = formData.recurringPickupDay ? getValidDeliveryDays(formData.recurringPickupDay) : []
 
-  const validDeliveryDays = formData.recurringPickupDay
-    ? getValidDeliveryDays(formData.recurringPickupDay)
-    : []
-
-  // When pickup day changes, clear delivery day if no longer valid
   const handlePickupDayChange = (day: string) => {
     const valid = getValidDeliveryDays(day)
     setFormData(p => ({
@@ -292,7 +271,6 @@ export function WashFoldForm() {
     }))
   }
 
-  // ── step gating ────────────────────────────────────────────────────────────
   const canStep1 = isRecurring
     ? !!formData.recurringPickupDay && !!formData.recurringPickupTime
       && !!formData.recurringDeliveryDay && !!formData.recurringDeliveryTime
@@ -302,28 +280,25 @@ export function WashFoldForm() {
   const canStep3 = !!formData.name && !!formData.email && !!formData.phone && !!formData.address
   const canStep4 = formData.agreedToTerms && formData.smsConsent && formData.signature.trim().length > 0
 
-  const selectedDetergentLabel = DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? ""
   const addOnsSummary = [
-    formData.detergent !== "standard" ? selectedDetergentLabel : null,
-    formData.fabricSoftener  ? "Fabric Softener" : null,
-    formData.oxiClean        ? "OXI Clean" : null,
-    formData.colorSafeBleach ? "Color-Safe Bleach" : null,
-  ].filter(Boolean).join(", ") || "Standard (none)"
+    formData.detergent !== "standard" ? DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label : null,
+    formData.fabricSoftener  ? tf.fabricSoftenerLabel : null,
+    formData.oxiClean        ? tf.oxiCleanLabel : null,
+    formData.colorSafeBleach ? tf.colorSafeBleach : null,
+  ].filter(Boolean).join(", ") || tw.standardNone
 
-  // ── schedule summary strings ───────────────────────────────────────────────
   const pickupSummary = isRecurring
-    ? `Every ${WEEKDAYS.find(d => d.id === formData.recurringPickupDay)?.label} · ${TIME_WINDOWS.find(w => w.value === formData.recurringPickupTime)?.label}`
+    ? `${tw.pickupEvery} ${WEEKDAYS.find(d => d.id === formData.recurringPickupDay)?.label} · ${TIME_WINDOWS.find(w => w.value === formData.recurringPickupTime)?.label}`
     : formData.pickupDate
       ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}`
       : ""
 
   const deliverySummary = isRecurring
-    ? `Every ${WEEKDAYS.find(d => d.id === formData.recurringDeliveryDay)?.label} · ${TIME_WINDOWS.find(w => w.value === formData.recurringDeliveryTime)?.label}`
+    ? `${tw.pickupEvery} ${WEEKDAYS.find(d => d.id === formData.recurringDeliveryDay)?.label} · ${TIME_WINDOWS.find(w => w.value === formData.recurringDeliveryTime)?.label}`
     : formData.deliveryDate
       ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}`
       : ""
 
-  // ── Checkout metadata ──────────────────────────────────────────────────────
   const checkoutMeta: Record<string, string> = {
     customerName:    formData.name,
     customerEmail:   formData.email,
@@ -345,7 +320,6 @@ export function WashFoldForm() {
     promoCode:           promo?.code ?? "",
     promoDiscountCents:  String(discountCents),
   }
-
   if (isRecurring) {
     checkoutMeta.recurringPickupDay      = formData.recurringPickupDay
     checkoutMeta.recurringPickupTime     = formData.recurringPickupTime
@@ -362,23 +336,30 @@ export function WashFoldForm() {
     checkoutMeta.deliveryTimeWindow = formData.deliveryTimeWindow
   }
 
+  const CONTACT_FIELDS = [
+    { label: tf.fullName,              key: "name",    placeholder: "Jane Smith",                      type: "text"  },
+    { label: tf.email,                 key: "email",   placeholder: "jane@example.com",                type: "email" },
+    { label: tf.phone,                 key: "phone",   placeholder: "(407) 555-0100",                  type: "tel"   },
+    { label: tf.pickupDeliveryAddress, key: "address", placeholder: "123 Oak St, Orlando FL 32827",    type: "text"  },
+  ]
+
   // ── payment step ───────────────────────────────────────────────────────────
   if (step === "payment") {
     return (
       <Card className="shadow-lg border-0 ring-1 ring-gray-100">
         <CardContent className="pt-6 space-y-5">
           <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5">
-            <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">Order Summary</h3>
+            <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">{tw.orderSummary}</h3>
             {[
-              { label: "Service",    value: "Wash & Fold" },
-              { label: "Frequency",  value: formData.frequency === "one_time" ? "One-Time" : formData.frequency === "weekly" ? "Weekly" : "Biweekly" },
-              { label: "Rate",       value: priceLabel },
-              { label: "Bags",       value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
-              { label: "Est. Weight", value: `~${formData.pounds} lbs (estimated)` },
-              { label: "Add-Ons",    value: addOnsSummary },
-              { label: "Pickup",     value: pickupSummary },
-              { label: "Delivery",   value: deliverySummary },
-              { label: "Address",    value: formData.address },
+              { label: tf.labelService,    value: tw.washFoldLabel },
+              { label: tf.labelFrequency,  value: formData.frequency === "one_time" ? tw.oneTimeLabel : formData.frequency === "weekly" ? tw.weeklyLabel : tw.biweeklyLabel },
+              { label: tf.labelRate,       value: priceLabel },
+              { label: tf.labelBags,       value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
+              { label: tf.labelEstWeight,  value: `~${formData.pounds} lbs (estimated)` },
+              { label: tf.labelAddOns,     value: addOnsSummary },
+              { label: tf.labelPickup,     value: pickupSummary },
+              { label: tf.labelDelivery,   value: deliverySummary },
+              { label: tf.labelAddress,    value: formData.address },
             ].map((row) => (
               <div key={row.label} className="flex justify-between gap-4 text-sm">
                 <span className="text-gray-400 shrink-0">{row.label}</span>
@@ -387,24 +368,24 @@ export function WashFoldForm() {
             ))}
             {isRecurring && firstPickup && firstDelivery && (
               <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5 mt-1">
-                <p className="text-xs font-bold text-blue-700 mb-1">Subscription Schedule</p>
-                <p className="text-xs text-blue-600">First pickup: <strong>{format(firstPickup, "EEE, MMM d")}</strong></p>
-                <p className="text-xs text-blue-600">First delivery: <strong>{format(firstDelivery, "EEE, MMM d")}</strong></p>
-                <p className="text-[10px] text-blue-500 mt-1">Your card will be charged automatically for each pickup at actual weight.</p>
+                <p className="text-xs font-bold text-blue-700 mb-1">{tw.subscriptionSchedule}</p>
+                <p className="text-xs text-blue-600">{tw.firstPickupDate} <strong>{format(firstPickup, "EEE, MMM d")}</strong></p>
+                <p className="text-xs text-blue-600">{tw.firstDeliveryDate} <strong>{format(firstDelivery, "EEE, MMM d")}</strong></p>
+                <p className="text-[10px] text-blue-500 mt-1">{tw.subscriptionCardCharge}</p>
               </div>
             )}
             {promo && (
               <div className="flex justify-between gap-4 text-sm text-green-700">
-                <span className="shrink-0">Promo ({promo.code})</span>
+                <span className="shrink-0">{tf.promo} ({promo.code})</span>
                 <span className="font-semibold">−${(discountCents / 100).toFixed(2)}</span>
               </div>
             )}
             <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
-              <span className="text-[#0D2240]">Pre-authorization (est.)</span>
+              <span className="text-[#0D2240]">{tf.preAuthEst}</span>
               <span className="text-[#E8726A]">${totalDisplay}</span>
             </div>
             <p className="text-[10px] text-gray-400 leading-relaxed">
-              Charged at {priceLabel} · 20 lb minimum. Final charge adjusted to actual weight after pickup.
+              {tw.chargedAtSummary.replace("{priceLabel}", priceLabel)}
             </p>
           </div>
           <Checkout
@@ -414,7 +395,7 @@ export function WashFoldForm() {
             metadata={checkoutMeta}
           />
           <button className="w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors" onClick={() => setStep(4)}>
-            ← Back to review
+            {tf.backToReview}
           </button>
         </CardContent>
       </Card>
@@ -450,13 +431,13 @@ export function WashFoldForm() {
 
             {/* Frequency selector */}
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">How often do you need this service?</h3>
-              <p className="text-sm text-gray-400 mb-4">Subscribers get a lower per-pound rate and a fixed weekly schedule.</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tw.howOften}</h3>
+              <p className="text-sm text-gray-400 mb-4">{tw.subscriberNote}</p>
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  { value: "one_time", label: "One-Time", price: "$2.50/lb", note: "" },
-                  { value: "weekly",   label: "Weekly",   price: "$2.25/lb", note: "Save 10%" },
-                  { value: "biweekly", label: "Biweekly", price: "$2.25/lb", note: "Save 10%" },
+                  { value: "one_time", label: tw.oneTime,  price: "$2.50/lb", note: "" },
+                  { value: "weekly",   label: tw.weekly,   price: "$2.25/lb", note: tw.save10 },
+                  { value: "biweekly", label: tw.biweekly, price: "$2.25/lb", note: tw.save10 },
                 ] as const).map((opt) => (
                   <button key={opt.value} type="button"
                     onClick={() => setFormData(p => ({ ...p, frequency: opt.value }))}
@@ -482,8 +463,8 @@ export function WashFoldForm() {
 
             {/* Bag counter */}
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">How many bags are you leaving for us?</h3>
-              <p className="text-sm text-gray-400">One standard laundry bag holds about 15 lbs. We&apos;ll weigh everything at pickup and adjust the final charge.</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tw.howManyBags}</h3>
+              <p className="text-sm text-gray-400">{tw.bagWeightNote}</p>
             </div>
 
             <div className="space-y-4">
@@ -496,7 +477,7 @@ export function WashFoldForm() {
                 </button>
                 <div className="text-center min-w-[90px]">
                   <div className="text-6xl font-extrabold text-[#0D2240] leading-none tabular-nums">{formData.numBags}</div>
-                  <div className="text-sm text-gray-400 mt-1.5 font-medium">bag{formData.numBags > 1 ? "s" : ""}</div>
+                  <div className="text-sm text-gray-400 mt-1.5 font-medium">{formData.numBags > 1 ? tf.bags : tf.bag}</div>
                 </div>
                 <button type="button"
                   onClick={() => setFormData(p => { const bags = p.numBags + 1; return { ...p, numBags: bags, pounds: bagsToEstLbs(bags) } })}
@@ -510,7 +491,7 @@ export function WashFoldForm() {
                     onClick={() => setFormData(p => ({ ...p, numBags: n, pounds: bagsToEstLbs(n) }))}
                     className={cn("px-4 py-1.5 rounded-full text-xs font-bold border-2 transition-all",
                       formData.numBags === n ? "bg-[#0D2240] border-[#0D2240] text-white" : "border-gray-200 text-gray-500 hover:border-[#0D2240]")}>
-                    {n} bag{n > 1 ? "s" : ""}
+                    {n} {n > 1 ? tf.bags : tf.bag}
                   </button>
                 ))}
               </div>
@@ -520,11 +501,11 @@ export function WashFoldForm() {
             <div className="bg-[#fdf6f5] rounded-xl p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">Estimated weight</p>
-                  <p className="text-sm font-bold text-[#0D2240]">~{formData.pounds} lbs ({formData.numBags} bag{formData.numBags > 1 ? "s" : ""} × ~15 lbs)</p>
+                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">{tw.estimatedWeight}</p>
+                  <p className="text-sm font-bold text-[#0D2240]">~{formData.pounds} lbs ({formData.numBags} {formData.numBags > 1 ? tf.bags : tf.bag} × ~15 lbs)</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">Pre-authorization</p>
+                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">{tw.preAuth}</p>
                   <p className="text-2xl font-extrabold text-[#E8726A]">${totalDisplay}</p>
                 </div>
               </div>
@@ -533,7 +514,7 @@ export function WashFoldForm() {
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
                 <p className="text-xs text-amber-700 leading-relaxed">
-                  <span className="font-bold">This is an estimate.</span> Charged at {priceLabel} · 20 lb minimum. We weigh at pickup and charge the exact amount.
+                  <span className="font-bold">{tw.estimateNote}</span> {tw.chargedAt.replace("{priceLabel}", priceLabel)}
                 </p>
               </div>
             </div>
@@ -545,17 +526,17 @@ export function WashFoldForm() {
               {isRecurring ? (
                 <div className="space-y-6">
                   <div>
-                    <h4 className="font-extrabold text-[#0D2240] text-base mb-1">Set your recurring schedule</h4>
+                    <h4 className="font-extrabold text-[#0D2240] text-base mb-1">{tw.recurringTitle}</h4>
                     <p className="text-sm text-gray-400">
-                      {formData.frequency === "weekly" ? "Pickup every week on the same day." : "Pickup every two weeks on the same day."}
-                      {" "}Your card is charged automatically at actual weight.
+                      {formData.frequency === "weekly" ? tw.recurringWeekly : tw.recurringBiweekly}
+                      {" "}{tw.recurringCardCharge}
                     </p>
                   </div>
 
                   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
                     {/* Pickup day */}
                     <WeekdayPicker
-                      label="↑ Pickup day"
+                      label={tw.pickupDay}
                       value={formData.recurringPickupDay}
                       available={WEEKDAYS.map(d => d.id)}
                       onChange={handlePickupDayChange}
@@ -564,7 +545,7 @@ export function WashFoldForm() {
                     {/* Pickup time */}
                     {formData.recurringPickupDay && (
                       <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">↑ Pickup time</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">{tw.pickupTime}</p>
                         <div className="flex gap-2 flex-wrap">
                           {TIME_WINDOWS.map(w => (
                             <button key={w.value} type="button"
@@ -583,22 +564,18 @@ export function WashFoldForm() {
                     {/* Delivery day */}
                     {formData.recurringPickupDay && formData.recurringPickupTime && (
                       <WeekdayPicker
-                        label="↓ Delivery day"
+                        label={tw.deliveryDay}
                         value={formData.recurringDeliveryDay}
                         available={validDeliveryDays}
                         onChange={(d) => setFormData(p => ({ ...p, recurringDeliveryDay: d }))}
-                        note={
-                          formData.recurringPickupDay === "friday"
-                            ? "Friday pickups are processed over the weekend — earliest delivery is Wednesday."
-                            : "3-day turnaround minimum."
-                        }
+                        note={formData.recurringPickupDay === "friday" ? tw.fridayNote : tw.minTurnaround}
                       />
                     )}
 
                     {/* Delivery time */}
                     {formData.recurringDeliveryDay && (
                       <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">↓ Delivery time</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">{tw.deliveryTime}</p>
                         <div className="flex gap-2 flex-wrap">
                           {TIME_WINDOWS.map(w => (
                             <button key={w.value} type="button"
@@ -618,19 +595,19 @@ export function WashFoldForm() {
                   {/* First pickup / delivery preview */}
                   {firstPickup && firstDelivery && (
                     <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4">
-                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-2">Your first order</p>
+                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-2">{tw.yourFirstOrder}</p>
                       <div className="flex gap-6 text-sm">
                         <div>
-                          <p className="text-blue-500 text-[10px] font-bold uppercase">Pickup</p>
+                          <p className="text-blue-500 text-[10px] font-bold uppercase">{tw.pickupLabel}</p>
                           <p className="font-extrabold text-[#0D2240]">{format(firstPickup, "EEE, MMM d")}</p>
                         </div>
                         <div>
-                          <p className="text-blue-500 text-[10px] font-bold uppercase">Delivery</p>
+                          <p className="text-blue-500 text-[10px] font-bold uppercase">{tw.deliveryLabel}</p>
                           <p className="font-extrabold text-[#0D2240]">{format(firstDelivery, "EEE, MMM d")}</p>
                         </div>
                       </div>
                       <p className="text-[10px] text-blue-500 mt-2">
-                        Then repeats every {formData.frequency === "weekly" ? "week" : "two weeks"} automatically.
+                        {formData.frequency === "weekly" ? tw.repeatsEveryWeek : tw.repeatsEveryTwoWeeks}
                       </p>
                     </div>
                   )}
@@ -642,18 +619,18 @@ export function WashFoldForm() {
                   <div>
                     <div className="flex items-center gap-1.5 mb-3">
                       <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">1</span>
-                      <h4 className="font-bold text-[#0D2240] text-sm">Pickup Date &amp; Time</h4>
-                      <span className="text-xs text-gray-400">— Any weekday</span>
+                      <h4 className="font-bold text-[#0D2240] text-sm">{tf.labelPickup} Date &amp; Time</h4>
+                      <span className="text-xs text-gray-400">— {tw.anyWeekday}</span>
                     </div>
                     <DateStrip selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} />
                     {formData.pickupDate && (
                       <>
                         {formData.pickupDate.getDay() === 5 && (
                           <p className="text-[10px] text-amber-600 font-medium mt-2 bg-amber-50 px-3 py-1.5 rounded-lg">
-                            Friday pickups are processed over the weekend — earliest delivery is Wednesday.
+                            {tw.fridayNote}
                           </p>
                         )}
-                        <TimeSlotPicker value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} />
+                        <TimeSlotPicker label={tf.availableTimeSlots} value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} />
                       </>
                     )}
                   </div>
@@ -661,16 +638,16 @@ export function WashFoldForm() {
                     <div>
                       <div className="flex items-center gap-1.5 mb-3">
                         <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">2</span>
-                        <h4 className="font-bold text-[#0D2240] text-sm">Delivery Date &amp; Time</h4>
-                        <span className="text-xs text-gray-400">— {formData.pickupDate.getDay() === 5 ? "5" : "3"}+ days after pickup</span>
+                        <h4 className="font-bold text-[#0D2240] text-sm">{tf.labelDelivery} Date &amp; Time</h4>
+                        <span className="text-xs text-gray-400">— {formData.pickupDate.getDay() === 5 ? "5" : "3"}+ {tw.daysAfterPickup}</span>
                       </div>
                       {formData.deliveryDate && (
                         <p className="text-xs text-[#E8726A] font-medium mb-3">
-                          Suggested: {format(formData.deliveryDate, "EEE, MMM d")}
+                          {tw.suggested} {format(formData.deliveryDate, "EEE, MMM d")}
                         </p>
                       )}
                       <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} />
-                      {formData.deliveryDate && <TimeSlotPicker value={formData.deliveryTimeWindow} onChange={(v) => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} />}
+                      {formData.deliveryDate && <TimeSlotPicker label={tf.availableTimeSlots} value={formData.deliveryTimeWindow} onChange={(v) => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} />}
                     </div>
                   )}
                 </div>
@@ -679,7 +656,7 @@ export function WashFoldForm() {
 
             <Button className="w-full h-12 text-base font-bold bg-[#0D2240] hover:bg-[#1a3a5c] mt-2"
               disabled={!canStep1} onClick={() => setStep(2)}>
-              Continue: Add-Ons →
+              {tf.continueAddOns}
             </Button>
           </div>
         )}
@@ -688,12 +665,12 @@ export function WashFoldForm() {
         {step === 2 && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Customize your wash</h3>
-              <p className="text-sm text-gray-400">All add-ons are optional — skip to continue with standard service</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tr.bookingForm.customizeWash}</h3>
+              <p className="text-sm text-gray-400">{tr.bookingForm.addOnsOptional}</p>
             </div>
 
             <div>
-              <h4 className="font-bold text-[#0D2240] text-sm mb-3">Detergent Preference</h4>
+              <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.detergentPreference}</h4>
               <div className="space-y-2">
                 {DETERGENT_OPTIONS.map((opt) => (
                   <label key={opt.id}
@@ -710,19 +687,19 @@ export function WashFoldForm() {
                       <p className="font-semibold text-[#0D2240] text-sm">{opt.label}</p>
                       <p className="text-xs text-gray-400">{opt.note}</p>
                     </div>
-                    {opt.id === "standard" && <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Free</span>}
+                    {opt.id === "standard" && <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>}
                   </label>
                 ))}
               </div>
             </div>
 
             <div>
-              <h4 className="font-bold text-[#0D2240] text-sm mb-3">Treatment Add-Ons</h4>
+              <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.treatmentAddOns}</h4>
               <div className="space-y-2">
                 {[
-                  { key: "fabricSoftener" as const,  label: "Fabric Softener",   desc: "Leaves clothes feeling soft and static-free",   icon: "🌸" },
-                  { key: "oxiClean" as const,         label: "OXI Clean",         desc: "Extra stain-fighting power for whites and colors", icon: "✨" },
-                  { key: "colorSafeBleach" as const,  label: "Color-Safe Bleach", desc: "Brightens colors without fading",                icon: "🎨" },
+                  { key: "fabricSoftener" as const,  label: tf.fabricSoftenerLabel,  desc: tf.fabricSoftenerWashDesc,    icon: "🌸" },
+                  { key: "oxiClean" as const,         label: tf.oxiCleanLabel,         desc: tf.oxiCleanDesc,              icon: "✨" },
+                  { key: "colorSafeBleach" as const,  label: tf.colorSafeBleach,       desc: tf.colorSafeBleachDesc,       icon: "🎨" },
                 ].map((addon) => (
                   <label key={addon.key}
                     className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
@@ -741,9 +718,9 @@ export function WashFoldForm() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>{tf.back}</Button>
               <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]" onClick={() => setStep(3)}>
-                Continue: Your Info →
+                {tf.continueYourInfo}
               </Button>
             </div>
           </div>
@@ -753,16 +730,11 @@ export function WashFoldForm() {
         {step === 3 && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Where should we go?</h3>
-              <p className="text-sm text-gray-400">Pickup and delivery to the same address</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.whereToGo}</h3>
+              <p className="text-sm text-gray-400">{tf.sameAddressNote}</p>
             </div>
             <div className="space-y-4">
-              {[
-                { label: "Full Name",                    key: "name",    placeholder: "Jane Smith",               type: "text"  },
-                { label: "Email",                        key: "email",   placeholder: "jane@example.com",         type: "email" },
-                { label: "Phone",                        key: "phone",   placeholder: "(407) 555-0100",           type: "tel"   },
-                { label: "Pickup & Delivery Address",    key: "address", placeholder: "123 Oak St, Orlando FL 32827", type: "text" },
-              ].map(({ label, key, placeholder, type }) => (
+              {CONTACT_FIELDS.map(({ label, key, placeholder, type }) => (
                 <div key={key} className="space-y-1.5">
                   <Label className="font-semibold text-[#0D2240] text-sm">{label}</Label>
                   <Input type={type} placeholder={placeholder}
@@ -773,10 +745,10 @@ export function WashFoldForm() {
               ))}
             </div>
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>{tf.back}</Button>
               <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
                 disabled={!canStep3} onClick={() => setStep(4)}>
-                Continue: Confirm →
+                {tf.continueConfirm}
               </Button>
             </div>
           </div>
@@ -786,8 +758,8 @@ export function WashFoldForm() {
         {step === 4 && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Almost done!</h3>
-              <p className="text-sm text-gray-400">Review your order and sign below</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.almostDone}</h3>
+              <p className="text-sm text-gray-400">{tf.reviewOrder}</p>
             </div>
 
             <PromoCodeField
@@ -799,16 +771,16 @@ export function WashFoldForm() {
 
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[
-                { label: "Service",     value: "Wash & Fold" },
-                { label: "Frequency",   value: formData.frequency === "one_time" ? "One-Time" : formData.frequency === "weekly" ? "Weekly" : "Biweekly" },
-                { label: "Rate",        value: priceLabel },
-                { label: "Est. Weight", value: `~${formData.pounds} lbs` },
-                { label: "Bags",        value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
-                { label: "Detergent",   value: DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? "" },
-                { label: "Add-Ons",     value: addOnsSummary === "Standard (none)" ? "None" : addOnsSummary },
-                { label: "Pickup",      value: pickupSummary },
-                { label: "Delivery",    value: deliverySummary },
-                { label: "Address",     value: formData.address },
+                { label: tf.labelService,    value: tw.washFoldLabel },
+                { label: tf.labelFrequency,  value: formData.frequency === "one_time" ? tw.oneTimeLabel : formData.frequency === "weekly" ? tw.weeklyLabel : tw.biweeklyLabel },
+                { label: tf.labelRate,       value: priceLabel },
+                { label: tf.labelEstWeight,  value: `~${formData.pounds} lbs` },
+                { label: tf.labelBags,       value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
+                { label: tw.detergentLabel,  value: DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? "" },
+                { label: tf.labelAddOns,     value: addOnsSummary === tw.standardNone ? tw.none : addOnsSummary },
+                { label: tf.labelPickup,     value: pickupSummary },
+                { label: tf.labelDelivery,   value: deliverySummary },
+                { label: tf.labelAddress,    value: formData.address },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between gap-4">
                   <span className="text-gray-400 shrink-0">{row.label}</span>
@@ -818,31 +790,30 @@ export function WashFoldForm() {
               {isRecurring && firstPickup && firstDelivery && (
                 <div className="bg-blue-50 rounded-xl px-3 py-2 mt-1">
                   <p className="text-xs text-blue-600">
-                    First pickup: <strong>{format(firstPickup, "EEE, MMM d")}</strong> →
-                    delivery: <strong>{format(firstDelivery, "EEE, MMM d")}</strong>
+                    {tw.firstPickupDate} <strong>{format(firstPickup, "EEE, MMM d")}</strong> →
+                    {tw.firstDeliveryDate} <strong>{format(firstDelivery, "EEE, MMM d")}</strong>
                   </p>
                 </div>
               )}
               {promo && (
                 <div className="flex justify-between gap-4 text-green-700">
-                  <span className="shrink-0">Promo ({promo.code})</span>
+                  <span className="shrink-0">{tf.promo} ({promo.code})</span>
                   <span className="font-semibold">−${(discountCents / 100).toFixed(2)}</span>
                 </div>
               )}
               <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
-                <span className="text-[#0D2240]">Estimated Total</span>
+                <span className="text-[#0D2240]">{tf.estimatedTotal}</span>
                 <span className="text-[#E8726A]">${totalDisplay}</span>
               </div>
-              <p className="text-[10px] text-gray-400">Final charge adjusted to actual weight after pickup.</p>
+              <p className="text-[10px] text-gray-400">{tw.finalChargeNote}</p>
             </div>
 
             {isRecurring && (
               <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3">
-                <p className="text-xs font-bold text-blue-700 mb-1">Subscription commitment</p>
+                <p className="text-xs font-bold text-blue-700 mb-1">{tw.subscriptionCommitment}</p>
                 <p className="text-xs text-blue-600 leading-relaxed">
-                  By proceeding, I commit to a minimum of 4 pickups at the {formData.frequency} rate of {priceLabel}.
-                  I understand my card will be charged automatically at actual weight after each pickup.
-                  I can pause or cancel anytime with 48 hours&apos; notice before my next pickup.
+                  {tw.subscriptionCommitText} {formData.frequency === "weekly" ? tw.weeklyLabel : tw.biweeklyLabel} {priceLabel}.
+                  {" "}{tw.subscriptionCommitText2}
                 </p>
               </div>
             )}
@@ -853,7 +824,7 @@ export function WashFoldForm() {
                   onCheckedChange={(c) => setFormData(p => ({ ...p, agreedToTerms: c as boolean }))}
                   className="mt-0.5 shrink-0" />
                 <span className="text-sm text-gray-600 leading-relaxed">
-                  I understand the final charge will be based on actual weight{isRecurring ? ", agree to the subscription commitment above," : ""} and agree to the terms of service.
+                  {isRecurring ? tw.agreeWeightSubTerms : tw.agreeWeightTerms}
                 </span>
               </label>
               <label className="flex items-start gap-3 cursor-pointer bg-[#fdf6f5] rounded-xl p-3">
@@ -861,24 +832,24 @@ export function WashFoldForm() {
                   onCheckedChange={(c) => setFormData(p => ({ ...p, smsConsent: c as boolean }))}
                   className="mt-0.5 shrink-0" />
                 <span className="text-sm text-gray-600 leading-relaxed">
-                  <strong>I consent to SMS &amp; email updates</strong> for pickup/delivery notifications.
+                  <strong>{tf.smsConsentBold}</strong>{tf.smsConsentSuffix}
                 </span>
               </label>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="font-semibold text-[#0D2240] text-sm">Electronic Signature</Label>
-              <Input placeholder="Type your full name to sign" value={formData.signature}
+              <Label className="font-semibold text-[#0D2240] text-sm">{tf.signatureLabel}</Label>
+              <Input placeholder={tf.signaturePlaceholder} value={formData.signature}
                 onChange={(e) => setFormData(p => ({ ...p, signature: e.target.value }))}
                 className="h-12 font-serif text-lg italic border-gray-200 focus:border-[#E8726A]" />
-              <p className="text-xs text-gray-400">Typing your name constitutes a legal electronic signature.</p>
+              <p className="text-xs text-gray-400">{tf.signatureNote}</p>
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(3)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(3)}>{tf.back}</Button>
               <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
                 disabled={!canStep4} onClick={() => setStep("payment")}>
-                Proceed to Payment →
+                {tf.proceedToPayment}
               </Button>
             </div>
           </div>

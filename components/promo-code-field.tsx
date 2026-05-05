@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { validatePromoCode } from "@/app/actions/promos"
+import { useLang } from "@/components/lang-provider"
 
 interface PromoResult {
   discountCents: number
@@ -21,6 +22,8 @@ export function PromoCodeField({ serviceType, subtotalCents, onApply, onRemove }
   const [applied, setApplied] = useState<PromoResult | null>(null)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const { translations: tr } = useLang()
+  const t = tr.promoCode
 
   async function handleApply() {
     if (!code.trim()) return
@@ -36,7 +39,7 @@ export function PromoCodeField({ serviceType, subtotalCents, onApply, onRemove }
       })
       onApply(code.trim().toUpperCase(), result.discountCents!)
     } else {
-      setError(result.error ?? "Invalid code")
+      setError(result.error ?? t.invalid)
     }
   }
 
@@ -59,7 +62,7 @@ export function PromoCodeField({ serviceType, subtotalCents, onApply, onRemove }
         </div>
         <button type="button" onClick={handleRemove}
           className="text-xs text-green-600 hover:text-red-500 font-bold uppercase tracking-wide transition-colors">
-          Remove
+          {t.remove}
         </button>
       </div>
     )
@@ -73,12 +76,12 @@ export function PromoCodeField({ serviceType, subtotalCents, onApply, onRemove }
           value={code}
           onChange={(e) => { setCode(e.target.value.toUpperCase()); setError("") }}
           onKeyDown={(e) => e.key === "Enter" && handleApply()}
-          placeholder="Promo code"
+          placeholder={t.placeholder}
           className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono uppercase focus:outline-none focus:border-[#E8726A]"
         />
         <button type="button" onClick={handleApply} disabled={loading || !code.trim()}
           className="bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 rounded-xl transition-colors disabled:opacity-40 uppercase tracking-wide">
-          {loading ? "…" : "Apply"}
+          {loading ? "…" : t.apply}
         </button>
       </div>
       {error && <p className="text-xs text-red-500 mt-1.5 ml-1">{error}</p>}

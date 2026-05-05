@@ -11,6 +11,7 @@ import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
+import { useLang } from "@/components/lang-provider"
 
 const PRICE_PER_LB = 199  // $1.99 in cents
 const MIN_POUNDS = 20
@@ -25,22 +26,15 @@ const TIME_WINDOWS = [
   { value: "3pm-7pm", label: "3pm – 7pm" },
 ]
 
-const STEPS = [
-  { id: 1, label: "Service" },
-  { id: 2, label: "Detergent" },
-  { id: 3, label: "Your Info" },
-  { id: 4, label: "Confirm" },
-]
-
-const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
-
 const DETERGENT_OPTIONS = [
   { id: "standard", label: "Our Standard Detergent", note: "Included · fresh-scented" },
   { id: "tide", label: "Tide", note: "Popular choice" },
   { id: "gain", label: "Gain", note: "Fresh floral scent" },
   { id: "fragrance_free", label: "Fragrance-Free / Hypoallergenic", note: "Great for sensitive skin" },
 ]
+
+const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
 function getEarliestDelivery(pickup: Date): Date {
   const d = new Date(pickup)
@@ -86,10 +80,10 @@ function DateStrip({ selected, onSelect, isAvailable }: {
   )
 }
 
-function TimeSlotPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function TimeSlotPicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   return (
     <div>
-      <p className="text-xs text-center text-gray-400 mb-3 mt-4">Available time slots</p>
+      <p className="text-xs text-center text-gray-400 mb-3 mt-4">{label}</p>
       <div className="flex gap-2 justify-center flex-wrap">
         {TIME_WINDOWS.map((w) => (
           <button key={w.value} type="button" onClick={() => onChange(w.value)}
@@ -104,6 +98,19 @@ function TimeSlotPicker({ value, onChange }: { value: string; onChange: (v: stri
 }
 
 export function WashOnlyForm() {
+  const { translations: tr } = useLang()
+  const tf = tr.form
+  const tw = tr.washFoldForm
+  const tb = tr.bookingForm
+  const two = tr.washOnlyForm
+
+  const STEPS = [
+    { id: 1, label: tf.stepService },
+    { id: 2, label: tf.stepDetergent },
+    { id: 3, label: tf.stepYourInfo },
+    { id: 4, label: tf.stepConfirm },
+  ]
+
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "", address: "",
@@ -134,6 +141,8 @@ export function WashOnlyForm() {
   const preAuthCents = Math.ceil(totalCents * 1.25)
   const totalDisplay = (totalCents / 100).toFixed(2)
 
+  const priceLabel = "$1.99/lb"
+
   const isPickupAvailable = (d: Date) => { const day = d.getDay(); return (day === 1 || day === 2 || day === 3) && !isExcluded(d) }
   const isDeliveryAvailable = (d: Date) => {
     const day = d.getDay()
@@ -155,16 +164,16 @@ export function WashOnlyForm() {
       <Card className="shadow-lg border-0 ring-1 ring-gray-100">
         <CardContent className="pt-6 space-y-5">
           <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5">
-            <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">Order Summary</h3>
+            <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">{tw.orderSummary}</h3>
             {[
-              { label: "Service", value: "Wash Only (no folding)" },
-              { label: "Rate", value: "$1.99/lb" },
-              { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
-              { label: "Est. Weight", value: `~${formData.pounds} lbs` },
-              { label: "Detergent", value: DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? "" },
-              { label: "Pickup", value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
-              { label: "Delivery", value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
-              { label: "Address", value: formData.address },
+              { label: tf.labelService, value: "Wash Only (no folding)" },
+              { label: tf.labelRate, value: "$1.99/lb" },
+              { label: tf.labelBags, value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
+              { label: tf.labelEstWeight, value: `~${formData.pounds} lbs` },
+              { label: tw.detergentLabel, value: DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? "" },
+              { label: tf.labelPickup, value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
+              { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
+              { label: tf.labelAddress, value: formData.address },
             ].map((row) => (
               <div key={row.label} className="flex justify-between gap-4 text-sm">
                 <span className="text-gray-400 shrink-0">{row.label}</span>
@@ -172,10 +181,10 @@ export function WashOnlyForm() {
               </div>
             ))}
             <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
-              <span className="text-[#0D2240]">Pre-authorization (est.)</span>
+              <span className="text-[#0D2240]">{tf.preAuthEst}</span>
               <span className="text-[#E8726A]">${totalDisplay}</span>
             </div>
-            <p className="text-[10px] text-gray-400">$1.99/lb · 20 lb minimum. Final charge adjusted to actual weight.</p>
+            <p className="text-[10px] text-gray-400">{tw.chargedAtSummary.replace("{priceLabel}", priceLabel)}</p>
           </div>
           <Checkout
             amountCents={preAuthCents}
@@ -206,7 +215,7 @@ export function WashOnlyForm() {
             }}
           />
           <button className="w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors" onClick={() => setStep(4)}>
-            ← Back to review
+            {tf.backToReview}
           </button>
         </CardContent>
       </Card>
@@ -240,8 +249,8 @@ export function WashOnlyForm() {
         {step === 1 && (
           <div className="space-y-7">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">How many bags are you leaving for us?</h3>
-              <p className="text-sm text-gray-400">~15 lbs per bag. We&apos;ll weigh at pickup and charge the exact amount.</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tw.howManyBags}</h3>
+              <p className="text-sm text-gray-400">{tw.bagWeightNote}</p>
             </div>
 
             <div className="space-y-4">
@@ -254,7 +263,7 @@ export function WashOnlyForm() {
                 </button>
                 <div className="text-center min-w-[90px]">
                   <div className="text-6xl font-extrabold text-[#0D2240] leading-none tabular-nums">{formData.numBags}</div>
-                  <div className="text-sm text-gray-400 mt-1.5 font-medium">bag{formData.numBags > 1 ? "s" : ""}</div>
+                  <div className="text-sm text-gray-400 mt-1.5 font-medium">{formData.numBags > 1 ? tf.bags : tf.bag}</div>
                 </div>
                 <button type="button"
                   onClick={() => setFormData(p => { const bags = p.numBags + 1; return { ...p, numBags: bags, pounds: bagsToEstLbs(bags) } })}
@@ -268,7 +277,7 @@ export function WashOnlyForm() {
                     onClick={() => setFormData(p => ({ ...p, numBags: n, pounds: bagsToEstLbs(n) }))}
                     className={cn("px-4 py-1.5 rounded-full text-xs font-bold border-2 transition-all",
                       formData.numBags === n ? "bg-[#0D2240] border-[#0D2240] text-white" : "border-gray-200 text-gray-500 hover:border-[#0D2240]")}>
-                    {n} bag{n > 1 ? "s" : ""}
+                    {n} {n > 1 ? tf.bags : tf.bag}
                   </button>
                 ))}
               </div>
@@ -277,11 +286,11 @@ export function WashOnlyForm() {
             <div className="bg-[#fdf6f5] rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">Estimated weight</p>
+                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">{tw.estimatedWeight}</p>
                   <p className="text-sm font-bold text-[#0D2240]">~{formData.pounds} lbs</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">Pre-authorization</p>
+                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">{tf.preAuthEst}</p>
                   <p className="text-2xl font-extrabold text-[#E8726A]">${totalDisplay}</p>
                   <p className="text-xs text-gray-400">at $1.99/lb</p>
                 </div>
@@ -292,27 +301,27 @@ export function WashOnlyForm() {
               <div>
                 <div className="flex items-center gap-1.5 mb-3">
                   <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">1</span>
-                  <h4 className="font-bold text-[#0D2240] text-sm">Pickup Date &amp; Time</h4>
+                  <h4 className="font-bold text-[#0D2240] text-sm">{tb.pickupDateTitle}</h4>
                 </div>
                 <DateStrip selected={formData.pickupDate} onSelect={(d) => setFormData(p => ({ ...p, pickupDate: d, deliveryDate: getEarliestDelivery(d) }))} isAvailable={isPickupAvailable} />
-                {formData.pickupDate && <TimeSlotPicker value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} />}
+                {formData.pickupDate && <TimeSlotPicker value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} label={tf.availableTimeSlots} />}
               </div>
               {formData.pickupDate && formData.pickupTimeWindow && (
                 <div>
                   <div className="flex items-center gap-1.5 mb-3">
                     <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">2</span>
-                    <h4 className="font-bold text-[#0D2240] text-sm">Delivery Date &amp; Time</h4>
-                    <span className="text-xs text-gray-400">— 72hrs after pickup</span>
+                    <h4 className="font-bold text-[#0D2240] text-sm">{tb.deliveryDateTitle}</h4>
+                    <span className="text-xs text-gray-400">— {tb.deliveryGapNote}</span>
                   </div>
                   <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} />
-                  {formData.deliveryDate && <TimeSlotPicker value={formData.deliveryTimeWindow} onChange={(v) => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} />}
+                  {formData.deliveryDate && <TimeSlotPicker value={formData.deliveryTimeWindow} onChange={(v) => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} label={tf.availableTimeSlots} />}
                 </div>
               )}
             </div>
 
             <Button className="w-full h-12 text-base font-bold bg-[#0D2240] hover:bg-[#1a3a5c] mt-2"
               disabled={!canStep1} onClick={() => setStep(2)}>
-              Continue: Detergent Preference →
+              {tf.continueDetergent}
             </Button>
           </div>
         )}
@@ -321,8 +330,8 @@ export function WashOnlyForm() {
         {step === 2 && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Detergent preference</h3>
-              <p className="text-sm text-gray-400">Your clothes are washed and returned clean — unfolded.</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.detergentPreference}</h3>
+              <p className="text-sm text-gray-400">{two.clothesWashedNote}</p>
             </div>
             <div className="space-y-2">
               {DETERGENT_OPTIONS.map((opt) => (
@@ -340,7 +349,7 @@ export function WashOnlyForm() {
                     <p className="font-semibold text-[#0D2240] text-sm">{opt.label}</p>
                     <p className="text-xs text-gray-400">{opt.note}</p>
                   </div>
-                  {opt.id === "standard" && <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Free</span>}
+                  {opt.id === "standard" && <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>}
                 </label>
               ))}
             </div>
@@ -349,14 +358,14 @@ export function WashOnlyForm() {
               <Checkbox checked={formData.fabricSoftener} onCheckedChange={(c) => setFormData(p => ({ ...p, fabricSoftener: c as boolean }))} className="shrink-0" />
               <span className="text-xl shrink-0">🌸</span>
               <div>
-                <p className="font-semibold text-[#0D2240] text-sm">Add Fabric Softener</p>
-                <p className="text-xs text-gray-400">Leaves clothes feeling soft and static-free</p>
+                <p className="font-semibold text-[#0D2240] text-sm">{tf.fabricSoftenerLabel}</p>
+                <p className="text-xs text-gray-400">{tf.fabricSoftenerWashDesc}</p>
               </div>
             </label>
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>{tf.back}</Button>
               <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]" onClick={() => setStep(3)}>
-                Continue: Your Info →
+                {tf.continueYourInfo}
               </Button>
             </div>
           </div>
@@ -366,15 +375,15 @@ export function WashOnlyForm() {
         {step === 3 && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Where should we go?</h3>
-              <p className="text-sm text-gray-400">Pickup and delivery to the same address</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.whereToGo}</h3>
+              <p className="text-sm text-gray-400">{tf.sameAddressNote}</p>
             </div>
             <div className="space-y-4">
               {[
-                { label: "Full Name", key: "name", placeholder: "Jane Smith", type: "text" },
-                { label: "Email", key: "email", placeholder: "jane@example.com", type: "email" },
-                { label: "Phone", key: "phone", placeholder: "(407) 555-0100", type: "tel" },
-                { label: "Pickup & Delivery Address", key: "address", placeholder: "123 Oak St, Orlando FL 32827", type: "text" },
+                { label: tf.fullName, key: "name", placeholder: "Jane Smith", type: "text" },
+                { label: tf.email, key: "email", placeholder: "jane@example.com", type: "email" },
+                { label: tf.phone, key: "phone", placeholder: "(407) 555-0100", type: "tel" },
+                { label: tf.pickupDeliveryAddress, key: "address", placeholder: "123 Oak St, Orlando FL 32827", type: "text" },
               ].map(({ label, key, placeholder, type }) => (
                 <div key={key} className="space-y-1.5">
                   <Label className="font-semibold text-[#0D2240] text-sm">{label}</Label>
@@ -386,10 +395,10 @@ export function WashOnlyForm() {
               ))}
             </div>
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>{tf.back}</Button>
               <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
                 disabled={!canStep3} onClick={() => setStep(4)}>
-                Continue: Confirm →
+                {tf.continueConfirm}
               </Button>
             </div>
           </div>
@@ -399,8 +408,8 @@ export function WashOnlyForm() {
         {step === 4 && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Almost done!</h3>
-              <p className="text-sm text-gray-400">Review your order and sign below</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.almostDone}</h3>
+              <p className="text-sm text-gray-400">{tf.reviewOrder}</p>
             </div>
 
             <PromoCodeField
@@ -412,14 +421,14 @@ export function WashOnlyForm() {
 
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[
-                { label: "Service", value: "Wash Only (no folding)" },
-                { label: "Rate", value: "$1.99/lb" },
-                { label: "Est. Weight", value: `~${formData.pounds} lbs` },
-                { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
-                { label: "Detergent", value: DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? "" },
-                { label: "Pickup", value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
-                { label: "Delivery", value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
-                { label: "Address", value: formData.address },
+                { label: tf.labelService, value: "Wash Only (no folding)" },
+                { label: tf.labelRate, value: "$1.99/lb" },
+                { label: tf.labelEstWeight, value: `~${formData.pounds} lbs` },
+                { label: tf.labelBags, value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
+                { label: tw.detergentLabel, value: DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? "" },
+                { label: tf.labelPickup, value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
+                { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
+                { label: tf.labelAddress, value: formData.address },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between gap-4">
                   <span className="text-gray-400 shrink-0">{row.label}</span>
@@ -428,45 +437,45 @@ export function WashOnlyForm() {
               ))}
               {promo && (
                 <div className="flex justify-between gap-4 text-green-700">
-                  <span className="shrink-0">Promo ({promo.code})</span>
+                  <span className="shrink-0">{tf.promo} ({promo.code})</span>
                   <span className="font-semibold">−${(discountCents / 100).toFixed(2)}</span>
                 </div>
               )}
               <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
-                <span className="text-[#0D2240]">Estimated Total</span>
+                <span className="text-[#0D2240]">{tf.estimatedTotal}</span>
                 <span className="text-[#E8726A]">${totalDisplay}</span>
               </div>
-              <p className="text-[10px] text-gray-400">Final charge adjusted to actual weight. Clothes returned clean, unfolded.</p>
+              <p className="text-[10px] text-gray-400">{two.estimatedTotalNote}</p>
             </div>
 
             <div className="space-y-3">
               <label className="flex items-start gap-3 cursor-pointer">
                 <Checkbox checked={formData.agreedToTerms} onCheckedChange={(c) => setFormData(p => ({ ...p, agreedToTerms: c as boolean }))} className="mt-0.5 shrink-0" />
                 <span className="text-sm text-gray-600 leading-relaxed">
-                  I understand the final charge will be based on actual weight and agree to the terms of service.
+                  {tw.agreeWeightTerms}
                 </span>
               </label>
               <label className="flex items-start gap-3 cursor-pointer bg-[#fdf6f5] rounded-xl p-3">
                 <Checkbox checked={formData.smsConsent} onCheckedChange={(c) => setFormData(p => ({ ...p, smsConsent: c as boolean }))} className="mt-0.5 shrink-0" />
                 <span className="text-sm text-gray-600 leading-relaxed">
-                  <strong>I consent to SMS &amp; email updates</strong> for pickup/delivery notifications.
+                  <strong>{tf.smsConsentBold}</strong>{tf.smsConsentSuffix}
                 </span>
               </label>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="font-semibold text-[#0D2240] text-sm">Electronic Signature</Label>
-              <Input placeholder="Type your full name to sign" value={formData.signature}
+              <Label className="font-semibold text-[#0D2240] text-sm">{tf.signatureLabel}</Label>
+              <Input placeholder={tf.signaturePlaceholder} value={formData.signature}
                 onChange={(e) => setFormData(p => ({ ...p, signature: e.target.value }))}
                 className="h-12 font-serif text-lg italic border-gray-200 focus:border-[#E8726A]" />
-              <p className="text-xs text-gray-400">Typing your name constitutes a legal electronic signature.</p>
+              <p className="text-xs text-gray-400">{tf.signatureNote}</p>
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(3)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(3)}>{tf.back}</Button>
               <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
                 disabled={!canStep4} onClick={() => setStep("payment")}>
-                Proceed to Payment →
+                {tf.proceedToPayment}
               </Button>
             </div>
           </div>
