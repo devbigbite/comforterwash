@@ -11,7 +11,7 @@ const EVENT_ICONS: Record<string, string> = {
   bag_in_dryer: "🌀",
   bag_folded: "👕",
   ready_for_delivery: "✅",
-  out_for_delivery: "🏃",
+  out_for_delivery: "🚐",
   delivered: "🎉",
 }
 
@@ -29,14 +29,15 @@ const EVENT_LABELS: Record<string, string> = {
 }
 
 const BAG_STATUS_STEPS = [
-  { status: "pending", label: "Order Placed" },
-  { status: "picked_up", label: "Picked Up" },
-  { status: "at_facility", label: "At Facility" },
-  { status: "in_washer", label: "Washing" },
-  { status: "in_dryer", label: "Drying" },
-  { status: "folded", label: "Folded" },
-  { status: "ready", label: "Ready" },
-  { status: "delivered", label: "Delivered" },
+  { status: "pending",          label: "Order Placed" },
+  { status: "picked_up",        label: "Picked Up" },
+  { status: "at_facility",      label: "At Facility" },
+  { status: "in_washer",        label: "Washing" },
+  { status: "in_dryer",         label: "Drying" },
+  { status: "folded",           label: "Folded" },
+  { status: "ready",            label: "Ready" },
+  { status: "out_for_delivery", label: "Out for Delivery" },
+  { status: "delivered",        label: "Delivered" },
 ]
 
 function Logo() {
@@ -83,7 +84,8 @@ export default async function TrackOrderPage({ params }: { params: Promise<{ cod
   const allPickedUp = bags?.every(b => b.status !== "pending")
   const allReady = bags?.every(b => b.status === "ready" || b.status === "delivered")
 
-  const currentStep = allDelivered ? 7 : allReady ? 6 : anyInDryer ? 4 : anyInWasher ? 3 : allPickedUp ? 1 : 0
+  const anyOutForDelivery = bags?.some(b => b.status === "out_for_delivery")
+  const currentStep = allDelivered ? 8 : anyOutForDelivery ? 7 : allReady ? 6 : anyInDryer ? 4 : anyInWasher ? 3 : allPickedUp ? 1 : 0
 
   return (
     <div className="min-h-screen bg-[#f7f8fb]">
@@ -109,10 +111,10 @@ export default async function TrackOrderPage({ params }: { params: Promise<{ cod
         {/* Status hero */}
         <div className={`rounded-3xl p-6 text-center ${allDelivered ? "bg-green-500" : "bg-[#0D2240]"}`}>
           <div className="text-5xl mb-3">
-            {allDelivered ? "🎉" : allReady ? "✅" : anyInDryer ? "🌀" : anyInWasher ? "🫧" : allPickedUp ? "📦" : "📋"}
+            {allDelivered ? "🎉" : anyOutForDelivery ? "🚐" : allReady ? "✅" : anyInDryer ? "🌀" : anyInWasher ? "🫧" : allPickedUp ? "📦" : "📋"}
           </div>
           <h1 className="text-2xl font-extrabold text-white mb-1">
-            {allDelivered ? "Delivered!" : allReady ? "Ready for Delivery" : anyInDryer ? "In the Dryer" : anyInWasher ? "Being Washed" : allPickedUp ? "At the Facility" : "Order Confirmed"}
+            {allDelivered ? "Delivered!" : anyOutForDelivery ? "Out for Delivery!" : allReady ? "Ready for Delivery" : anyInDryer ? "In the Dryer" : anyInWasher ? "Being Washed" : allPickedUp ? "At the Facility" : "Order Confirmed"}
           </h1>
           <p className="text-white/60 text-sm">Hi {booking.customer_name.split(" ")[0]}! Here&apos;s your order status.</p>
         </div>

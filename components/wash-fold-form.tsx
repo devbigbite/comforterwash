@@ -144,6 +144,7 @@ export function WashFoldForm() {
   })
 
   const totalCents = Math.max(formData.pounds * PRICE_PER_LB, MIN_POUNDS * PRICE_PER_LB) // 20 lb minimum
+  const preAuthCents = Math.ceil(totalCents * 1.25) // 25% buffer — captured at actual weight
   const totalDisplay = (totalCents / 100).toFixed(2)
 
   const handlePickupSelect = (date: Date) => {
@@ -205,8 +206,9 @@ export function WashFoldForm() {
             </p>
           </div>
           <Checkout
-            productId="wash-fold"
-            quantity={formData.pounds}
+            amountCents={preAuthCents}
+            label={`Wash & Fold — ~${formData.pounds} lbs`}
+            manualCapture={true}
             metadata={{
               customerName: formData.name,
               customerEmail: formData.email,
@@ -222,6 +224,7 @@ export function WashFoldForm() {
               serviceType: "wash_fold",
               pounds: String(formData.pounds),
               numBags: String(formData.numBags),
+              numComforters: "0",
               detergent: formData.detergent,
               fabricSoftener: formData.fabricSoftener.toString(),
               oxiClean: formData.oxiClean.toString(),

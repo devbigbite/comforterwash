@@ -6,9 +6,13 @@ async function addFacility(formData: FormData) {
   "use server"
   const name = (formData.get("name") as string)?.trim()
   const address = (formData.get("address") as string)?.trim() || null
+  const processing_mode = (formData.get("processing_mode") as string) || "own_operator"
+  const rate_per_lb = parseFloat(formData.get("rate_per_lb") as string) || null
+  const minimum_lbs = parseFloat(formData.get("minimum_lbs") as string) || 0
   if (!name) return
   const supabase = createAdminClient()
-  await supabase.from("facilities").insert({ name, address })
+  const code = Math.random().toString(36).slice(2, 12)
+  await supabase.from("facilities").insert({ name, address, processing_mode, rate_per_lb, minimum_lbs, partner_access_code: code })
   revalidatePath("/admin/facilities")
 }
 
@@ -46,12 +50,30 @@ export default async function FacilitiesPage() {
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Facility Name *</label>
               <input name="name" type="text" placeholder="Sunshine Laundry" required
-                className="w-52 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30" />
+                className="w-48 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30" />
             </div>
             <div className="flex flex-col gap-1 flex-1">
               <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Address</label>
               <input name="address" type="text" placeholder="123 Main St, Orlando FL"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Mode</label>
+              <select name="processing_mode"
+                className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30">
+                <option value="own_operator">Own Operator</option>
+                <option value="partner_attendant">Partner Attendant</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Rate ($/lb)</label>
+              <input name="rate_per_lb" type="number" step="0.01" placeholder="1.20"
+                className="w-24 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Min. lbs</label>
+              <input name="minimum_lbs" type="number" step="1" placeholder="0"
+                className="w-20 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30" />
             </div>
             <button type="submit"
               className="rounded-xl bg-[#E8726A] text-white font-bold text-sm px-5 py-2.5 hover:bg-[#d45f57] transition-colors">
@@ -81,6 +103,19 @@ export default async function FacilitiesPage() {
                   </span>
                 </div>
                 {f.address && <p className="text-sm text-gray-400 truncate mt-0.5">{f.address}</p>}
+                  <div className="flex gap-2 mt-1 flex-wrap">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${f.processing_mode === 'partner_attendant' ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                      {f.processing_mode === 'partner_attendant' ? 'Partner' : 'Own Operator'}
+                    </span>
+                    {f.rate_per_lb && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-200">${f.rate_per_lb}/lb</span>}
+                    {f.minimum_lbs > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-200">min {f.minimum_lbs} lbs</span>}
+                    {f.processing_mode === 'partner_attendant' && f.partner_access_code && (
+                      <a href={`/partner/${f.partner_access_code}`} target="_blank" rel="noreferrer"
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E8726A]/10 text-[#E8726A] border border-[#E8726A]/20 hover:bg-[#E8726A]/20 transition-colors">
+                        Partner Portal ↗
+                      </a>
+                    )}
+                  </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <Link href={`/admin/facilities/${f.id}`}

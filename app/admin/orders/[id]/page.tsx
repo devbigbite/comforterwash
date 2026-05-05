@@ -2,30 +2,73 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { notFound } from "next/navigation"
 import { format } from "date-fns"
 import Link from "next/link"
+import { revalidatePath } from "next/cache"
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-gray-100 text-gray-500",
-  picked_up: "bg-blue-50 text-blue-700 border border-blue-200",
-  at_facility: "bg-purple-50 text-purple-700 border border-purple-200",
-  in_washer: "bg-cyan-50 text-cyan-700 border border-cyan-200",
-  in_dryer: "bg-orange-50 text-orange-700 border border-orange-200",
-  folded: "bg-yellow-50 text-yellow-700 border border-yellow-200",
-  ready: "bg-green-50 text-green-700 border border-green-200",
-  delivered: "bg-[#0D2240] text-white",
+  pending:          "bg-gray-100 text-gray-500",
+  picked_up:        "bg-blue-50 text-blue-700 border border-blue-200",
+  at_facility:      "bg-purple-50 text-purple-700 border border-purple-200",
+  in_washer:        "bg-cyan-50 text-cyan-700 border border-cyan-200",
+  in_dryer:         "bg-orange-50 text-orange-700 border border-orange-200",
+  folded:           "bg-yellow-50 text-yellow-700 border border-yellow-200",
+  ready:            "bg-green-50 text-green-700 border border-green-200",
+  out_for_delivery: "bg-green-600 text-white",
+  delivered:        "bg-[#0D2240] text-white",
 }
 
 const EVENT_ICONS: Record<string, string> = {
-  booking_created: "📋",
-  pickup_confirmed: "🚚",
-  bags_received: "📦",
+  booking_created:    "📋",
+  pickup_confirmed:   "🚚",
+  bags_received:      "📦",
   processing_started: "⚙️",
-  bag_in_washer: "🫧",
-  bag_in_dryer: "🌀",
-  bag_folded: "👕",
+  bag_in_washer:      "🫧",
+  bag_in_dryer:       "🌀",
+  bag_folded:         "👕",
   ready_for_delivery: "✅",
-  out_for_delivery: "🏃",
-  delivered: "🎉",
-  photo_pickup: "📷",
+  out_for_delivery:   "🚐",
+  delivered:          "🎉",
+  photo_pickup:       "📷",
+  weight_confirmed:   "⚖️",
+  facility_assigned:  "🏭",
+  facility_transfer:  "🔄",
+}
+
+// Statuses that indicate bags have physically arrived at / passed through facility
+const PAST_PICKUP = ["at_facility", "in_washer", "in_dryer", "folded", "ready", "out_for_delivery", "delivered"]
+
+async function assignFacility(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const facilityId = formData.get("facilityId") as string
+
+  const supabase = createAdminClient()
+  await supabase.from("bookings").update({ assigned_facility_id: facilityId }).eq("id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "facility_assigned",
+    notes: `Facility assigned by admin`,
+    created_by: "admin",
+  })
+  revalidatePath(`/admin/orders/${bookingId}`)
+}
+
+async function transferFacility(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const newFacilityId = formData.get("newFacilityId") as string
+  const requiresPhysicalTransfer = formData.get("requiresPhysicalTransfer") === "true"
+
+  const supabase = createAdminClient()
+  await supabase.from("bookings").update({ assigned_facility_id: newFacilityId }).eq("id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "facility_transfer",
+    notes: requiresPhysicalTransfer
+      ? `⚠️ PHYSICAL TRANSFER REQUIRED — bags already at previous facility. Reassigned by admin.`
+      : `Facility reassigned by admin (bags not yet delivered to prior facility)`,
+    created_by: "admin",
+  })
+  revalidatePath(`/admin/orders/${bookingId}`)
 }
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,7 +77,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("*")
+    .select(`
+      *,
+      assigned_facility:facilities!assigned_facility_id(id, name, processing_mode, rate_per_lb, minimum_lbs, partner_access_code)
+    `)
     .eq("id", id)
     .single()
 
@@ -52,7 +98,43 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     .eq("booking_id", id)
     .order("created_at", { ascending: false })
 
+  const { data: allFacilities } = await supabase
+    .from("facilities")
+    .select("id, name, processing_mode, rate_per_lb, minimum_lbs")
+    .eq("active", true)
+    .order("name")
+
   const orderCode = booking.id.slice(0, 8).toUpperCase()
+
+  const assignedFacility = booking.assigned_facility as {
+    id: string; name: string; processing_mode: string
+    rate_per_lb: number | null; minimum_lbs: number
+    partner_access_code: string | null
+  } | null
+
+  // Estimate weight for margin warning (actual if set, else estimated from form)
+  const estimatedLbs = (booking.actual_weight_lbs as number | null)
+    ?? (booking.service_type === "wash_fold" ? (booking.pounds as number | null) : null)
+
+  // Billing figures
+  const customerFinalCents = booking.customer_final_cents as number | null
+  const facilityCostCents = booking.facility_cost_cents as number | null
+  const preAuthCents = booking.pre_auth_cents as number | null
+  const actualWeightLbs = booking.actual_weight_lbs as number | null
+
+  // Has billing been calculated?
+  const billingCalculated = !!(customerFinalCents && facilityCostCents !== null)
+
+  // Check if bags have physically arrived (transfer would require physical move)
+  const bagStatuses = bags?.map(b => b.status) ?? []
+  const bagsAtFacility = bagStatuses.some(s => PAST_PICKUP.includes(s))
+
+  // Margin warning for facility assignment
+  const facilityMinForWarning = (fId: string) => {
+    const f = allFacilities?.find(f => f.id === fId)
+    if (!f || !estimatedLbs) return false
+    return f.minimum_lbs > estimatedLbs
+  }
 
   return (
     <div className="min-h-screen bg-[#f7f8fb]">
@@ -83,6 +165,59 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </div>
         </div>
 
+        {/* Billing Breakdown — full width, top */}
+        {billingCalculated ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+            <h2 className="font-bold text-[#0D2240] mb-4 text-sm uppercase tracking-wide">💰 Billing Breakdown</h2>
+            <div className="grid grid-cols-4 gap-4">
+              <div className="text-center bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-400 mb-1">Actual Weight</p>
+                <p className="text-2xl font-extrabold text-[#0D2240]">{actualWeightLbs ?? "—"}</p>
+                <p className="text-xs text-gray-400">lbs</p>
+              </div>
+              <div className="text-center bg-green-50 border border-green-100 rounded-xl p-4">
+                <p className="text-xs text-gray-400 mb-1">Customer Revenue</p>
+                <p className="text-2xl font-extrabold text-green-700">${(customerFinalCents! / 100).toFixed(2)}</p>
+                <p className="text-xs text-gray-400">captured</p>
+              </div>
+              <div className="text-center bg-red-50 border border-red-100 rounded-xl p-4">
+                <p className="text-xs text-gray-400 mb-1">Facility Cost</p>
+                <p className="text-2xl font-extrabold text-red-600">${(facilityCostCents! / 100).toFixed(2)}</p>
+                <p className="text-xs text-gray-400">
+                  {assignedFacility ? `${assignedFacility.name}` : "facility"}
+                </p>
+              </div>
+              <div className={`text-center rounded-xl p-4 border ${
+                (customerFinalCents! - facilityCostCents!) > 0
+                  ? "bg-blue-50 border-blue-100"
+                  : "bg-amber-50 border-amber-200"
+              }`}>
+                <p className="text-xs text-gray-400 mb-1">WashFold Margin</p>
+                <p className={`text-2xl font-extrabold ${
+                  (customerFinalCents! - facilityCostCents!) > 0 ? "text-blue-700" : "text-amber-600"
+                }`}>
+                  ${((customerFinalCents! - facilityCostCents!) / 100).toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {Math.round(((customerFinalCents! - facilityCostCents!) / customerFinalCents!) * 100)}%
+                </p>
+              </div>
+            </div>
+            {preAuthCents && (
+              <p className="text-xs text-gray-400 mt-3 text-center">
+                Pre-authorized: ${(preAuthCents / 100).toFixed(2)} ·
+                Payment: <span className="font-semibold">{booking.payment_status}</span>
+              </p>
+            )}
+          </div>
+        ) : booking.service_type === "wash_fold" && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-sm text-amber-700">
+            <span className="font-bold">⚖️ Billing pending</span> — weight not yet entered.
+            Billing will be calculated once the driver or operator records the actual weight.
+            {preAuthCents && ` Pre-authorized: $${(preAuthCents / 100).toFixed(2)}.`}
+          </div>
+        )}
+
         <div className="grid gap-6 lg:grid-cols-2">
 
           {/* Order info */}
@@ -97,9 +232,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 { label: "Pickup", value: `${booking.pickup_date} · ${booking.pickup_time_window}` },
                 { label: "Delivery", value: `${booking.delivery_date} · ${booking.delivery_time_window}` },
                 { label: "Service", value: booking.service_type === "wash_fold" ? "Wash & Fold" : "Comforter Wash" },
-                { label: "Items", value: booking.service_type === "wash_fold" ? `~${booking.pounds} lbs` : `${booking.num_comforters} comforter(s)` },
+                { label: "Items", value: booking.service_type === "wash_fold" ? `~${booking.pounds} lbs est.` : `${booking.num_comforters} comforter(s)` },
                 { label: "Bags", value: `${booking.num_bags ?? bags?.length ?? 1} bag(s)` },
-                { label: "Total", value: `$${(booking.total_amount / 100).toFixed(2)}` },
+                { label: "Pre-auth", value: preAuthCents ? `$${(preAuthCents / 100).toFixed(2)}` : "—" },
                 { label: "Paid", value: booking.payment_status },
               ].map(({ label, value }) => (
                 <div key={label} className="flex gap-3">
@@ -110,33 +245,153 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             </dl>
           </div>
 
-          {/* Bags */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="font-bold text-[#0D2240] mb-4 text-sm uppercase tracking-wide">
-              Bags ({bags?.length ?? 0})
-            </h2>
-            <div className="space-y-3">
-              {bags?.map((bag) => (
-                <div key={bag.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#f7f8fb] border border-gray-100">
-                  <div className="w-10 h-10 rounded-xl bg-[#0D2240] flex items-center justify-center shrink-0">
-                    <span className="text-white font-extrabold text-sm font-mono">B{bag.bag_number}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-[#0D2240] text-sm font-mono">{bag.label_code}</p>
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
-                      {bag.status?.replace(/_/g, " ")}
+          {/* Right column: facility + bags */}
+          <div className="space-y-6">
+
+            {/* Facility Assignment */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="font-bold text-[#0D2240] mb-4 text-sm uppercase tracking-wide">🏭 Facility</h2>
+
+              {assignedFacility ? (
+                <div className="space-y-3">
+                  {/* Current facility info */}
+                  <div className="rounded-xl bg-[#f7f8fb] border border-gray-100 p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-[#0D2240]">{assignedFacility.name}</span>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                        assignedFacility.processing_mode === "partner_attendant"
+                          ? "bg-purple-50 text-purple-700 border border-purple-200"
+                          : "bg-blue-50 text-blue-700 border border-blue-200"
+                      }`}>
+                        {assignedFacility.processing_mode === "partner_attendant" ? "Partner" : "Own Operator"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      {assignedFacility.rate_per_lb
+                        ? `$${assignedFacility.rate_per_lb}/lb · min ${assignedFacility.minimum_lbs ?? 0} lbs`
+                        : "No rate configured"}
                     </p>
+                    {assignedFacility.processing_mode === "partner_attendant" && assignedFacility.partner_access_code && (
+                      <a href={`/partner/${assignedFacility.partner_access_code}`} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-[#E8726A] font-semibold mt-1.5 hover:underline">
+                        Open Partner Portal ↗
+                      </a>
+                    )}
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0 ${
-                    STATUS_COLORS[bag.status] ?? "bg-gray-100 text-gray-500"
-                  }`}>
-                    {bag.status?.replace(/_/g, " ")}
-                  </span>
+
+                  {/* Margin warning for assigned facility */}
+                  {estimatedLbs && assignedFacility.minimum_lbs > estimatedLbs && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                      ⚠️ Facility min ({assignedFacility.minimum_lbs} lbs) exceeds estimated weight ({estimatedLbs} lbs).
+                      Facility will be billed at minimum — check margin.
+                    </div>
+                  )}
+
+                  {/* Transfer to different facility */}
+                  <details className="group">
+                    <summary className="cursor-pointer text-xs text-gray-400 hover:text-[#0D2240] font-semibold transition-colors list-none flex items-center gap-1">
+                      <span className="group-open:hidden">+ Transfer to different facility</span>
+                      <span className="hidden group-open:inline">− Cancel transfer</span>
+                    </summary>
+                    <div className="mt-3">
+                      {bagsAtFacility && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-semibold mb-3">
+                          ⚠️ Bags have already been physically dropped at {assignedFacility.name}.
+                          This transfer will require coordinating a physical bag pickup and re-drop.
+                        </div>
+                      )}
+                      <form action={transferFacility} className="flex flex-col gap-2">
+                        <input type="hidden" name="bookingId" value={booking.id} />
+                        <input type="hidden" name="requiresPhysicalTransfer" value={String(bagsAtFacility)} />
+                        <select name="newFacilityId" required
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30">
+                          <option value="">— select new facility —</option>
+                          {allFacilities?.filter(f => f.id !== assignedFacility.id).map(f => (
+                            <option key={f.id} value={f.id}>
+                              {f.name} · {f.processing_mode === "partner_attendant" ? "Partner" : "Own Op"}
+                              {f.rate_per_lb ? ` · $${f.rate_per_lb}/lb` : ""}
+                              {f.minimum_lbs ? ` · min ${f.minimum_lbs} lbs` : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <button type="submit"
+                          className={`w-full rounded-xl font-bold text-xs py-2.5 text-white transition-colors ${
+                            bagsAtFacility
+                              ? "bg-red-500 hover:bg-red-600"
+                              : "bg-[#0D2240] hover:bg-[#1a3a5c]"
+                          }`}>
+                          {bagsAtFacility ? "⚠️ Transfer (Physical Move Required)" : "Transfer Facility"}
+                        </button>
+                      </form>
+                    </div>
+                  </details>
                 </div>
-              ))}
-              {(!bags || bags.length === 0) && (
-                <p className="text-sm text-gray-400 text-center py-4">No bags created yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-400">No facility assigned yet.</p>
+
+                  {/* Margin warning preview */}
+                  {estimatedLbs && (
+                    <p className="text-xs text-gray-400">
+                      Estimated weight: <span className="font-semibold text-[#0D2240]">{estimatedLbs} lbs</span>
+                      {" "}· Facilities with higher minimums will reduce margin.
+                    </p>
+                  )}
+
+                  <form action={assignFacility} className="flex flex-col gap-2">
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <select name="facilityId" required
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30">
+                      <option value="">— select facility —</option>
+                      {allFacilities?.map(f => {
+                        const hasMarginWarning = facilityMinForWarning(f.id)
+                        return (
+                          <option key={f.id} value={f.id}>
+                            {hasMarginWarning ? "⚠️ " : ""}{f.name}
+                            {" · "}{f.processing_mode === "partner_attendant" ? "Partner" : "Own Op"}
+                            {f.rate_per_lb ? ` · $${f.rate_per_lb}/lb` : ""}
+                            {f.minimum_lbs ? ` · min ${f.minimum_lbs} lbs` : ""}
+                          </option>
+                        )
+                      })}
+                    </select>
+                    <button type="submit"
+                      className="w-full rounded-xl bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm py-2.5 transition-colors">
+                      Assign Facility
+                    </button>
+                  </form>
+                </div>
               )}
+            </div>
+
+            {/* Bags */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="font-bold text-[#0D2240] mb-4 text-sm uppercase tracking-wide">
+                Bags ({bags?.length ?? 0})
+              </h2>
+              <div className="space-y-3">
+                {bags?.map((bag) => (
+                  <div key={bag.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#f7f8fb] border border-gray-100">
+                    <div className="w-10 h-10 rounded-xl bg-[#0D2240] flex items-center justify-center shrink-0">
+                      <span className="text-white font-extrabold text-sm font-mono">B{bag.bag_number}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-[#0D2240] text-sm font-mono">{bag.label_code}</p>
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
+                        {bag.status?.replace(/_/g, " ")}
+                      </p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0 ${
+                      STATUS_COLORS[bag.status] ?? "bg-gray-100 text-gray-500"
+                    }`}>
+                      {bag.status?.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                ))}
+                {(!bags || bags.length === 0) && (
+                  <p className="text-sm text-gray-400 text-center py-4">No bags created yet.</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -193,6 +448,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             </div>
           )}
         </div>
+
       </div>
     </div>
   )

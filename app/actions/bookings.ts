@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { createClient } from "@/lib/supabase/server"
 import { sendBookingNotification } from "@/lib/sms"
 import { createShipdayOrder } from "@/lib/shipday"
 import { format } from "date-fns"
@@ -20,6 +21,7 @@ export interface BookingData {
   serviceType?: "comforter_wash" | "wash_fold"
   pounds?: number
   numBags?: number
+  preAuthCents?: number
 }
 
 function toDateString(val: string): string {
@@ -29,6 +31,14 @@ function toDateString(val: string): string {
 
 export async function createBooking(data: BookingData) {
   const supabase = createAdminClient()
+
+  // Attach user_id if the customer is logged in
+  let userId: string | null = null
+  try {
+    const userClient = await createClient()
+    const { data: { user } } = await userClient.auth.getUser()
+    if (user) userId = user.id
+  } catch { /* not logged in — that's fine */ }
 
   const { data: booking, error } = await supabase
     .from("bookings")
@@ -49,6 +59,9 @@ export async function createBooking(data: BookingData) {
       service_type: data.serviceType ?? "comforter_wash",
       pounds: data.pounds ?? null,
       num_bags: data.numBags ?? data.numComforters ?? 1,
+      user_id: userId,
+      pre_auth_cents: data.preAuthCents ?? null,
+      payment_status: data.preAuthCents ? "pre_authorized" : "paid",
     })
     .select()
     .single()

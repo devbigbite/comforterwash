@@ -252,8 +252,9 @@ export function BookingForm() {
           </div>
 
           <Checkout
-            productId="comforter-wash"
-            quantity={formData.comforterCount}
+            amountCents={formData.comforterCount * 2900}
+            label={`Comforter Wash × ${formData.comforterCount}`}
+            manualCapture={false}
             metadata={{
               customerName: formData.name,
               customerEmail: formData.email,
@@ -266,6 +267,8 @@ export function BookingForm() {
               signature: formData.signature,
               agreedToTerms: formData.agreedToTerms.toString(),
               smsConsent: formData.smsConsent.toString(),
+              serviceType: "comforter_wash",
+              numComforters: String(formData.comforterCount),
               numBags: String(formData.comforterCount),
               detergent: formData.detergent,
               fabricSoftener: formData.fabricSoftener.toString(),
