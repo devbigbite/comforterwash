@@ -375,43 +375,6 @@ export function BookingForm() {
               </div>
             </details>
 
-            {/* Bag count */}
-            <div className="space-y-3 border-t border-gray-100 pt-5">
-              <div>
-                <h4 className="font-bold text-[#0D2240] text-sm mb-0.5">How many bags will you put out?</h4>
-                <p className="text-xs text-gray-400">Our driver will expect this many bags. Typically 1 bag per comforter.</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <button type="button"
-                  onClick={() => setFormData(p => ({ ...p, numBags: Math.max(1, p.numBags - 1) }))}
-                  disabled={formData.numBags <= 1}
-                  className="w-10 h-10 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors">
-                  −
-                </button>
-                <div className="text-center min-w-[60px]">
-                  <div className="text-4xl font-extrabold text-[#0D2240] leading-none tabular-nums">{formData.numBags}</div>
-                  <div className="text-xs text-gray-400 mt-1">bag{formData.numBags > 1 ? "s" : ""}</div>
-                </div>
-                <button type="button"
-                  onClick={() => setFormData(p => ({ ...p, numBags: p.numBags + 1 }))}
-                  className="w-10 h-10 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors">
-                  +
-                </button>
-                <div className="flex gap-1.5 ml-2">
-                  {[1, 2, 3, 4].map((n) => (
-                    <button key={n} type="button"
-                      onClick={() => setFormData(p => ({ ...p, numBags: n }))}
-                      className={cn("w-9 h-9 rounded-full text-xs font-bold border-2 transition-all",
-                        formData.numBags === n
-                          ? "bg-[#E8726A] border-[#E8726A] text-white"
-                          : "border-gray-200 text-gray-500 hover:border-[#E8726A]")}>
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
             <div className="space-y-6 border-t border-gray-100 pt-6">
               {/* Pickup section */}
               <div>
