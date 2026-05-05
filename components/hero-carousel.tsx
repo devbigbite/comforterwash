@@ -71,7 +71,7 @@ export default function HeroCarousel({ tr }: { tr?: HeroTr }) {
       {/* Background image */}
       <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: transitioning ? 0 : 1 }}>
         <Image
-          src="/sweet-sleep.jpg"
+          src="/hero-banner.jpg"
           alt="WashFold Orlando"
           fill
           className={`object-cover ${slide.type === "full" ? slide.objectPos : "object-center"}`}
@@ -103,7 +103,7 @@ export default function HeroCarousel({ tr }: { tr?: HeroTr }) {
           <div className="absolute inset-0 grid grid-cols-3">
             {slide.panels.map((panel, i) => (
               <div key={i} className="relative overflow-hidden">
-                <Image src="/sweet-sleep.jpg" alt={panel.label} fill className={`object-cover ${panel.objectPos}`} />
+                <Image src="/hero-banner.jpg" alt={panel.label} fill className={`object-cover ${panel.objectPos}`} />
                 <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/70" />
                 <div className="absolute bottom-0 left-0 right-0 p-5 md:p-7">
                   <div className="flex items-center gap-3 mb-1">
