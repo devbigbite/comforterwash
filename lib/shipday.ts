@@ -72,14 +72,14 @@ export async function createShipdayOrder(booking: ShipdayOrderInput): Promise<vo
       body: JSON.stringify(payload),
     })
 
+    const responseText = await res.text()
     if (!res.ok) {
-      const text = await res.text()
-      console.error(`[shipday] Failed to create order (${res.status}):`, text)
+      console.error(`[shipday] HTTP ${res.status} — response: ${responseText.slice(0, 500)}`)
+      console.error(`[shipday] Auth used: Basic ${Buffer.from(apiKey + ":").toString("base64").slice(0, 10)}...`)
       return
     }
 
-    const data = await res.json()
-    console.log("[shipday] Order created successfully:", data?.orderId ?? data)
+    console.log("[shipday] Order created successfully:", responseText.slice(0, 200))
   } catch (err) {
     console.error("[shipday] Network error:", err)
   }
