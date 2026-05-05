@@ -4,26 +4,26 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Updated to WashFold brand colors - deep blue and cyan */
+  /* WashFold Orlando brand — Navy + Coral */
   --background: oklch(1 0 0);
-  --foreground: oklch(0.2 0.05 250);
+  --foreground: oklch(0.15 0.04 240);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.05 250);
+  --card-foreground: oklch(0.15 0.04 240);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.05 250);
-  --primary: oklch(0.35 0.12 250);
+  --popover-foreground: oklch(0.15 0.04 240);
+  --primary: oklch(0.22 0.07 240);      /* #0D2240 navy */
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.75 0.15 195);
-  --secondary-foreground: oklch(0.2 0.05 250);
+  --secondary: oklch(0.62 0.14 25);     /* coral */
+  --secondary-foreground: oklch(1 0 0);
   --muted: oklch(0.96 0.01 240);
   --muted-foreground: oklch(0.5 0.02 240);
-  --accent: oklch(0.75 0.15 195);
-  --accent-foreground: oklch(0.2 0.05 250);
+  --accent: oklch(0.62 0.14 25);        /* coral accent */
+  --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0.01 240);
-  --input: oklch(0.9 0.01 240);
-  --ring: oklch(0.35 0.12 250);
+  --border: oklch(0.92 0.01 240);
+  --input: oklch(0.92 0.01 240);
+  --ring: oklch(0.62 0.14 25);
   --chart-1: oklch(0.35 0.12 250);
   --chart-2: oklch(0.75 0.15 195);
   --chart-3: oklch(0.65 0.18 160);

@@ -27,27 +27,36 @@ export default async function AdminDashboard() {
   return (
     <div className="min-h-screen bg-[#f8faff]">
       {/* Header */}
-      <header className="bg-[#1e3a8a] px-6 py-4 flex items-center justify-between">
+      <header className="bg-[#0D2240] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <svg width="28" height="28" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="20" cy="20" r="20" fill="#1e40af" />
-            <path d="M7 20.5 Q10.5 15 14 20.5 Q17.5 26 21 20.5 Q24.5 15 28 20.5 Q29.5 23 31 20.5"
-              stroke="#67e8f9" strokeWidth="2.8" strokeLinecap="round" fill="none" />
+          <svg width="28" height="28" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="24" fill="#0D2240" />
+            <circle cx="24" cy="24" r="22" fill="#142d52" />
+            <path d="M8 24 Q11 19 14 24 Q17 29 20 24 Q23 19 26 24 Q29 29 32 24 Q35 19 38 24"
+              stroke="#E8726A" strokeWidth="3" strokeLinecap="round" fill="none" />
           </svg>
           <span className="text-white font-extrabold text-lg tracking-tight">
-            Wash<span className="text-[#67e8f9]">Fold</span>
+            Wash<span className="text-[#E8726A]">Fold</span>
             <span className="ml-1.5 text-white/40 text-xs font-semibold uppercase tracking-widest">Admin</span>
           </span>
         </div>
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors"
+        <div className="flex items-center gap-4">
+          <a
+            href="/admin/zip-codes"
+            className="text-white/60 hover:text-white text-sm transition-colors"
           >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
-        </form>
+            Service Areas
+          </a>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
 
       <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
