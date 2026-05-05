@@ -1,4 +1,5 @@
 import { WashOnlyForm } from "@/components/wash-only-form"
+import { LangToggle } from "@/components/lang-toggle"
 import Link from "next/link"
 
 export const metadata = {
@@ -19,9 +20,12 @@ export default function WashOnlyPage() {
             </svg>
             Wash<span className="text-[#E8726A]">Fold</span>
           </Link>
-          <Link href="/" className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors">
-            ← All Services
-          </Link>
+          <div className="flex items-center gap-4">
+            <LangToggle variant="light" />
+            <Link href="/" className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors">
+              ← All Services
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -36,10 +40,4 @@ export default function WashOnlyPage() {
 
       <div className="mx-auto max-w-2xl px-4 py-10">
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 text-sm text-blue-700">
-          <strong>What is Wash Only?</strong> Your clothes are washed and dried using your preferred detergent, then returned clean in the bag — unfolded. Perfect if you prefer to fold your own clothes or want a faster, lower-cost option.
-        </div>
-        <WashOnlyForm />
-      </div>
-    </main>
-  )
-}
+          <strong>What is Wash Only?</strong> Your clothes are washed and dried using your preferred detergent, then returned clean in the bag — unfolded.

@@ -18,9 +18,9 @@ const MIN_POUNDS = 20
 const LBS_PER_BAG = 15
 
 const FREQUENCY_PRICING: Record<string, { cents: number; label: string }> = {
-  one_time: { cents: 250, label: "$2.50/lb" },
-  weekly:   { cents: 225, label: "$2.25/lb" },
-  biweekly: { cents: 225, label: "$2.25/lb" },
+  one_time: { cents: 240, label: "$2.40/lb" },
+  weekly:   { cents: 215, label: "$2.15/lb" },
+  biweekly: { cents: 215, label: "$2.15/lb" },
 }
 
 function bagsToEstLbs(bags: number) {
@@ -435,9 +435,9 @@ export function WashFoldForm() {
               <p className="text-sm text-gray-400 mb-4">{tw.subscriberNote}</p>
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  { value: "one_time", label: tw.oneTime,  price: "$2.50/lb", note: "" },
-                  { value: "weekly",   label: tw.weekly,   price: "$2.25/lb", note: tw.save10 },
-                  { value: "biweekly", label: tw.biweekly, price: "$2.25/lb", note: tw.save10 },
+                  { value: "one_time", label: tw.oneTime,  price: "$2.40/lb", note: "" },
+                  { value: "weekly",   label: tw.weekly,   price: "$2.15/lb", note: tw.save10 },
+                  { value: "biweekly", label: tw.biweekly, price: "$2.15/lb", note: tw.save10 },
                 ] as const).map((opt) => (
                   <button key={opt.value} type="button"
                     onClick={() => setFormData(p => ({ ...p, frequency: opt.value }))}

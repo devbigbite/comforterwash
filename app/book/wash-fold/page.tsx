@@ -1,9 +1,10 @@
 import { WashFoldForm } from "@/components/wash-fold-form"
+import { LangToggle } from "@/components/lang-toggle"
 import Link from "next/link"
 
 export const metadata = {
   title: "Book Wash & Fold — WashFold Orlando",
-  description: "Clothes washed, dried, and folded with free pickup & delivery. $2.50/lb, $20 minimum.",
+  description: "Clothes washed, dried, and folded with free pickup & delivery. $2.40/lb, $20 minimum.",
 }
 
 export default function WashFoldPage() {
@@ -20,9 +21,12 @@ export default function WashFoldPage() {
             </svg>
             Wash<span className="text-[#E8726A]">Fold</span>
           </Link>
-          <Link href="/" className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors">
-            ← All Services
-          </Link>
+          <div className="flex items-center gap-4">
+            <LangToggle variant="light" />
+            <Link href="/" className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors">
+              ← All Services
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -33,12 +37,4 @@ export default function WashFoldPage() {
           <span className="text-white font-bold text-sm">Wash &amp; Fold</span>
         </div>
         <h1 className="text-3xl font-extrabold text-white mb-1">Schedule Your Pickup</h1>
-        <p className="text-white/60 text-sm">$2.50/lb one-time · $2.25/lb with subscription · 20 lb minimum</p>
-      </div>
-
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <WashFoldForm />
-      </div>
-    </main>
-  )
-}
+        <p className="text-white/60 text-sm">$2.40/lb one-time
