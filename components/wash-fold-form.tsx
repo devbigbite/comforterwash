@@ -20,12 +20,20 @@ const TIME_WINDOWS = [
 
 const STEPS = [
   { id: 1, label: "Service" },
-  { id: 2, label: "Your Info" },
-  { id: 3, label: "Confirm" },
+  { id: 2, label: "Add-Ons" },
+  { id: 3, label: "Your Info" },
+  { id: 4, label: "Confirm" },
 ]
 
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+
+const DETERGENT_OPTIONS = [
+  { id: "standard", label: "Our Standard Detergent", note: "Included · fresh-scented" },
+  { id: "tide", label: "Tide", note: "Popular choice" },
+  { id: "gain", label: "Gain", note: "Fresh floral scent" },
+  { id: "fragrance_free", label: "Fragrance-Free / Hypoallergenic", note: "Great for sensitive skin" },
+]
 
 function getEarliestDelivery(pickup: Date): Date {
   const d = new Date(pickup)
@@ -112,7 +120,7 @@ function TimeSlotPicker({ value, onChange }: { value: string; onChange: (v: stri
 }
 
 export function WashFoldForm() {
-  const [step, setStep] = useState<1 | 2 | 3 | "payment">(1)
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "", address: "",
     pickupDate: undefined as Date | undefined,
@@ -120,6 +128,11 @@ export function WashFoldForm() {
     pickupTimeWindow: "",
     deliveryTimeWindow: "",
     pounds: MIN_POUNDS,
+    numBags: 1,
+    detergent: "standard",
+    fabricSoftener: false,
+    oxiClean: false,
+    colorSafeBleach: false,
     signature: "",
     agreedToTerms: false,
     smsConsent: false,
@@ -146,8 +159,16 @@ export function WashFoldForm() {
   }
 
   const canStep1 = !!formData.pickupDate && !!formData.deliveryDate && !!formData.pickupTimeWindow && !!formData.deliveryTimeWindow
-  const canStep2 = !!formData.name && !!formData.email && !!formData.phone && !!formData.address
-  const canStep3 = formData.agreedToTerms && formData.smsConsent && formData.signature.trim().length > 0
+  const canStep3 = !!formData.name && !!formData.email && !!formData.phone && !!formData.address
+  const canStep4 = formData.agreedToTerms && formData.smsConsent && formData.signature.trim().length > 0
+
+  const selectedDetergentLabel = DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? ""
+  const addOnsSummary = [
+    formData.detergent !== "standard" ? selectedDetergentLabel : null,
+    formData.fabricSoftener ? "Fabric Softener" : null,
+    formData.oxiClean ? "OXI Clean" : null,
+    formData.colorSafeBleach ? "Color-Safe Bleach" : null,
+  ].filter(Boolean).join(", ") || "Standard (none)"
 
   // ── Payment ──────────────────────────────────────────────────────────────
   if (step === "payment") {
@@ -159,6 +180,8 @@ export function WashFoldForm() {
             {[
               { label: "Service", value: "Wash & Fold" },
               { label: "Est. Weight", value: `~${formData.pounds} lbs` },
+              { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
+              { label: "Add-Ons", value: addOnsSummary },
               { label: "Pickup", value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
               { label: "Delivery", value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
               { label: "Address", value: formData.address },
@@ -193,9 +216,14 @@ export function WashFoldForm() {
               smsConsent: formData.smsConsent.toString(),
               serviceType: "wash_fold",
               pounds: String(formData.pounds),
+              numBags: String(formData.numBags),
+              detergent: formData.detergent,
+              fabricSoftener: formData.fabricSoftener.toString(),
+              oxiClean: formData.oxiClean.toString(),
+              colorSafeBleach: formData.colorSafeBleach.toString(),
             }}
           />
-          <button className="w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors" onClick={() => setStep(3)}>
+          <button className="w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors" onClick={() => setStep(4)}>
             ← Back to review
           </button>
         </CardContent>
@@ -226,7 +254,7 @@ export function WashFoldForm() {
           ))}
         </div>
 
-        {/* ── STEP 1 ── */}
+        {/* ── STEP 1: Service + Dates ── */}
         {step === 1 && (
           <div className="space-y-7">
             <div>
@@ -234,7 +262,7 @@ export function WashFoldForm() {
               <p className="text-sm text-gray-400">$2.50/lb · $20 minimum · final charge adjusted to actual weight</p>
             </div>
 
-            {/* Pounds slider + counter */}
+            {/* Pounds counter */}
             <div className="space-y-4">
               <div className="flex items-center justify-center gap-6 py-1">
                 <button type="button"
@@ -253,8 +281,6 @@ export function WashFoldForm() {
                   +
                 </button>
               </div>
-
-              {/* Quick-select common weights */}
               <div className="flex gap-2 justify-center flex-wrap">
                 {[10, 15, 20, 25, 30].map((lb) => (
                   <button key={lb} type="button"
@@ -277,13 +303,50 @@ export function WashFoldForm() {
               <span className="text-2xl font-extrabold text-[#E8726A]">${totalDisplay}</span>
             </div>
 
-            {/* Size guide */}
+            {/* Weight guide */}
             <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-xs text-blue-700 space-y-1.5">
               <p className="font-semibold">Weight guide:</p>
               <p>Small load (~10 lbs): jeans + a few shirts + underwear</p>
               <p>Medium load (~15 lbs): a full week of clothes for one person</p>
               <p>Large load (~20-25 lbs): family laundry or bedding</p>
               <p className="text-blue-500 mt-1">Don&apos;t stress about exact weight — we&apos;ll weigh it at pickup and adjust.</p>
+            </div>
+
+            {/* How many bags */}
+            <div className="space-y-3 border-t border-gray-100 pt-5">
+              <div>
+                <h4 className="font-bold text-[#0D2240] text-sm mb-0.5">How many bags will you put out?</h4>
+                <p className="text-xs text-gray-400">Our driver will expect this many bags at pickup. Each bag gets a tracking label.</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <button type="button"
+                  onClick={() => setFormData(p => ({ ...p, numBags: Math.max(1, p.numBags - 1) }))}
+                  disabled={formData.numBags <= 1}
+                  className="w-10 h-10 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors">
+                  −
+                </button>
+                <div className="text-center min-w-[60px]">
+                  <div className="text-4xl font-extrabold text-[#0D2240] leading-none tabular-nums">{formData.numBags}</div>
+                  <div className="text-xs text-gray-400 mt-1">bag{formData.numBags > 1 ? "s" : ""}</div>
+                </div>
+                <button type="button"
+                  onClick={() => setFormData(p => ({ ...p, numBags: p.numBags + 1 }))}
+                  className="w-10 h-10 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors">
+                  +
+                </button>
+                <div className="flex gap-1.5 ml-2">
+                  {[1, 2, 3, 4].map((n) => (
+                    <button key={n} type="button"
+                      onClick={() => setFormData(p => ({ ...p, numBags: n }))}
+                      className={cn("w-9 h-9 rounded-full text-xs font-bold border-2 transition-all",
+                        formData.numBags === n
+                          ? "bg-[#E8726A] border-[#E8726A] text-white"
+                          : "border-gray-200 text-gray-500 hover:border-[#E8726A]")}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Date selection */}
@@ -317,13 +380,120 @@ export function WashFoldForm() {
 
             <Button className="w-full h-12 text-base font-bold bg-[#0D2240] hover:bg-[#1a3a5c] mt-2"
               disabled={!canStep1} onClick={() => setStep(2)}>
-              Continue: Your Info →
+              Continue: Add-Ons →
             </Button>
           </div>
         )}
 
-        {/* ── STEP 2 ── */}
+        {/* ── STEP 2: Add-Ons ── */}
         {step === 2 && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Customize your wash</h3>
+              <p className="text-sm text-gray-400">All add-ons are optional — skip to continue with standard service</p>
+            </div>
+
+            {/* Detergent choice */}
+            <div>
+              <h4 className="font-bold text-[#0D2240] text-sm mb-3">Detergent Preference</h4>
+              <div className="space-y-2">
+                {DETERGENT_OPTIONS.map((opt) => (
+                  <label
+                    key={opt.id}
+                    className={cn(
+                      "flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                      formData.detergent === opt.id
+                        ? "border-[#E8726A] bg-[#fdf6f3]"
+                        : "border-gray-100 bg-white hover:border-gray-200"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                      formData.detergent === opt.id ? "border-[#E8726A] bg-[#E8726A]" : "border-gray-300"
+                    )}>
+                      {formData.detergent === opt.id && (
+                        <div className="w-2 h-2 rounded-full bg-white" />
+                      )}
+                    </div>
+                    <input
+                      type="radio"
+                      className="sr-only"
+                      name="detergent"
+                      value={opt.id}
+                      checked={formData.detergent === opt.id}
+                      onChange={() => setFormData(p => ({ ...p, detergent: opt.id }))}
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-[#0D2240] text-sm">{opt.label}</p>
+                      <p className="text-xs text-gray-400">{opt.note}</p>
+                    </div>
+                    {opt.id === "standard" && (
+                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Free</span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Treatment add-ons */}
+            <div>
+              <h4 className="font-bold text-[#0D2240] text-sm mb-3">Treatment Add-Ons</h4>
+              <div className="space-y-2">
+                {[
+                  {
+                    key: "fabricSoftener" as const,
+                    label: "Fabric Softener",
+                    desc: "Leaves clothes feeling soft and static-free",
+                    icon: "🌸",
+                  },
+                  {
+                    key: "oxiClean" as const,
+                    label: "OXI Clean",
+                    desc: "Extra stain-fighting power for whites and colors",
+                    icon: "✨",
+                  },
+                  {
+                    key: "colorSafeBleach" as const,
+                    label: "Color-Safe Bleach",
+                    desc: "Brightens colors without fading",
+                    icon: "🎨",
+                  },
+                ].map((addon) => (
+                  <label
+                    key={addon.key}
+                    className={cn(
+                      "flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                      formData[addon.key]
+                        ? "border-[#E8726A] bg-[#fdf6f3]"
+                        : "border-gray-100 bg-white hover:border-gray-200"
+                    )}
+                  >
+                    <Checkbox
+                      checked={formData[addon.key]}
+                      onCheckedChange={(c) => setFormData(p => ({ ...p, [addon.key]: c as boolean }))}
+                      className="shrink-0"
+                    />
+                    <span className="text-xl shrink-0">{addon.icon}</span>
+                    <div className="flex-1">
+                      <p className="font-semibold text-[#0D2240] text-sm">{addon.label}</p>
+                      <p className="text-xs text-gray-400">{addon.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>← Back</Button>
+              <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]" onClick={() => setStep(3)}>
+                Continue: Your Info →
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP 3: Contact Info ── */}
+        {step === 3 && (
           <div className="space-y-5">
             <div>
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Where should we go?</h3>
@@ -346,17 +516,17 @@ export function WashFoldForm() {
               ))}
             </div>
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>← Back</Button>
               <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
-                disabled={!canStep2} onClick={() => setStep(3)}>
+                disabled={!canStep3} onClick={() => setStep(4)}>
                 Continue: Confirm →
               </Button>
             </div>
           </div>
         )}
 
-        {/* ── STEP 3 ── */}
-        {step === 3 && (
+        {/* ── STEP 4: Confirm ── */}
+        {step === 4 && (
           <div className="space-y-5">
             <div>
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Almost done!</h3>
@@ -366,6 +536,9 @@ export function WashFoldForm() {
               {[
                 { label: "Service", value: "Wash & Fold" },
                 { label: "Est. Weight", value: `~${formData.pounds} lbs` },
+                { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
+                { label: "Detergent", value: DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? "" },
+                { label: "Add-Ons", value: addOnsSummary === "Standard (none)" ? "None" : addOnsSummary },
                 { label: "Pickup", value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
                 { label: "Delivery", value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
                 { label: "Address", value: formData.address },
@@ -410,9 +583,9 @@ export function WashFoldForm() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(3)}>← Back</Button>
               <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
-                disabled={!canStep3} onClick={() => setStep("payment")}>
+                disabled={!canStep4} onClick={() => setStep("payment")}>
                 Proceed to Payment →
               </Button>
             </div>

@@ -20,12 +20,20 @@ const TIME_WINDOWS = [
 
 const STEPS = [
   { id: 1, label: "Service" },
-  { id: 2, label: "Your Info" },
-  { id: 3, label: "Confirm" },
+  { id: 2, label: "Add-Ons" },
+  { id: 3, label: "Your Info" },
+  { id: 4, label: "Confirm" },
 ]
 
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+
+const DETERGENT_OPTIONS = [
+  { id: "standard", label: "Our Standard Detergent", note: "Included · fresh-scented" },
+  { id: "tide", label: "Tide", note: "Popular choice" },
+  { id: "gain", label: "Gain", note: "Fresh floral scent" },
+  { id: "fragrance_free", label: "Fragrance-Free / Hypoallergenic", note: "Great for sensitive skin" },
+]
 
 function getEarliestDelivery(pickup: Date): Date {
   const d = new Date(pickup)
@@ -51,7 +59,6 @@ function DateStrip({
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Show 28 days starting tomorrow
   const dates = Array.from({ length: 28 }, (_, i) => {
     const d = new Date(today)
     d.setDate(today.getDate() + i + 1)
@@ -146,7 +153,7 @@ function TimeSlotPicker({ value, onChange }: { value: string; onChange: (v: stri
 
 // ── Main form ────────────────────────────────────────────────────────────────
 export function BookingForm() {
-  const [step, setStep] = useState<1 | 2 | 3 | "payment">(1)
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -157,6 +164,10 @@ export function BookingForm() {
     pickupTimeWindow: "",
     deliveryTimeWindow: "",
     comforterCount: 1,
+    numBags: 1,
+    detergent: "standard",
+    fabricSoftener: false,
+    oxiClean: false,
     signature: "",
     agreedToTerms: false,
     smsConsent: false,
@@ -191,11 +202,17 @@ export function BookingForm() {
     !!formData.pickupDate && !!formData.deliveryDate &&
     !!formData.pickupTimeWindow && !!formData.deliveryTimeWindow
 
-  const canProceedStep2 =
+  const canProceedStep3 =
     !!formData.name && !!formData.email && !!formData.phone && !!formData.address
 
-  const canProceedStep3 =
+  const canProceedStep4 =
     formData.agreedToTerms && formData.smsConsent && formData.signature.trim().length > 0
+
+  const addOnsSummary = [
+    formData.detergent !== "standard" ? DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label : null,
+    formData.fabricSoftener ? "Fabric Softener" : null,
+    formData.oxiClean ? "OXI Clean" : null,
+  ].filter(Boolean).join(", ") || "Standard"
 
   // ── Payment screen ──────────────────────────────────────────────────────
   if (step === "payment") {
@@ -220,6 +237,8 @@ export function BookingForm() {
               },
               { label: "Address", value: formData.address },
               { label: "Comforters", value: `${formData.comforterCount} × $29.00` },
+              { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
+              { label: "Add-Ons", value: addOnsSummary },
             ].map((row) => (
               <div key={row.label} className="flex justify-between gap-4 text-sm">
                 <span className="text-gray-400 shrink-0">{row.label}</span>
@@ -247,11 +266,15 @@ export function BookingForm() {
               signature: formData.signature,
               agreedToTerms: formData.agreedToTerms.toString(),
               smsConsent: formData.smsConsent.toString(),
+              numBags: String(formData.comforterCount),
+              detergent: formData.detergent,
+              fabricSoftener: formData.fabricSoftener.toString(),
+              oxiClean: formData.oxiClean.toString(),
             }}
           />
           <button
             className="w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors"
-            onClick={() => setStep(3)}
+            onClick={() => setStep(4)}
           >
             ← Back to review
           </button>
@@ -307,7 +330,7 @@ export function BookingForm() {
             <div className="flex items-center justify-center gap-6 py-1">
               <button
                 type="button"
-                onClick={() => setFormData((p) => ({ ...p, comforterCount: Math.max(1, p.comforterCount - 1) }))}
+                onClick={() => setFormData((p) => ({ ...p, comforterCount: Math.max(1, p.comforterCount - 1), numBags: Math.max(1, p.comforterCount - 1) }))}
                 disabled={formData.comforterCount <= 1}
                 className="w-11 h-11 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors"
               >
@@ -323,7 +346,7 @@ export function BookingForm() {
               </div>
               <button
                 type="button"
-                onClick={() => setFormData((p) => ({ ...p, comforterCount: p.comforterCount + 1 }))}
+                onClick={() => setFormData((p) => ({ ...p, comforterCount: p.comforterCount + 1, numBags: p.comforterCount + 1 }))}
                 className="w-11 h-11 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors"
               >
                 +
@@ -348,6 +371,43 @@ export function BookingForm() {
                 <p>We wash in cold/warm water and tumble dry. We <strong>cannot</strong> process items labeled "Dry Clean Only," "Do Not Tumble Dry," weighted comforters, or featherbeds. Every comforter must have a care label.</p>
               </div>
             </details>
+
+            {/* Bag count */}
+            <div className="space-y-3 border-t border-gray-100 pt-5">
+              <div>
+                <h4 className="font-bold text-[#0D2240] text-sm mb-0.5">How many bags will you put out?</h4>
+                <p className="text-xs text-gray-400">Our driver will expect this many bags. Typically 1 bag per comforter.</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <button type="button"
+                  onClick={() => setFormData(p => ({ ...p, numBags: Math.max(1, p.numBags - 1) }))}
+                  disabled={formData.numBags <= 1}
+                  className="w-10 h-10 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors">
+                  −
+                </button>
+                <div className="text-center min-w-[60px]">
+                  <div className="text-4xl font-extrabold text-[#0D2240] leading-none tabular-nums">{formData.numBags}</div>
+                  <div className="text-xs text-gray-400 mt-1">bag{formData.numBags > 1 ? "s" : ""}</div>
+                </div>
+                <button type="button"
+                  onClick={() => setFormData(p => ({ ...p, numBags: p.numBags + 1 }))}
+                  className="w-10 h-10 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors">
+                  +
+                </button>
+                <div className="flex gap-1.5 ml-2">
+                  {[1, 2, 3, 4].map((n) => (
+                    <button key={n} type="button"
+                      onClick={() => setFormData(p => ({ ...p, numBags: n }))}
+                      className={cn("w-9 h-9 rounded-full text-xs font-bold border-2 transition-all",
+                        formData.numBags === n
+                          ? "bg-[#E8726A] border-[#E8726A] text-white"
+                          : "border-gray-200 text-gray-500 hover:border-[#E8726A]")}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             <div className="space-y-6 border-t border-gray-100 pt-6">
               {/* Pickup section */}
@@ -409,13 +469,114 @@ export function BookingForm() {
               disabled={!canProceedStep1}
               onClick={() => setStep(2)}
             >
-              Continue: Your Info →
+              Continue: Add-Ons →
             </Button>
           </div>
         )}
 
-        {/* ── STEP 2: Contact Info ── */}
+        {/* ── STEP 2: Add-Ons ── */}
         {step === 2 && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Customize your wash</h3>
+              <p className="text-sm text-gray-400">All add-ons are optional — skip to continue with standard service</p>
+            </div>
+
+            {/* Detergent choice */}
+            <div>
+              <h4 className="font-bold text-[#0D2240] text-sm mb-3">Detergent Preference</h4>
+              <div className="space-y-2">
+                {DETERGENT_OPTIONS.map((opt) => (
+                  <label
+                    key={opt.id}
+                    className={cn(
+                      "flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                      formData.detergent === opt.id
+                        ? "border-[#E8726A] bg-[#fdf6f3]"
+                        : "border-gray-100 bg-white hover:border-gray-200"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                      formData.detergent === opt.id ? "border-[#E8726A] bg-[#E8726A]" : "border-gray-300"
+                    )}>
+                      {formData.detergent === opt.id && (
+                        <div className="w-2 h-2 rounded-full bg-white" />
+                      )}
+                    </div>
+                    <input
+                      type="radio"
+                      className="sr-only"
+                      name="detergent"
+                      value={opt.id}
+                      checked={formData.detergent === opt.id}
+                      onChange={() => setFormData(p => ({ ...p, detergent: opt.id }))}
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-[#0D2240] text-sm">{opt.label}</p>
+                      <p className="text-xs text-gray-400">{opt.note}</p>
+                    </div>
+                    {opt.id === "standard" && (
+                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Free</span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Treatment add-ons */}
+            <div>
+              <h4 className="font-bold text-[#0D2240] text-sm mb-3">Treatment Add-Ons</h4>
+              <div className="space-y-2">
+                {[
+                  {
+                    key: "fabricSoftener" as const,
+                    label: "Fabric Softener",
+                    desc: "Leaves your comforter feeling extra soft and fluffy",
+                    icon: "🌸",
+                  },
+                  {
+                    key: "oxiClean" as const,
+                    label: "OXI Clean",
+                    desc: "Deep stain treatment — great for whites or stained comforters",
+                    icon: "✨",
+                  },
+                ].map((addon) => (
+                  <label
+                    key={addon.key}
+                    className={cn(
+                      "flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                      formData[addon.key]
+                        ? "border-[#E8726A] bg-[#fdf6f3]"
+                        : "border-gray-100 bg-white hover:border-gray-200"
+                    )}
+                  >
+                    <Checkbox
+                      checked={formData[addon.key]}
+                      onCheckedChange={(c) => setFormData(p => ({ ...p, [addon.key]: c as boolean }))}
+                      className="shrink-0"
+                    />
+                    <span className="text-xl shrink-0">{addon.icon}</span>
+                    <div className="flex-1">
+                      <p className="font-semibold text-[#0D2240] text-sm">{addon.label}</p>
+                      <p className="text-xs text-gray-400">{addon.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>← Back</Button>
+              <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]" onClick={() => setStep(3)}>
+                Continue: Your Info →
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP 3: Contact Info ── */}
+        {step === 3 && (
           <div className="space-y-5">
             <div>
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Where should we go?</h3>
@@ -443,11 +604,11 @@ export function BookingForm() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>← Back</Button>
               <Button
                 className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
-                disabled={!canProceedStep2}
-                onClick={() => setStep(3)}
+                disabled={!canProceedStep3}
+                onClick={() => setStep(4)}
               >
                 Continue: Confirm →
               </Button>
@@ -455,8 +616,8 @@ export function BookingForm() {
           </div>
         )}
 
-        {/* ── STEP 3: Confirm & Sign ── */}
-        {step === 3 && (
+        {/* ── STEP 4: Confirm & Sign ── */}
+        {step === 4 && (
           <div className="space-y-5">
             <div>
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">Almost done!</h3>
@@ -480,6 +641,8 @@ export function BookingForm() {
                 },
                 { label: "Address", value: formData.address },
                 { label: "Comforters", value: `${formData.comforterCount} × $29.00` },
+                { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
+                { label: "Add-Ons", value: addOnsSummary },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between gap-4">
                   <span className="text-gray-400 shrink-0">{row.label}</span>
@@ -542,10 +705,10 @@ export function BookingForm() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>← Back</Button>
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(3)}>← Back</Button>
               <Button
                 className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
-                disabled={!canProceedStep3}
+                disabled={!canProceedStep4}
                 onClick={() => setStep("payment")}
               >
                 Proceed to Payment →
