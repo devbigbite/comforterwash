@@ -31,7 +31,7 @@ export async function startCheckoutSession(productId: string, quantity = 1, meta
     metadata: metadata || {},
   })
 
-  return session.client_secret!
+  return { clientSecret: session.client_secret!, sessionId: session.id }
 }
 
 export async function handleSuccessfulPayment(sessionId: string) {
