@@ -43,6 +43,7 @@ export default async function AdminDashboard() {
         <div className="flex items-center gap-4">
           <a href="/admin/search" className="text-white/60 hover:text-white text-sm transition-colors">Search</a>
           <a href="/admin/workers" className="text-white/60 hover:text-white text-sm transition-colors">Workers</a>
+          <a href="/admin/subscriptions" className="text-white/60 hover:text-white text-sm transition-colors">Subscriptions</a>
           <a href="/admin/routes" className="text-white/60 hover:text-white text-sm transition-colors">Routes</a>
           <a href="/admin/promos" className="text-white/60 hover:text-white text-sm transition-colors">Promos</a>
           <a href="/admin/holidays" className="text-white/60 hover:text-white text-sm transition-colors">Holidays</a>

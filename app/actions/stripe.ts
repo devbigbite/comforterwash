@@ -3,6 +3,7 @@
 import { stripe } from "@/lib/stripe"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createBooking } from "./bookings"
+import { createSubscription } from "./subscriptions"
 
 // ── Checkout session ──────────────────────────────────────────────────────────
 // amountCents: the pre-auth ceiling (already includes 25% buffer for wash-fold)
@@ -80,30 +81,56 @@ export async function handleSuccessfulPayment(sessionId: string) {
 
     if ((session.payment_status === "paid" || isManual) && session.metadata) {
       const meta = session.metadata
-      const preAuthCents = session.amount_total ?? 0
+      const preAuthCents  = session.amount_total ?? 0
+      const frequency     = meta.subscriptionFrequency ?? "one_time"
+      const paymentIntent = session.payment_intent as string
 
-      await createBooking({
-        customerName: meta.customerName,
-        customerEmail: meta.customerEmail,
-        customerPhone: meta.customerPhone,
+      const booking = await createBooking({
+        customerName:    meta.customerName,
+        customerEmail:   meta.customerEmail,
+        customerPhone:   meta.customerPhone,
         customerAddress: meta.address,
-        pickupDate: meta.pickupDate,
-        pickupTimeWindow: meta.pickupTimeWindow,
-        deliveryDate: meta.deliveryDate,
+        pickupDate:      meta.pickupDate,
+        pickupTimeWindow:   meta.pickupTimeWindow,
+        deliveryDate:    meta.deliveryDate,
         deliveryTimeWindow: meta.deliveryTimeWindow,
-        numComforters: parseInt(meta.numComforters ?? meta.quantity ?? "1"),
-        comforterSize: meta.comforterSize ?? undefined,
-        totalAmount: preAuthCents,
-        stripePaymentIntentId: session.payment_intent as string,
-        serviceType: (meta.serviceType as "comforter_wash" | "wash_fold" | "wash_only") ?? "comforter_wash",
-        pounds: meta.pounds ? parseFloat(meta.pounds) : undefined,
-        numBags: meta.numBags ? parseInt(meta.numBags) : undefined,
+        numComforters:   parseInt(meta.numComforters ?? meta.quantity ?? "1"),
+        comforterSize:   meta.comforterSize ?? undefined,
+        totalAmount:     preAuthCents,
+        stripePaymentIntentId: paymentIntent,
+        serviceType:     (meta.serviceType as "comforter_wash" | "wash_fold" | "wash_only") ?? "comforter_wash",
+        pounds:          meta.pounds ? parseFloat(meta.pounds) : undefined,
+        numBags:         meta.numBags ? parseInt(meta.numBags) : undefined,
         preAuthCents,
-        subscriptionFrequency: meta.subscriptionFrequency ?? "one_time",
+        subscriptionFrequency: frequency,
         pricePerLbCents: meta.pricePerLbCents ? parseInt(meta.pricePerLbCents) : undefined,
-        promoCode: meta.promoCode ?? undefined,
-        promoDiscountCents: meta.promoDiscountCents ? parseInt(meta.promoDiscountCents) : undefined,
+        promoCode:           meta.promoCode ?? undefined,
+        promoDiscountCents:  meta.promoDiscountCents ? parseInt(meta.promoDiscountCents) : undefined,
       })
+
+      // ── If this is a recurring booking, create Stripe Customer + subscription ──
+      if (frequency !== "one_time" && meta.recurringPickupDay && booking?.id) {
+        await createSubscription({
+          bookingId:             booking.id,
+          customerName:          meta.customerName,
+          customerEmail:         meta.customerEmail,
+          customerPhone:         meta.customerPhone,
+          customerAddress:       meta.address,
+          frequency:             frequency as "weekly" | "biweekly",
+          pickupDayOfWeek:       meta.recurringPickupDay,
+          pickupTimeWindow:      meta.recurringPickupTime ?? meta.pickupTimeWindow,
+          deliveryDayOfWeek:     meta.recurringDeliveryDay,
+          deliveryTimeWindow:    meta.recurringDeliveryTime ?? meta.deliveryTimeWindow,
+          pricePerLbCents:       meta.pricePerLbCents ? parseInt(meta.pricePerLbCents) : 225,
+          detergent:             meta.detergent ?? "standard",
+          fabricSoftener:        meta.fabricSoftener === "true",
+          oxiClean:              meta.oxiClean === "true",
+          colorSafeBleach:       meta.colorSafeBleach === "true",
+          stripePaymentIntentId: paymentIntent,
+          firstPickupDateStr:    meta.pickupDate,
+          firstDeliveryDateStr:  meta.deliveryDate,
+        }).catch(err => console.error("[stripe] createSubscription failed:", err))
+      }
     }
 
     return { success: true }

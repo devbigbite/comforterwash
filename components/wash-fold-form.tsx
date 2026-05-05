@@ -12,8 +12,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 
-const MIN_POUNDS = 20       // 20 lb minimum
-const LBS_PER_BAG = 15      // ~15 lbs per standard laundry bag
+// ─── constants ───────────────────────────────────────────────────────────────
+const MIN_POUNDS = 20
+const LBS_PER_BAG = 15
 
 const FREQUENCY_PRICING: Record<string, { cents: number; label: string }> = {
   one_time: { cents: 250, label: "$2.50/lb" },
@@ -41,23 +42,63 @@ const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
 const DETERGENT_OPTIONS = [
-  { id: "standard", label: "Our Standard Detergent", note: "Included · fresh-scented" },
-  { id: "tide", label: "Tide", note: "Popular choice" },
-  { id: "gain", label: "Gain", note: "Fresh floral scent" },
+  { id: "standard",       label: "Our Standard Detergent",        note: "Included · fresh-scented" },
+  { id: "tide",           label: "Tide",                           note: "Popular choice" },
+  { id: "gain",           label: "Gain",                           note: "Fresh floral scent" },
   { id: "fragrance_free", label: "Fragrance-Free / Hypoallergenic", note: "Great for sensitive skin" },
 ]
 
-function getEarliestDelivery(pickup: Date): Date {
-  const d = new Date(pickup)
-  d.setDate(d.getDate() + 3)
-  while ([0, 4, 5, 6].includes(d.getDay())) d.setDate(d.getDate() + 1)
-  return d
+// ─── weekday schedule helpers ────────────────────────────────────────────────
+const WEEKDAYS = [
+  { id: "monday",    label: "Monday",    short: "Mon", num: 1 },
+  { id: "tuesday",   label: "Tuesday",   short: "Tue", num: 2 },
+  { id: "wednesday", label: "Wednesday", short: "Wed", num: 3 },
+  { id: "thursday",  label: "Thursday",  short: "Thu", num: 4 },
+  { id: "friday",    label: "Friday",    short: "Fri", num: 5 },
+]
+
+/** Returns weekday IDs that are valid delivery days given a pickup day.
+ *  Rules: ≥ 3 calendar-day gap (Friday pickups require ≥ 5 days → Wednesday+). */
+function getValidDeliveryDays(pickupDayId: string): string[] {
+  const pickup = WEEKDAYS.find(d => d.id === pickupDayId)
+  if (!pickup) return []
+  const minGap = pickupDayId === "friday" ? 5 : 3
+  return WEEKDAYS.filter(d => {
+    const gap = d.num > pickup.num ? d.num - pickup.num : 7 - pickup.num + d.num
+    return gap >= minGap
+  }).map(d => d.id)
 }
 
+/** Returns the next calendar date (from tomorrow) for a given weekday ID. */
+function nextOccurrence(dayId: string, after?: Date): Date {
+  const dayNums: Record<string, number> = {
+    monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5
+  }
+  const target = dayNums[dayId]
+  const base = after ? new Date(after) : new Date()
+  base.setHours(0, 0, 0, 0)
+  // getDay(): 0=Sun,1=Mon...6=Sat; convert to Mon=1..Fri=5,Sun=0,Sat=6
+  const todayNum = base.getDay()
+  let diff = target - todayNum
+  if (diff <= 0) diff += 7
+  const result = new Date(base)
+  result.setDate(base.getDate() + diff)
+  return result
+}
+
+/** First delivery date for a recurring schedule, respecting the minimum gap. */
+function firstDeliveryDate(pickupDate: Date, deliveryDayId: string, pickupDayId: string): Date {
+  const minGap = pickupDayId === "friday" ? 5 : 3
+  const earliest = new Date(pickupDate)
+  earliest.setDate(earliest.getDate() + minGap)
+  // Find the next occurrence of deliveryDayId that is >= earliest
+  const candidate = nextOccurrence(deliveryDayId, new Date(pickupDate))
+  return candidate >= earliest ? candidate : nextOccurrence(deliveryDayId, earliest)
+}
+
+// ─── sub-components ──────────────────────────────────────────────────────────
 function DateStrip({
-  selected,
-  onSelect,
-  isAvailable,
+  selected, onSelect, isAvailable,
 }: {
   selected: Date | undefined
   onSelect: (d: Date) => void
@@ -84,18 +125,13 @@ function DateStrip({
           const sel = !!selected && isSameDay(d, selected)
           const hint = dayHint(d)
           return (
-            <button
-              key={i}
-              type="button"
-              disabled={!avail}
-              onClick={() => onSelect(d)}
+            <button key={i} type="button" disabled={!avail} onClick={() => onSelect(d)}
               className={cn(
                 "flex flex-col items-center justify-center w-[62px] rounded-2xl border-2 py-2.5 transition-all shrink-0",
                 sel ? "bg-[#E8726A] border-[#E8726A] text-white shadow-md"
                   : avail ? "bg-white border-gray-200 text-[#0D2240] hover:border-[#E8726A] hover:shadow-sm cursor-pointer"
                   : "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
-              )}
-            >
+              )}>
               <span className={cn("text-[10px] font-bold uppercase tracking-wider", sel ? "text-white/80" : avail ? "text-gray-400" : "text-gray-300")}>{DAY_ABBR[d.getDay()]}</span>
               <span className={cn("text-xl font-extrabold leading-tight my-0.5", sel ? "text-white" : avail ? "text-[#0D2240]" : "text-gray-300")}>{d.getDate()}</span>
               <span className={cn("text-[10px] font-bold uppercase", sel ? "text-white/70" : avail ? "text-gray-400" : "text-gray-300")}>{MON_ABBR[d.getMonth()]}</span>
@@ -114,15 +150,11 @@ function TimeSlotPicker({ value, onChange }: { value: string; onChange: (v: stri
       <p className="text-xs text-center text-gray-400 mb-3 mt-4">Available time slots</p>
       <div className="flex gap-2 justify-center flex-wrap">
         {TIME_WINDOWS.map((w) => (
-          <button
-            key={w.value}
-            type="button"
-            onClick={() => onChange(w.value)}
+          <button key={w.value} type="button" onClick={() => onChange(w.value)}
             className={cn(
               "px-6 py-2.5 rounded-xl font-bold text-sm transition-all",
               value === w.value ? "bg-[#E8726A] text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            )}
-          >
+            )}>
             {w.label}
           </button>
         ))}
@@ -131,25 +163,68 @@ function TimeSlotPicker({ value, onChange }: { value: string; onChange: (v: stri
   )
 }
 
+function WeekdayPicker({
+  label, value, available, onChange, note,
+}: {
+  label: string
+  value: string
+  available: string[]
+  onChange: (id: string) => void
+  note?: string
+}) {
+  return (
+    <div>
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">{label}</p>
+      <div className="flex gap-2 flex-wrap">
+        {WEEKDAYS.map(d => {
+          const isAvail = available.includes(d.id)
+          const isSel   = value === d.id
+          return (
+            <button key={d.id} type="button" disabled={!isAvail} onClick={() => onChange(d.id)}
+              className={cn(
+                "px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all",
+                isSel   ? "bg-[#E8726A] border-[#E8726A] text-white shadow-sm"
+                : isAvail ? "bg-white border-gray-200 text-[#0D2240] hover:border-[#E8726A]"
+                : "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
+              )}>
+              {d.short}
+            </button>
+          )
+        })}
+      </div>
+      {note && <p className="text-[10px] text-gray-400 mt-1.5">{note}</p>}
+    </div>
+  )
+}
+
+// ─── main component ───────────────────────────────────────────────────────────
 export function WashFoldForm() {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "", address: "",
-    pickupDate: undefined as Date | undefined,
-    deliveryDate: undefined as Date | undefined,
-    pickupTimeWindow: "",
-    deliveryTimeWindow: "",
-    numBags: 2,
-    pounds: bagsToEstLbs(2),
-    frequency: "one_time" as "one_time" | "weekly" | "biweekly",
-    detergent: "standard",
-    fabricSoftener: false,
-    oxiClean: false,
-    colorSafeBleach: false,
-    signature: "",
-    agreedToTerms: false,
-    smsConsent: false,
+    // one-time dates
+    pickupDate:          undefined as Date | undefined,
+    deliveryDate:        undefined as Date | undefined,
+    pickupTimeWindow:    "",
+    deliveryTimeWindow:  "",
+    // recurring schedule
+    recurringPickupDay:      "",
+    recurringPickupTime:     "",
+    recurringDeliveryDay:    "",
+    recurringDeliveryTime:   "",
+    // shared
+    numBags:     2,
+    pounds:      bagsToEstLbs(2),
+    frequency:   "one_time" as "one_time" | "weekly" | "biweekly",
+    detergent:   "standard",
+    fabricSoftener:   false,
+    oxiClean:         false,
+    colorSafeBleach:  false,
+    signature:        "",
+    agreedToTerms:    false,
+    smsConsent:       false,
   })
+
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
 
@@ -157,47 +232,137 @@ export function WashFoldForm() {
     getExcludedDates().then(dates => setExcludedDates(new Set(dates)))
   }, [])
 
-  const isExcluded = (d: Date) => excludedDates.has(d.toISOString().split("T")[0])
+  const isRecurring  = formData.frequency !== "one_time"
+  const isExcluded   = (d: Date) => excludedDates.has(d.toISOString().split("T")[0])
 
+  // ── pricing ────────────────────────────────────────────────────────────────
   const pricePerLbCents = FREQUENCY_PRICING[formData.frequency].cents
-  const subtotalCents = Math.max(formData.pounds * pricePerLbCents, MIN_POUNDS * pricePerLbCents)
-  const discountCents = promo ? Math.min(promo.discountCents, subtotalCents) : 0
-  const totalCents = subtotalCents - discountCents
-  const preAuthCents = Math.ceil(totalCents * 1.25) // 25% buffer — captured at actual weight
-  const totalDisplay = (totalCents / 100).toFixed(2)
-  const priceLabel = FREQUENCY_PRICING[formData.frequency].label
+  const subtotalCents   = Math.max(formData.pounds * pricePerLbCents, MIN_POUNDS * pricePerLbCents)
+  const discountCents   = promo ? Math.min(promo.discountCents, subtotalCents) : 0
+  const totalCents      = subtotalCents - discountCents
+  const preAuthCents    = Math.ceil(totalCents * 1.25)
+  const totalDisplay    = (totalCents / 100).toFixed(2)
+  const priceLabel      = FREQUENCY_PRICING[formData.frequency].label
 
-  const handlePickupSelect = (date: Date) => {
-    setFormData((p) => ({ ...p, pickupDate: date, deliveryDate: getEarliestDelivery(date) }))
-  }
-
-  const isPickupAvailable = (d: Date) => { const day = d.getDay(); return (day === 1 || day === 2 || day === 3) && !isExcluded(d) }
+  // ── one-time date helpers ──────────────────────────────────────────────────
+  const minGapForDay = (d: Date) => d.getDay() === 5 ? 5 : 3  // Friday → 5 days, else 3
+  const isWeekday    = (d: Date) => d.getDay() >= 1 && d.getDay() <= 5
+  const isPickupAvailable   = (d: Date) => isWeekday(d) && !isExcluded(d)
   const isDeliveryAvailable = (d: Date) => {
-    const day = d.getDay()
-    if (day !== 1 && day !== 2 && day !== 3) return false
-    if (isExcluded(d)) return false
+    if (!isWeekday(d) || isExcluded(d)) return false
     if (formData.pickupDate) {
-      const min = new Date(formData.pickupDate)
-      min.setDate(min.getDate() + 3)
+      const gap  = minGapForDay(formData.pickupDate)
+      const min  = new Date(formData.pickupDate)
+      min.setDate(min.getDate() + gap)
       min.setHours(0, 0, 0, 0)
       return d >= min
     }
     return true
   }
 
-  const canStep1 = !!formData.pickupDate && !!formData.deliveryDate && !!formData.pickupTimeWindow && !!formData.deliveryTimeWindow
+  const handlePickupSelect = (date: Date) => {
+    const gap  = minGapForDay(date)
+    const delv = new Date(date)
+    delv.setDate(delv.getDate() + gap)
+    // advance to next weekday if needed
+    while (!isWeekday(delv)) delv.setDate(delv.getDate() + 1)
+    setFormData(p => ({ ...p, pickupDate: date, deliveryDate: delv }))
+  }
+
+  // ── recurring schedule computed values ─────────────────────────────────────
+  const firstPickup   = formData.recurringPickupDay
+    ? nextOccurrence(formData.recurringPickupDay)
+    : undefined
+
+  const firstDelivery = (firstPickup && formData.recurringDeliveryDay && formData.recurringPickupDay)
+    ? firstDeliveryDate(firstPickup, formData.recurringDeliveryDay, formData.recurringPickupDay)
+    : undefined
+
+  const validDeliveryDays = formData.recurringPickupDay
+    ? getValidDeliveryDays(formData.recurringPickupDay)
+    : []
+
+  // When pickup day changes, clear delivery day if no longer valid
+  const handlePickupDayChange = (day: string) => {
+    const valid = getValidDeliveryDays(day)
+    setFormData(p => ({
+      ...p,
+      recurringPickupDay:   day,
+      recurringDeliveryDay: valid.includes(p.recurringDeliveryDay) ? p.recurringDeliveryDay : "",
+    }))
+  }
+
+  // ── step gating ────────────────────────────────────────────────────────────
+  const canStep1 = isRecurring
+    ? !!formData.recurringPickupDay && !!formData.recurringPickupTime
+      && !!formData.recurringDeliveryDay && !!formData.recurringDeliveryTime
+    : !!formData.pickupDate && !!formData.deliveryDate
+      && !!formData.pickupTimeWindow && !!formData.deliveryTimeWindow
+
   const canStep3 = !!formData.name && !!formData.email && !!formData.phone && !!formData.address
   const canStep4 = formData.agreedToTerms && formData.smsConsent && formData.signature.trim().length > 0
 
   const selectedDetergentLabel = DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? ""
   const addOnsSummary = [
     formData.detergent !== "standard" ? selectedDetergentLabel : null,
-    formData.fabricSoftener ? "Fabric Softener" : null,
-    formData.oxiClean ? "OXI Clean" : null,
+    formData.fabricSoftener  ? "Fabric Softener" : null,
+    formData.oxiClean        ? "OXI Clean" : null,
     formData.colorSafeBleach ? "Color-Safe Bleach" : null,
   ].filter(Boolean).join(", ") || "Standard (none)"
 
-  // ── Payment ──────────────────────────────────────────────────────────────
+  // ── schedule summary strings ───────────────────────────────────────────────
+  const pickupSummary = isRecurring
+    ? `Every ${WEEKDAYS.find(d => d.id === formData.recurringPickupDay)?.label} · ${TIME_WINDOWS.find(w => w.value === formData.recurringPickupTime)?.label}`
+    : formData.pickupDate
+      ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}`
+      : ""
+
+  const deliverySummary = isRecurring
+    ? `Every ${WEEKDAYS.find(d => d.id === formData.recurringDeliveryDay)?.label} · ${TIME_WINDOWS.find(w => w.value === formData.recurringDeliveryTime)?.label}`
+    : formData.deliveryDate
+      ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}`
+      : ""
+
+  // ── Checkout metadata ──────────────────────────────────────────────────────
+  const checkoutMeta: Record<string, string> = {
+    customerName:    formData.name,
+    customerEmail:   formData.email,
+    customerPhone:   formData.phone,
+    address:         formData.address,
+    serviceType:     "wash_fold",
+    subscriptionFrequency: formData.frequency,
+    pricePerLbCents: String(pricePerLbCents),
+    pounds:          String(formData.pounds),
+    numBags:         String(formData.numBags),
+    numComforters:   "0",
+    detergent:       formData.detergent,
+    fabricSoftener:  formData.fabricSoftener.toString(),
+    oxiClean:        formData.oxiClean.toString(),
+    colorSafeBleach: formData.colorSafeBleach.toString(),
+    signature:       formData.signature,
+    agreedToTerms:   formData.agreedToTerms.toString(),
+    smsConsent:      formData.smsConsent.toString(),
+    promoCode:           promo?.code ?? "",
+    promoDiscountCents:  String(discountCents),
+  }
+
+  if (isRecurring) {
+    checkoutMeta.recurringPickupDay      = formData.recurringPickupDay
+    checkoutMeta.recurringPickupTime     = formData.recurringPickupTime
+    checkoutMeta.recurringDeliveryDay    = formData.recurringDeliveryDay
+    checkoutMeta.recurringDeliveryTime   = formData.recurringDeliveryTime
+    checkoutMeta.pickupDate    = firstPickup?.toISOString()  ?? ""
+    checkoutMeta.deliveryDate  = firstDelivery?.toISOString() ?? ""
+    checkoutMeta.pickupTimeWindow   = formData.recurringPickupTime
+    checkoutMeta.deliveryTimeWindow = formData.recurringDeliveryTime
+  } else {
+    checkoutMeta.pickupDate         = formData.pickupDate?.toISOString()  ?? ""
+    checkoutMeta.deliveryDate       = formData.deliveryDate?.toISOString() ?? ""
+    checkoutMeta.pickupTimeWindow   = formData.pickupTimeWindow
+    checkoutMeta.deliveryTimeWindow = formData.deliveryTimeWindow
+  }
+
+  // ── payment step ───────────────────────────────────────────────────────────
   if (step === "payment") {
     return (
       <Card className="shadow-lg border-0 ring-1 ring-gray-100">
@@ -205,21 +370,35 @@ export function WashFoldForm() {
           <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5">
             <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">Order Summary</h3>
             {[
-              { label: "Service", value: "Wash & Fold" },
-              { label: "Frequency", value: formData.frequency === "one_time" ? "One-Time" : formData.frequency === "weekly" ? "Weekly" : "Biweekly" },
-              { label: "Rate", value: priceLabel },
-              { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
+              { label: "Service",    value: "Wash & Fold" },
+              { label: "Frequency",  value: formData.frequency === "one_time" ? "One-Time" : formData.frequency === "weekly" ? "Weekly" : "Biweekly" },
+              { label: "Rate",       value: priceLabel },
+              { label: "Bags",       value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
               { label: "Est. Weight", value: `~${formData.pounds} lbs (estimated)` },
-              { label: "Add-Ons", value: addOnsSummary },
-              { label: "Pickup", value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
-              { label: "Delivery", value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
-              { label: "Address", value: formData.address },
+              { label: "Add-Ons",    value: addOnsSummary },
+              { label: "Pickup",     value: pickupSummary },
+              { label: "Delivery",   value: deliverySummary },
+              { label: "Address",    value: formData.address },
             ].map((row) => (
               <div key={row.label} className="flex justify-between gap-4 text-sm">
                 <span className="text-gray-400 shrink-0">{row.label}</span>
                 <span className="font-medium text-[#0D2240] text-right">{row.value}</span>
               </div>
             ))}
+            {isRecurring && firstPickup && firstDelivery && (
+              <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5 mt-1">
+                <p className="text-xs font-bold text-blue-700 mb-1">Subscription Schedule</p>
+                <p className="text-xs text-blue-600">First pickup: <strong>{format(firstPickup, "EEE, MMM d")}</strong></p>
+                <p className="text-xs text-blue-600">First delivery: <strong>{format(firstDelivery, "EEE, MMM d")}</strong></p>
+                <p className="text-[10px] text-blue-500 mt-1">Your card will be charged automatically for each pickup at actual weight.</p>
+              </div>
+            )}
+            {promo && (
+              <div className="flex justify-between gap-4 text-sm text-green-700">
+                <span className="shrink-0">Promo ({promo.code})</span>
+                <span className="font-semibold">−${(discountCents / 100).toFixed(2)}</span>
+              </div>
+            )}
             <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
               <span className="text-[#0D2240]">Pre-authorization (est.)</span>
               <span className="text-[#E8726A]">${totalDisplay}</span>
@@ -232,31 +411,7 @@ export function WashFoldForm() {
             amountCents={preAuthCents}
             label={`Wash & Fold — ~${formData.pounds} lbs`}
             manualCapture={true}
-            metadata={{
-              customerName: formData.name,
-              customerEmail: formData.email,
-              customerPhone: formData.phone,
-              address: formData.address,
-              pickupDate: formData.pickupDate?.toISOString() || "",
-              deliveryDate: formData.deliveryDate?.toISOString() || "",
-              pickupTimeWindow: formData.pickupTimeWindow,
-              deliveryTimeWindow: formData.deliveryTimeWindow,
-              signature: formData.signature,
-              agreedToTerms: formData.agreedToTerms.toString(),
-              smsConsent: formData.smsConsent.toString(),
-              serviceType: "wash_fold",
-              subscriptionFrequency: formData.frequency,
-              pricePerLbCents: String(pricePerLbCents),
-              pounds: String(formData.pounds),
-              numBags: String(formData.numBags),
-              numComforters: "0",
-              detergent: formData.detergent,
-              fabricSoftener: formData.fabricSoftener.toString(),
-              oxiClean: formData.oxiClean.toString(),
-              colorSafeBleach: formData.colorSafeBleach.toString(),
-              promoCode: promo?.code ?? "",
-              promoDiscountCents: String(discountCents),
-            }}
+            metadata={checkoutMeta}
           />
           <button className="w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors" onClick={() => setStep(4)}>
             ← Back to review
@@ -289,31 +444,26 @@ export function WashFoldForm() {
           ))}
         </div>
 
-        {/* ── STEP 1: Bags + Dates ── */}
+        {/* ── STEP 1: Frequency + Schedule ── */}
         {step === 1 && (
           <div className="space-y-7">
 
-            {/* Frequency selector — first question */}
+            {/* Frequency selector */}
             <div>
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">How often do you need this service?</h3>
-              <p className="text-sm text-gray-400 mb-4">Subscribers get a lower per-pound rate.</p>
+              <p className="text-sm text-gray-400 mb-4">Subscribers get a lower per-pound rate and a fixed weekly schedule.</p>
               <div className="grid grid-cols-3 gap-2">
                 {([
                   { value: "one_time", label: "One-Time", price: "$2.50/lb", note: "" },
                   { value: "weekly",   label: "Weekly",   price: "$2.25/lb", note: "Save 10%" },
                   { value: "biweekly", label: "Biweekly", price: "$2.25/lb", note: "Save 10%" },
                 ] as const).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
+                  <button key={opt.value} type="button"
                     onClick={() => setFormData(p => ({ ...p, frequency: opt.value }))}
                     className={cn(
                       "flex flex-col items-center gap-1 rounded-2xl border-2 py-3 px-2 transition-all",
-                      formData.frequency === opt.value
-                        ? "border-[#E8726A] bg-[#fdf6f3]"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                    )}
-                  >
+                      formData.frequency === opt.value ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300"
+                    )}>
                     <span className={cn("font-extrabold text-sm", formData.frequency === opt.value ? "text-[#0D2240]" : "text-gray-700")}>
                       {opt.label}
                     </span>
@@ -330,7 +480,7 @@ export function WashFoldForm() {
               </div>
             </div>
 
-            {/* Bag counter — primary question */}
+            {/* Bag counter */}
             <div>
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">How many bags are you leaving for us?</h3>
               <p className="text-sm text-gray-400">One standard laundry bag holds about 15 lbs. We&apos;ll weigh everything at pickup and adjust the final charge.</p>
@@ -339,10 +489,7 @@ export function WashFoldForm() {
             <div className="space-y-4">
               <div className="flex items-center justify-center gap-6 py-1">
                 <button type="button"
-                  onClick={() => setFormData(p => {
-                    const bags = Math.max(1, p.numBags - 1)
-                    return { ...p, numBags: bags, pounds: bagsToEstLbs(bags) }
-                  })}
+                  onClick={() => setFormData(p => { const bags = Math.max(1, p.numBags - 1); return { ...p, numBags: bags, pounds: bagsToEstLbs(bags) } })}
                   disabled={formData.numBags <= 1}
                   className="w-12 h-12 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors">
                   −
@@ -352,23 +499,17 @@ export function WashFoldForm() {
                   <div className="text-sm text-gray-400 mt-1.5 font-medium">bag{formData.numBags > 1 ? "s" : ""}</div>
                 </div>
                 <button type="button"
-                  onClick={() => setFormData(p => {
-                    const bags = p.numBags + 1
-                    return { ...p, numBags: bags, pounds: bagsToEstLbs(bags) }
-                  })}
+                  onClick={() => setFormData(p => { const bags = p.numBags + 1; return { ...p, numBags: bags, pounds: bagsToEstLbs(bags) } })}
                   className="w-12 h-12 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors">
                   +
                 </button>
               </div>
-              {/* Quick-select */}
               <div className="flex gap-2 justify-center flex-wrap">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button key={n} type="button"
                     onClick={() => setFormData(p => ({ ...p, numBags: n, pounds: bagsToEstLbs(n) }))}
                     className={cn("px-4 py-1.5 rounded-full text-xs font-bold border-2 transition-all",
-                      formData.numBags === n
-                        ? "bg-[#0D2240] border-[#0D2240] text-white"
-                        : "border-gray-200 text-gray-500 hover:border-[#0D2240]")}>
+                      formData.numBags === n ? "bg-[#0D2240] border-[#0D2240] text-white" : "border-gray-200 text-gray-500 hover:border-[#0D2240]")}>
                     {n} bag{n > 1 ? "s" : ""}
                   </button>
                 ))}
@@ -397,31 +538,141 @@ export function WashFoldForm() {
               </div>
             </div>
 
-            {/* Date selection */}
-            <div className="space-y-6 border-t border-gray-100 pt-6">
-              <div>
-                <div className="flex items-center gap-1.5 mb-3">
-                  <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">1</span>
-                  <h4 className="font-bold text-[#0D2240] text-sm">Pickup Date &amp; Time</h4>
-                  <span className="text-xs text-gray-400">— Mon, Tue, Wed</span>
-                </div>
-                <DateStrip selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} />
-                {formData.pickupDate && <TimeSlotPicker value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} />}
-              </div>
-              {formData.pickupDate && formData.pickupTimeWindow && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">2</span>
-                    <h4 className="font-bold text-[#0D2240] text-sm">Delivery Date &amp; Time</h4>
-                    <span className="text-xs text-gray-400">— 72hrs after pickup</span>
-                  </div>
-                  {formData.deliveryDate && (
-                    <p className="text-xs text-[#E8726A] font-medium mb-3">
-                      Suggested: {format(formData.deliveryDate, "EEE, MMM d")}
+            {/* ── DATE / SCHEDULE SECTION ── */}
+            <div className="border-t border-gray-100 pt-6">
+
+              {/* RECURRING: weekday + time picker */}
+              {isRecurring ? (
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="font-extrabold text-[#0D2240] text-base mb-1">Set your recurring schedule</h4>
+                    <p className="text-sm text-gray-400">
+                      {formData.frequency === "weekly" ? "Pickup every week on the same day." : "Pickup every two weeks on the same day."}
+                      {" "}Your card is charged automatically at actual weight.
                     </p>
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+                    {/* Pickup day */}
+                    <WeekdayPicker
+                      label="↑ Pickup day"
+                      value={formData.recurringPickupDay}
+                      available={WEEKDAYS.map(d => d.id)}
+                      onChange={handlePickupDayChange}
+                    />
+
+                    {/* Pickup time */}
+                    {formData.recurringPickupDay && (
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">↑ Pickup time</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {TIME_WINDOWS.map(w => (
+                            <button key={w.value} type="button"
+                              onClick={() => setFormData(p => ({ ...p, recurringPickupTime: w.value }))}
+                              className={cn("px-5 py-2 rounded-xl text-sm font-bold border-2 transition-all",
+                                formData.recurringPickupTime === w.value
+                                  ? "bg-[#E8726A] border-[#E8726A] text-white"
+                                  : "bg-white border-gray-200 text-[#0D2240] hover:border-[#E8726A]")}>
+                              {w.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Delivery day */}
+                    {formData.recurringPickupDay && formData.recurringPickupTime && (
+                      <WeekdayPicker
+                        label="↓ Delivery day"
+                        value={formData.recurringDeliveryDay}
+                        available={validDeliveryDays}
+                        onChange={(d) => setFormData(p => ({ ...p, recurringDeliveryDay: d }))}
+                        note={
+                          formData.recurringPickupDay === "friday"
+                            ? "Friday pickups are processed over the weekend — earliest delivery is Wednesday."
+                            : "3-day turnaround minimum."
+                        }
+                      />
+                    )}
+
+                    {/* Delivery time */}
+                    {formData.recurringDeliveryDay && (
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">↓ Delivery time</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {TIME_WINDOWS.map(w => (
+                            <button key={w.value} type="button"
+                              onClick={() => setFormData(p => ({ ...p, recurringDeliveryTime: w.value }))}
+                              className={cn("px-5 py-2 rounded-xl text-sm font-bold border-2 transition-all",
+                                formData.recurringDeliveryTime === w.value
+                                  ? "bg-[#E8726A] border-[#E8726A] text-white"
+                                  : "bg-white border-gray-200 text-[#0D2240] hover:border-[#E8726A]")}>
+                              {w.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* First pickup / delivery preview */}
+                  {firstPickup && firstDelivery && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4">
+                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-2">Your first order</p>
+                      <div className="flex gap-6 text-sm">
+                        <div>
+                          <p className="text-blue-500 text-[10px] font-bold uppercase">Pickup</p>
+                          <p className="font-extrabold text-[#0D2240]">{format(firstPickup, "EEE, MMM d")}</p>
+                        </div>
+                        <div>
+                          <p className="text-blue-500 text-[10px] font-bold uppercase">Delivery</p>
+                          <p className="font-extrabold text-[#0D2240]">{format(firstDelivery, "EEE, MMM d")}</p>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-blue-500 mt-2">
+                        Then repeats every {formData.frequency === "weekly" ? "week" : "two weeks"} automatically.
+                      </p>
+                    </div>
                   )}
-                  <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} />
-                  {formData.deliveryDate && <TimeSlotPicker value={formData.deliveryTimeWindow} onChange={(v) => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} />}
+                </div>
+
+              ) : (
+                /* ONE-TIME: date strip (Mon–Fri) */
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">1</span>
+                      <h4 className="font-bold text-[#0D2240] text-sm">Pickup Date &amp; Time</h4>
+                      <span className="text-xs text-gray-400">— Any weekday</span>
+                    </div>
+                    <DateStrip selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} />
+                    {formData.pickupDate && (
+                      <>
+                        {formData.pickupDate.getDay() === 5 && (
+                          <p className="text-[10px] text-amber-600 font-medium mt-2 bg-amber-50 px-3 py-1.5 rounded-lg">
+                            Friday pickups are processed over the weekend — earliest delivery is Wednesday.
+                          </p>
+                        )}
+                        <TimeSlotPicker value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} />
+                      </>
+                    )}
+                  </div>
+                  {formData.pickupDate && formData.pickupTimeWindow && (
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                        <h4 className="font-bold text-[#0D2240] text-sm">Delivery Date &amp; Time</h4>
+                        <span className="text-xs text-gray-400">— {formData.pickupDate.getDay() === 5 ? "5" : "3"}+ days after pickup</span>
+                      </div>
+                      {formData.deliveryDate && (
+                        <p className="text-xs text-[#E8726A] font-medium mb-3">
+                          Suggested: {format(formData.deliveryDate, "EEE, MMM d")}
+                        </p>
+                      )}
+                      <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} />
+                      {formData.deliveryDate && <TimeSlotPicker value={formData.deliveryTimeWindow} onChange={(v) => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} />}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -441,86 +692,44 @@ export function WashFoldForm() {
               <p className="text-sm text-gray-400">All add-ons are optional — skip to continue with standard service</p>
             </div>
 
-            {/* Detergent choice */}
             <div>
               <h4 className="font-bold text-[#0D2240] text-sm mb-3">Detergent Preference</h4>
               <div className="space-y-2">
                 {DETERGENT_OPTIONS.map((opt) => (
-                  <label
-                    key={opt.id}
-                    className={cn(
-                      "flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
-                      formData.detergent === opt.id
-                        ? "border-[#E8726A] bg-[#fdf6f3]"
-                        : "border-gray-100 bg-white hover:border-gray-200"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-                      formData.detergent === opt.id ? "border-[#E8726A] bg-[#E8726A]" : "border-gray-300"
-                    )}>
-                      {formData.detergent === opt.id && (
-                        <div className="w-2 h-2 rounded-full bg-white" />
-                      )}
+                  <label key={opt.id}
+                    className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                      formData.detergent === opt.id ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                    <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                      formData.detergent === opt.id ? "border-[#E8726A] bg-[#E8726A]" : "border-gray-300")}>
+                      {formData.detergent === opt.id && <div className="w-2 h-2 rounded-full bg-white" />}
                     </div>
-                    <input
-                      type="radio"
-                      className="sr-only"
-                      name="detergent"
-                      value={opt.id}
+                    <input type="radio" className="sr-only" name="detergent" value={opt.id}
                       checked={formData.detergent === opt.id}
-                      onChange={() => setFormData(p => ({ ...p, detergent: opt.id }))}
-                    />
+                      onChange={() => setFormData(p => ({ ...p, detergent: opt.id }))} />
                     <div className="flex-1">
                       <p className="font-semibold text-[#0D2240] text-sm">{opt.label}</p>
                       <p className="text-xs text-gray-400">{opt.note}</p>
                     </div>
-                    {opt.id === "standard" && (
-                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Free</span>
-                    )}
+                    {opt.id === "standard" && <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Free</span>}
                   </label>
                 ))}
               </div>
             </div>
 
-            {/* Treatment add-ons */}
             <div>
               <h4 className="font-bold text-[#0D2240] text-sm mb-3">Treatment Add-Ons</h4>
               <div className="space-y-2">
                 {[
-                  {
-                    key: "fabricSoftener" as const,
-                    label: "Fabric Softener",
-                    desc: "Leaves clothes feeling soft and static-free",
-                    icon: "🌸",
-                  },
-                  {
-                    key: "oxiClean" as const,
-                    label: "OXI Clean",
-                    desc: "Extra stain-fighting power for whites and colors",
-                    icon: "✨",
-                  },
-                  {
-                    key: "colorSafeBleach" as const,
-                    label: "Color-Safe Bleach",
-                    desc: "Brightens colors without fading",
-                    icon: "🎨",
-                  },
+                  { key: "fabricSoftener" as const,  label: "Fabric Softener",   desc: "Leaves clothes feeling soft and static-free",   icon: "🌸" },
+                  { key: "oxiClean" as const,         label: "OXI Clean",         desc: "Extra stain-fighting power for whites and colors", icon: "✨" },
+                  { key: "colorSafeBleach" as const,  label: "Color-Safe Bleach", desc: "Brightens colors without fading",                icon: "🎨" },
                 ].map((addon) => (
-                  <label
-                    key={addon.key}
-                    className={cn(
-                      "flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
-                      formData[addon.key]
-                        ? "border-[#E8726A] bg-[#fdf6f3]"
-                        : "border-gray-100 bg-white hover:border-gray-200"
-                    )}
-                  >
-                    <Checkbox
-                      checked={formData[addon.key]}
+                  <label key={addon.key}
+                    className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                      formData[addon.key] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                    <Checkbox checked={formData[addon.key]}
                       onCheckedChange={(c) => setFormData(p => ({ ...p, [addon.key]: c as boolean }))}
-                      className="shrink-0"
-                    />
+                      className="shrink-0" />
                     <span className="text-xl shrink-0">{addon.icon}</span>
                     <div className="flex-1">
                       <p className="font-semibold text-[#0D2240] text-sm">{addon.label}</p>
@@ -549,10 +758,10 @@ export function WashFoldForm() {
             </div>
             <div className="space-y-4">
               {[
-                { label: "Full Name", key: "name", placeholder: "Jane Smith", type: "text" },
-                { label: "Email", key: "email", placeholder: "jane@example.com", type: "email" },
-                { label: "Phone", key: "phone", placeholder: "(407) 555-0100", type: "tel" },
-                { label: "Pickup & Delivery Address", key: "address", placeholder: "123 Oak St, Orlando FL 32827", type: "text" },
+                { label: "Full Name",                    key: "name",    placeholder: "Jane Smith",               type: "text"  },
+                { label: "Email",                        key: "email",   placeholder: "jane@example.com",         type: "email" },
+                { label: "Phone",                        key: "phone",   placeholder: "(407) 555-0100",           type: "tel"   },
+                { label: "Pickup & Delivery Address",    key: "address", placeholder: "123 Oak St, Orlando FL 32827", type: "text" },
               ].map(({ label, key, placeholder, type }) => (
                 <div key={key} className="space-y-1.5">
                   <Label className="font-semibold text-[#0D2240] text-sm">{label}</Label>
@@ -590,22 +799,30 @@ export function WashFoldForm() {
 
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[
-                { label: "Service", value: "Wash & Fold" },
-                { label: "Frequency", value: formData.frequency === "one_time" ? "One-Time" : formData.frequency === "weekly" ? "Weekly" : "Biweekly" },
-                { label: "Rate", value: priceLabel },
+                { label: "Service",     value: "Wash & Fold" },
+                { label: "Frequency",   value: formData.frequency === "one_time" ? "One-Time" : formData.frequency === "weekly" ? "Weekly" : "Biweekly" },
+                { label: "Rate",        value: priceLabel },
                 { label: "Est. Weight", value: `~${formData.pounds} lbs` },
-                { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
-                { label: "Detergent", value: DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? "" },
-                { label: "Add-Ons", value: addOnsSummary === "Standard (none)" ? "None" : addOnsSummary },
-                { label: "Pickup", value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
-                { label: "Delivery", value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
-                { label: "Address", value: formData.address },
+                { label: "Bags",        value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
+                { label: "Detergent",   value: DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label ?? "" },
+                { label: "Add-Ons",     value: addOnsSummary === "Standard (none)" ? "None" : addOnsSummary },
+                { label: "Pickup",      value: pickupSummary },
+                { label: "Delivery",    value: deliverySummary },
+                { label: "Address",     value: formData.address },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between gap-4">
                   <span className="text-gray-400 shrink-0">{row.label}</span>
                   <span className="font-medium text-[#0D2240] text-right">{row.value}</span>
                 </div>
               ))}
+              {isRecurring && firstPickup && firstDelivery && (
+                <div className="bg-blue-50 rounded-xl px-3 py-2 mt-1">
+                  <p className="text-xs text-blue-600">
+                    First pickup: <strong>{format(firstPickup, "EEE, MMM d")}</strong> →
+                    delivery: <strong>{format(firstDelivery, "EEE, MMM d")}</strong>
+                  </p>
+                </div>
+              )}
               {promo && (
                 <div className="flex justify-between gap-4 text-green-700">
                   <span className="shrink-0">Promo ({promo.code})</span>
@@ -619,13 +836,24 @@ export function WashFoldForm() {
               <p className="text-[10px] text-gray-400">Final charge adjusted to actual weight after pickup.</p>
             </div>
 
+            {isRecurring && (
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3">
+                <p className="text-xs font-bold text-blue-700 mb-1">Subscription commitment</p>
+                <p className="text-xs text-blue-600 leading-relaxed">
+                  By proceeding, I commit to a minimum of 4 pickups at the {formData.frequency} rate of {priceLabel}.
+                  I understand my card will be charged automatically at actual weight after each pickup.
+                  I can pause or cancel anytime with 48 hours&apos; notice before my next pickup.
+                </p>
+              </div>
+            )}
+
             <div className="space-y-3">
               <label className="flex items-start gap-3 cursor-pointer">
                 <Checkbox checked={formData.agreedToTerms}
                   onCheckedChange={(c) => setFormData(p => ({ ...p, agreedToTerms: c as boolean }))}
                   className="mt-0.5 shrink-0" />
                 <span className="text-sm text-gray-600 leading-relaxed">
-                  I understand the final charge will be based on actual weight and agree to the terms of service.
+                  I understand the final charge will be based on actual weight{isRecurring ? ", agree to the subscription commitment above," : ""} and agree to the terms of service.
                 </span>
               </label>
               <label className="flex items-start gap-3 cursor-pointer bg-[#fdf6f5] rounded-xl p-3">
