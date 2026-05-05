@@ -7,7 +7,11 @@ import PhotoUploader from "./photo-uploader"
 import { capturePayment } from "@/app/actions/stripe"
 
 const CUSTOMER_MIN_LBS = 20
-const CUSTOMER_RATE_CENTS = 250 // $2.50/lb
+const DEFAULT_RATE_CENTS: Record<string, number> = {
+  wash_fold:  250, // $2.50/lb one-time default
+  wash_only:  199, // $1.99/lb
+  comforter_wash: 0,
+}
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pending", picked_up: "Picked Up", at_facility: "At Facility",
@@ -58,9 +62,20 @@ async function confirmDropoff(formData: FormData) {
     .eq("id", facilityId)
     .single()
 
+  // Look up booking to get locked-in rate
+  const { data: bk } = await supabase
+    .from("bookings")
+    .select("price_per_lb_cents, service_type")
+    .eq("id", bookingId)
+    .single()
+
+  const ratePerLbCents = bk?.price_per_lb_cents
+    ?? DEFAULT_RATE_CENTS[bk?.service_type ?? "wash_fold"]
+    ?? 250
+
   // Calculate billing
   const customerChargeLbs  = Math.max(weightLbs, CUSTOMER_MIN_LBS)
-  const customerFinalCents = customerChargeLbs * CUSTOMER_RATE_CENTS
+  const customerFinalCents = customerChargeLbs * ratePerLbCents
 
   let facilityCostCents: number | null = null
   if (facility?.rate_per_lb) {

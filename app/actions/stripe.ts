@@ -94,10 +94,12 @@ export async function handleSuccessfulPayment(sessionId: string) {
         numComforters: parseInt(meta.numComforters ?? meta.quantity ?? "1"),
         totalAmount: preAuthCents,
         stripePaymentIntentId: session.payment_intent as string,
-        serviceType: (meta.serviceType as "comforter_wash" | "wash_fold") ?? "comforter_wash",
+        serviceType: (meta.serviceType as "comforter_wash" | "wash_fold" | "wash_only") ?? "comforter_wash",
         pounds: meta.pounds ? parseFloat(meta.pounds) : undefined,
         numBags: meta.numBags ? parseInt(meta.numBags) : undefined,
         preAuthCents,
+        subscriptionFrequency: meta.subscriptionFrequency ?? "one_time",
+        pricePerLbCents: meta.pricePerLbCents ? parseInt(meta.pricePerLbCents) : undefined,
       })
     }
 

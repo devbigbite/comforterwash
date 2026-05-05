@@ -1,15 +1,14 @@
-import { WashFoldForm } from "@/components/wash-fold-form"
+import { WashOnlyForm } from "@/components/wash-only-form"
 import Link from "next/link"
 
 export const metadata = {
-  title: "Book Wash & Fold — WashFold Orlando",
-  description: "Clothes washed, dried, and folded with free pickup & delivery. $2.50/lb, $20 minimum.",
+  title: "Book Wash Only — WashFold Orlando",
+  description: "Clothes washed and returned clean in a bag. $1.99/lb, 20 lb minimum.",
 }
 
-export default function WashFoldPage() {
+export default function WashOnlyPage() {
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
-      {/* Header */}
       <header className="bg-white border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-2xl px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-[#0D2240] font-extrabold text-lg">
@@ -26,18 +25,20 @@ export default function WashFoldPage() {
         </div>
       </header>
 
-      {/* Service badge */}
       <div className="bg-[#0D2240] py-8 text-center">
         <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 mb-3">
-          <span className="text-2xl">👕</span>
-          <span className="text-white font-bold text-sm">Wash &amp; Fold</span>
+          <span className="text-2xl">🧺</span>
+          <span className="text-white font-bold text-sm">Wash Only</span>
         </div>
         <h1 className="text-3xl font-extrabold text-white mb-1">Schedule Your Pickup</h1>
-        <p className="text-white/60 text-sm">$2.50/lb one-time · $2.25/lb with subscription · 20 lb minimum</p>
+        <p className="text-white/60 text-sm">$1.99/lb · 20 lb minimum · Returned clean, unfolded</p>
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-10">
-        <WashFoldForm />
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 text-sm text-blue-700">
+          <strong>What is Wash Only?</strong> Your clothes are washed and dried using your preferred detergent, then returned clean in the bag — unfolded. Perfect if you prefer to fold your own clothes or want a faster, lower-cost option.
+        </div>
+        <WashOnlyForm />
       </div>
     </main>
   )

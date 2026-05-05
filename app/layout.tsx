@@ -13,9 +13,9 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "WashFold Orlando – Comforter Wash & Delivery | $29 Any Size",
+  title: "WashFold Orlando – Comforter Wash & Delivery | $33 Any Size",
   description:
-    "Professional comforter washing with free pickup & delivery in Orlando. $29 per comforter, any size. 72-hour turnaround. Schedule your pickup online — Mon through Wed.",
+    "Professional comforter washing with free pickup & delivery in Orlando. $33 per comforter, any size. 72-hour turnaround. Schedule your pickup online — Mon through Wed.",
   keywords: "comforter cleaning Orlando, comforter wash delivery Orlando, laundry pickup Orlando",
 }
 

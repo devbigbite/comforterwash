@@ -57,7 +57,7 @@ export default function HeroCarousel({ tr }: { tr?: HeroTr }) {
       id: 2,
       type: "full" as const,
       headline: tr?.slide3Headline ?? "We Come to You. You Enjoy Life.",
-      subline: tr?.slide3Sub ?? "Professional wash & fold starting at $2.50/lb · Comforters from $29",
+      subline: tr?.slide3Sub ?? "Professional wash & fold starting at $2.50/lb · Comforters from $33",
       cta: tr?.slide3Cta ?? "See Pricing",
       overlay: "from-[#E8726A]/70 via-[#0D2240]/60 to-[#0D2240]/80",
       objectPos: "object-top",

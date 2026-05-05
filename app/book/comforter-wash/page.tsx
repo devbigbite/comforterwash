@@ -3,7 +3,7 @@ import Link from "next/link"
 
 export const metadata = {
   title: "Book Comforter Wash — WashFold Orlando",
-  description: "Schedule pickup and delivery for your comforter. $29 flat, any size.",
+  description: "Schedule pickup and delivery for your comforter. $33 flat, any size.",
 }
 
 export default function ComforterWashPage() {
@@ -33,7 +33,7 @@ export default function ComforterWashPage() {
           <span className="text-white font-bold text-sm">Comforter Wash</span>
         </div>
         <h1 className="text-3xl font-extrabold text-white mb-1">Schedule Your Pickup</h1>
-        <p className="text-white/60 text-sm">$29 per comforter · Any size · 72-hour turnaround</p>
+        <p className="text-white/60 text-sm">$33 per comforter · Any size · 72-hour turnaround</p>
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-10">

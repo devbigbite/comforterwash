@@ -18,10 +18,12 @@ export interface BookingData {
   numComforters: number
   totalAmount: number
   stripePaymentIntentId?: string
-  serviceType?: "comforter_wash" | "wash_fold"
+  serviceType?: "comforter_wash" | "wash_fold" | "wash_only"
   pounds?: number
   numBags?: number
   preAuthCents?: number
+  subscriptionFrequency?: string   // one_time | weekly | biweekly
+  pricePerLbCents?: number         // locked-in rate at booking time
 }
 
 function toDateString(val: string): string {
@@ -62,6 +64,8 @@ export async function createBooking(data: BookingData) {
       user_id: userId,
       pre_auth_cents: data.preAuthCents ?? null,
       payment_status: data.preAuthCents ? "pre_authorized" : "paid",
+      subscription_frequency: data.subscriptionFrequency ?? "one_time",
+      price_per_lb_cents: data.pricePerLbCents ?? null,
     })
     .select()
     .single()
@@ -106,8 +110,11 @@ export async function createBooking(data: BookingData) {
       pickup_time_window: booking.pickup_time_window,
       delivery_date: booking.delivery_date,
       delivery_time_window: booking.delivery_time_window,
-      num_comforters: booking.num_comforters,
+      num_comforters: booking.num_comforters ?? 0,
       total_amount: booking.total_amount,
+      service_type: booking.service_type as "comforter_wash" | "wash_fold",
+      pounds: booking.pounds ?? undefined,
+      num_bags: booking.num_bags ?? undefined,
     })
   } catch (error) {
     console.error("[shipday] Error dispatching order:", error)

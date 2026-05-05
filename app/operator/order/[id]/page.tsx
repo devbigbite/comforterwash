@@ -4,12 +4,18 @@ import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import { stripe } from "@/lib/stripe"
 
-// Operator only advances bags through the wash/dry/fold cycle
-const OPERATOR_STEPS: Record<string, { action: string; next: string; color: string; needsMachine: boolean }> = {
+// Operator steps — wash_only skips the folding step
+type StepDef = { action: string; next: string; color: string; needsMachine: boolean }
+const OPERATOR_STEPS_FULL: Record<string, StepDef> = {
   at_facility:  { action: "Load into Washer",      next: "in_washer", color: "bg-cyan-600 hover:bg-cyan-700",    needsMachine: true  },
   in_washer:    { action: "Move to Dryer",          next: "in_dryer",  color: "bg-orange-500 hover:bg-orange-600", needsMachine: true  },
   in_dryer:     { action: "Mark as Folded",         next: "folded",    color: "bg-yellow-500 hover:bg-yellow-600", needsMachine: false },
   folded:       { action: "Mark Ready for Pickup",  next: "ready",     color: "bg-green-600 hover:bg-green-700",   needsMachine: false },
+}
+const OPERATOR_STEPS_WASH_ONLY: Record<string, StepDef> = {
+  at_facility:  { action: "Load into Washer",      next: "in_washer", color: "bg-cyan-600 hover:bg-cyan-700",    needsMachine: true  },
+  in_washer:    { action: "Move to Dryer",          next: "in_dryer",  color: "bg-orange-500 hover:bg-orange-600", needsMachine: true  },
+  in_dryer:     { action: "Mark Ready (No Fold)",   next: "ready",     color: "bg-green-600 hover:bg-green-700",   needsMachine: false },
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -38,7 +44,11 @@ const STATUS_COLOR: Record<string, string> = {
 
 const ALL_STATUSES = ["pending", "picked_up", "at_facility", "in_washer", "in_dryer", "folded", "ready", "out_for_delivery", "delivered"]
 const CUSTOMER_MIN_LBS = 20
-const CUSTOMER_RATE_CENTS = 250 // $2.50/lb
+const DEFAULT_RATE_CENTS: Record<string, number> = {
+  wash_fold:  250,
+  wash_only:  199,
+  comforter_wash: 0,
+}
 
 async function advanceBag(formData: FormData) {
   "use server"
@@ -63,9 +73,12 @@ async function advanceBag(formData: FormData) {
       const weightLbs = parseFloat(weightStr)
 
       if (!booking.actual_weight_lbs && weightLbs > 0) {
-        // First weight entry — calculate billing
+        // First weight entry — calculate billing using locked-in rate
+        const ratePerLbCents = (booking.price_per_lb_cents as number | null)
+          ?? DEFAULT_RATE_CENTS[booking.service_type as string ?? "wash_fold"]
+          ?? 250
         const customerChargeLbs = Math.max(weightLbs, CUSTOMER_MIN_LBS)
-        const customerFinalCents = customerChargeLbs * CUSTOMER_RATE_CENTS
+        const customerFinalCents = customerChargeLbs * ratePerLbCents
 
         let facilityCostCents = 0
         if (booking.assigned_facility_id) {
@@ -155,6 +168,9 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
     `)
     .eq("id", id)
     .single()
+
+  const isWashOnly = booking?.service_type === "wash_only"
+  const OPERATOR_STEPS = isWashOnly ? OPERATOR_STEPS_WASH_ONLY : OPERATOR_STEPS_FULL
   if (!booking) notFound()
 
   const facility = booking.assigned_facility as {

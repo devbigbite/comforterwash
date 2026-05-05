@@ -29,6 +29,9 @@ export interface ShipdayOrderInput {
   delivery_time_window: string
   num_comforters: number
   total_amount: number
+  service_type?: "comforter_wash" | "wash_fold" | "wash_only"
+  pounds?: number
+  num_bags?: number
 }
 
 async function postShipdayOrder(apiKey: string, payload: object): Promise<void> {
@@ -59,12 +62,57 @@ export async function createShipdayOrder(booking: ShipdayOrderInput): Promise<vo
   }
 
   const baseCode = booking.id.slice(0, 8).toUpperCase()
-  const unitPrice = (booking.total_amount / booking.num_comforters / 100).toFixed(2)
   const total = (booking.total_amount / 100).toFixed(2)
   const facilityAddress = process.env.BUSINESS_ADDRESS ?? "Orlando, FL"
   const facilityPhone = process.env.BUSINESS_PHONE ?? ""
 
-  // ── Pickup order: driver goes to customer, collects dirty comforter ──
+  const isWashFold = booking.service_type === "wash_fold"
+  const isWashOnly = booking.service_type === "wash_only"
+
+  // Build order items based on service type
+  const pickupItems = isWashFold
+    ? [{
+        name: "Wash & Fold — Pickup",
+        quantity: booking.num_bags ?? 1,
+        unitPrice: total,
+        details: `Wash & Fold pickup — est. ${booking.pounds ?? "?"} lbs across ${booking.num_bags ?? 1} bag(s). Final charge based on actual weight at drop-off.`,
+      }]
+    : isWashOnly
+    ? [{
+        name: "Wash Only — Pickup",
+        quantity: booking.num_bags ?? 1,
+        unitPrice: total,
+        details: `Wash Only pickup — est. ${booking.pounds ?? "?"} lbs across ${booking.num_bags ?? 1} bag(s). Returned clean, unfolded. Final charge based on actual weight.`,
+      }]
+    : Array.from({ length: booking.num_comforters }, (_, i) => ({
+        name: "Comforter Wash — Pickup",
+        quantity: 1,
+        unitPrice: (booking.total_amount / booking.num_comforters / 100).toFixed(2),
+        details: `Comforter #${i + 1} — Pickup`,
+      }))
+
+  const deliveryItems = isWashFold
+    ? [{
+        name: "Wash & Fold — Delivery",
+        quantity: booking.num_bags ?? 1,
+        unitPrice: total,
+        details: `Wash & Fold delivery — clean, folded laundry returned to customer.`,
+      }]
+    : isWashOnly
+    ? [{
+        name: "Wash Only — Delivery",
+        quantity: booking.num_bags ?? 1,
+        unitPrice: total,
+        details: `Wash Only delivery — clean laundry returned in bag, unfolded.`,
+      }]
+    : Array.from({ length: booking.num_comforters }, (_, i) => ({
+        name: "Comforter Wash — Delivery",
+        quantity: 1,
+        unitPrice: (booking.total_amount / booking.num_comforters / 100).toFixed(2),
+        details: `Comforter #${i + 1} — Delivery`,
+      }))
+
+  // ── Pickup order: driver goes to customer, collects laundry ──
   const pickupPayload = {
     orderNumber: `${baseCode}P`,
     customerName: booking.customer_name,
@@ -81,15 +129,10 @@ export async function createShipdayOrder(booking: ShipdayOrderInput): Promise<vo
     tax: "0.00",
     totalOrderCost: total,
     tips: "0.00",
-    orderItems: Array.from({ length: booking.num_comforters }, (_, i) => ({
-      name: "Comforter Pickup",
-      quantity: 1,
-      unitPrice,
-      details: `Comforter #${i + 1} — Pickup`,
-    })),
+    orderItems: pickupItems,
   }
 
-  // ── Delivery order: driver takes clean comforter back to customer ──
+  // ── Delivery order: driver returns clean laundry to customer ──
   const deliveryPayload = {
     orderNumber: `${baseCode}D`,
     customerName: booking.customer_name,
@@ -106,12 +149,7 @@ export async function createShipdayOrder(booking: ShipdayOrderInput): Promise<vo
     tax: "0.00",
     totalOrderCost: total,
     tips: "0.00",
-    orderItems: Array.from({ length: booking.num_comforters }, (_, i) => ({
-      name: "Comforter Delivery",
-      quantity: 1,
-      unitPrice,
-      details: `Comforter #${i + 1} — Delivery`,
-    })),
+    orderItems: deliveryItems,
   }
 
   try {

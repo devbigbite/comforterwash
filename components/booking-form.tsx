@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 
-const PRICE_PER_COMFORTER = 2900
+const PRICE_PER_COMFORTER = 3300
 
 const TIME_WINDOWS = [
   { value: "9am-1pm", label: "9am – 1pm" },
@@ -236,7 +236,7 @@ export function BookingForm() {
                   : "",
               },
               { label: "Address", value: formData.address },
-              { label: "Comforters", value: `${formData.comforterCount} × $29.00` },
+              { label: "Comforters", value: `${formData.comforterCount} × $33.00` },
               { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
               { label: "Add-Ons", value: addOnsSummary },
             ].map((row) => (
@@ -326,7 +326,7 @@ export function BookingForm() {
           <div className="space-y-7">
             <div>
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">How many comforters?</h3>
-              <p className="text-sm text-gray-400">$29 each · any size · free bag included</p>
+              <p className="text-sm text-gray-400">$33 each · any size · free bag included</p>
             </div>
 
             {/* Counter */}
@@ -358,7 +358,7 @@ export function BookingForm() {
 
             {/* Price */}
             <div className="bg-[#fdf6f5] rounded-xl p-4 flex items-center justify-between">
-              <span className="text-[#0D2240]/60 font-medium text-sm">{formData.comforterCount} × $29.00</span>
+              <span className="text-[#0D2240]/60 font-medium text-sm">{formData.comforterCount} × $33.00</span>
               <span className="text-2xl font-extrabold text-[#E8726A]">${totalDisplay}</span>
             </div>
 
@@ -643,7 +643,7 @@ export function BookingForm() {
                     : "",
                 },
                 { label: "Address", value: formData.address },
-                { label: "Comforters", value: `${formData.comforterCount} × $29.00` },
+                { label: "Comforters", value: `${formData.comforterCount} × $33.00` },
                 { label: "Bags", value: `${formData.numBags} bag${formData.numBags > 1 ? "s" : ""}` },
                 { label: "Add-Ons", value: addOnsSummary },
               ].map((row) => (

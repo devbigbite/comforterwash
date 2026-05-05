@@ -85,14 +85,14 @@ export default function Home() {
         <div className="mx-auto max-w-4xl">
           <h2 className="text-2xl font-extrabold text-white uppercase tracking-wide text-center mb-2">{tr.services.heading}</h2>
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-8" />
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             {[
               {
                 href: "/book/comforter-wash",
                 icon: "🛏️",
                 title: tr.services.comforterTitle,
                 desc: tr.services.comforterDesc,
-                price: "$29",
+                price: "$33",
                 unit: tr.services.perComforter ?? "per comforter",
               },
               {
@@ -102,6 +102,14 @@ export default function Home() {
                 desc: tr.services.washFoldDesc,
                 price: "$2.50",
                 unit: tr.services.washFoldUnit,
+              },
+              {
+                href: "/book/wash-only",
+                icon: "🧺",
+                title: "Wash Only",
+                desc: "Clothes washed & dried, returned clean in a bag — unfolded. Perfect if you prefer to fold your own.",
+                price: "$1.99",
+                unit: "/ lb",
               },
             ].map((svc) => (
               <Link
@@ -303,12 +311,12 @@ export default function Home() {
         <div className="mx-auto max-w-3xl">
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.pricing.heading}</h2>
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             <div className="border-2 border-gray-100 hover:border-[#E8726A] rounded-3xl p-8 text-center transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🛏️</div>
               <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">Comforter Wash</h3>
               <p className="text-gray-400 text-sm mb-4">Any size · fully washed &amp; delivered</p>
-              <p className="text-5xl font-extrabold text-[#E8726A] mb-1">$29</p>
+              <p className="text-5xl font-extrabold text-[#E8726A] mb-1">$33</p>
               <p className="text-gray-400 text-xs mb-6">per comforter</p>
               <Link href="/book/comforter-wash" className="block border-2 border-[#E8726A] text-[#E8726A] hover:bg-[#E8726A] hover:text-white font-bold text-sm px-5 py-3 rounded-full transition-all uppercase tracking-wide">
                 Book Now
@@ -319,8 +327,18 @@ export default function Home() {
               <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">Wash &amp; Fold</h3>
               <p className="text-gray-400 text-sm mb-4">20 lb minimum · sorted &amp; folded</p>
               <p className="text-5xl font-extrabold text-[#E8726A] mb-1">$2.50<span className="text-2xl">/lb</span></p>
-              <p className="text-gray-400 text-xs mb-6">per pound of laundry</p>
+              <p className="text-gray-400 text-xs mb-6">from $2.25/lb with subscription</p>
               <Link href="/book/wash-fold" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
+                Book Now
+              </Link>
+            </div>
+            <div className="border-2 border-gray-100 hover:border-[#E8726A] rounded-3xl p-8 text-center transition-colors">
+              <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🧺</div>
+              <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">Wash Only</h3>
+              <p className="text-gray-400 text-sm mb-4">20 lb minimum · returned clean, unfolded</p>
+              <p className="text-5xl font-extrabold text-[#E8726A] mb-1">$1.99<span className="text-2xl">/lb</span></p>
+              <p className="text-gray-400 text-xs mb-6">per pound of laundry</p>
+              <Link href="/book/wash-only" className="block border-2 border-[#0D2240] text-[#0D2240] hover:bg-[#0D2240] hover:text-white font-bold text-sm px-5 py-3 rounded-full transition-all uppercase tracking-wide">
                 Book Now
               </Link>
             </div>
@@ -364,7 +382,7 @@ export default function Home() {
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
           <div className="space-y-3">
             {[
-              { q: "What's the difference between the two services?", a: "Comforter Wash is specifically for comforters — we wash and deliver them at a flat $29 each. Wash & Fold is for regular clothes charged by weight at $2.50/lb." },
+              { q: "What's the difference between the services?", a: "Comforter Wash is for comforters — flat $33 each, any size. Wash & Fold is for regular clothes: washed, dried, and folded at $2.50/lb (or $2.25/lb with a weekly/biweekly subscription). Wash Only is a lower-cost option at $1.99/lb — clothes are washed and returned clean in a bag, unfolded." },
               { q: "What days do you do pickups?", a: "Pickups and deliveries happen Monday through Wednesday in two time windows: 9AM–1PM or 3PM–7PM." },
               { q: "How does the Wash & Fold weight work?", a: "You estimate your weight when booking, and we weigh your laundry at pickup. We'll confirm the final price after weighing. 20 lb minimum applies." },
               { q: "What if I'm not home?", a: "No problem! Leave your laundry in a bag outside. Our driver will collect it and send you a text confirmation." },
@@ -440,6 +458,7 @@ export default function Home() {
             <div className="flex gap-5 text-white/40 text-xs">
               <Link href="/book/comforter-wash" className="hover:text-[#E8726A] transition-colors">Comforter Wash</Link>
               <Link href="/book/wash-fold" className="hover:text-[#E8726A] transition-colors">Wash &amp; Fold</Link>
+              <Link href="/book/wash-only" className="hover:text-[#E8726A] transition-colors">Wash Only</Link>
               <a href="#areas" className="hover:text-[#E8726A] transition-colors">Service Areas</a>
               <a href="#faq" className="hover:text-[#E8726A] transition-colors">FAQ</a>
             </div>
