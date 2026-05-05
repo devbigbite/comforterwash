@@ -6,12 +6,11 @@ function getAuthHeader(apiKey: string): string {
 }
 
 function timeWindowToShipdayTime(date: string, window: string): string {
-  // Use midpoint of each window: 9am-1pm → 11:00 AM, 3pm-7pm → 05:00 PM
+  // Use midpoint of each window: 9am-1pm → 11:00:00, 3pm-7pm → 17:00:00
+  // Shipday expects MM/DD/YYYY HH:mm:ss (24-hour)
   const [year, month, day] = date.split("-")
   const hour = window.startsWith("9") ? 11 : 17
-  const ampm = hour >= 12 ? "PM" : "AM"
-  const displayHour = hour > 12 ? hour - 12 : hour
-  return `${month}/${day}/${year} ${String(displayHour).padStart(2, "0")}:00 ${ampm}`
+  return `${month}/${day}/${year} ${String(hour).padStart(2, "0")}:00:00`
 }
 
 export interface ShipdayOrderInput {
