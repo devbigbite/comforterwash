@@ -1,4 +1,5 @@
 import { ZipChecker } from "@/components/zip-checker"
+import HeroCarousel from "@/components/hero-carousel"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -70,44 +71,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── Hero — 3-panel lifestyle ────────────────────────────────────── */}
-      <section className="grid grid-cols-1 md:grid-cols-3 min-h-[420px]">
-        {[
-          {
-            headline: "Laundry Service That Feels Like Family",
-            overlay: "from-[#0D2240]/80 to-[#0D2240]/40",
-            tint: "bg-[#0D2240]/10",
-          },
-          {
-            headline: "Effortless Laundry with a Personal Touch",
-            overlay: "from-[#1a3a5c]/80 to-[#1a3a5c]/30",
-            tint: "bg-[#E8726A]/10",
-          },
-          {
-            headline: "Fresh & Clean, Every Time",
-            overlay: "from-[#0D2240]/90 to-[#0D2240]/50",
-            tint: "bg-[#0D2240]/20",
-          },
-        ].map((panel, i) => (
-          <div key={i} className="relative overflow-hidden min-h-[280px] md:min-h-[420px] group">
-            <Image
-              src="/sweet-sleep.jpg"
-              alt="WashFold Orlando laundry service"
-              fill
-              className={`object-cover transition-transform duration-700 group-hover:scale-105 ${
-                i === 0 ? "object-left" : i === 1 ? "object-center" : "object-right"
-              }`}
-              priority={i === 0}
-            />
-            <div className={`absolute inset-0 bg-gradient-to-t ${panel.overlay}`} />
-            <div className="absolute inset-0 flex items-end p-6 md:p-8">
-              <h2 className="text-white font-extrabold text-xl md:text-2xl leading-tight drop-shadow-lg">
-                {panel.headline}
-              </h2>
-            </div>
-          </div>
-        ))}
-      </section>
+      {/* ── Hero — scrolling carousel ───────────────────────────────────── */}
+      <HeroCarousel />
 
       {/* ── Why Choose Us ──────────────────────────────────────────────── */}
       <section className="bg-white px-4 py-16">
