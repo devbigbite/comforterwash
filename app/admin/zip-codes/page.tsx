@@ -1,7 +1,6 @@
-"use server"
-
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import DeleteZipButton from "./delete-button"
 
 async function addZip(formData: FormData) {
   "use server"
@@ -147,18 +146,7 @@ export default async function ZipCodesPage() {
                             {area.active ? "Deactivate" : "Activate"}
                           </button>
                         </form>
-                        <form action={deleteZip}>
-                          <input type="hidden" name="id" value={area.id} />
-                          <button
-                            type="submit"
-                            className="text-xs text-[#E8726A] hover:text-[#d45f57] underline transition-colors"
-                            onClick={(e) => {
-                              if (!confirm(`Remove ZIP ${area.zip_code}?`)) e.preventDefault()
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </form>
+                        <DeleteZipButton zipCode={area.zip_code} action={deleteZip} id={area.id} />
                       </div>
                     </td>
                   </tr>
