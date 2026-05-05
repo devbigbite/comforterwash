@@ -1,7 +1,8 @@
 const SHIPDAY_API_URL = "https://api.shipday.com"
 
 function getAuthHeader(apiKey: string): string {
-  return `Basic ${Buffer.from(apiKey + ":").toString("base64")}`
+  // Shipday uses the API key directly as the Basic auth value (no base64 encoding)
+  return `Basic ${apiKey}`
 }
 
 function timeWindowToShipdayTime(date: string, window: string): string {
@@ -75,7 +76,7 @@ export async function createShipdayOrder(booking: ShipdayOrderInput): Promise<vo
     const responseText = await res.text()
     if (!res.ok) {
       console.error(`[shipday] HTTP ${res.status} — response: ${responseText.slice(0, 500)}`)
-      console.error(`[shipday] Auth used: Basic ${Buffer.from(apiKey + ":").toString("base64").slice(0, 10)}...`)
+      console.error(`[shipday] Auth header: Basic ${apiKey.slice(0, 8)}...`)
       return
     }
 
