@@ -85,6 +85,15 @@ const en = {
   testimonials: {
     heading: "What Our Customers Say",
     subheading: "Real families. Real clean laundry.",
+    r1Quote: "I have three kids and laundry was eating my weekends. WashFold changed everything — I get my Sundays back now.",
+    r1Name: "Maria S.",
+    r1Label: "Mom of 3 · Lake Nona",
+    r2Quote: "The comforter wash is incredible. My king-size comforter came back fluffy and smelling amazing. Way cheaper than the laundromat.",
+    r2Name: "James T.",
+    r2Label: "Customer · Orlando",
+    r3Quote: "They're always on time, the clothes are perfectly folded, and the tracking link is so reassuring. Highly recommend.",
+    r3Name: "Keisha R.",
+    r3Label: "Repeat Customer · Dr. Phillips",
   },
   zip: {
     heading: "Do We Come to Your Door?",

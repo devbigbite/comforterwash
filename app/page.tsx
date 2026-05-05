@@ -356,9 +356,9 @@ export default function Home() {
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             {[
-              { quote: "I have three kids and laundry was eating my weekends. WashFold changed everything — I get my Sundays back now.", name: "Maria S.", label: "Mom of 3 · Lake Nona" },
-              { quote: "The comforter wash is incredible. My king-size comforter came back fluffy and smelling amazing. Way cheaper than the laundromat.", name: "James T.", label: "Customer · Orlando" },
-              { quote: "They're always on time, the clothes are perfectly folded, and the tracking link is so reassuring. Highly recommend.", name: "Keisha R.", label: "Repeat Customer · Dr. Phillips" },
+              { quote: tr.testimonials.r1Quote, name: tr.testimonials.r1Name, label: tr.testimonials.r1Label },
+              { quote: tr.testimonials.r2Quote, name: tr.testimonials.r2Name, label: tr.testimonials.r2Label },
+              { quote: tr.testimonials.r3Quote, name: tr.testimonials.r3Name, label: tr.testimonials.r3Label },
             ].map((r) => (
               <div key={r.name} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <div className="flex items-center gap-1 mb-4">

@@ -85,6 +85,15 @@ const es = {
   testimonials: {
     heading: "Lo Que Dicen Nuestros Clientes",
     subheading: "Familias reales. Ropa realmente limpia.",
+    r1Quote: "Tengo tres hijos y la lavandería me comía los fines de semana. WashFold lo cambió todo — ahora recupero mis domingos.",
+    r1Name: "Maria S.",
+    r1Label: "Mamá de 3 · Lake Nona",
+    r2Quote: "El lavado de edredón es increíble. Mi edredón king regresó esponjoso y con un olor increíble. Mucho más barato que la lavandería.",
+    r2Name: "James T.",
+    r2Label: "Cliente · Orlando",
+    r3Quote: "Siempre son puntuales, la ropa queda perfectamente doblada y el enlace de rastreo es muy tranquilizador. Lo recomiendo mucho.",
+    r3Name: "Keisha R.",
+    r3Label: "Cliente Frecuente · Dr. Phillips",
   },
   zip: {
     heading: "¿Llegamos a Tu Puerta?",
