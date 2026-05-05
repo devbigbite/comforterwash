@@ -50,7 +50,7 @@ export default async function PartnerPortalPage({ params }: { params: Promise<{ 
 
   if (!facility) notFound()
 
-  // Orders assigned to this facility in operator zone or ready (recently completed)
+  // Orders assigned to this facility AND using the partner_attendant model
   const { data: bookings } = await supabase
     .from("bookings")
     .select(`
@@ -59,6 +59,7 @@ export default async function PartnerPortalPage({ params }: { params: Promise<{ 
       order_bags(id, status, bag_number, label_code)
     `)
     .eq("assigned_facility_id", facility.id)
+    .eq("facility_processing_mode", "partner_attendant")
     .order("pickup_date", { ascending: true })
 
   // Split into active (operator zone) and recently done (ready/out/delivered)

@@ -49,10 +49,12 @@ async function confirmDropoff(formData: FormData) {
 
   const supabase = createAdminClient()
 
+  const facilityProcessingMode = (formData.get("facilityProcessingMode") as string) || "own_operator"
+
   // Get facility config for cost calculation
   const { data: facility } = await supabase
     .from("facilities")
-    .select("rate_per_lb, minimum_lbs, processing_mode")
+    .select("rate_per_lb, minimum_lbs")
     .eq("id", facilityId)
     .single()
 
@@ -69,6 +71,7 @@ async function confirmDropoff(formData: FormData) {
   // Update booking
   await supabase.from("bookings").update({
     assigned_facility_id: facilityId,
+    facility_processing_mode: facilityProcessingMode,
     actual_weight_lbs: weightLbs,
     customer_final_cents: customerFinalCents,
     facility_cost_cents: facilityCostCents,
@@ -160,7 +163,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
   if (!booking) notFound()
 
   const { data: bags } = await supabase.from("order_bags").select("*").eq("booking_id", id).order("bag_number")
-  const { data: facilities } = await supabase.from("facilities").select("id, name, address, processing_mode, rate_per_lb, minimum_lbs").eq("active", true).order("name")
+  const { data: facilities } = await supabase.from("facilities").select("id, name, address, supports_own_operator, supports_partner_attendant, rate_per_lb, minimum_lbs").eq("active", true).order("name")
 
   const orderCode    = booking.id.slice(0, 8).toUpperCase()
   const allStatuses  = bags?.map(b => b.status) ?? []
@@ -271,12 +274,24 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
                 <select name="facilityId" required
                   className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
                   <option value="">— select facility —</option>
-                  {facilities?.map(f => (
-                    <option key={f.id} value={f.id}>
-                      {f.name} {f.processing_mode === "partner_attendant" ? "· Partner" : "· Own Op"}{f.rate_per_lb ? ` · $${f.rate_per_lb}/lb` : ""}{(f.minimum_lbs ?? 0) > 0 ? ` · min ${f.minimum_lbs} lbs` : ""}
-                    </option>
-                  ))}
+                  {facilities?.map(f => {
+                    const modes = [f.supports_own_operator && "Own Op", f.supports_partner_attendant && "Partner"].filter(Boolean).join(" + ")
+                    return (
+                      <option key={f.id} value={f.id}>
+                        {f.name} · {modes}{f.rate_per_lb ? ` · $${f.rate_per_lb}/lb` : ""}{(f.minimum_lbs ?? 0) > 0 ? ` · min ${f.minimum_lbs} lbs` : ""}
+                      </option>
+                    )
+                  })}
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Processing Model</label>
+                <select name="facilityProcessingMode" required
+                  className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
+                  <option value="own_operator">Own Operator — WashFold staff processes</option>
+                  <option value="partner_attendant">Partner Attendant — facility staff processes</option>
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Select the model being used for this specific drop-off.</p>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Actual Weight (lbs) — from facility scale</label>

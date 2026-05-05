@@ -162,6 +162,8 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
     rate_per_lb: number | null; minimum_lbs: number
   } | null
 
+  const isPartnerMode = booking.facility_processing_mode === "partner_attendant"
+
   const { data: bags } = await supabase
     .from("order_bags")
     .select("*")
@@ -287,6 +289,17 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
             </div>
           )}
         </div>
+
+        {/* Partner attendant mode — operator shouldn't be processing this */}
+        {isPartnerMode && (
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 text-center">
+            <p className="text-purple-700 font-extrabold text-lg">🤝 Partner Attendant Order</p>
+            <p className="text-purple-600 text-sm mt-1">
+              This order is being processed by {facility?.name ?? "the partner facility"}.
+              Use the partner portal to track progress — not this operator view.
+            </p>
+          </div>
+        )}
 
         {/* Not arrived yet */}
         {notArrived && (

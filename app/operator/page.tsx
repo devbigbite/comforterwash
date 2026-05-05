@@ -55,8 +55,9 @@ export default function OperatorHome() {
 
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, customer_name, service_type, delivery_date, status, num_bags")
+        .select("id, customer_name, service_type, delivery_date, status, num_bags, facility_processing_mode")
         .in("id", bookingIds)
+        .not("facility_processing_mode", "eq", "partner_attendant") // partner portal handles those
         .order("delivery_date")
 
       if (!bookings) { setQueueLoading(false); return }
