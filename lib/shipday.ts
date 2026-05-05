@@ -5,12 +5,17 @@ function getAuthHeader(apiKey: string): string {
   return `Basic ${apiKey}`
 }
 
-function timeWindowToShipdayTime(date: string, window: string): string {
-  // Use midpoint of each window: 9am-1pm → 11:00:00, 3pm-7pm → 17:00:00
-  // Shipday expects MM/DD/YYYY HH:mm:ss (24-hour)
-  const [year, month, day] = date.split("-")
+function timeWindowToTime(window: string): string {
+  // Shipday expects just HH:mm:ss (24-hour, no date)
+  // Midpoint: 9am-1pm → 11:00:00, 3pm-7pm → 17:00:00
   const hour = window.startsWith("9") ? 11 : 17
-  return `${month}/${day}/${year} ${String(hour).padStart(2, "0")}:00:00`
+  return `${String(hour).padStart(2, "0")}:00:00`
+}
+
+function toShipdayDate(date: string): string {
+  // YYYY-MM-DD → MM/DD/YYYY
+  const [year, month, day] = date.split("-")
+  return `${month}/${day}/${year}`
 }
 
 export interface ShipdayOrderInput {
@@ -46,8 +51,10 @@ export async function createShipdayOrder(booking: ShipdayOrderInput): Promise<vo
     restaurantName: "WashFold Orlando",
     restaurantAddress: process.env.BUSINESS_ADDRESS ?? "Orlando, FL",
     restaurantPhoneNumber: process.env.BUSINESS_PHONE ?? "",
-    expectedPickupTime: timeWindowToShipdayTime(booking.pickup_date, booking.pickup_time_window),
-    expectedDeliveryTime: timeWindowToShipdayTime(booking.delivery_date, booking.delivery_time_window),
+    pickupDate: toShipdayDate(booking.pickup_date),
+    expectedPickupTime: timeWindowToTime(booking.pickup_time_window),
+    deliveryDate: toShipdayDate(booking.delivery_date),
+    expectedDeliveryTime: timeWindowToTime(booking.delivery_time_window),
     paymentMethod: "PAID_ONLINE",
     subtotal: total,
     tax: "0.00",
