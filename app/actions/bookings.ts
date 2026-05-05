@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { sendBookingNotification } from "@/lib/sms"
 import { createShipdayOrder } from "@/lib/shipday"
 import { format } from "date-fns"
@@ -19,8 +19,13 @@ export interface BookingData {
   stripePaymentIntentId?: string
 }
 
+function toDateString(val: string): string {
+  // Convert ISO timestamp or any date string to YYYY-MM-DD for the date column
+  return new Date(val).toISOString().split("T")[0]
+}
+
 export async function createBooking(data: BookingData) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: booking, error } = await supabase
     .from("bookings")
@@ -29,9 +34,9 @@ export async function createBooking(data: BookingData) {
       customer_email: data.customerEmail,
       customer_phone: data.customerPhone,
       customer_address: data.customerAddress,
-      pickup_date: data.pickupDate,
+      pickup_date: toDateString(data.pickupDate),
       pickup_time_window: data.pickupTimeWindow,
-      delivery_date: data.deliveryDate,
+      delivery_date: toDateString(data.deliveryDate),
       delivery_time_window: data.deliveryTimeWindow,
       num_comforters: data.numComforters,
       total_amount: data.totalAmount,
@@ -78,7 +83,7 @@ export async function createBooking(data: BookingData) {
 }
 
 export async function getBookings() {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: bookings, error } = await supabase
     .from("bookings")
@@ -94,7 +99,7 @@ export async function getBookings() {
 }
 
 export async function updateBookingStatus(bookingId: string, status: string, notes?: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const updateData: Record<string, unknown> = { status }
   if (notes !== undefined) {
@@ -140,7 +145,7 @@ export async function updateBookingStatus(bookingId: string, status: string, not
 }
 
 export async function getBookingsByDate(date: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: pickups, error: pickupError } = await supabase
     .from("bookings")
@@ -170,7 +175,7 @@ export async function getBookingsByDate(date: string) {
 }
 
 export async function getUpcomingDates() {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const today = new Date().toISOString().split("T")[0]
 
