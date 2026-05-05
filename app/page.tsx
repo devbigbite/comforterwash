@@ -7,8 +7,9 @@ import Link from "next/link"
 import { useLang } from "@/components/lang-provider"
 import { LangToggle } from "@/components/lang-toggle"
 import { useState, useEffect } from "react"
-import { getLandingOffers } from "@/app/actions/settings"
+import { getLandingOffers, getSiteImages } from "@/app/actions/settings"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
+import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
 
 function Logo({ size = 40 }: { size?: number }) {
   return (
@@ -27,8 +28,10 @@ const OFFER_OVERLAYS = ["bg-[#0D2240]/60", "bg-[#E8726A]/50", "bg-[#1a3a5c]/60"]
 export default function Home() {
   const { translations: tr } = useLang()
   const [offers, setOffers] = useState<LandingOffer[]>(DEFAULT_OFFERS)
+  const [images, setImages] = useState<SiteImages>(DEFAULT_IMAGES)
   useEffect(() => {
     getLandingOffers().then(setOffers)
+    getSiteImages().then(setImages)
   }, [])
   const visibleOffers = offers.filter(o => o.enabled)
   return (
@@ -88,7 +91,7 @@ export default function Home() {
       </header>
 
       {/* ── Hero — scrolling carousel ───────────────────────────────────── */}
-      <HeroCarousel tr={tr.hero} />
+      <HeroCarousel tr={tr.hero} image={images.hero_banner} />
 
       {/* ── Our Services — immediately after hero ──────────────────────── */}
       <section id="services" className="bg-[#0D2240] px-4 py-14">
@@ -167,10 +170,11 @@ export default function Home() {
         {/* Van / lifestyle photo */}
         <div className="mx-auto max-w-4xl mt-10 rounded-3xl overflow-hidden shadow-lg relative" style={{ height: "320px" }}>
           <Image
-            src="/sweet-sleep.jpg"
+            src={images.why_us}
             alt="WashFold Orlando pickup and delivery"
             fill
             className="object-cover"
+            unoptimized={images.why_us.startsWith("http")}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0D2240]/60 via-transparent to-transparent" />
           <div className="absolute inset-0 flex items-center px-10">
@@ -270,7 +274,7 @@ export default function Home() {
             {visibleOffers.map((offer, i) => (
               <div key={offer.title} className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative h-44 overflow-hidden">
-                  <Image src="/sweet-sleep.jpg" alt={offer.title} fill className="object-cover" />
+                  <Image src={images.offers_bg} alt={offer.title} fill className="object-cover" unoptimized={images.offers_bg.startsWith("http")} />
                   <div className={`absolute inset-0 ${OFFER_OVERLAYS[i % OFFER_OVERLAYS.length]}`} />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="text-white font-extrabold text-4xl drop-shadow-lg">{offer.badge}</span>

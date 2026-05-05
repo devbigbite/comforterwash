@@ -49,6 +49,7 @@ export default async function AdminDashboard() {
           <a href="/admin/holidays" className="text-white/60 hover:text-white text-sm transition-colors">Holidays</a>
           <a href="/admin/reports" className="text-white/60 hover:text-white text-sm transition-colors">Reports</a>
           <a href="/admin/pricing" className="text-white/60 hover:text-white text-sm transition-colors">Pricing</a>
+          <a href="/admin/images" className="text-white/60 hover:text-white text-sm transition-colors">Images</a>
           <a href="/admin/facilities" className="text-white/60 hover:text-white text-sm transition-colors">Facilities</a>
           <a href="/admin/zip-codes" className="text-white/60 hover:text-white text-sm transition-colors">Areas</a>
           <a href="/operator" className="text-white/60 hover:text-white text-sm transition-colors">Operator →</a>

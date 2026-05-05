@@ -8,7 +8,7 @@ type HeroTr = TranslationKeys["hero"]
 
 const SLIDE_COUNT = 3
 
-export default function HeroCarousel({ tr }: { tr?: HeroTr }) {
+export default function HeroCarousel({ tr, image = "/hero-banner.jpg" }: { tr?: HeroTr; image?: string }) {
   const [active, setActive] = useState(0)
   const [transitioning, setTransitioning] = useState(false)
 
@@ -71,11 +71,12 @@ export default function HeroCarousel({ tr }: { tr?: HeroTr }) {
       {/* Background image */}
       <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: transitioning ? 0 : 1 }}>
         <Image
-          src="/hero-banner.jpg"
+          src={image}
           alt="WashFold Orlando"
           fill
           className={`object-cover ${slide.type === "full" ? slide.objectPos : "object-center"}`}
           priority
+          unoptimized={image.startsWith("http")}
         />
       </div>
 
@@ -102,7 +103,7 @@ export default function HeroCarousel({ tr }: { tr?: HeroTr }) {
         {slide.type === "steps" && (
           <div className="absolute inset-0">
             {/* Single panoramic image spans all 3 panels */}
-            <Image src="/hero-banner.jpg" alt="How it works" fill className="object-cover object-center" />
+            <Image src={image} alt="How it works" fill className="object-cover object-center" unoptimized={image.startsWith("http")} />
             <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/75" />
             {/* Text labels overlaid in 3 columns */}
             <div className="absolute inset-0 grid grid-cols-3">
