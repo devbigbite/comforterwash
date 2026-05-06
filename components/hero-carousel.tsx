@@ -92,7 +92,7 @@ export default function HeroCarousel({
   const isExternal = currentImage.startsWith("http")
 
   return (
-    <section className="relative w-full overflow-hidden" style={{ minHeight: "460px" }}>
+    <section className="relative w-full overflow-hidden" style={{ minHeight: "clamp(380px, 55vw, 560px)" }}>
       {/* Background image — per slide */}
       <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: transitioning ? 0 : 1 }}>
         {slide.type === "full" && (
@@ -108,18 +108,18 @@ export default function HeroCarousel({
       </div>
 
       {/* Slide content */}
-      <div className="relative z-10 w-full h-full transition-opacity duration-700" style={{ minHeight: "460px", opacity: transitioning ? 0 : 1 }}>
+      <div className="relative z-10 w-full h-full transition-opacity duration-700" style={{ minHeight: "clamp(380px, 55vw, 560px)", opacity: transitioning ? 0 : 1 }}>
 
         {/* Full-width text slide */}
         {slide.type === "full" && (
           <div className={`absolute inset-0 bg-gradient-to-r ${slide.overlay} flex items-center`}>
-            <div className="mx-auto max-w-7xl px-8 w-full">
-              <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.25em] mb-3">WashFold Orlando</p>
-              <h1 className="text-white font-extrabold text-4xl md:text-5xl lg:text-6xl leading-tight max-w-2xl mb-4 drop-shadow-lg">
+            <div className="mx-auto max-w-7xl px-5 sm:px-8 w-full">
+              <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.25em] mb-2 sm:mb-3">WashFold Orlando</p>
+              <h1 className="text-white font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight max-w-2xl mb-3 sm:mb-4 drop-shadow-lg">
                 {slide.headline}
               </h1>
-              <p className="text-white/75 text-base md:text-lg max-w-xl mb-8">{slide.subline}</p>
-              <a href="#services" className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide transition-colors shadow-lg">
+              <p className="text-white/75 text-sm sm:text-base md:text-lg max-w-xl mb-5 sm:mb-8">{slide.subline}</p>
+              <a href="#services" className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-6 sm:px-8 py-3 sm:py-3.5 rounded-full uppercase tracking-wide transition-colors shadow-lg">
                 {slide.cta}
               </a>
             </div>
@@ -139,19 +139,19 @@ export default function HeroCarousel({
             <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/75" />
             <div className="absolute inset-0 grid grid-cols-3">
               {slide.panels.map((panel, i) => (
-                <div key={i} className="relative flex flex-col justify-end p-5 md:p-7">
-                  <div className="flex items-center gap-3 mb-1">
+                <div key={i} className="relative flex flex-col justify-end p-3 sm:p-5 md:p-7">
+                  <div className="flex items-center gap-1.5 sm:gap-3 mb-1">
                     <span
-                      className="flex items-center justify-center w-9 h-9 rounded-full text-base font-extrabold border-2 shrink-0"
+                      className="flex items-center justify-center w-6 h-6 sm:w-9 sm:h-9 rounded-full text-xs sm:text-base font-extrabold border-2 shrink-0"
                       style={{ borderColor: panel.accentColor, color: panel.accentColor }}
                     >
                       {panel.step}
                     </span>
-                    <span className="text-white font-extrabold text-base md:text-lg uppercase tracking-wide drop-shadow">
+                    <span className="text-white font-extrabold text-xs sm:text-base md:text-lg uppercase tracking-wide drop-shadow leading-tight">
                       {panel.label}
                     </span>
                   </div>
-                  <p className="text-white/80 text-sm leading-snug ml-12">{panel.desc}</p>
+                  <p className="text-white/80 text-[10px] sm:text-sm leading-snug sm:ml-12 hidden sm:block">{panel.desc}</p>
                   {i < 2 && (
                     <div
                       className="absolute top-0 right-0 bottom-0 w-px opacity-40"

@@ -106,7 +106,7 @@ export default function Home() {
         <div className="mx-auto max-w-4xl">
           <h2 className="text-2xl font-extrabold text-white uppercase tracking-wide text-center mb-2">{tr.services.heading}</h2>
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-8" />
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 href: "/book/comforter-wash",
@@ -136,7 +136,7 @@ export default function Home() {
               <Link
                 key={svc.title}
                 href={svc.href}
-                className="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#E8726A] rounded-2xl p-6 flex gap-5 items-start transition-all"
+                className="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#E8726A] rounded-2xl p-4 sm:p-6 flex gap-3 sm:gap-5 items-start transition-all"
               >
                 <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-3xl shrink-0">{svc.icon}</div>
                 <div className="flex-1">
@@ -209,7 +209,7 @@ export default function Home() {
           </h2>
           <p className="text-center text-gray-400 text-sm mb-10">{tr.steps.subheading}</p>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-8">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
             {[
               {
                 icon: (
@@ -278,7 +278,7 @@ export default function Home() {
             {tr.offers.subheading}
           </p>
 
-          <div className={`grid grid-cols-1 gap-6 ${visibleOffers.length === 3 ? "sm:grid-cols-3" : visibleOffers.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-1 max-w-sm mx-auto"}`}>
+          <div className={`grid grid-cols-1 gap-6 ${visibleOffers.length === 3 ? "sm:grid-cols-2 lg:grid-cols-3" : visibleOffers.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-1 max-w-sm mx-auto"}`}>
             {(offers ?? [])
               .map((offer, originalIdx) => ({ offer, originalIdx }))
               .filter(({ offer }) => offer.enabled)
@@ -320,7 +320,7 @@ export default function Home() {
         <div className="mx-auto max-w-3xl">
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.pricing.heading}</h2>
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <div className="border-2 border-gray-100 hover:border-[#E8726A] rounded-3xl p-8 text-center transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🛏️</div>
               <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">{tr.pricing.comforterTitle}</h3>
@@ -361,7 +361,7 @@ export default function Home() {
         <div className="mx-auto max-w-4xl">
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.testimonials.heading}</h2>
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[
               { quote: tr.testimonials.r1Quote, name: tr.testimonials.r1Name, label: tr.testimonials.r1Label },
               { quote: tr.testimonials.r2Quote, name: tr.testimonials.r2Name, label: tr.testimonials.r2Label },
