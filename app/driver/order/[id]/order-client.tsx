@@ -54,6 +54,13 @@ export default function DriverOrderClient({
   const totalWeight = bagWeights.reduce((sum, w) => sum + (parseFloat(w) || 0), 0)
   const allSlotsWeighed = bagWeights.length > 0 && bagWeights.every(w => parseFloat(w) > 0)
 
+  // Auto-detect processing mode from selected facility
+  const [selectedFacilityId, setSelectedFacilityId] = useState("")
+  const selectedFacility = facilities.find(f => f.id === selectedFacilityId)
+  const autoProcessingMode = selectedFacility?.supports_own_operator === false
+    ? "partner_attendant"
+    : "own_operator"
+
   function updateBagWeight(i: number, val: string) {
     setBagWeights(prev => { const next = [...prev]; next[i] = val; return next })
   }
@@ -234,57 +241,49 @@ export default function DriverOrderClient({
 
             {/* ── Step 2: Drop-off at facility ── */}
             {(allPickedUp || somePickedUp) && !allAtFacility && (
-              <form onSubmit={handleDropoff} className="space-y-3">
+              <form onSubmit={handleDropoff} className="space-y-4">
                 <div>
                   <p className="text-sm font-extrabold text-[#0D2240] mb-0.5">Step 2 — Drop off at facility</p>
-                  <p className="text-xs text-gray-500">
-                    Weigh the bags on the facility scale, take a photo of the drop-off, select facility and enter weight. This locks the customer charge.
-                  </p>
+                  <p className="text-xs text-gray-500">Take a photo at the facility, select where you're leaving the bags, and enter each bag's weight.</p>
                 </div>
 
+                {/* Photo */}
                 <div className={`rounded-xl overflow-hidden border-2 transition-colors ${dropoffPhotoErr ? "border-red-400" : hasDropoffPhoto ? "border-green-400" : "border-gray-200"}`}>
                   <PhotoUploader
                     bookingId={bookingId}
                     action={recordPhotoEvent}
                     eventType="photo_facility_dropoff"
-                    label="📷 Photo at Facility Drop-off"
+                    label="📷 Photo at Facility"
                     onPhotoUploaded={() => { setHasDropoffPhoto(true); setDropoffPhotoErr(false) }}
                   />
                   <PhotoRequired taken={hasDropoffPhoto} error={dropoffPhotoErr} />
                 </div>
 
-                {facilityWarning.length > 0 && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
-                    ⚠️ <strong>Heads up:</strong> {facilityWarning.join(", ")} has a minimum above estimated weight ({estimatedLbs} lbs).
-                  </div>
-                )}
-
-                <input type="hidden" name="bookingId" value={bookingId} />
-
+                {/* Facility */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Facility</label>
-                  <select name="facilityId" required
-                    className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">
+                    Where are you dropping off? <span className="text-[#E8726A]">*</span>
+                  </label>
+                  <select
+                    name="facilityId" required
+                    value={selectedFacilityId}
+                    onChange={e => setSelectedFacilityId(e.target.value)}
+                    className="w-full rounded-xl border-2 border-gray-200 px-3 py-3 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
                     <option value="">— select facility —</option>
-                    {facilities.map(f => {
-                      const modes = [f.supports_own_operator && "Own Op", f.supports_partner_attendant && "Partner"].filter(Boolean).join(" + ")
-                      return (
-                        <option key={f.id} value={f.id}>
-                          {f.name} · {modes}{f.rate_per_lb ? ` · $${f.rate_per_lb}/lb` : ""}{(f.minimum_lbs ?? 0) > 0 ? ` · min ${f.minimum_lbs} lbs` : ""}
-                        </option>
-                      )
-                    })}
+                    {facilities.map(f => (
+                      <option key={f.id} value={f.id}>{f.name}{f.address ? ` · ${f.address}` : ""}</option>
+                    ))}
                   </select>
+                  {selectedFacility && (facilityWarning.includes(selectedFacility.name)) && (
+                    <p className="mt-1.5 text-xs text-amber-600 font-semibold">
+                      ⚠️ This facility has a minimum above the estimated weight ({estimatedLbs} lbs).
+                    </p>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Processing Model</label>
-                  <select name="facilityProcessingMode" required
-                    className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
-                    <option value="own_operator">Own Operator — WashFold staff processes</option>
-                    <option value="partner_attendant">Partner Attendant — facility staff processes</option>
-                  </select>
-                </div>
+                {/* Auto-detected processing mode — hidden from driver */}
+                <input type="hidden" name="bookingId" value={bookingId} />
+                <input type="hidden" name="facilityProcessingMode" value={autoProcessingMode} />
 
                 <div>
                   <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">
@@ -332,11 +331,11 @@ export default function DriverOrderClient({
 
                   {/* Running total */}
                   <div className={`mt-3 rounded-xl px-4 py-3 flex items-center justify-between transition-colors
-                    ${allBagsWeighed && totalWeight > 0 ? "bg-[#0D2240]" : "bg-gray-100"}`}>
-                    <span className={`text-sm font-bold ${allBagsWeighed && totalWeight > 0 ? "text-white/70" : "text-gray-400"}`}>
+                    ${allSlotsWeighed && totalWeight > 0 ? "bg-[#0D2240]" : "bg-gray-100"}`}>
+                    <span className={`text-sm font-bold ${allSlotsWeighed && totalWeight > 0 ? "text-white/70" : "text-gray-400"}`}>
                       Total weight
                     </span>
-                    <span className={`text-2xl font-black font-mono ${allBagsWeighed && totalWeight > 0 ? "text-[#E8726A]" : "text-gray-300"}`}>
+                    <span className={`text-2xl font-black font-mono ${allSlotsWeighed && totalWeight > 0 ? "text-[#E8726A]" : "text-gray-300"}`}>
                       {totalWeight > 0 ? `${totalWeight.toFixed(1)} lbs` : "— lbs"}
                     </span>
                   </div>
