@@ -19,6 +19,7 @@ interface Props {
   allReady: boolean
   allOutForDel: boolean
   allDone: boolean
+  pickupDate: string | null
   deliveryDate: string | null
   // server actions
   confirmPickup:   (fd: FormData) => Promise<void>
@@ -38,9 +39,12 @@ function PhotoRequired({ taken, error }: { taken: boolean; error: boolean }) {
 export default function DriverOrderClient({
   bookingId, bags, facilities, estimatedLbs, facilityWarning,
   allPending, allPickedUp, somePickedUp, allAtFacility, allReady, allOutForDel, allDone,
-  deliveryDate,
+  pickupDate, deliveryDate,
   confirmPickup, confirmDropoff, confirmDelivery, recordPhotoEvent,
 }: Props) {
+  const today = new Date().toISOString().split("T")[0]
+  const isPickupDay   = pickupDate   === today
+  const isDeliveryDay = deliveryDate === today
   const [driverName, setDriverName] = useState("")
   const [nameError, setNameError] = useState(false)
   const [submitting, setSubmitting] = useState<string | null>(null)
@@ -135,11 +139,35 @@ export default function DriverOrderClient({
     setSubmitting(null)
   }
 
-  const isPickupPhase   = allPending || allPickedUp || (somePickedUp && !allAtFacility)
-  const isDeliveryPhase = allReady || allOutForDel
+  // Bag-status phases
+  const inPickupFlow   = allPending || allPickedUp || (somePickedUp && !allAtFacility)
+  const inDeliveryFlow = allReady || allOutForDel
+
+  // Show pickup only if bags are in pickup flow AND it's not delivery day
+  // (keep showing if mid-dropoff even if a day late — driver still needs to complete it)
+  const showPickup   = inPickupFlow   && !isDeliveryDay
+  const showDelivery = inDeliveryFlow && !isPickupDay
+
+  // Context banner config
+  const todayBanner = isPickupDay   ? { label: "Today: Pickup",   sub: `Deliver to facility by end of day · delivery ${deliveryDate}`,  bg: "bg-[#E8726A]", icon: "📦" }
+                    : isDeliveryDay ? { label: "Today: Delivery",  sub: `Return clean laundry to customer · picked up ${pickupDate}`,    bg: "bg-[#0D2240]", icon: "🚐" }
+                    : inPickupFlow  ? { label: "Pickup in progress", sub: "Complete drop-off at facility",                               bg: "bg-orange-500", icon: "⏳" }
+                    : allAtFacility && !allReady ? { label: "Being processed", sub: `Delivery scheduled for ${deliveryDate}`,            bg: "bg-purple-600", icon: "🏭" }
+                    : null
 
   return (
     <div className="space-y-4">
+
+      {/* ── Today's action banner ────────────────────────────────────── */}
+      {todayBanner && !allDone && (
+        <div className={`${todayBanner.bg} rounded-2xl px-5 py-3 flex items-center gap-3`}>
+          <span className="text-2xl">{todayBanner.icon}</span>
+          <div>
+            <p className="text-white font-extrabold text-base uppercase tracking-wide">{todayBanner.label}</p>
+            <p className="text-white/70 text-xs">{todayBanner.sub}</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Driver name ─────────────────────────────────────────────── */}
       <div className={`bg-white rounded-2xl shadow-sm border p-4 ${nameError ? "border-red-400" : "border-gray-100"}`}>
@@ -161,7 +189,7 @@ export default function DriverOrderClient({
       {/* ══════════════════════════════════════════════════════════════ */}
       {/* PICKUP PHASE                                                   */}
       {/* ══════════════════════════════════════════════════════════════ */}
-      {isPickupPhase && (
+      {showPickup && (
         <div className="rounded-2xl overflow-hidden border-2 border-[#E8726A]">
           <div className="bg-[#E8726A] px-5 py-3 flex items-center gap-3">
             <span className="text-2xl">📦</span>
@@ -342,7 +370,7 @@ export default function DriverOrderClient({
       {/* ══════════════════════════════════════════════════════════════ */}
       {/* DELIVERY PHASE                                                 */}
       {/* ══════════════════════════════════════════════════════════════ */}
-      {isDeliveryPhase && (
+      {showDelivery && (
         <div className="rounded-2xl overflow-hidden border-2 border-[#0D2240]">
           <div className="bg-[#0D2240] px-5 py-3 flex items-center gap-3">
             <span className="text-2xl">🚐</span>

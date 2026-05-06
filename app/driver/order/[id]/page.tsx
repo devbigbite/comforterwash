@@ -307,6 +307,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
           allReady={allReady}
           allOutForDel={allOutForDel}
           allDone={allDone}
+          pickupDate={booking.pickup_date ?? null}
           deliveryDate={booking.delivery_date ?? null}
           confirmPickup={confirmPickup}
           confirmDropoff={confirmDropoff}
