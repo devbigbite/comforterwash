@@ -136,3 +136,40 @@ export async function resetSiteImage(key: string): Promise<void> {
   revalidatePath("/")
   revalidatePath("/admin/images")
 }
+
+// ── Delivery Fee ─────────────────────────────────────────────────────────────
+
+export interface DeliveryFeeSettings {
+  enabled: boolean
+  feeCents: number      // flat fee amount
+  waiverCents: number   // free above this order subtotal (0 = always charge)
+}
+
+export async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from("settings")
+      .select("key,value")
+      .in("key", ["delivery_fee_enabled", "delivery_fee_cents", "delivery_fee_waiver_cents"])
+    const map: Record<string, string> = {}
+    data?.forEach(({ key, value }: { key: string; value: string }) => { map[key] = value })
+    return {
+      enabled: map["delivery_fee_enabled"] === "true",
+      feeCents: parseInt(map["delivery_fee_cents"] ?? "499"),
+      waiverCents: parseInt(map["delivery_fee_waiver_cents"] ?? "0"),
+    }
+  } catch {
+    return { enabled: false, feeCents: 499, waiverCents: 0 }
+  }
+}
+
+export async function setDeliveryFeeSettings(settings: DeliveryFeeSettings): Promise<void> {
+  const supabase = await createClient()
+  await supabase.from("settings").upsert([
+    { key: "delivery_fee_enabled", value: settings.enabled ? "true" : "false", updated_at: new Date().toISOString() },
+    { key: "delivery_fee_cents", value: String(settings.feeCents), updated_at: new Date().toISOString() },
+    { key: "delivery_fee_waiver_cents", value: String(settings.waiverCents), updated_at: new Date().toISOString() },
+  ])
+  revalidatePath("/admin/pricing")
+}

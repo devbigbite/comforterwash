@@ -13,6 +13,8 @@ import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
+import { getDeliveryFeeSettings } from "@/app/actions/settings"
+import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type FeeSettings } from "@/lib/checkout-fees"
 import { useLang } from "@/components/lang-provider"
 
 let PRICE_PER_LB = 199  // $1.99 in cents — overwritten on mount
@@ -123,6 +125,9 @@ export function WashOnlyForm() {
   })
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
+  const [tipOption, setTipOption] = useState<TipOption>("none")
+  const [customTipCents, setCustomTipCents] = useState(0)
+  const [feeSettings, setFeeSettings] = useState<FeeSettings>({ deliveryEnabled: false, deliveryFeeCents: 499, waiverCents: 0 })
   const [priceCents, setPriceCents] = useState(PRICE_PER_LB)
   const [minLbs, setMinLbs] = useState(MIN_POUNDS)
   const [detergentOptions, setDetergentOptions] = useState<ServiceOption[]>([])
@@ -130,6 +135,7 @@ export function WashOnlyForm() {
 
   useEffect(() => {
     getExcludedDates().then(dates => setExcludedDates(new Set(dates)))
+    getDeliveryFeeSettings().then(s => setFeeSettings({ deliveryEnabled: s.enabled, deliveryFeeCents: s.feeCents, waiverCents: s.waiverCents }))
     getPricingConfig().then(cfg => {
       PRICE_PER_LB = cfg.washOnlyCents
       MIN_POUNDS = cfg.washOnlyMinLbs
@@ -154,11 +160,14 @@ export function WashOnlyForm() {
   const selectedExtrasList = extraOptions.filter(e => formData.selectedExtras[e.id])
   const extrasCents = (selectedDetergent?.price_cents ?? 0) + selectedExtrasList.reduce((s, e) => s + e.price_cents, 0)
   const baseCents = Math.max(formData.pounds * priceCents, minLbs * priceCents)
-  const subtotalCents = baseCents + extrasCents
-  const discountCents = promo ? Math.min(promo.discountCents, subtotalCents) : 0
-  const totalCents = subtotalCents - discountCents
-  const preAuthCents = Math.ceil(totalCents * 1.25)
-  const totalDisplay = (totalCents / 100).toFixed(2)
+  const subtotalCents      = baseCents + extrasCents
+  const discountCents      = promo ? Math.min(promo.discountCents, subtotalCents) : 0
+  const afterDiscountCents = subtotalCents - discountCents
+  const deliveryFeeCents   = calcDeliveryFee(feeSettings, afterDiscountCents)
+  const tipCents           = calcTip(tipOption, customTipCents, afterDiscountCents)
+  const totalCents         = afterDiscountCents + deliveryFeeCents + tipCents
+  const preAuthCents       = Math.ceil((afterDiscountCents + deliveryFeeCents) * 1.25) + tipCents
+  const totalDisplay       = (totalCents / 100).toFixed(2)
 
   const priceLabel = `$${(priceCents / 100).toFixed(2)}/lb`
 
@@ -200,6 +209,24 @@ export function WashOnlyForm() {
                 <span className="font-medium text-[#0D2240] text-right">{row.value}</span>
               </div>
             ))}
+            {deliveryFeeCents > 0 && (
+              <div className="flex justify-between gap-4 text-gray-600">
+                <span className="shrink-0">Delivery fee</span>
+                <span className="font-semibold">${(deliveryFeeCents / 100).toFixed(2)}</span>
+              </div>
+            )}
+            {feeSettings.deliveryEnabled && deliveryFeeCents === 0 && feeSettings.waiverCents > 0 && (
+              <div className="flex justify-between gap-4 text-green-700">
+                <span className="shrink-0">Delivery fee</span>
+                <span className="font-semibold">Free 🎉</span>
+              </div>
+            )}
+            {tipCents > 0 && (
+              <div className="flex justify-between gap-4 text-gray-600">
+                <span className="shrink-0">Tip</span>
+                <span className="font-semibold">${(tipCents / 100).toFixed(2)}</span>
+              </div>
+            )}
             <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
               <span className="text-[#0D2240]">{tf.preAuthEst}</span>
               <span className="text-[#E8726A]">${totalDisplay}</span>
@@ -233,6 +260,8 @@ export function WashOnlyForm() {
               extrasCents: String(extrasCents),
               promoCode: promo?.code ?? "",
               promoDiscountCents: String(discountCents),
+              deliveryFeeCents: String(deliveryFeeCents),
+              tipCents: String(tipCents),
             }}
           />
           <button className="w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors" onClick={() => setStep(4)}>
@@ -455,6 +484,28 @@ export function WashOnlyForm() {
               onApply={(code, dc) => setPromo({ code, discountCents: dc })}
               onRemove={() => setPromo(null)}
             />
+
+            {/* Tip selector */}
+            <div className="rounded-2xl border border-gray-200 p-4">
+              <p className="text-sm font-bold text-[#0D2240] mb-3">Add a Tip <span className="text-gray-400 font-normal">(optional — shared among all staff)</span></p>
+              <div className="flex gap-2 flex-wrap mb-3">
+                {TIP_PRESETS.map(p => (
+                  <button key={p.value} type="button"
+                    onClick={() => setTipOption(p.value)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-bold border transition-colors ${tipOption === p.value ? "bg-[#0D2240] text-white border-[#0D2240]" : "bg-white text-gray-600 border-gray-200 hover:border-[#0D2240]"}`}>
+                    {p.label}{p.value !== "none" && p.value !== "custom" ? ` · $${(calcTip(p.value, 0, afterDiscountCents) / 100).toFixed(2)}` : ""}
+                  </button>
+                ))}
+              </div>
+              {tipOption === "custom" && (
+                <div className="relative max-w-[160px]">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+                  <input type="number" min="0" step="0.50" placeholder="0.00"
+                    className="w-full border border-gray-200 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-[#E8726A]"
+                    onChange={e => setCustomTipCents(Math.round(parseFloat(e.target.value || "0") * 100))} />
+                </div>
+              )}
+            </div>
 
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[

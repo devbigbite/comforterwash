@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { getPricingConfig, setPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, type ServiceOption } from "@/app/actions/service-options"
+import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings } from "@/app/actions/settings"
 import Link from "next/link"
 
 function cents(val: number) { return `$${(val / 100).toFixed(2)}` }
@@ -144,16 +145,29 @@ export default function PricingPage() {
   const [extras, setExtras] = useState<ServiceOption[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [deliveryFee, setDeliveryFee] = useState<DeliveryFeeSettings>({ enabled: false, feeCents: 499, waiverCents: 0 })
+  const [savingFee, setSavingFee] = useState(false)
+  const [savedFee, setSavedFee] = useState(false)
 
   async function loadAll() {
-    const [cfg, dets, exts] = await Promise.all([
+    const [cfg, dets, exts, fee] = await Promise.all([
       getPricingConfig(),
       getAllServiceOptions("detergent"),
       getAllServiceOptions("extra"),
+      getDeliveryFeeSettings(),
     ])
     setConfig(cfg)
     setDetergents(dets)
     setExtras(exts)
+    setDeliveryFee(fee)
+  }
+
+  async function handleSaveFee() {
+    setSavingFee(true)
+    await setDeliveryFeeSettings(deliveryFee)
+    setSavingFee(false)
+    setSavedFee(true)
+    setTimeout(() => setSavedFee(false), 3000)
   }
 
   useEffect(() => { loadAll() }, [])
@@ -328,6 +342,72 @@ export default function PricingPage() {
             {saved && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
           </div>
         </form>
+
+        {/* ── Delivery Fee ────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🚗</span>
+              <div>
+                <h2 className="font-extrabold text-[#0D2240] text-base">Delivery Fee</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Currently <span className={deliveryFee.enabled ? "text-[#E8726A] font-bold" : "text-gray-400"}>{deliveryFee.enabled ? "active" : "off"}</span></p>
+              </div>
+            </div>
+            {/* Toggle */}
+            <button
+              onClick={() => setDeliveryFee(f => ({ ...f, enabled: !f.enabled }))}
+              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${deliveryFee.enabled ? "bg-[#E8726A]" : "bg-gray-200"}`}
+            >
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${deliveryFee.enabled ? "translate-x-6" : "translate-x-1"}`} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <div>
+              <label className={labelCls}>Flat fee amount</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                <input
+                  type="number" step="0.01" min="0"
+                  className={inputCls + " pl-7"}
+                  value={dollarsToField(deliveryFee.feeCents)}
+                  onChange={e => setDeliveryFee(f => ({ ...f, feeCents: fieldToCents(e.target.value) }))}
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Added to every order when active</p>
+            </div>
+            <div>
+              <label className={labelCls}>Free above (order subtotal)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                <input
+                  type="number" step="0.01" min="0"
+                  className={inputCls + " pl-7"}
+                  value={dollarsToField(deliveryFee.waiverCents)}
+                  onChange={e => setDeliveryFee(f => ({ ...f, waiverCents: fieldToCents(e.target.value) }))}
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Set to $0.00 to always charge the fee</p>
+            </div>
+          </div>
+
+          {deliveryFee.waiverCents > 0 && (
+            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 text-xs text-blue-700 mb-4">
+              Orders under <strong>${(deliveryFee.waiverCents / 100).toFixed(2)}</strong> will be charged <strong>${(deliveryFee.feeCents / 100).toFixed(2)}</strong> — orders at or above that get free delivery.
+            </div>
+          )}
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleSaveFee}
+              disabled={savingFee}
+              className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-60"
+            >
+              {savingFee ? "Saving…" : "Save Delivery Fee"}
+            </button>
+            {savedFee && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
+          </div>
+        </div>
 
         {/* ── Detergent Options ───────────────────────── */}
         <OptionsSection
