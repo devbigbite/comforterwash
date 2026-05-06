@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import DeleteZipButton from "./delete-button"
+import EditZipRow from "./edit-zip-row"
 
 async function addZip(formData: FormData) {
   "use server"
@@ -9,7 +10,10 @@ async function addZip(formData: FormData) {
   const notes = (formData.get("notes") as string)?.trim() || null
   if (!zip || zip.length !== 5) return
   const supabase = createAdminClient()
-  await supabase.from("service_areas").upsert({ zip_code: zip, city, notes, active: true }, { onConflict: "zip_code" })
+  await supabase.from("service_areas").upsert(
+    { zip_code: zip, city, notes, active: true },
+    { onConflict: "zip_code" }
+  )
   revalidatePath("/admin/zip-codes")
 }
 
@@ -27,6 +31,16 @@ async function deleteZip(formData: FormData) {
   const id = formData.get("id") as string
   const supabase = createAdminClient()
   await supabase.from("service_areas").delete().eq("id", id)
+  revalidatePath("/admin/zip-codes")
+}
+
+async function updateZip(formData: FormData) {
+  "use server"
+  const id = formData.get("id") as string
+  const city = (formData.get("city") as string)?.trim() || "Orlando"
+  const notes = (formData.get("notes") as string)?.trim() || null
+  const supabase = createAdminClient()
+  await supabase.from("service_areas").update({ city, notes }).eq("id", id)
   revalidatePath("/admin/zip-codes")
 }
 
@@ -48,13 +62,10 @@ export default async function ZipCodesPage() {
           <div>
             <h1 className="text-2xl font-extrabold text-[#0D2240]">Service Areas</h1>
             <p className="text-sm text-gray-400 mt-1">
-              {activeCount} active ZIP code{activeCount !== 1 ? "s" : ""}
+              {activeCount} active ZIP code{activeCount !== 1 ? "s" : ""} · Notes are admin-only
             </p>
           </div>
-          <a
-            href="/admin"
-            className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors"
-          >
+          <a href="/admin" className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors">
             ← Back to Dashboard
           </a>
         </div>
@@ -85,7 +96,7 @@ export default async function ZipCodesPage() {
               />
             </div>
             <div className="flex flex-col gap-1 flex-1">
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Notes</label>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Notes (admin only)</label>
               <input
                 name="notes"
                 type="text"
@@ -119,37 +130,13 @@ export default async function ZipCodesPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {areas.map((area) => (
-                  <tr key={area.id} className="hover:bg-[#f7f8fb]/60 transition-colors">
-                    <td className="px-6 py-4 font-bold text-[#0D2240]">{area.zip_code}</td>
-                    <td className="px-6 py-4 text-gray-500">{area.city}, {area.state}</td>
-                    <td className="px-6 py-4 text-gray-400 text-xs">{area.notes ?? "—"}</td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-                          area.active
-                            ? "bg-green-50 text-green-700 border border-green-200"
-                            : "bg-gray-100 text-gray-400 border border-gray-200"
-                        }`}
-                      >
-                        {area.active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 justify-end">
-                        <form action={toggleZip}>
-                          <input type="hidden" name="id" value={area.id} />
-                          <input type="hidden" name="active" value={String(area.active)} />
-                          <button
-                            type="submit"
-                            className="text-xs text-gray-400 hover:text-[#0D2240] underline transition-colors"
-                          >
-                            {area.active ? "Deactivate" : "Activate"}
-                          </button>
-                        </form>
-                        <DeleteZipButton zipCode={area.zip_code} action={deleteZip} id={area.id} />
-                      </div>
-                    </td>
-                  </tr>
+                  <EditZipRow
+                    key={area.id}
+                    area={area}
+                    toggleZip={toggleZip}
+                    updateZip={updateZip}
+                    deleteZip={deleteZip}
+                  />
                 ))}
               </tbody>
             </table>
