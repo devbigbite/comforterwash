@@ -109,9 +109,9 @@ export async function createBooking(data: BookingData) {
     console.error("[bags] Error creating order bags:", bagErr)
   }
 
-  // Dispatch to Shipday
+  // Dispatch to Shipday and store the returned order IDs for future patching
   try {
-    await createShipdayOrder({
+    const { pickupOrderId, deliveryOrderId } = await createShipdayOrder({
       id: booking.id,
       short_code: booking.short_code ?? null,
       customer_name: booking.customer_name,
@@ -128,6 +128,17 @@ export async function createBooking(data: BookingData) {
       pounds: booking.pounds ?? undefined,
       num_bags: booking.num_bags ?? undefined,
     })
+
+    // Persist IDs so admin can patch or reassign routes later
+    if (pickupOrderId || deliveryOrderId) {
+      await supabase
+        .from("bookings")
+        .update({
+          shipday_pickup_order_id: pickupOrderId,
+          shipday_delivery_order_id: deliveryOrderId,
+        })
+        .eq("id", booking.id)
+    }
   } catch (error) {
     console.error("[shipday] Error dispatching order:", error)
   }
