@@ -45,6 +45,21 @@ export default function DriverOrderClient({
   const [nameError, setNameError] = useState(false)
   const [submitting, setSubmitting] = useState<string | null>(null)
 
+  // Per-bag weights for dropoff — starts at bag count, driver can add more
+  const [bagWeights, setBagWeights] = useState<string[]>(() => bags.map(() => ""))
+  const totalWeight = bagWeights.reduce((sum, w) => sum + (parseFloat(w) || 0), 0)
+  const allSlotsWeighed = bagWeights.length > 0 && bagWeights.every(w => parseFloat(w) > 0)
+
+  function updateBagWeight(i: number, val: string) {
+    setBagWeights(prev => { const next = [...prev]; next[i] = val; return next })
+  }
+  function addWeightSlot() {
+    setBagWeights(prev => [...prev, ""])
+  }
+  function removeWeightSlot(i: number) {
+    setBagWeights(prev => prev.filter((_, idx) => idx !== i))
+  }
+
   // 4 photo checkpoints
   const [hasCustomerPickupPhoto,  setHasCustomerPickupPhoto]  = useState(false)
   const [customerPickupPhotoErr,  setCustomerPickupPhotoErr]  = useState(false)
@@ -87,9 +102,11 @@ export default function DriverOrderClient({
     e.preventDefault()
     if (!requireName()) return
     if (!hasDropoffPhoto) { setDropoffPhotoErr(true); return }
+    if (!allSlotsWeighed || totalWeight <= 0) return
     setSubmitting("dropoff")
     const fd = new FormData(e.currentTarget)
     fd.set("driverName", driverName.trim())
+    fd.set("weightLbs", totalWeight.toFixed(1))
     await confirmDropoff(fd)
     setSubmitting(null)
   }
@@ -242,18 +259,70 @@ export default function DriverOrderClient({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">
-                    Actual Weight (lbs) <span className="text-[#E8726A]">*</span>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">
+                    Bag Weights (lbs) <span className="text-[#E8726A]">*</span>
                   </label>
-                  <input name="weightLbs" type="number" step="0.1" min="0.1" required
-                    placeholder={`e.g. ${estimatedLbs || 25}`}
-                    className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] text-center text-xl font-bold font-mono" />
-                  <p className="text-xs text-gray-500 mt-1">Customer is charged max(actual, 20 lbs) × rate</p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Weigh each bag separately on the scale and enter below.
+                  </p>
+
+                  <div className="space-y-2">
+                    {bagWeights.map((w, i) => {
+                      const isPrimary = i < bags.length
+                      const hasValue  = parseFloat(w) > 0
+                      const label     = isPrimary ? `Bag ${i + 1}` : `Extra ${i - bags.length + 1}`
+                      return (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className={`w-14 shrink-0 text-xs font-bold uppercase tracking-wide ${isPrimary ? "text-gray-600" : "text-[#E8726A]"}`}>
+                            {label}
+                          </span>
+                          <input
+                            type="number" step="0.1" min="0.1"
+                            value={w}
+                            onChange={e => updateBagWeight(i, e.target.value)}
+                            placeholder="0.0"
+                            className={`flex-1 rounded-xl border-2 px-3 py-2.5 text-center text-xl font-bold font-mono text-[#0D2240] focus:outline-none transition-colors
+                              ${hasValue ? "border-green-400 bg-green-50" : "border-gray-200 focus:border-[#E8726A]"}`}
+                          />
+                          <span className="shrink-0 text-sm font-semibold text-gray-500">lbs</span>
+                          {!isPrimary && (
+                            <button type="button" onClick={() => removeWeightSlot(i)}
+                              className="shrink-0 w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-400 font-bold text-sm transition-colors flex items-center justify-center">
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Add weight slot */}
+                  <button type="button" onClick={addWeightSlot}
+                    className="w-full mt-1 py-2.5 rounded-xl border-2 border-dashed border-gray-200 hover:border-[#E8726A] hover:bg-orange-50 text-gray-500 hover:text-[#E8726A] text-sm font-bold transition-colors">
+                    + Add weight
+                  </button>
+
+                  {/* Running total */}
+                  <div className={`mt-3 rounded-xl px-4 py-3 flex items-center justify-between transition-colors
+                    ${allBagsWeighed && totalWeight > 0 ? "bg-[#0D2240]" : "bg-gray-100"}`}>
+                    <span className={`text-sm font-bold ${allBagsWeighed && totalWeight > 0 ? "text-white/70" : "text-gray-400"}`}>
+                      Total weight
+                    </span>
+                    <span className={`text-2xl font-black font-mono ${allBagsWeighed && totalWeight > 0 ? "text-[#E8726A]" : "text-gray-300"}`}>
+                      {totalWeight > 0 ? `${totalWeight.toFixed(1)} lbs` : "— lbs"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1.5">
+                    Customer charged for max({totalWeight > 0 ? `${totalWeight.toFixed(1)}` : "actual"}, 20 lbs) × rate
+                  </p>
+
+                  {/* Hidden field — value injected by handleDropoff */}
+                  <input type="hidden" name="weightLbs" value={totalWeight.toFixed(1)} />
                 </div>
 
-                <button type="submit" disabled={submitting === "dropoff"}
+                <button type="submit" disabled={submitting === "dropoff" || !allSlotsWeighed || totalWeight <= 0}
                   className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-extrabold py-4 rounded-2xl text-base transition-colors">
-                  {submitting === "dropoff" ? "Saving…" : "🏭 Confirm Drop-off & Lock Weight"}
+                  {submitting === "dropoff" ? "Saving…" : `🏭 Confirm Drop-off · ${totalWeight > 0 ? totalWeight.toFixed(1) + " lbs total" : "enter all weights"}`}
                 </button>
               </form>
             )}
