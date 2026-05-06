@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import LabelReference from "./label-reference"
-import PhotoUploader from "./photo-uploader"
+import DriverOrderClient from "./order-client"
 import { capturePayment } from "@/app/actions/stripe"
 
 const CUSTOMER_MIN_LBS = 20
@@ -180,7 +180,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
   const { data: bags } = await supabase.from("order_bags").select("*").eq("booking_id", id).order("bag_number")
   const { data: facilities } = await supabase.from("facilities").select("id, name, address, supports_own_operator, supports_partner_attendant, rate_per_lb, minimum_lbs").eq("active", true).order("name")
 
-  const orderCode    = booking.id.slice(0, 8).toUpperCase()
+  const orderCode    = booking.short_code ?? booking.id.slice(0, 6).toUpperCase()
   const allStatuses  = bags?.map(b => b.status) ?? []
   const allPending   = allStatuses.every(s => s === "pending")
   const allPickedUp  = allStatuses.every(s => s === "picked_up")
@@ -235,9 +235,6 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
           bags={(bags ?? []).map(b => ({ id: b.id, bag_number: b.bag_number, label_code: b.label_code }))}
         />
 
-        {/* Photo upload */}
-        <PhotoUploader bookingId={booking.id} action={recordPhotoEvent} />
-
         {/* Order summary */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div className="grid grid-cols-4 gap-3 text-center text-sm">
@@ -254,129 +251,26 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
           )}
         </div>
 
-        {/* ── STEP 1: Confirm pickup ────────────────────────────────────── */}
-        {allPending && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <p className="font-bold text-[#0D2240] mb-1">Step 1 — Pickup from Customer</p>
-            <p className="text-xs text-gray-400 mb-4">Label all {bags?.length} bag{(bags?.length ?? 0) !== 1 ? "s" : ""} with sharpie using the codes above, then confirm.</p>
-            <form action={confirmPickup} className="space-y-3">
-              <input type="hidden" name="bookingId" value={booking.id} />
-              <input name="driverName" type="text" placeholder="Your name"
-                className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]" />
-              <button type="submit" className="w-full bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold py-4 rounded-2xl text-base transition-colors">
-                📦 Confirm Pickup of All {bags?.length} Bags
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* ── STEP 2: Drop-off + weight ─────────────────────────────────── */}
-        {(allPickedUp || somePickedUp) && !allAtFacility && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <p className="font-bold text-[#0D2240] mb-1">Step 2 — Drop-off at Facility + Weigh</p>
-            <p className="text-xs text-gray-400 mb-4">Weigh the bags on the facility's scale, select the facility, and enter the weight. This locks in the customer charge and triggers payment.</p>
-
-            {(facilityWarning?.length ?? 0) > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-xs text-amber-700">
-                ⚠️ <strong>Heads up:</strong> {facilityWarning?.join(", ")} has a minimum above the estimated weight ({estimatedLbs} lbs). Avoid routing here unless the actual weight meets their minimum.
-              </div>
-            )}
-
-            <form action={confirmDropoff} className="space-y-3">
-              <input type="hidden" name="bookingId" value={booking.id} />
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Facility</label>
-                <select name="facilityId" required
-                  className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
-                  <option value="">— select facility —</option>
-                  {facilities?.map(f => {
-                    const modes = [f.supports_own_operator && "Own Op", f.supports_partner_attendant && "Partner"].filter(Boolean).join(" + ")
-                    return (
-                      <option key={f.id} value={f.id}>
-                        {f.name} · {modes}{f.rate_per_lb ? ` · $${f.rate_per_lb}/lb` : ""}{(f.minimum_lbs ?? 0) > 0 ? ` · min ${f.minimum_lbs} lbs` : ""}
-                      </option>
-                    )
-                  })}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Processing Model</label>
-                <select name="facilityProcessingMode" required
-                  className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
-                  <option value="own_operator">Own Operator — WashFold staff processes</option>
-                  <option value="partner_attendant">Partner Attendant — facility staff processes</option>
-                </select>
-                <p className="text-xs text-gray-400 mt-1">Select the model being used for this specific drop-off.</p>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Actual Weight (lbs) — from facility scale</label>
-                <input name="weightLbs" type="number" step="0.1" min="0.1" required
-                  placeholder={`e.g. ${booking.pounds ?? 25}`}
-                  className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] text-center text-xl font-bold font-mono" />
-                <p className="text-xs text-gray-400 mt-1">Customer is charged max(actual, 20 lbs) × $2.50</p>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Your Name</label>
-                <input name="driverName" type="text" placeholder="Your name"
-                  className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]" />
-              </div>
-              <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-extrabold py-4 rounded-2xl text-base transition-colors">
-                🏭 Confirm Drop-off & Lock Weight
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* ── With operator ─────────────────────────────────────────────── */}
-        {allAtFacility && !allReady && (
-          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 text-center">
-            <p className="text-purple-700 font-extrabold text-lg">🏭 With Operator</p>
-            <p className="text-purple-600 text-sm mt-1">Bags are being washed, dried, and folded.</p>
-            {booking.assigned_facility_id && (
-              <p className="text-purple-400 text-xs mt-2">Delivery: {booking.delivery_date}</p>
-            )}
-          </div>
-        )}
-
-        {/* ── STEP 3: Delivery ──────────────────────────────────────────── */}
-        {allReady && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 text-center">
-              <p className="text-green-700 font-extrabold">✅ Bags ready for delivery!</p>
-              <p className="text-green-600 text-sm mt-0.5">Pick up from facility and deliver to customer.</p>
-            </div>
-            <form action={confirmDelivery} className="space-y-3">
-              <input type="hidden" name="bookingId" value={booking.id} />
-              <input type="hidden" name="nextStatus" value="out_for_delivery" />
-              <input name="driverName" type="text" placeholder="Your name"
-                className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]" />
-              <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-extrabold py-4 rounded-2xl text-base transition-colors">
-                🚐 Start Delivery Run
-              </button>
-            </form>
-          </div>
-        )}
-
-        {allOutForDel && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <form action={confirmDelivery} className="space-y-3">
-              <input type="hidden" name="bookingId" value={booking.id} />
-              <input type="hidden" name="nextStatus" value="delivered" />
-              <input name="driverName" type="text" placeholder="Your name"
-                className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]" />
-              <button type="submit" className="w-full bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-extrabold py-4 rounded-2xl text-base transition-colors">
-                🎉 Confirm Delivered to Customer
-              </button>
-            </form>
-          </div>
-        )}
-
-        {allDone && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
-            <p className="text-green-700 font-extrabold text-xl">🎉 Order Complete</p>
-            <p className="text-green-600 text-sm mt-1">All bags delivered successfully.</p>
-          </div>
-        )}
+        {/* Interactive driver actions (pickup / dropoff / delivery) */}
+        <DriverOrderClient
+          bookingId={booking.id}
+          bags={bags ?? []}
+          facilities={facilities ?? []}
+          estimatedLbs={estimatedLbs}
+          facilityWarning={facilityWarning ?? []}
+          allPending={allPending}
+          allPickedUp={allPickedUp}
+          somePickedUp={somePickedUp}
+          allAtFacility={allAtFacility}
+          allReady={allReady}
+          allOutForDel={allOutForDel}
+          allDone={allDone}
+          deliveryDate={booking.delivery_date ?? null}
+          confirmPickup={confirmPickup}
+          confirmDropoff={confirmDropoff}
+          confirmDelivery={confirmDelivery}
+          recordPhotoEvent={recordPhotoEvent}
+        />
 
         {/* Bag status grid */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">

@@ -6,9 +6,10 @@ import { createClient } from "@/lib/supabase/client"
 interface Props {
   bookingId: string
   action: (formData: FormData) => Promise<void>
+  onPhotoUploaded?: () => void
 }
 
-export default function PhotoUploader({ bookingId, action }: Props) {
+export default function PhotoUploader({ bookingId, action, onPhotoUploaded }: Props) {
   const [uploading, setUploading] = useState(false)
   const [photos, setPhotos] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +45,7 @@ export default function PhotoUploader({ bookingId, action }: Props) {
     setPhotos((prev) => [...prev, publicUrl])
     setUploading(false)
     if (inputRef.current) inputRef.current.value = ""
+    onPhotoUploaded?.()
 
     // Record in DB via server action
     const fd = new FormData()
