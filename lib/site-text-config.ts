@@ -40,11 +40,19 @@ export interface SiteText {
   why_subheading: string
   why_body1: string
   why_body2: string
+  // Why Choose Us photo overlay — EN
+  why_photo_tag: string
+  why_photo_headline: string
+  why_photo_cta: string
   // Why Choose Us — ES
   why_heading_es: string
   why_subheading_es: string
   why_body1_es: string
   why_body2_es: string
+  // Why Choose Us photo overlay — ES
+  why_photo_tag_es: string
+  why_photo_headline_es: string
+  why_photo_cta_es: string
 }
 
 export const DEFAULT_TEXT: SiteText = {
@@ -80,8 +88,14 @@ export const DEFAULT_TEXT: SiteText = {
   why_subheading: "",
   why_body1:      "",
   why_body2:      "",
+  why_photo_tag:      "",
+  why_photo_headline: "",
+  why_photo_cta:      "",
   why_heading_es:    "",
   why_subheading_es: "",
   why_body1_es:      "",
   why_body2_es:      "",
+  why_photo_tag_es:      "",
+  why_photo_headline_es: "",
+  why_photo_cta_es:      "",
 }

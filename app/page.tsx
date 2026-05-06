@@ -123,14 +123,17 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-r from-[#0D2240]/60 via-transparent to-transparent" />
           <div className="absolute inset-0 flex items-center px-10">
             <div className="max-w-sm">
-              <p className="text-white/80 text-xs font-bold uppercase tracking-[0.2em] mb-2">{tr.why.photoTag}</p>
+              <p className="text-white/80 text-xs font-bold uppercase tracking-[0.2em] mb-2">
+                {(locale === "es" ? siteText.why_photo_tag_es : siteText.why_photo_tag) || tr.why.photoTag}
+              </p>
               <h3 className="text-white font-extrabold text-3xl leading-tight mb-4">
-                {tr.why.photoHeadline.split("\n").map((line, i) => (
-                  <span key={i}>{line}{i === 0 && <br />}</span>
-                ))}
+                {((locale === "es" ? siteText.why_photo_headline_es : siteText.why_photo_headline) || tr.why.photoHeadline)
+                  .split("\n").map((line: string, i: number) => (
+                    <span key={i}>{line}{i === 0 && <br />}</span>
+                  ))}
               </h3>
               <a href="#services" className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-3 rounded-full transition-colors uppercase tracking-wide">
-                {tr.why.photoCta}
+                {(locale === "es" ? siteText.why_photo_cta_es : siteText.why_photo_cta) || tr.why.photoCta}
               </a>
             </div>
           </div>

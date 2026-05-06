@@ -410,6 +410,12 @@ export function SiteImagesEditor({
                       <TextField label="Subheading" value={text.why_subheading} defaultValue="" placeholder="Unmatched Quality and Service in Every Load" onSave={v => saveText("why_subheading", v)} />
                       <TextField label="Body paragraph 1" value={text.why_body1} defaultValue="" placeholder="At WashFold Orlando, we understand…" onSave={v => saveText("why_body1", v)} multiline />
                       <TextField label="Body paragraph 2" value={text.why_body2} defaultValue="" placeholder="Giving you more time for what truly matters." onSave={v => saveText("why_body2", v)} multiline />
+                      <div className="border-t border-dashed border-gray-200 pt-3 space-y-2">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Photo Overlay</p>
+                        <TextField label="Tag line" value={text.why_photo_tag} defaultValue="" placeholder="Pick Up & Delivery" onSave={v => saveText("why_photo_tag", v)} />
+                        <TextField label="Headline" value={text.why_photo_headline} defaultValue="" placeholder="We Come to You.\nYou Enjoy Life." onSave={v => saveText("why_photo_headline", v)} multiline />
+                        <TextField label="Button text" value={text.why_photo_cta} defaultValue="" placeholder="Schedule a Pickup" onSave={v => saveText("why_photo_cta", v)} />
+                      </div>
                     </>
                   ) : (
                     <>
@@ -417,6 +423,12 @@ export function SiteImagesEditor({
                       <TextField label="Subtítulo (ES)" value={text.why_subheading_es} defaultValue="" placeholder="Calidad y servicio sin igual en cada carga" onSave={v => saveText("why_subheading_es", v)} />
                       <TextField label="Párrafo 1 (ES)" value={text.why_body1_es} defaultValue="" placeholder="En WashFold Orlando, entendemos…" onSave={v => saveText("why_body1_es", v)} multiline />
                       <TextField label="Párrafo 2 (ES)" value={text.why_body2_es} defaultValue="" placeholder="Dándote más tiempo para lo que realmente importa." onSave={v => saveText("why_body2_es", v)} multiline />
+                      <div className="border-t border-dashed border-gray-200 pt-3 space-y-2">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Superposición de foto (ES)</p>
+                        <TextField label="Etiqueta (ES)" value={text.why_photo_tag_es} defaultValue="" placeholder="Recogida y entrega" onSave={v => saveText("why_photo_tag_es", v)} />
+                        <TextField label="Titular foto (ES)" value={text.why_photo_headline_es} defaultValue="" placeholder="Llegamos a ti.\nTú disfrutas la vida." onSave={v => saveText("why_photo_headline_es", v)} multiline />
+                        <TextField label="Botón foto (ES)" value={text.why_photo_cta_es} defaultValue="" placeholder="Programar Recogida" onSave={v => saveText("why_photo_cta_es", v)} />
+                      </div>
                     </>
                   )}
                 </div>
