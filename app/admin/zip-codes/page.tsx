@@ -70,6 +70,18 @@ export default async function ZipCodesPage() {
           </a>
         </div>
 
+        {/* Map editor link */}
+        <a
+          href="/admin/service-area"
+          className="flex items-center justify-between bg-[#0D2240] hover:bg-[#1a3a5c] text-white rounded-2xl px-6 py-4 mb-6 transition-colors group"
+        >
+          <div>
+            <p className="font-extrabold text-sm">Service Area Map Editor</p>
+            <p className="text-white/50 text-xs mt-0.5">Draw the delivery zone customers see on the Service Areas page</p>
+          </div>
+          <span className="text-white/40 group-hover:text-white text-lg transition-colors">→</span>
+        </a>
+
         {/* Add ZIP form */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
           <h2 className="font-bold text-[#0D2240] mb-4">Add ZIP Code</h2>

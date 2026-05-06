@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { href: "/admin/tips",          label: "Tips" },
   { href: "/admin/facilities",    label: "Facilities" },
   { href: "/admin/zip-codes",     label: "Areas" },
+  { href: "/admin/service-area",  label: "Area Map" },
   { href: "/operator",            label: "Operator →" },
 ]
 
