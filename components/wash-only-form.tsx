@@ -16,6 +16,8 @@ import { getServiceOptions, type ServiceOption } from "@/app/actions/service-opt
 import { getDeliveryFeeSettings } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type FeeSettings } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
+import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, type Route, type TimeWindow } from "@/lib/route-availability"
+import { getActiveRoutes } from "@/app/actions/routes"
 import { useLang } from "@/components/lang-provider"
 
 let PRICE_PER_LB = 199  // $1.99 in cents — overwritten on mount
@@ -26,20 +28,8 @@ function bagsToEstLbs(bags: number) {
   return Math.max(bags * LBS_PER_BAG, MIN_POUNDS)
 }
 
-const TIME_WINDOWS = [
-  { value: "9am-1pm", label: "9am – 1pm" },
-  { value: "3pm-7pm", label: "3pm – 7pm" },
-]
-
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
-
-function getEarliestDelivery(pickup: Date): Date {
-  const d = new Date(pickup)
-  d.setDate(d.getDate() + 3)
-  while ([0, 4, 5, 6].includes(d.getDay())) d.setDate(d.getDate() + 1)
-  return d
-}
 
 function DateStrip({ selected, onSelect, isAvailable }: {
   selected: Date | undefined
@@ -78,15 +68,15 @@ function DateStrip({ selected, onSelect, isAvailable }: {
   )
 }
 
-function TimeSlotPicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+function TimeSlotPicker({ value, onChange, label, windows }: { value: string; onChange: (v: string) => void; label: string; windows: TimeWindow[] }) {
   return (
     <div>
       <p className="text-xs text-center text-gray-400 mb-3 mt-4">{label}</p>
       <div className="flex gap-2 justify-center flex-wrap">
-        {TIME_WINDOWS.map((w) => (
-          <button key={w.value} type="button" onClick={() => onChange(w.value)}
+        {windows.map((w) => (
+          <button key={w.id} type="button" onClick={() => onChange(w.label)}
             className={cn("px-6 py-2.5 rounded-xl font-bold text-sm transition-all",
-              value === w.value ? "bg-[#E8726A] text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200")}>
+              value === w.label ? "bg-[#E8726A] text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200")}>
             {w.label}
           </button>
         ))}
@@ -125,6 +115,7 @@ export function WashOnlyForm() {
     smsConsent: false,
   })
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
+  const [activeRoutes, setActiveRoutes] = useState<Route[]>([])
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
   const [tipOption, setTipOption] = useState<TipOption>("none")
   const [customTipCents, setCustomTipCents] = useState(0)
@@ -136,6 +127,7 @@ export function WashOnlyForm() {
 
   useEffect(() => {
     getExcludedDates().then(dates => setExcludedDates(new Set(dates)))
+    getActiveRoutes().then(setActiveRoutes)
     getDeliveryFeeSettings().then(s => setFeeSettings({ deliveryEnabled: s.enabled, deliveryFeeCents: s.feeCents, waiverCents: s.waiverCents }))
     getPricingConfig().then(cfg => {
       PRICE_PER_LB = cfg.washOnlyCents
@@ -157,6 +149,27 @@ export function WashOnlyForm() {
 
   const isExcluded = (d: Date) => excludedDates.has(d.toISOString().split("T")[0])
 
+  const isPickupAvailable = (d: Date) => {
+    if (isExcluded(d) || !isOnOrAfterMinPickup(d)) return false
+    if (activeRoutes.length === 0) {
+      const day = d.getDay(); return day === 1 || day === 2 || day === 3
+    }
+    return isPickupDay(d, activeRoutes)
+  }
+
+  const isDeliveryAvailable = (d: Date) => {
+    if (isExcluded(d)) return false
+    const available = activeRoutes.length > 0
+      ? isDeliveryDay(d, activeRoutes)
+      : [1, 2, 3].includes(d.getDay())
+    if (!available) return false
+    if (formData.pickupDate) {
+      const min = new Date(formData.pickupDate); min.setDate(min.getDate() + 3); min.setHours(0, 0, 0, 0)
+      return d >= min
+    }
+    return true
+  }
+
   const selectedDetergent = detergentOptions.find(d => d.id === formData.detergentId)
   const selectedExtrasList = extraOptions.filter(e => formData.selectedExtras[e.id])
   const extrasCents = (selectedDetergent?.price_cents ?? 0) + selectedExtrasList.reduce((s, e) => s + e.price_cents, 0)
@@ -172,17 +185,7 @@ export function WashOnlyForm() {
 
   const priceLabel = `$${(priceCents / 100).toFixed(2)}/lb`
 
-  const isPickupAvailable = (d: Date) => { const day = d.getDay(); return (day === 1 || day === 2 || day === 3) && !isExcluded(d) && isOnOrAfterMinPickup(d) }
-  const isDeliveryAvailable = (d: Date) => {
-    const day = d.getDay()
-    if (day !== 1 && day !== 2 && day !== 3) return false
-    if (isExcluded(d)) return false
-    if (formData.pickupDate) {
-      const min = new Date(formData.pickupDate); min.setDate(min.getDate() + 3); min.setHours(0, 0, 0, 0)
-      return d >= min
-    }
-    return true
-  }
+  // isPickupAvailable and isDeliveryAvailable defined above near isExcluded
 
   const canStep1 = !!formData.pickupDate && !!formData.deliveryDate && !!formData.pickupTimeWindow && !!formData.deliveryTimeWindow
   const canStep3 = !!formData.name && !!formData.email && !!formData.phone && !!formData.address
@@ -201,8 +204,8 @@ export function WashOnlyForm() {
               { label: tf.labelEstWeight, value: `~${formData.pounds} lbs` },
               { label: tw.detergentLabel, value: selectedDetergent?.name ?? "" },
               ...(selectedExtrasList.length > 0 ? [{ label: tf.labelExtras ?? "Extras", value: selectedExtrasList.map(e => e.name).join(", ") }] : []),
-              { label: tf.labelPickup, value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
-              { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
+              { label: tf.labelPickup, value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
+              { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
               { label: tf.labelAddress, value: formData.address },
             ].map((row) => (
               <div key={row.label} className="flex justify-between gap-4 text-sm">
@@ -354,8 +357,8 @@ export function WashOnlyForm() {
                   <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">1</span>
                   <h4 className="font-bold text-[#0D2240] text-sm">{tb.pickupDateTitle}</h4>
                 </div>
-                <DateStrip selected={formData.pickupDate} onSelect={(d) => setFormData(p => ({ ...p, pickupDate: d, deliveryDate: getEarliestDelivery(d) }))} isAvailable={isPickupAvailable} />
-                {formData.pickupDate && <TimeSlotPicker value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} label={tf.availableTimeSlots} />}
+                <DateStrip selected={formData.pickupDate} onSelect={(d) => setFormData(p => ({ ...p, pickupDate: d, deliveryDate: getEarliestRouteDelivery(d, activeRoutes) }))} isAvailable={isPickupAvailable} />
+                {formData.pickupDate && <TimeSlotPicker value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} label={tf.availableTimeSlots} windows={getTimeWindowsForDate(formData.pickupDate, activeRoutes, "pickup")} />}
               </div>
               {formData.pickupDate && formData.pickupTimeWindow && (
                 <div>
@@ -365,7 +368,7 @@ export function WashOnlyForm() {
                     <span className="text-xs text-gray-400">— {tb.deliveryGapNote}</span>
                   </div>
                   <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} />
-                  {formData.deliveryDate && <TimeSlotPicker value={formData.deliveryTimeWindow} onChange={(v) => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} label={tf.availableTimeSlots} />}
+                  {formData.deliveryDate && <TimeSlotPicker value={formData.deliveryTimeWindow} onChange={(v) => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} label={tf.availableTimeSlots} windows={getTimeWindowsForDate(formData.deliveryDate, activeRoutes, "delivery")} />}
                 </div>
               )}
             </div>
@@ -516,8 +519,8 @@ export function WashOnlyForm() {
                 { label: tf.labelBags, value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
                 { label: tw.detergentLabel, value: selectedDetergent?.name ?? "" },
                 ...(selectedExtrasList.length > 0 ? [{ label: tf.labelExtras ?? "Extras", value: selectedExtrasList.map(e => e.name).join(", ") }] : []),
-                { label: tf.labelPickup, value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
-                { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
+                { label: tf.labelPickup, value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
+                { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
                 { label: tf.labelAddress, value: formData.address },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between gap-4">

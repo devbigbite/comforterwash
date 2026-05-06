@@ -17,6 +17,8 @@ import { getPricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type FeeSettings } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
+import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, type Route, type TimeWindow } from "@/lib/route-availability"
+import { getActiveRoutes } from "@/app/actions/routes"
 
 // ── Pricing ─────────────────────────────────────────────────────────────────
 // Defaults — overwritten on mount from Supabase
@@ -33,23 +35,14 @@ function buildSizes() {
   ]
 }
 
-const TIME_WINDOWS = [
-  { value: "9am-1pm", label: "9am – 1pm" },
-  { value: "3pm-7pm", label: "3pm – 7pm" },
-]
-
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
 type SizeId = "twin" | "full" | "queen" | "king"
 type Quantities = Record<SizeId, number>
 
-function getEarliestDelivery(pickup: Date): Date {
-  const d = new Date(pickup)
-  d.setDate(d.getDate() + 3)
-  while ([0, 4, 5, 6].includes(d.getDay())) d.setDate(d.getDate() + 1)
-  return d
-}
+// getEarliestDelivery is now route-aware — defined inside the component
+// using the activeRoutes state. This placeholder is kept for reference only.
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 function DateStrip({
@@ -103,15 +96,15 @@ function DateStrip({
   )
 }
 
-function TimeSlotPicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+function TimeSlotPicker({ value, onChange, label, windows }: { value: string; onChange: (v: string) => void; label: string; windows: TimeWindow[] }) {
   return (
     <div>
       <p className="text-xs text-center text-gray-400 mb-3 mt-4">{label}</p>
       <div className="flex gap-2 justify-center flex-wrap">
-        {TIME_WINDOWS.map((w) => (
-          <button key={w.value} type="button" onClick={() => onChange(w.value)}
+        {windows.map((w) => (
+          <button key={w.id} type="button" onClick={() => onChange(w.label)}
             className={cn("px-6 py-2.5 rounded-xl font-bold text-sm transition-all",
-              value === w.value ? "bg-[#E8726A] text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200")}>
+              value === w.label ? "bg-[#E8726A] text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200")}>
             {w.label}
           </button>
         ))}
@@ -136,6 +129,7 @@ export function BookingForm() {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [promoActive, setPromoActive] = useState(false)
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
+  const [activeRoutes, setActiveRoutes] = useState<Route[]>([])
 
   const [quantities, setQuantities] = useState<Quantities>({ twin: 0, full: 0, queen: 1, king: 0 })
 
@@ -163,6 +157,7 @@ export function BookingForm() {
 
   useEffect(() => {
     import("@/app/actions/holidays").then(m => m.getExcludedDates()).then(dates => setExcludedDates(new Set(dates)))
+    getActiveRoutes().then(setActiveRoutes)
     getComforterPromo().then(setPromoActive)
     getDeliveryFeeSettings().then(s => setFeeSettings({ deliveryEnabled: s.enabled, deliveryFeeCents: s.feeCents, waiverCents: s.waiverCents }))
     getPricingConfig().then(cfg => {
@@ -199,11 +194,22 @@ export function BookingForm() {
 
   // ── Date helpers ─────────────────────────────────────────────────────────
   const isExcluded = (d: Date) => excludedDates.has(d.toISOString().split("T")[0])
-  const isPickupAvailable = (d: Date) => { const day = d.getDay(); return !isExcluded(d) && (day === 1 || day === 2 || day === 3) && isOnOrAfterMinPickup(d) }
+
+  const isPickupAvailable = (d: Date) => {
+    if (isExcluded(d) || !isOnOrAfterMinPickup(d)) return false
+    if (activeRoutes.length === 0) {
+      // No routes yet — fall back to Mon/Tue/Wed
+      const day = d.getDay(); return day === 1 || day === 2 || day === 3
+    }
+    return isPickupDay(d, activeRoutes)
+  }
+
   const isDeliveryAvailable = (d: Date) => {
     if (isExcluded(d)) return false
-    const day = d.getDay()
-    if (day !== 1 && day !== 2 && day !== 3) return false
+    const available = activeRoutes.length > 0
+      ? isDeliveryDay(d, activeRoutes)
+      : [1, 2, 3].includes(d.getDay())
+    if (!available) return false
     if (formData.pickupDate) {
       const min = new Date(formData.pickupDate); min.setDate(min.getDate() + 3); min.setHours(0, 0, 0, 0)
       return d >= min
@@ -212,7 +218,7 @@ export function BookingForm() {
   }
 
   const handlePickupSelect = (date: Date) => {
-    setFormData(p => ({ ...p, pickupDate: date, deliveryDate: getEarliestDelivery(date) }))
+    setFormData(p => ({ ...p, pickupDate: date, deliveryDate: getEarliestRouteDelivery(date, activeRoutes) }))
   }
 
   // ── Counter helpers ──────────────────────────────────────────────────────
@@ -256,8 +262,8 @@ export function BookingForm() {
             <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">{tb.bookingSummary}</h3>
             {[
               { label: tf.labelName,     value: formData.name },
-              { label: tf.labelPickup,   value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
-              { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
+              { label: tf.labelPickup,   value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
+              { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
               { label: tf.labelAddress,  value: formData.address },
               { label: tf.labelAddOns,   value: addOnsSummary },
             ].map(row => (
@@ -490,7 +496,12 @@ export function BookingForm() {
                 <p className="text-xs text-gray-400 mb-4 ml-6">{tb.pickupWhen}</p>
                 <DateStrip label="" selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} tomorrow={tf.tomorrow} />
                 {formData.pickupDate && (
-                  <TimeSlotPicker label={tf.availableTimeSlots} value={formData.pickupTimeWindow} onChange={v => setFormData(p => ({ ...p, pickupTimeWindow: v }))} />
+                  <TimeSlotPicker
+                    label={tf.availableTimeSlots}
+                    value={formData.pickupTimeWindow}
+                    onChange={v => setFormData(p => ({ ...p, pickupTimeWindow: v }))}
+                    windows={getTimeWindowsForDate(formData.pickupDate, activeRoutes, "pickup")}
+                  />
                 )}
               </div>
 
@@ -511,7 +522,12 @@ export function BookingForm() {
                   </p>
                   <DateStrip label="" selected={formData.deliveryDate} onSelect={d => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} tomorrow={tf.tomorrow} />
                   {formData.deliveryDate && (
-                    <TimeSlotPicker label={tf.availableTimeSlots} value={formData.deliveryTimeWindow} onChange={v => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} />
+                    <TimeSlotPicker
+                      label={tf.availableTimeSlots}
+                      value={formData.deliveryTimeWindow}
+                      onChange={v => setFormData(p => ({ ...p, deliveryTimeWindow: v }))}
+                      windows={getTimeWindowsForDate(formData.deliveryDate, activeRoutes, "delivery")}
+                    />
                   )}
                 </div>
               )}
@@ -633,8 +649,8 @@ export function BookingForm() {
 
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[
-                { label: tf.labelPickup,   value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.pickupTimeWindow)?.label}` : "" },
-                { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${TIME_WINDOWS.find(w => w.value === formData.deliveryTimeWindow)?.label}` : "" },
+                { label: tf.labelPickup,   value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
+                { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
                 { label: tf.labelAddress,  value: formData.address },
                 { label: tf.labelAddOns,   value: addOnsSummary },
               ].map(row => (
