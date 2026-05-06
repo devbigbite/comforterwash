@@ -15,6 +15,7 @@ import { getPricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getDeliveryFeeSettings } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type FeeSettings } from "@/lib/checkout-fees"
+import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
 import { useLang } from "@/components/lang-provider"
 
 let PRICE_PER_LB = 199  // $1.99 in cents — overwritten on mount
@@ -171,7 +172,7 @@ export function WashOnlyForm() {
 
   const priceLabel = `$${(priceCents / 100).toFixed(2)}/lb`
 
-  const isPickupAvailable = (d: Date) => { const day = d.getDay(); return (day === 1 || day === 2 || day === 3) && !isExcluded(d) }
+  const isPickupAvailable = (d: Date) => { const day = d.getDay(); return (day === 1 || day === 2 || day === 3) && !isExcluded(d) && isOnOrAfterMinPickup(d) }
   const isDeliveryAvailable = (d: Date) => {
     const day = d.getDay()
     if (day !== 1 && day !== 2 && day !== 3) return false

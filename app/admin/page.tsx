@@ -5,13 +5,15 @@ import { UpcomingView } from "@/components/admin/upcoming-view"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Package, TruckIcon, CheckCircle2, Clock } from "lucide-react"
+import { todayET } from "@/lib/pickup-cutoff"
 
 export const dynamic = "force-dynamic"
 
 export default async function AdminDashboard() {
   const bookings = await getBookings()
 
-  const today = new Date().toISOString().split("T")[0]
+  // Use Eastern time so "today" matches Orlando's calendar date, not UTC
+  const today = todayET()
 
   const stats = {
     total: bookings.length,

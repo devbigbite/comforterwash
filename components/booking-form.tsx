@@ -15,6 +15,7 @@ import { useLang } from "@/components/lang-provider"
 import { getComforterPromo, getDeliveryFeeSettings } from "@/app/actions/settings"
 import { getPricingConfig } from "@/app/actions/pricing"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type FeeSettings } from "@/lib/checkout-fees"
+import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
 
 // ── Pricing ─────────────────────────────────────────────────────────────────
 // Defaults — overwritten on mount from Supabase
@@ -193,7 +194,7 @@ export function BookingForm() {
 
   // ── Date helpers ─────────────────────────────────────────────────────────
   const isExcluded = (d: Date) => excludedDates.has(d.toISOString().split("T")[0])
-  const isPickupAvailable = (d: Date) => { const day = d.getDay(); return !isExcluded(d) && (day === 1 || day === 2 || day === 3) }
+  const isPickupAvailable = (d: Date) => { const day = d.getDay(); return !isExcluded(d) && (day === 1 || day === 2 || day === 3) && isOnOrAfterMinPickup(d) }
   const isDeliveryAvailable = (d: Date) => {
     if (isExcluded(d)) return false
     const day = d.getDay()

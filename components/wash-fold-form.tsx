@@ -15,6 +15,7 @@ import { getPricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getDeliveryFeeSettings } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type FeeSettings } from "@/lib/checkout-fees"
+import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
 import { useLang } from "@/components/lang-provider"
 
 // ─── constants ───────────────────────────────────────────────────────────────
@@ -268,7 +269,7 @@ export function WashFoldForm() {
 
   const minGapForDay = (d: Date) => d.getDay() === 5 ? 5 : 3
   const isWeekday    = (d: Date) => d.getDay() >= 1 && d.getDay() <= 5
-  const isPickupAvailable   = (d: Date) => isWeekday(d) && !isExcluded(d)
+  const isPickupAvailable   = (d: Date) => isWeekday(d) && !isExcluded(d) && isOnOrAfterMinPickup(d)
   const isDeliveryAvailable = (d: Date) => {
     if (!isWeekday(d) || isExcluded(d)) return false
     if (formData.pickupDate) {
