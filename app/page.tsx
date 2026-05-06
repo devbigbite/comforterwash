@@ -471,7 +471,12 @@ export default function Home() {
               <Link href="/service-areas" className="hover:text-[#E8726A] transition-colors">{tr.footer.serviceAreas}</Link>
               <a href="#faq" className="hover:text-[#E8726A] transition-colors">{tr.footer.faq}</a>
             </div>
-            <p className="text-white/25 text-xs">&copy; {new Date().getFullYear()} WashFold Orlando</p>
+            <div className="flex items-center gap-4">
+              <p className="text-white/25 text-xs">&copy; {new Date().getFullYear()} WashFold Orlando</p>
+              <span className="text-white/10 text-xs">·</span>
+              <Link href="/driver" className="text-white/20 hover:text-white/50 text-xs transition-colors">Driver</Link>
+              <Link href="/operator" className="text-white/20 hover:text-white/50 text-xs transition-colors">Operator</Link>
+            </div>
           </div>
         </div>
       </footer>
