@@ -18,10 +18,13 @@ function buildLabel(start: string, end: string): string {
   return `${fmt24(start)} – ${fmt24(end)}`
 }
 
-// Hour slots for the picker (1-hour increments)
-const HOURS = Array.from({ length: 24 }, (_, i) => {
-  const hh = String(i).padStart(2, "0")
-  return { value: `${hh}:00`, label: fmt24(`${hh}:00`) }
+// Time options in 30-minute increments from 6:00 AM to 11:00 PM
+const TIME_OPTIONS = Array.from({ length: 35 }, (_, i) => {
+  const totalMins = 360 + i * 30  // start at 6:00 AM (360 min)
+  const h = Math.floor(totalMins / 60)
+  const m = totalMins % 60
+  const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+  return { value, label: fmt24(value) }
 })
 
 interface Props {
@@ -62,7 +65,6 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
         setError(result.error)
         return
       }
-      // Optimistic update
       setWindows(prev => [...prev, {
         id: crypto.randomUUID(),
         route_id: routeId,
@@ -136,28 +138,55 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
 
       {/* Add form */}
       {adding && (
-        <div className="bg-[#f7f8fb] rounded-2xl border border-gray-200 p-4 space-y-3">
+        <div className="bg-[#f7f8fb] rounded-2xl border border-gray-200 p-4 space-y-4">
           <p className="text-xs font-bold text-[#0D2240] uppercase tracking-wide">New Time Window</p>
 
-          {/* Hour block grid — visual like Curbside */}
-          <div>
-            <p className="text-[10px] text-gray-400 mb-2 font-semibold uppercase tracking-wide">Select hours (click to toggle)</p>
-            <HourRangePicker
-              startTime={startTime}
-              endTime={endTime}
-              onStartChange={setStartTime}
-              onEndChange={setEndTime}
-            />
+          {/* Start / End time dropdowns */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Start Time</label>
+              <select
+                value={startTime}
+                onChange={e => {
+                  setStartTime(e.target.value)
+                  setError("")
+                }}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#E8726A] bg-white"
+              >
+                {TIME_OPTIONS.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">End Time</label>
+              <select
+                value={endTime}
+                onChange={e => {
+                  setEndTime(e.target.value)
+                  setError("")
+                }}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#E8726A] bg-white"
+              >
+                {TIME_OPTIONS.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Preview label */}
+          {/* Visual preview bar */}
           {startTime < endTime && (
-            <div className="text-xs font-semibold text-[#0D2240] bg-white rounded-xl px-3 py-2 border border-gray-200">
-              Window: <span className="text-[#E8726A]">{buildLabel(startTime, endTime)}</span>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Preview</p>
+              <TimeRangeBar startTime={startTime} endTime={endTime} />
+              <p className="text-xs font-semibold text-[#0D2240] mt-2">
+                Window: <span className="text-[#E8726A]">{buildLabel(startTime, endTime)}</span>
+              </p>
             </div>
           )}
 
-          {/* Options row */}
+          {/* Max bookings + private toggle */}
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">
@@ -178,7 +207,7 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
                 onClick={() => setIsPrivate(p => !p)}
                 className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none ${isPrivate ? "bg-purple-500" : "bg-gray-200"}`}
               >
-                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${isPrivate ? "translate-x-4.5" : "translate-x-0.5"}`} />
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${isPrivate ? "translate-x-[18px]" : "translate-x-0.5"}`} />
               </button>
               <span className="text-xs font-semibold text-gray-600">Private</span>
             </label>
@@ -209,63 +238,47 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
   )
 }
 
-// ── Hour Range Picker ────────────────────────────────────────────────────────
+// ── Visual preview bar ───────────────────────────────────────────────────────
 
-function HourRangePicker({
-  startTime, endTime, onStartChange, onEndChange,
-}: {
-  startTime: string; endTime: string
-  onStartChange: (t: string) => void; onEndChange: (t: string) => void
-}) {
-  const startH = parseInt(startTime.split(":")[0], 10)
-  const endH   = parseInt(endTime.split(":")[0], 10)
+function TimeRangeBar({ startTime, endTime }: { startTime: string; endTime: string }) {
+  // Show 6 AM to 11 PM = 17 hours total
+  const DAY_START = 6   // 6 AM
+  const DAY_END   = 23  // 11 PM
+  const totalHours = DAY_END - DAY_START
 
-  // Show 6am–10pm (hours 6–22)
-  const visibleHours = HOURS.filter(h => {
-    const hNum = parseInt(h.value.split(":")[0], 10)
-    return hNum >= 6 && hNum <= 22
-  })
+  const startH = parseFloat(startTime.replace(":", "."))
+    - parseFloat(startTime.split(":")[1]) / 60
+    + parseInt(startTime.split(":")[0])
+    - DAY_START
+  const endH = parseInt(endTime.split(":")[0]) + parseInt(endTime.split(":")[1]) / 60 - DAY_START
 
-  function handleClick(hour: number) {
-    // If clicking before current start — set as new start
-    if (hour < startH) {
-      onStartChange(String(hour).padStart(2, "0") + ":00")
-      return
-    }
-    // If clicking after current end — set as new end
-    if (hour >= endH) {
-      onEndChange(String(hour + 1).padStart(2, "0") + ":00")
-      return
-    }
-    // If clicking within — split: drag start or drag end
-    // Simple logic: if closer to start, move start; otherwise move end
-    if (hour - startH < endH - hour) {
-      onStartChange(String(hour).padStart(2, "0") + ":00")
-    } else {
-      onEndChange(String(hour + 1).padStart(2, "0") + ":00")
-    }
-  }
+  // Simpler: just use hour numbers
+  const sH = parseInt(startTime.split(":")[0]) + parseInt(startTime.split(":")[1]) / 60
+  const eH = parseInt(endTime.split(":")[0])   + parseInt(endTime.split(":")[1]) / 60
+  const leftPct  = ((sH - DAY_START) / totalHours) * 100
+  const widthPct = ((eH - sH) / totalHours) * 100
+
+  const hourMarkers = Array.from({ length: totalHours + 1 }, (_, i) => DAY_START + i)
 
   return (
-    <div className="flex flex-wrap gap-1">
-      {visibleHours.map(h => {
-        const hNum = parseInt(h.value.split(":")[0], 10)
-        const inRange = hNum >= startH && hNum < endH
-        return (
-          <button
-            key={h.value}
-            type="button"
-            onClick={() => handleClick(hNum)}
-            className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-              inRange
-                ? "bg-[#0D2240] text-white"
-                : "bg-white border border-gray-200 text-gray-400 hover:border-[#0D2240] hover:text-[#0D2240]"
-            }`}
-          >
-            {h.label}
-          </button>
-        )
-      })}
+    <div className="relative h-8 bg-gray-100 rounded-xl overflow-hidden">
+      {/* Selected range */}
+      <div
+        className="absolute top-0 h-full bg-[#0D2240] rounded-xl transition-all"
+        style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+      />
+      {/* Hour markers */}
+      {hourMarkers.filter(h => h % 3 === 0).map(h => (
+        <div
+          key={h}
+          className="absolute top-0 h-full flex items-center"
+          style={{ left: `${((h - DAY_START) / totalHours) * 100}%` }}
+        >
+          <span className="text-[8px] font-bold text-white/60 pl-0.5 leading-none select-none z-10 relative">
+            {h > 12 ? `${h - 12}P` : h === 12 ? "12P" : `${h}A`}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
