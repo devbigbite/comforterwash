@@ -2,6 +2,7 @@
 
 import { ZipChecker } from "@/components/zip-checker"
 import HeroCarousel from "@/components/hero-carousel"
+import { Logo } from "@/components/site-nav"
 import Image from "next/image"
 import Link from "next/link"
 import { useLang } from "@/components/lang-provider"
