@@ -113,7 +113,7 @@ export default function Home() {
                 icon: "🛏️",
                 title: tr.services.comforterTitle,
                 desc: tr.services.comforterDesc,
-                price: "from $35",
+                price: "$35",
                 unit: tr.services.perComforter,
               },
               {
@@ -325,7 +325,7 @@ export default function Home() {
               <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🛏️</div>
               <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">{tr.pricing.comforterTitle}</h3>
               <p className="text-gray-400 text-sm mb-4">{tr.pricing.comforterDesc}</p>
-              <p className="text-5xl font-extrabold text-[#E8726A] mb-1">{tr.pricing.comforterPrice}</p>
+              <p className="text-5xl font-extrabold text-[#E8726A] mb-1"><span className="text-xl font-bold">from </span>{tr.pricing.comforterPrice}</p>
               <p className="text-gray-400 text-xs mb-6">{tr.pricing.comforterUnit}</p>
               <Link href="/book/comforter-wash" className="block border-2 border-[#E8726A] text-[#E8726A] hover:bg-[#E8726A] hover:text-white font-bold text-sm px-5 py-3 rounded-full transition-all uppercase tracking-wide">
                 {tr.pricing.cta}
