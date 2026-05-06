@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { PinGate } from "@/components/pin-gate"
 
 interface WorkOrder {
   id: string
@@ -124,6 +125,7 @@ export default function OperatorHome() {
   }
 
   return (
+    <PinGate role="operator">
     <div className="min-h-screen bg-[#0D2240]">
       {/* Header */}
       <div className="px-4 pt-10 pb-6 text-center">
@@ -278,5 +280,6 @@ export default function OperatorHome() {
         </div>
       </div>
     </div>
+    </PinGate>
   )
 }
