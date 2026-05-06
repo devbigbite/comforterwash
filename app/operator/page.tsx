@@ -15,6 +15,12 @@ interface WorkOrder {
   bags_at_facility: number
   bags_total: number
   most_advanced_status: string
+  assigned_facility_id: string | null
+}
+
+interface Facility {
+  id: string
+  name: string
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -39,11 +45,21 @@ export default function OperatorHome() {
   const [error, setError] = useState("")
   const [queue, setQueue] = useState<WorkOrder[]>([])
   const [queueLoading, setQueueLoading] = useState(true)
+  const [facilities, setFacilities] = useState<Facility[]>([])
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string>("")
   const router = useRouter()
 
   useEffect(() => {
     async function loadQueue() {
       const supabase = createClient()
+
+      // Load facilities for the filter dropdown
+      const { data: facilityList } = await supabase
+        .from("facilities")
+        .select("id, name")
+        .eq("active", true)
+        .order("name")
+      setFacilities(facilityList ?? [])
 
       // Get all bookings with bags currently in the operator's zone
       const { data: bags } = await supabase
@@ -57,7 +73,7 @@ export default function OperatorHome() {
 
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, short_code, customer_name, service_type, delivery_date, status, num_bags, facility_processing_mode")
+        .select("id, short_code, customer_name, service_type, delivery_date, status, num_bags, facility_processing_mode, assigned_facility_id")
         .in("id", bookingIds)
         .not("facility_processing_mode", "eq", "partner_attendant") // partner portal handles those
         .order("delivery_date")
@@ -80,6 +96,7 @@ export default function OperatorHome() {
           bags_at_facility: orderBags.length,
           bags_total: b.num_bags ?? orderBags.length,
           most_advanced_status: mostAdvanced,
+          assigned_facility_id: b.assigned_facility_id ?? null,
         }
       })
 
@@ -124,6 +141,10 @@ export default function OperatorHome() {
     if (e.key === "Enter" && code.length >= 4) lookup()
   }
 
+  const filteredQueue = selectedFacilityId
+    ? queue.filter(o => o.assigned_facility_id === selectedFacilityId)
+    : queue
+
   return (
     <PinGate role="operator">
     <div className="min-h-screen bg-[#0D2240]">
@@ -158,6 +179,24 @@ export default function OperatorHome() {
 
       <div className="px-4 space-y-4 pb-10 max-w-sm mx-auto">
 
+        {/* Facility filter */}
+        {!queueLoading && facilities.length > 1 && (
+          <div className="bg-white/8 rounded-2xl px-4 py-3 flex items-center gap-3">
+            <span className="text-sm shrink-0">🏭</span>
+            <select
+              value={selectedFacilityId}
+              onChange={e => setSelectedFacilityId(e.target.value)}
+              className="flex-1 bg-transparent text-white text-sm font-semibold outline-none appearance-none cursor-pointer"
+            >
+              <option value="" className="bg-[#0D2240]">All Facilities</option>
+              {facilities.map(f => (
+                <option key={f.id} value={f.id} className="bg-[#0D2240]">{f.name}</option>
+              ))}
+            </select>
+            <span className="text-white/40 text-xs shrink-0">▼</span>
+          </div>
+        )}
+
         {/* Work queue */}
         {queueLoading && (
           <div className="text-center py-4">
@@ -165,13 +204,13 @@ export default function OperatorHome() {
           </div>
         )}
 
-        {!queueLoading && queue.length > 0 && (
+        {!queueLoading && filteredQueue.length > 0 && (
           <div>
             <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">
-              🏭 In Process ({queue.length})
+              🏭 In Process ({filteredQueue.length})
             </p>
             <div className="space-y-2">
-              {queue.map((o) => (
+              {filteredQueue.map((o) => (
                 <button
                   key={o.id}
                   onClick={() => router.push(`/operator/order/${o.id}`)}
@@ -200,13 +239,19 @@ export default function OperatorHome() {
           </div>
         )}
 
-        {!queueLoading && queue.length === 0 && (
+        {!queueLoading && filteredQueue.length === 0 && (
           <div className="bg-white/5 rounded-2xl px-5 py-5 text-center">
             <p className="text-2xl mb-2">🧺</p>
-            <p className="text-white/50 text-sm font-semibold">No bags at the facility right now.</p>
+            <p className="text-white/50 text-sm font-semibold">
+              {selectedFacilityId && queue.length > 0
+                ? "No bags at this facility right now."
+                : "No bags at the facility right now."}
+            </p>
             <p className="text-white/30 text-xs mt-1 leading-relaxed">
-              When a driver checks in bags, they&apos;ll appear here ready to process.<br />
-              Use the lookup below to find a specific order by its bag label code.
+              {selectedFacilityId && queue.length > 0
+                ? <>Try switching to &ldquo;All Facilities&rdquo; to see the full queue.</>
+                : <>When a driver checks in bags, they&apos;ll appear here ready to process.<br />Use the lookup below to find a specific order by its bag label code.</>
+              }
             </p>
           </div>
         )}
