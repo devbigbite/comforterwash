@@ -30,6 +30,7 @@ async function addFacility(formData: FormData) {
     hours_open:               (formData.get("hours_open") as string)?.trim() || null,
     storage_level:            parseInt(formData.get("storage_level") as string) || null,
     has_processing_limit:     hasLimit,
+    processing_limit_days:    hasLimit ? (parseInt(formData.get("processing_limit_days") as string) || null) : null,
     processing_limit_hours:   hasLimit ? (parseFloat(formData.get("processing_limit_hours") as string) || null) : null,
     supports_own_operator,
     supports_partner_attendant,
@@ -58,6 +59,7 @@ async function editFacility(formData: FormData) {
     hours_open:               (formData.get("hours_open") as string)?.trim() || null,
     storage_level:            parseInt(formData.get("storage_level") as string) || null,
     has_processing_limit:     hasLimit,
+    processing_limit_days:    hasLimit ? (parseInt(formData.get("processing_limit_days") as string) || null) : null,
     processing_limit_hours:   hasLimit ? (parseFloat(formData.get("processing_limit_hours") as string) || null) : null,
     supports_own_operator:      formData.get("supports_own_operator") === "on",
     supports_partner_attendant: formData.get("supports_partner_attendant") === "on",
@@ -168,19 +170,26 @@ function FacilityFields({ f }: { f?: Record<string, unknown> }) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Processing Hour Limit?</label>
-          <div className="flex flex-col gap-1.5 py-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Processing Limit?</label>
+          <div className="flex flex-col gap-2 py-1">
             <label className="flex items-center gap-2 text-sm text-[#0D2240] cursor-pointer">
               <input type="checkbox" name="has_processing_limit"
-                defaultChecked={checked("has_processing_limit")} className="rounded"
-                id={f ? `hpl-${f.id}` : "hpl-new"} />
+                defaultChecked={checked("has_processing_limit")} className="rounded" />
               Has a limit
             </label>
-            <div className="flex items-center gap-2">
-              <input name="processing_limit_hours" type="number" step="0.5" min="0" placeholder="hrs"
-                defaultValue={val("processing_limit_hours")}
-                className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-20" />
-              <span className="text-xs text-gray-400">max hrs/day</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Days</span>
+                <input name="processing_limit_days" type="number" step="1" min="0" placeholder="0"
+                  defaultValue={val("processing_limit_days")}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-20" />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Hours</span>
+                <input name="processing_limit_hours" type="number" step="0.5" min="0" placeholder="0"
+                  defaultValue={val("processing_limit_hours")}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-20" />
+              </div>
             </div>
           </div>
         </div>
@@ -300,7 +309,7 @@ export default async function FacilitiesPage() {
                   )}
                   {f.has_processing_limit && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
-                      ⏱ Max {f.processing_limit_hours ?? "?"} hrs/day
+                      ⏱ Limit: {[f.processing_limit_days ? `${f.processing_limit_days}d` : null, f.processing_limit_hours ? `${f.processing_limit_hours}h` : null].filter(Boolean).join(" ") || "set"}
                     </span>
                   )}
                   {f.supports_partner_attendant && f.partner_access_code && (
