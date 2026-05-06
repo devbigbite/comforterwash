@@ -14,6 +14,7 @@ import { PromoCodeField } from "./promo-code-field"
 import { useLang } from "@/components/lang-provider"
 import { getComforterPromo, getDeliveryFeeSettings } from "@/app/actions/settings"
 import { getPricingConfig } from "@/app/actions/pricing"
+import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type FeeSettings } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
 
@@ -132,13 +133,6 @@ export function BookingForm() {
     { id: 4, label: tf.stepConfirm },
   ]
 
-  const DETERGENT_OPTIONS = [
-    { id: "standard",       label: tf.standard,                           note: "Included · fresh-scented" },
-    { id: "tide",           label: "Tide",                                 note: "Popular choice" },
-    { id: "gain",           label: "Gain",                                 note: "Fresh floral scent" },
-    { id: "fragrance_free", label: "Fragrance-Free / Hypoallergenic",      note: "Great for sensitive skin" },
-  ]
-
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [promoActive, setPromoActive] = useState(false)
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
@@ -151,9 +145,8 @@ export function BookingForm() {
     deliveryDate: undefined as Date | undefined,
     pickupTimeWindow: "",
     deliveryTimeWindow: "",
-    detergent: "standard",
-    fabricSoftener: false,
-    oxiClean: false,
+    detergentId:    "" as string,
+    selectedExtras: {} as Record<string, boolean>,
     signature: "",
     agreedToTerms: false,
     smsConsent: false,
@@ -165,6 +158,8 @@ export function BookingForm() {
   const [feeSettings, setFeeSettings] = useState<FeeSettings>({ deliveryEnabled: false, deliveryFeeCents: 499, waiverCents: 0 })
   const [comforterSizes, setComforterSizes] = useState(buildSizes())
   const [promoPriceCents, setPromoPriceCents] = useState(PROMO_PRICE_CENTS)
+  const [detergentOptions, setDetergentOptions] = useState<ServiceOption[]>([])
+  const [extraOptions, setExtraOptions] = useState<ServiceOption[]>([])
 
   useEffect(() => {
     import("@/app/actions/holidays").then(m => m.getExcludedDates()).then(dates => setExcludedDates(new Set(dates)))
@@ -175,6 +170,16 @@ export function BookingForm() {
       SIZE_CENTS = { twin: cfg.comforterTwinCents, full: cfg.comforterFullCents, queen: cfg.comforterQueenCents, king: cfg.comforterKingCents }
       setPromoPriceCents(cfg.comforterPromoCents)
       setComforterSizes(buildSizes())
+    })
+    Promise.all([getServiceOptions("detergent"), getServiceOptions("extra")]).then(([dets, exts]) => {
+      setDetergentOptions(dets)
+      setExtraOptions(exts)
+      if (dets.length > 0) setFormData(f => ({ ...f, detergentId: dets[0].id }))
+      if (exts.length > 0) {
+        const init: Record<string, boolean> = {}
+        exts.forEach(e => { init[e.id] = false })
+        setFormData(f => ({ ...f, selectedExtras: init }))
+      }
     })
   }, [])
 
@@ -223,11 +228,12 @@ export function BookingForm() {
   // ── Summary line items ───────────────────────────────────────────────────
   const selectedSizes = comforterSizes.filter(s => quantities[s.id as SizeId] > 0)
 
+  const selectedDetergent   = detergentOptions.find(d => d.id === formData.detergentId)
+  const selectedExtrasList  = extraOptions.filter(e => formData.selectedExtras[e.id])
   const addOnsSummary = [
-    formData.detergent !== "standard" ? DETERGENT_OPTIONS.find(d => d.id === formData.detergent)?.label : null,
-    formData.fabricSoftener ? tf.fabricSoftenerLabel : null,
-    formData.oxiClean ? tf.oxiCleanLabel : null,
-  ].filter(Boolean).join(", ") || tf.standard
+    selectedDetergent && selectedDetergent.id !== detergentOptions[0]?.id ? selectedDetergent.name : null,
+    ...selectedExtrasList.map(e => e.name),
+  ].filter(Boolean).join(", ") || selectedDetergent?.name || tf.standard
 
   const sizesMetadata = comforterSizes
     .filter(s => quantities[s.id as SizeId] > 0)
@@ -325,9 +331,8 @@ export function BookingForm() {
               numBags: String(totalCount),
               comforterSizes: sizesMetadata,
               flatRatePromo: promoActive.toString(),
-              detergent: formData.detergent,
-              fabricSoftener: formData.fabricSoftener.toString(),
-              oxiClean: formData.oxiClean.toString(),
+              detergent: selectedDetergent?.name ?? "Standard",
+              extras: selectedExtrasList.map(e => e.name).join(", "),
               promoCode: promo?.code ?? "",
               promoDiscountCents: String(discountCents),
               deliveryFeeCents: String(deliveryFeeCents),
@@ -527,52 +532,60 @@ export function BookingForm() {
               <p className="text-sm text-gray-400">{tb.addOnsOptional}</p>
             </div>
 
-            <div>
-              <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.detergentPreference}</h4>
-              <div className="space-y-2">
-                {DETERGENT_OPTIONS.map(opt => (
-                  <label key={opt.id}
-                    className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
-                      formData.detergent === opt.id ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
-                    <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                      formData.detergent === opt.id ? "border-[#E8726A] bg-[#E8726A]" : "border-gray-300")}>
-                      {formData.detergent === opt.id && <div className="w-2 h-2 rounded-full bg-white" />}
-                    </div>
-                    <input type="radio" className="sr-only" name="detergent" value={opt.id}
-                      checked={formData.detergent === opt.id}
-                      onChange={() => setFormData(p => ({ ...p, detergent: opt.id }))} />
-                    <div className="flex-1">
-                      <p className="font-semibold text-[#0D2240] text-sm">{opt.label}</p>
-                      <p className="text-xs text-gray-400">{opt.note}</p>
-                    </div>
-                    {opt.id === "standard" && (
-                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                    )}
-                  </label>
-                ))}
+            {detergentOptions.length > 0 && (
+              <div>
+                <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.detergentPreference}</h4>
+                <div className="space-y-2">
+                  {detergentOptions.map(opt => (
+                    <label key={opt.id}
+                      className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                        formData.detergentId === opt.id ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                      <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                        formData.detergentId === opt.id ? "border-[#E8726A] bg-[#E8726A]" : "border-gray-300")}>
+                        {formData.detergentId === opt.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+                      <input type="radio" className="sr-only" name="detergent" value={opt.id}
+                        checked={formData.detergentId === opt.id}
+                        onChange={() => setFormData(p => ({ ...p, detergentId: opt.id }))} />
+                      <div className="flex-1">
+                        <p className="font-semibold text-[#0D2240] text-sm">{opt.name}</p>
+                        {opt.description && <p className="text-xs text-gray-400">{opt.description}</p>}
+                      </div>
+                      {opt.price_cents === 0
+                        ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
+                        : <span className="text-[10px] font-bold text-[#0D2240] bg-gray-100 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}</span>
+                      }
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            <div>
-              <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.treatmentAddOns}</h4>
-              <div className="space-y-2">
-                {[
-                  { key: "fabricSoftener" as const, label: tf.fabricSoftenerLabel, desc: tf.fabricSoftenerComforterDesc, icon: "🌸" },
-                  { key: "oxiClean"       as const, label: tf.oxiCleanLabel,        desc: tf.oxiCleanDesc,                icon: "✨" },
-                ].map(addon => (
-                  <label key={addon.key}
-                    className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
-                      formData[addon.key] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
-                    <Checkbox checked={formData[addon.key]} onCheckedChange={c => setFormData(p => ({ ...p, [addon.key]: c as boolean }))} className="shrink-0" />
-                    <span className="text-xl shrink-0">{addon.icon}</span>
-                    <div className="flex-1">
-                      <p className="font-semibold text-[#0D2240] text-sm">{addon.label}</p>
-                      <p className="text-xs text-gray-400">{addon.desc}</p>
-                    </div>
-                  </label>
-                ))}
+            {extraOptions.length > 0 && (
+              <div>
+                <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.treatmentAddOns}</h4>
+                <div className="space-y-2">
+                  {extraOptions.map(addon => (
+                    <label key={addon.id}
+                      className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                        formData.selectedExtras[addon.id] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                      <Checkbox
+                        checked={!!formData.selectedExtras[addon.id]}
+                        onCheckedChange={c => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [addon.id]: c as boolean } }))}
+                        className="shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-[#0D2240] text-sm">{addon.name}</p>
+                        {addon.description && <p className="text-xs text-gray-400">{addon.description}</p>}
+                      </div>
+                      {addon.price_cents === 0
+                        ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
+                        : <span className="text-[10px] font-bold text-[#0D2240] bg-gray-100 px-2 py-0.5 rounded-full">+${(addon.price_cents / 100).toFixed(2)}</span>
+                      }
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>{tf.back}</Button>
