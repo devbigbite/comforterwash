@@ -21,13 +21,19 @@ interface Props {
   allDone: boolean
   deliveryDate: string | null
   // server actions
-  confirmPickup:  (fd: FormData) => Promise<void>
-  confirmDropoff: (fd: FormData) => Promise<void>
-  confirmDelivery:(fd: FormData) => Promise<void>
+  confirmPickup:   (fd: FormData) => Promise<void>
+  confirmDropoff:  (fd: FormData) => Promise<void>
+  confirmDelivery: (fd: FormData) => Promise<void>
   recordPhotoEvent:(fd: FormData) => Promise<void>
 }
 
 const STORAGE_KEY = "washfold_driver_name"
+
+function PhotoRequired({ taken, error }: { taken: boolean; error: boolean }) {
+  if (taken) return <p className="text-green-600 text-xs font-semibold px-1 pt-1">✓ Photo taken</p>
+  if (error) return <p className="text-red-500 text-xs font-semibold px-1 pt-1">⚠ Photo required before continuing</p>
+  return null
+}
 
 export default function DriverOrderClient({
   bookingId, bags, facilities, estimatedLbs, facilityWarning,
@@ -36,12 +42,19 @@ export default function DriverOrderClient({
   confirmPickup, confirmDropoff, confirmDelivery, recordPhotoEvent,
 }: Props) {
   const [driverName, setDriverName] = useState("")
-  const [hasPhoto, setHasPhoto] = useState(false)
   const [nameError, setNameError] = useState(false)
-  const [photoError, setPhotoError] = useState(false)
   const [submitting, setSubmitting] = useState<string | null>(null)
 
-  // Load saved name on mount
+  // 4 photo checkpoints
+  const [hasCustomerPickupPhoto,  setHasCustomerPickupPhoto]  = useState(false)
+  const [customerPickupPhotoErr,  setCustomerPickupPhotoErr]  = useState(false)
+  const [hasDropoffPhoto,         setHasDropoffPhoto]         = useState(false)
+  const [dropoffPhotoErr,         setDropoffPhotoErr]         = useState(false)
+  const [hasFacilityPickupPhoto,  setHasFacilityPickupPhoto]  = useState(false)
+  const [facilityPickupPhotoErr,  setFacilityPickupPhotoErr]  = useState(false)
+  const [hasDeliveryPhoto,        setHasDeliveryPhoto]        = useState(false)
+  const [deliveryPhotoErr,        setDeliveryPhotoErr]        = useState(false)
+
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) setDriverName(saved)
@@ -53,10 +66,14 @@ export default function DriverOrderClient({
     setNameError(false)
   }
 
+  function requireName() {
+    if (!driverName.trim()) { setNameError(true); return false }
+    return true
+  }
+
   async function handlePickup() {
-    let valid = true
-    if (!driverName.trim()) { setNameError(true); valid = false }
-    if (!hasPhoto) { setPhotoError(true); valid = false }
+    let valid = requireName()
+    if (!hasCustomerPickupPhoto) { setCustomerPickupPhotoErr(true); valid = false }
     if (!valid) return
     setSubmitting("pickup")
     const fd = new FormData()
@@ -68,7 +85,8 @@ export default function DriverOrderClient({
 
   async function handleDropoff(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!driverName.trim()) { setNameError(true); return }
+    if (!requireName()) return
+    if (!hasDropoffPhoto) { setDropoffPhotoErr(true); return }
     setSubmitting("dropoff")
     const fd = new FormData(e.currentTarget)
     fd.set("driverName", driverName.trim())
@@ -77,7 +95,8 @@ export default function DriverOrderClient({
   }
 
   async function handleDeliveryStart() {
-    if (!driverName.trim()) { setNameError(true); return }
+    if (!requireName()) return
+    if (!hasFacilityPickupPhoto) { setFacilityPickupPhotoErr(true); return }
     setSubmitting("start")
     const fd = new FormData()
     fd.append("bookingId", bookingId)
@@ -88,7 +107,8 @@ export default function DriverOrderClient({
   }
 
   async function handleDelivered() {
-    if (!driverName.trim()) { setNameError(true); return }
+    if (!requireName()) return
+    if (!hasDeliveryPhoto) { setDeliveryPhotoErr(true); return }
     setSubmitting("delivered")
     const fd = new FormData()
     fd.append("bookingId", bookingId)
@@ -98,15 +118,15 @@ export default function DriverOrderClient({
     setSubmitting(null)
   }
 
-  const isPickupPhase   = allPending || allPickedUp || somePickedUp && !allAtFacility
+  const isPickupPhase   = allPending || allPickedUp || (somePickedUp && !allAtFacility)
   const isDeliveryPhase = allReady || allOutForDel
 
   return (
     <div className="space-y-4">
 
-      {/* ── Driver name (persistent) ───────────────────────────────── */}
+      {/* ── Driver name ─────────────────────────────────────────────── */}
       <div className={`bg-white rounded-2xl shadow-sm border p-4 ${nameError ? "border-red-400" : "border-gray-100"}`}>
-        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">
+        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">
           Your Name <span className="text-[#E8726A]">*</span>
         </label>
         <input
@@ -122,41 +142,41 @@ export default function DriverOrderClient({
       </div>
 
       {/* ══════════════════════════════════════════════════════════════ */}
-      {/* PICKUP PHASE */}
+      {/* PICKUP PHASE                                                   */}
       {/* ══════════════════════════════════════════════════════════════ */}
       {isPickupPhase && (
         <div className="rounded-2xl overflow-hidden border-2 border-[#E8726A]">
-          {/* Phase banner */}
           <div className="bg-[#E8726A] px-5 py-3 flex items-center gap-3">
             <span className="text-2xl">📦</span>
             <div>
               <p className="text-white font-extrabold text-base uppercase tracking-wide">Pickup Phase</p>
-              <p className="text-white/75 text-xs">Collect bags from customer · drop off at facility</p>
+              <p className="text-white/80 text-xs">Collect bags from customer · drop off at facility</p>
             </div>
           </div>
 
-          <div className="bg-white p-5 space-y-4">
+          <div className="bg-white p-5 space-y-5">
 
-            {/* Photo — required for pickup */}
-            <div className={`rounded-xl overflow-hidden border-2 transition-colors ${photoError ? "border-red-400" : hasPhoto ? "border-green-400" : "border-gray-200"}`}>
-              <PhotoUploader
-                bookingId={bookingId}
-                action={recordPhotoEvent}
-                onPhotoUploaded={() => { setHasPhoto(true); setPhotoError(false) }}
-              />
-              {photoError && <p className="px-4 pb-3 text-red-500 text-xs font-semibold">⚠ At least one photo is required before confirming pickup</p>}
-              {hasPhoto && <p className="px-4 pb-3 text-green-600 text-xs font-semibold">✓ Photo taken</p>}
-            </div>
-
-            {/* Step 1: Confirm pickup from customer */}
+            {/* ── Step 1: Pickup from customer ── */}
             {allPending && (
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">
-                  Step 1 — Confirm pickup from customer
-                </p>
-                <p className="text-xs text-gray-400 mb-3">
-                  Label all {bags.length} bag{bags.length !== 1 ? "s" : ""} with the codes shown above, take a photo, then confirm.
-                </p>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-extrabold text-[#0D2240] mb-0.5">Step 1 — Pick up from customer</p>
+                  <p className="text-xs text-gray-500">
+                    Label all {bags.length} bag{bags.length !== 1 ? "s" : ""} with the order number, take a photo of the bags at the customer's location, then confirm.
+                  </p>
+                </div>
+
+                <div className={`rounded-xl overflow-hidden border-2 transition-colors ${customerPickupPhotoErr ? "border-red-400" : hasCustomerPickupPhoto ? "border-green-400" : "border-gray-200"}`}>
+                  <PhotoUploader
+                    bookingId={bookingId}
+                    action={recordPhotoEvent}
+                    eventType="photo_customer_pickup"
+                    label="📷 Photo at Customer"
+                    onPhotoUploaded={() => { setHasCustomerPickupPhoto(true); setCustomerPickupPhotoErr(false) }}
+                  />
+                  <PhotoRequired taken={hasCustomerPickupPhoto} error={customerPickupPhotoErr} />
+                </div>
+
                 <button
                   onClick={handlePickup}
                   disabled={submitting === "pickup"}
@@ -167,15 +187,26 @@ export default function DriverOrderClient({
               </div>
             )}
 
-            {/* Step 2: Drop-off at facility */}
+            {/* ── Step 2: Drop-off at facility ── */}
             {(allPickedUp || somePickedUp) && !allAtFacility && (
               <form onSubmit={handleDropoff} className="space-y-3">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">
-                  Step 2 — Drop-off at facility + weigh
-                </p>
-                <p className="text-xs text-gray-400 mb-3">
-                  Weigh the bags on the facility scale, select facility, enter weight. This locks the customer charge and triggers payment.
-                </p>
+                <div>
+                  <p className="text-sm font-extrabold text-[#0D2240] mb-0.5">Step 2 — Drop off at facility</p>
+                  <p className="text-xs text-gray-500">
+                    Weigh the bags on the facility scale, take a photo of the drop-off, select facility and enter weight. This locks the customer charge.
+                  </p>
+                </div>
+
+                <div className={`rounded-xl overflow-hidden border-2 transition-colors ${dropoffPhotoErr ? "border-red-400" : hasDropoffPhoto ? "border-green-400" : "border-gray-200"}`}>
+                  <PhotoUploader
+                    bookingId={bookingId}
+                    action={recordPhotoEvent}
+                    eventType="photo_facility_dropoff"
+                    label="📷 Photo at Facility Drop-off"
+                    onPhotoUploaded={() => { setHasDropoffPhoto(true); setDropoffPhotoErr(false) }}
+                  />
+                  <PhotoRequired taken={hasDropoffPhoto} error={dropoffPhotoErr} />
+                </div>
 
                 {facilityWarning.length > 0 && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
@@ -186,7 +217,7 @@ export default function DriverOrderClient({
                 <input type="hidden" name="bookingId" value={bookingId} />
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Facility</label>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Facility</label>
                   <select name="facilityId" required
                     className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
                     <option value="">— select facility —</option>
@@ -202,7 +233,7 @@ export default function DriverOrderClient({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Processing Model</label>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Processing Model</label>
                   <select name="facilityProcessingMode" required
                     className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
                     <option value="own_operator">Own Operator — WashFold staff processes</option>
@@ -211,13 +242,13 @@ export default function DriverOrderClient({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">
                     Actual Weight (lbs) <span className="text-[#E8726A]">*</span>
                   </label>
                   <input name="weightLbs" type="number" step="0.1" min="0.1" required
                     placeholder={`e.g. ${estimatedLbs || 25}`}
                     className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] text-center text-xl font-bold font-mono" />
-                  <p className="text-xs text-gray-400 mt-1">Customer is charged max(actual, 20 lbs) × rate</p>
+                  <p className="text-xs text-gray-500 mt-1">Customer is charged max(actual, 20 lbs) × rate</p>
                 </div>
 
                 <button type="submit" disabled={submitting === "dropoff"}
@@ -235,32 +266,51 @@ export default function DriverOrderClient({
         <div className="bg-purple-50 border-2 border-purple-200 rounded-2xl p-5 text-center">
           <p className="text-purple-700 font-extrabold text-lg">🏭 With Operator</p>
           <p className="text-purple-600 text-sm mt-1">Bags are being washed, dried, and folded.</p>
-          {deliveryDate && <p className="text-purple-400 text-xs mt-2">Scheduled delivery: {deliveryDate}</p>}
+          {deliveryDate && <p className="text-purple-500 text-xs mt-2">Scheduled delivery: {deliveryDate}</p>}
         </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════════ */}
-      {/* DELIVERY PHASE */}
+      {/* DELIVERY PHASE                                                 */}
       {/* ══════════════════════════════════════════════════════════════ */}
       {isDeliveryPhase && (
         <div className="rounded-2xl overflow-hidden border-2 border-[#0D2240]">
-          {/* Phase banner */}
           <div className="bg-[#0D2240] px-5 py-3 flex items-center gap-3">
             <span className="text-2xl">🚐</span>
             <div>
               <p className="text-white font-extrabold text-base uppercase tracking-wide">Delivery Phase</p>
-              <p className="text-white/60 text-xs">Pick up clean laundry from facility · deliver to customer</p>
+              <p className="text-white/70 text-xs">Pick up clean laundry from facility · deliver to customer</p>
             </div>
           </div>
 
-          <div className="bg-white p-5 space-y-4">
+          <div className="bg-white p-5 space-y-5">
 
+            {/* ── Step 1: Pick up from facility ── */}
             {allReady && (
-              <>
+              <div className="space-y-3">
                 <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-                  <p className="text-green-700 font-extrabold">✅ Bags ready for delivery!</p>
-                  <p className="text-green-600 text-sm mt-0.5">Pick up from facility and deliver to customer.</p>
+                  <p className="text-green-700 font-extrabold">✅ Bags ready for pickup!</p>
+                  <p className="text-green-600 text-sm mt-0.5">Go to the facility, collect the clean bags.</p>
                 </div>
+
+                <div>
+                  <p className="text-sm font-extrabold text-[#0D2240] mb-0.5">Step 1 — Pick up from facility</p>
+                  <p className="text-xs text-gray-500">
+                    Take a photo of the clean bags at the facility before leaving, then start the delivery run.
+                  </p>
+                </div>
+
+                <div className={`rounded-xl overflow-hidden border-2 transition-colors ${facilityPickupPhotoErr ? "border-red-400" : hasFacilityPickupPhoto ? "border-green-400" : "border-gray-200"}`}>
+                  <PhotoUploader
+                    bookingId={bookingId}
+                    action={recordPhotoEvent}
+                    eventType="photo_facility_pickup"
+                    label="📷 Photo at Facility — Clean Bags"
+                    onPhotoUploaded={() => { setHasFacilityPickupPhoto(true); setFacilityPickupPhotoErr(false) }}
+                  />
+                  <PhotoRequired taken={hasFacilityPickupPhoto} error={facilityPickupPhotoErr} />
+                </div>
+
                 <button
                   onClick={handleDeliveryStart}
                   disabled={submitting === "start"}
@@ -268,15 +318,35 @@ export default function DriverOrderClient({
                 >
                   {submitting === "start" ? "Starting…" : "🚐 Start Delivery Run"}
                 </button>
-              </>
+              </div>
             )}
 
+            {/* ── Step 2: Deliver to customer ── */}
             {allOutForDel && (
-              <>
+              <div className="space-y-3">
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
                   <p className="text-blue-700 font-extrabold">🚐 Out for delivery</p>
-                  <p className="text-blue-600 text-sm mt-0.5">Confirm once bags are handed to the customer.</p>
+                  <p className="text-blue-600 text-sm mt-0.5">Head to the customer and hand over the clean bags.</p>
                 </div>
+
+                <div>
+                  <p className="text-sm font-extrabold text-[#0D2240] mb-0.5">Step 2 — Deliver to customer</p>
+                  <p className="text-xs text-gray-500">
+                    Take a photo of the delivery at the customer's door, then confirm.
+                  </p>
+                </div>
+
+                <div className={`rounded-xl overflow-hidden border-2 transition-colors ${deliveryPhotoErr ? "border-red-400" : hasDeliveryPhoto ? "border-green-400" : "border-gray-200"}`}>
+                  <PhotoUploader
+                    bookingId={bookingId}
+                    action={recordPhotoEvent}
+                    eventType="photo_customer_delivery"
+                    label="📷 Photo at Customer — Delivery"
+                    onPhotoUploaded={() => { setHasDeliveryPhoto(true); setDeliveryPhotoErr(false) }}
+                  />
+                  <PhotoRequired taken={hasDeliveryPhoto} error={deliveryPhotoErr} />
+                </div>
+
                 <button
                   onClick={handleDelivered}
                   disabled={submitting === "delivered"}
@@ -284,7 +354,7 @@ export default function DriverOrderClient({
                 >
                   {submitting === "delivered" ? "Confirming…" : "🎉 Confirm Delivered to Customer"}
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>

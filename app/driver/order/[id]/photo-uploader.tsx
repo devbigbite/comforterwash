@@ -7,9 +7,11 @@ interface Props {
   bookingId: string
   action: (formData: FormData) => Promise<void>
   onPhotoUploaded?: () => void
+  eventType?: string
+  label?: string
 }
 
-export default function PhotoUploader({ bookingId, action, onPhotoUploaded }: Props) {
+export default function PhotoUploader({ bookingId, action, onPhotoUploaded, eventType = "photo_pickup", label = "📷 Pickup Photos" }: Props) {
   const [uploading, setUploading] = useState(false)
   const [photos, setPhotos] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -51,6 +53,7 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded }: Pr
     const fd = new FormData()
     fd.append("bookingId", bookingId)
     fd.append("photoUrl", publicUrl)
+    fd.append("eventType", eventType)
     await action(fd)
   }
 
@@ -59,7 +62,7 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded }: Pr
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
         <div>
-          <h3 className="font-bold text-[#0D2240] text-sm">📷 Pickup Photos</h3>
+          <h3 className="font-bold text-[#0D2240] text-sm">{label}</h3>
           {photos.length > 0 && (
             <p className="text-xs text-gray-400 mt-0.5">{photos.length} photo{photos.length !== 1 ? "s" : ""} saved</p>
           )}

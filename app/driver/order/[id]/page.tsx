@@ -159,11 +159,21 @@ async function recordPhotoEvent(formData: FormData) {
   "use server"
   const bookingId = formData.get("bookingId") as string
   const photoUrl  = formData.get("photoUrl") as string
+  const eventType = (formData.get("eventType") as string) || "photo_pickup"
   if (!bookingId || !photoUrl) return
-  const supabase  = createAdminClient()
+  const NOTES: Record<string, string> = {
+    photo_customer_pickup:  "Photo at customer — bags collected",
+    photo_facility_dropoff: "Photo at facility — bags dropped off",
+    photo_facility_pickup:  "Photo at facility — clean bags collected for delivery",
+    photo_customer_delivery:"Photo at customer — bags delivered",
+  }
+  const supabase = createAdminClient()
   await supabase.from("order_events").insert({
-    booking_id: bookingId, event_type: "photo_pickup",
-    photo_url: photoUrl, notes: "Pickup photo", created_by: "driver",
+    booking_id: bookingId,
+    event_type: eventType,
+    photo_url: photoUrl,
+    notes: NOTES[eventType] ?? "Driver photo",
+    created_by: "driver",
   })
   revalidatePath(`/driver/order/${bookingId}`)
 }
