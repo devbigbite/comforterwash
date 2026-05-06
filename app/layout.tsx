@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { LangProvider } from "@/components/lang-provider"
+import { SiteNav } from "@/components/site-nav"
 import type { Locale } from "@/lib/i18n"
 import "./globals.css"
 
@@ -33,6 +34,7 @@ export default function RootLayout({
     <html lang={initialLocale} className={inter.variable}>
       <body className="font-sans antialiased">
         <LangProvider initialLocale={initialLocale}>
+          <SiteNav />
           {children}
         </LangProvider>
         <Analytics />
