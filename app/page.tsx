@@ -263,7 +263,7 @@ export default function Home() {
               <p className="text-gray-400 text-sm mb-4">{tr.pricing.comforterDesc}</p>
               <p className="text-5xl font-extrabold text-[#E8726A] mb-1"><span className="text-base font-bold mr-1">{tr.pricing.comforterFrom}</span>{tr.pricing.comforterPrice}</p>
               <p className="text-gray-400 text-xs mb-6">{tr.pricing.comforterUnit}</p>
-              <Link href="/book/comforter-wash" className="block border-2 border-[#E8726A] text-[#E8726A] hover:bg-[#E8726A] hover:text-white font-bold text-sm px-5 py-3 rounded-full transition-all uppercase tracking-wide">
+              <Link href="/book/comforter-wash" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {tr.pricing.cta}
               </Link>
             </div>
@@ -283,7 +283,7 @@ export default function Home() {
               <p className="text-gray-400 text-sm mb-4">{tr.pricing.washOnlyMin}</p>
               <p className="text-5xl font-extrabold text-[#E8726A] mb-1">{tr.pricing.washOnlyPrice}<span className="text-2xl">/lb</span></p>
               <p className="text-gray-400 text-xs mb-6">{tr.pricing.washOnlyPerLb}</p>
-              <Link href="/book/wash-only" className="block border-2 border-[#0D2240] text-[#0D2240] hover:bg-[#0D2240] hover:text-white font-bold text-sm px-5 py-3 rounded-full transition-all uppercase tracking-wide">
+              <Link href="/book/wash-only" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {tr.pricing.cta}
               </Link>
             </div>
