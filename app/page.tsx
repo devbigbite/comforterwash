@@ -15,7 +15,7 @@ import { DEFAULT_TEXT, type SiteText } from "@/lib/site-text-config"
 const OFFER_OVERLAYS = ["bg-[#0D2240]/60", "bg-[#E8726A]/50", "bg-[#1a3a5c]/60"]
 
 export default function Home() {
-  const { translations: tr } = useLang()
+  const { translations: tr, locale } = useLang()
   // null until loaded — prevents flash of disabled offers on first render
   const [offers, setOffers] = useState<LandingOffer[] | null>(null)
   const [images, setImages] = useState<SiteImages>(DEFAULT_IMAGES)
@@ -34,6 +34,7 @@ export default function Home() {
         tr={tr.hero}
         images={{ slide1: images.slide_1, slide2: images.slide_2, slide3: images.slide_3 }}
         text={siteText}
+        lang={locale}
       />
 
       {/* ── Our Services — immediately after hero ──────────────────────── */}
@@ -97,16 +98,16 @@ export default function Home() {
       <section className="bg-white px-4 py-16">
         <div className="mx-auto max-w-4xl text-center">
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide mb-3">
-            {tr.why.heading}
+            {(locale === "es" ? siteText.why_heading_es : siteText.why_heading) || tr.why.heading}
           </h2>
           <p className="text-[#E8726A] font-bold text-sm uppercase tracking-[0.2em] mb-5">
-            {tr.why.subheading}
+            {(locale === "es" ? siteText.why_subheading_es : siteText.why_subheading) || tr.why.subheading}
           </p>
           <p className="text-[#0D2240]/60 text-base leading-relaxed max-w-2xl mx-auto mb-5">
-            {tr.why.body1}
+            {(locale === "es" ? siteText.why_body1_es : siteText.why_body1) || tr.why.body1}
           </p>
           <p className="text-[#0D2240]/60 text-base leading-relaxed max-w-2xl mx-auto">
-            {tr.why.body2}
+            {(locale === "es" ? siteText.why_body2_es : siteText.why_body2) || tr.why.body2}
           </p>
         </div>
 

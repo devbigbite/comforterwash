@@ -25,10 +25,12 @@ export default function HeroCarousel({
   tr,
   images = DEFAULT_CAROUSEL_IMAGES,
   text = DEFAULT_TEXT,
+  lang = "en",
 }: {
   tr?: HeroTr
   images?: CarouselImages
   text?: SiteText
+  lang?: "en" | "es"
 }) {
   const [active, setActive] = useState(0)
   const [transitioning, setTransitioning] = useState(false)
@@ -57,13 +59,15 @@ export default function HeroCarousel({
   // Per-slide image lookup
   const slideImages = [images.slide1, images.slide2, images.slide3]
 
+  const es = lang === "es"
+
   const slides = [
     {
       id: 0,
       type: "full" as const,
-      headline: text.slide_1_headline || tr?.slide1Headline || DEFAULT_TEXT.slide_1_headline,
-      subline:  text.slide_1_subline  || tr?.slide1Sub     || DEFAULT_TEXT.slide_1_subline,
-      cta:      text.slide_1_cta      || tr?.slide1Cta     || DEFAULT_TEXT.slide_1_cta,
+      headline: (es ? text.slide_1_headline_es : text.slide_1_headline) || tr?.slide1Headline || DEFAULT_TEXT.slide_1_headline,
+      subline:  (es ? text.slide_1_subline_es  : text.slide_1_subline)  || tr?.slide1Sub     || DEFAULT_TEXT.slide_1_subline,
+      cta:      (es ? text.slide_1_cta_es      : text.slide_1_cta)      || tr?.slide1Cta     || DEFAULT_TEXT.slide_1_cta,
       overlay: "from-[#0D2240]/80 via-[#0D2240]/50 to-transparent",
       objectPos: "object-center",
     },
@@ -71,17 +75,17 @@ export default function HeroCarousel({
       id: 1,
       type: "steps" as const,
       panels: [
-        { step: "1", label: text.slide_2_p1_label || DEFAULT_TEXT.slide_2_p1_label, desc: text.slide_2_p1_desc || DEFAULT_TEXT.slide_2_p1_desc, accentColor: "#a78bfa" },
-        { step: "2", label: text.slide_2_p2_label || DEFAULT_TEXT.slide_2_p2_label, desc: text.slide_2_p2_desc || DEFAULT_TEXT.slide_2_p2_desc, accentColor: "#38bdf8" },
-        { step: "3", label: text.slide_2_p3_label || DEFAULT_TEXT.slide_2_p3_label, desc: text.slide_2_p3_desc || DEFAULT_TEXT.slide_2_p3_desc, accentColor: "#38bdf8" },
+        { step: "1", label: (es ? text.slide_2_p1_label_es : text.slide_2_p1_label) || DEFAULT_TEXT.slide_2_p1_label, desc: (es ? text.slide_2_p1_desc_es : text.slide_2_p1_desc) || DEFAULT_TEXT.slide_2_p1_desc, accentColor: "#a78bfa" },
+        { step: "2", label: (es ? text.slide_2_p2_label_es : text.slide_2_p2_label) || DEFAULT_TEXT.slide_2_p2_label, desc: (es ? text.slide_2_p2_desc_es : text.slide_2_p2_desc) || DEFAULT_TEXT.slide_2_p2_desc, accentColor: "#38bdf8" },
+        { step: "3", label: (es ? text.slide_2_p3_label_es : text.slide_2_p3_label) || DEFAULT_TEXT.slide_2_p3_label, desc: (es ? text.slide_2_p3_desc_es : text.slide_2_p3_desc) || DEFAULT_TEXT.slide_2_p3_desc, accentColor: "#38bdf8" },
       ],
     },
     {
       id: 2,
       type: "full" as const,
-      headline: text.slide_3_headline || tr?.slide3Headline || DEFAULT_TEXT.slide_3_headline,
-      subline:  text.slide_3_subline  || tr?.slide3Sub     || DEFAULT_TEXT.slide_3_subline,
-      cta:      text.slide_3_cta      || tr?.slide3Cta     || DEFAULT_TEXT.slide_3_cta,
+      headline: (es ? text.slide_3_headline_es : text.slide_3_headline) || tr?.slide3Headline || DEFAULT_TEXT.slide_3_headline,
+      subline:  (es ? text.slide_3_subline_es  : text.slide_3_subline)  || tr?.slide3Sub     || DEFAULT_TEXT.slide_3_subline,
+      cta:      (es ? text.slide_3_cta_es      : text.slide_3_cta)      || tr?.slide3Cta     || DEFAULT_TEXT.slide_3_cta,
       overlay: "from-[#E8726A]/70 via-[#0D2240]/60 to-[#0D2240]/80",
       objectPos: "object-top",
     },

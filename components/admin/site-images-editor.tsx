@@ -155,6 +155,23 @@ function TextField({
   )
 }
 
+// ── Lang tab toggle ───────────────────────────────────────────────────────────
+
+function LangTabs({ value, onChange }: { value: "en" | "es"; onChange: (v: "en" | "es") => void }) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => onChange("en")}
+        className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-colors ${value === "en" ? "bg-[#0D2240] text-white" : "text-gray-400 hover:text-[#0D2240]"}`}
+      >EN</button>
+      <button
+        onClick={() => onChange("es")}
+        className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-colors ${value === "es" ? "bg-[#E8726A] text-white" : "text-gray-400 hover:text-[#E8726A]"}`}
+      >ES</button>
+    </div>
+  )
+}
+
 // ── Main editor ───────────────────────────────────────────────────────────────
 
 export function SiteImagesEditor({
@@ -169,6 +186,7 @@ export function SiteImagesEditor({
   const [uploading, setUploading] = useState<string | null>(null)
   const [imgSaved, setImgSaved] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [langTab, setLangTab] = useState<"en" | "es">("en")
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   async function handleUpload(key: string, file: File) {
@@ -295,86 +313,112 @@ export function SiteImagesEditor({
               {/* ── Text editing for banner slides ── */}
               {slot.key === "slide_1" && (
                 <div className="border-t border-gray-100 pt-4 space-y-3">
-                  <p className="text-[11px] font-bold text-[#0D2240] uppercase tracking-wide">Slide Text</p>
-                  <TextField
-                    label="Headline"
-                    value={text.slide_1_headline}
-                    defaultValue={DEFAULT_TEXT.slide_1_headline}
-                    placeholder="Laundry Service That Feels Like Family"
-                    onSave={v => saveText("slide_1_headline", v)}
-                  />
-                  <TextField
-                    label="Subline"
-                    value={text.slide_1_subline}
-                    defaultValue={DEFAULT_TEXT.slide_1_subline}
-                    placeholder="Free pickup & delivery · Orlando FL"
-                    onSave={v => saveText("slide_1_subline", v)}
-                    multiline
-                  />
-                  <TextField
-                    label="Button text"
-                    value={text.slide_1_cta}
-                    defaultValue={DEFAULT_TEXT.slide_1_cta}
-                    placeholder="Schedule a Pickup"
-                    onSave={v => saveText("slide_1_cta", v)}
-                  />
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-[#0D2240] uppercase tracking-wide">Slide Text</p>
+                    <LangTabs value={langTab} onChange={setLangTab} />
+                  </div>
+                  {langTab === "en" ? (
+                    <>
+                      <TextField label="Headline" value={text.slide_1_headline} defaultValue={DEFAULT_TEXT.slide_1_headline} placeholder="Laundry Service That Feels Like Family" onSave={v => saveText("slide_1_headline", v)} />
+                      <TextField label="Subline" value={text.slide_1_subline} defaultValue={DEFAULT_TEXT.slide_1_subline} placeholder="Free pickup & delivery · Orlando FL" onSave={v => saveText("slide_1_subline", v)} multiline />
+                      <TextField label="Button text" value={text.slide_1_cta} defaultValue={DEFAULT_TEXT.slide_1_cta} placeholder="Schedule a Pickup" onSave={v => saveText("slide_1_cta", v)} />
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[10px] text-gray-400 italic">Leave blank to use Spanish translation automatically.</p>
+                      <TextField label="Titular (ES)" value={text.slide_1_headline_es} defaultValue="" placeholder="Servicio de lavandería que se siente como familia" onSave={v => saveText("slide_1_headline_es", v)} />
+                      <TextField label="Subtítulo (ES)" value={text.slide_1_subline_es} defaultValue="" placeholder="Recogida y entrega gratis · Orlando FL" onSave={v => saveText("slide_1_subline_es", v)} multiline />
+                      <TextField label="Botón (ES)" value={text.slide_1_cta_es} defaultValue="" placeholder="Programar Recogida" onSave={v => saveText("slide_1_cta_es", v)} />
+                    </>
+                  )}
                 </div>
               )}
 
               {slot.key === "slide_2" && (
                 <div className="border-t border-gray-100 pt-4 space-y-4">
-                  <p className="text-[11px] font-bold text-[#0D2240] uppercase tracking-wide">Step Panel Text</p>
-                  {[
-                    { n: 1, label: text.slide_2_p1_label, desc: text.slide_2_p1_desc, labelKey: "slide_2_p1_label" as const, descKey: "slide_2_p1_desc" as const },
-                    { n: 2, label: text.slide_2_p2_label, desc: text.slide_2_p2_desc, labelKey: "slide_2_p2_label" as const, descKey: "slide_2_p2_desc" as const },
-                    { n: 3, label: text.slide_2_p3_label, desc: text.slide_2_p3_desc, labelKey: "slide_2_p3_label" as const, descKey: "slide_2_p3_desc" as const },
-                  ].map(p => (
-                    <div key={p.n} className="rounded-xl bg-gray-50 p-3 space-y-2">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Step {p.n}</p>
-                      <TextField
-                        label="Label"
-                        value={p.label}
-                        defaultValue={DEFAULT_TEXT[p.labelKey]}
-                        placeholder="ORDER"
-                        onSave={v => saveText(p.labelKey, v)}
-                      />
-                      <TextField
-                        label="Description"
-                        value={p.desc}
-                        defaultValue={DEFAULT_TEXT[p.descKey]}
-                        placeholder="Short description…"
-                        onSave={v => saveText(p.descKey, v)}
-                      />
-                    </div>
-                  ))}
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-[#0D2240] uppercase tracking-wide">Step Panel Text</p>
+                    <LangTabs value={langTab} onChange={setLangTab} />
+                  </div>
+                  {langTab === "en" ? (
+                    <>
+                      {[
+                        { n: 1, label: text.slide_2_p1_label, desc: text.slide_2_p1_desc, labelKey: "slide_2_p1_label" as const, descKey: "slide_2_p1_desc" as const },
+                        { n: 2, label: text.slide_2_p2_label, desc: text.slide_2_p2_desc, labelKey: "slide_2_p2_label" as const, descKey: "slide_2_p2_desc" as const },
+                        { n: 3, label: text.slide_2_p3_label, desc: text.slide_2_p3_desc, labelKey: "slide_2_p3_label" as const, descKey: "slide_2_p3_desc" as const },
+                      ].map(p => (
+                        <div key={p.n} className="rounded-xl bg-gray-50 p-3 space-y-2">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Step {p.n}</p>
+                          <TextField label="Label" value={p.label} defaultValue={DEFAULT_TEXT[p.labelKey]} placeholder="ORDER" onSave={v => saveText(p.labelKey, v)} />
+                          <TextField label="Description" value={p.desc} defaultValue={DEFAULT_TEXT[p.descKey]} placeholder="Short description…" onSave={v => saveText(p.descKey, v)} />
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[10px] text-gray-400 italic">Leave blank to use Spanish translation automatically.</p>
+                      {[
+                        { n: 1, label: text.slide_2_p1_label_es, desc: text.slide_2_p1_desc_es, labelKey: "slide_2_p1_label_es" as const, descKey: "slide_2_p1_desc_es" as const },
+                        { n: 2, label: text.slide_2_p2_label_es, desc: text.slide_2_p2_desc_es, labelKey: "slide_2_p2_label_es" as const, descKey: "slide_2_p2_desc_es" as const },
+                        { n: 3, label: text.slide_2_p3_label_es, desc: text.slide_2_p3_desc_es, labelKey: "slide_2_p3_label_es" as const, descKey: "slide_2_p3_desc_es" as const },
+                      ].map(p => (
+                        <div key={p.n} className="rounded-xl bg-gray-50 p-3 space-y-2">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Paso {p.n} (ES)</p>
+                          <TextField label="Etiqueta (ES)" value={p.label} defaultValue="" placeholder="ORDENAR" onSave={v => saveText(p.labelKey, v)} />
+                          <TextField label="Descripción (ES)" value={p.desc} defaultValue="" placeholder="Descripción corta…" onSave={v => saveText(p.descKey, v)} />
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
 
               {slot.key === "slide_3" && (
                 <div className="border-t border-gray-100 pt-4 space-y-3">
-                  <p className="text-[11px] font-bold text-[#0D2240] uppercase tracking-wide">Slide Text</p>
-                  <TextField
-                    label="Headline"
-                    value={text.slide_3_headline}
-                    defaultValue={DEFAULT_TEXT.slide_3_headline}
-                    placeholder="We Come to You. You Enjoy Life."
-                    onSave={v => saveText("slide_3_headline", v)}
-                  />
-                  <TextField
-                    label="Subline"
-                    value={text.slide_3_subline}
-                    defaultValue={DEFAULT_TEXT.slide_3_subline}
-                    placeholder="Starting at $2.50/lb · Comforters from $33"
-                    onSave={v => saveText("slide_3_subline", v)}
-                    multiline
-                  />
-                  <TextField
-                    label="Button text"
-                    value={text.slide_3_cta}
-                    defaultValue={DEFAULT_TEXT.slide_3_cta}
-                    placeholder="See Pricing"
-                    onSave={v => saveText("slide_3_cta", v)}
-                  />
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-[#0D2240] uppercase tracking-wide">Slide Text</p>
+                    <LangTabs value={langTab} onChange={setLangTab} />
+                  </div>
+                  {langTab === "en" ? (
+                    <>
+                      <TextField label="Headline" value={text.slide_3_headline} defaultValue={DEFAULT_TEXT.slide_3_headline} placeholder="We Come to You. You Enjoy Life." onSave={v => saveText("slide_3_headline", v)} />
+                      <TextField label="Subline" value={text.slide_3_subline} defaultValue={DEFAULT_TEXT.slide_3_subline} placeholder="Starting at $2.50/lb · Comforters from $33" onSave={v => saveText("slide_3_subline", v)} multiline />
+                      <TextField label="Button text" value={text.slide_3_cta} defaultValue={DEFAULT_TEXT.slide_3_cta} placeholder="See Pricing" onSave={v => saveText("slide_3_cta", v)} />
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[10px] text-gray-400 italic">Leave blank to use Spanish translation automatically.</p>
+                      <TextField label="Titular (ES)" value={text.slide_3_headline_es} defaultValue="" placeholder="Llegamos a ti. Tú disfrutas la vida." onSave={v => saveText("slide_3_headline_es", v)} />
+                      <TextField label="Subtítulo (ES)" value={text.slide_3_subline_es} defaultValue="" placeholder="Desde $2.40/lb · Edredones desde $33" onSave={v => saveText("slide_3_subline_es", v)} multiline />
+                      <TextField label="Botón (ES)" value={text.slide_3_cta_es} defaultValue="" placeholder="Ver Precios" onSave={v => saveText("slide_3_cta_es", v)} />
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ── Why Choose Us text (why_us image card) ── */}
+              {slot.key === "why_us" && (
+                <div className="border-t border-gray-100 pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-[#0D2240] uppercase tracking-wide">Why Choose Us Text</p>
+                    <LangTabs value={langTab} onChange={setLangTab} />
+                  </div>
+                  <p className="text-[10px] text-gray-400 italic">Leave blank to use translation text automatically.</p>
+                  {langTab === "en" ? (
+                    <>
+                      <TextField label="Heading" value={text.why_heading} defaultValue="" placeholder="Why Choose WashFold Orlando?" onSave={v => saveText("why_heading", v)} />
+                      <TextField label="Subheading" value={text.why_subheading} defaultValue="" placeholder="Unmatched Quality and Service in Every Load" onSave={v => saveText("why_subheading", v)} />
+                      <TextField label="Body paragraph 1" value={text.why_body1} defaultValue="" placeholder="At WashFold Orlando, we understand…" onSave={v => saveText("why_body1", v)} multiline />
+                      <TextField label="Body paragraph 2" value={text.why_body2} defaultValue="" placeholder="Giving you more time for what truly matters." onSave={v => saveText("why_body2", v)} multiline />
+                    </>
+                  ) : (
+                    <>
+                      <TextField label="Encabezado (ES)" value={text.why_heading_es} defaultValue="" placeholder="¿Por qué elegir WashFold Orlando?" onSave={v => saveText("why_heading_es", v)} />
+                      <TextField label="Subtítulo (ES)" value={text.why_subheading_es} defaultValue="" placeholder="Calidad y servicio sin igual en cada carga" onSave={v => saveText("why_subheading_es", v)} />
+                      <TextField label="Párrafo 1 (ES)" value={text.why_body1_es} defaultValue="" placeholder="En WashFold Orlando, entendemos…" onSave={v => saveText("why_body1_es", v)} multiline />
+                      <TextField label="Párrafo 2 (ES)" value={text.why_body2_es} defaultValue="" placeholder="Dándote más tiempo para lo que realmente importa." onSave={v => saveText("why_body2_es", v)} multiline />
+                    </>
+                  )}
                 </div>
               )}
             </div>
