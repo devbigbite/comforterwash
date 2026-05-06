@@ -199,7 +199,10 @@ export function WashFoldForm() {
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [formData, setFormData] = useState({
-    name: "", email: "", phone: "", address: "",
+    name: "", email: "", phone: "",
+    pickupStreet: "", pickupCity: "", pickupState: "FL", pickupZip: "",
+    sameAddress: true,
+    deliveryStreet: "", deliveryCity: "", deliveryState: "FL", deliveryZip: "",
     pickupDate:          undefined as Date | undefined,
     deliveryDate:        undefined as Date | undefined,
     pickupTimeWindow:    "",
@@ -313,7 +316,12 @@ export function WashFoldForm() {
     : !!formData.pickupDate && !!formData.deliveryDate
       && !!formData.pickupTimeWindow && !!formData.deliveryTimeWindow
 
-  const canStep3 = !!formData.name && !!formData.email && !!formData.phone && !!formData.address
+  function buildAddr(street: string, city: string, state: string, zip: string) {
+    return `${street}, ${city}, ${state} ${zip}`.trim()
+  }
+  const pickupAddrFull = !!formData.pickupStreet && !!formData.pickupCity && !!formData.pickupState && !!formData.pickupZip
+  const deliveryAddrFull = formData.sameAddress || (!!formData.deliveryStreet && !!formData.deliveryCity && !!formData.deliveryState && !!formData.deliveryZip)
+  const canStep3 = !!formData.name && !!formData.email && !!formData.phone && pickupAddrFull && deliveryAddrFull
   const canStep4 = formData.agreedToTerms && formData.smsConsent && formData.signature.trim().length > 0
 
   const addOnsSummary = [
@@ -337,7 +345,10 @@ export function WashFoldForm() {
     customerName:    formData.name,
     customerEmail:   formData.email,
     customerPhone:   formData.phone,
-    address:         formData.address,
+    address:         buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip),
+    deliveryAddress: formData.sameAddress
+      ? buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip)
+      : buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip),
     serviceType:     "wash_fold",
     subscriptionFrequency: formData.frequency,
     pricePerLbCents: String(pricePerLbCents),
@@ -372,10 +383,9 @@ export function WashFoldForm() {
   }
 
   const CONTACT_FIELDS = [
-    { label: tf.fullName,              key: "name",    placeholder: "Jane Smith",                      type: "text"  },
-    { label: tf.email,                 key: "email",   placeholder: "jane@example.com",                type: "email" },
-    { label: tf.phone,                 key: "phone",   placeholder: "(407) 555-0100",                  type: "tel"   },
-    { label: tf.pickupDeliveryAddress, key: "address", placeholder: "123 Oak St, Orlando FL 32827",    type: "text"  },
+    { label: tf.fullName, key: "name",  placeholder: "Jane Smith",       type: "text"  },
+    { label: tf.email,    key: "email", placeholder: "jane@example.com", type: "email" },
+    { label: tf.phone,    key: "phone", placeholder: "(407) 555-0100",   type: "tel"   },
   ]
 
   // ── payment step ───────────────────────────────────────────────────────────
@@ -392,9 +402,10 @@ export function WashFoldForm() {
               { label: tf.labelBags,       value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
               { label: tf.labelEstWeight,  value: `~${formData.pounds} lbs (estimated)` },
               { label: tf.labelAddOns,     value: addOnsSummary },
-              { label: tf.labelPickup,     value: pickupSummary },
-              { label: tf.labelDelivery,   value: deliverySummary },
-              { label: tf.labelAddress,    value: formData.address },
+              { label: tf.labelPickup,    value: pickupSummary },
+              { label: tf.labelDelivery,  value: deliverySummary },
+              { label: "Pickup Address",  value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
+              ...(!formData.sameAddress ? [{ label: "Delivery Address", value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
             ].map((row) => (
               <div key={row.label} className="flex justify-between gap-4 text-sm">
                 <span className="text-gray-400 shrink-0">{row.label}</span>
@@ -785,7 +796,7 @@ export function WashFoldForm() {
           <div className="space-y-5">
             <div>
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.whereToGo}</h3>
-              <p className="text-sm text-gray-400">{tf.sameAddressNote}</p>
+              <p className="text-sm text-gray-400">Enter your contact info and service address.</p>
             </div>
             <div className="space-y-4">
               {CONTACT_FIELDS.map(({ label, key, placeholder, type }) => (
@@ -797,6 +808,52 @@ export function WashFoldForm() {
                     className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
                 </div>
               ))}
+
+              {/* Pickup address */}
+              <div className="space-y-2">
+                <Label className="font-semibold text-[#0D2240] text-sm">Pickup Address</Label>
+                <Input placeholder="Street address" value={formData.pickupStreet}
+                  onChange={(e) => setFormData(p => ({ ...p, pickupStreet: e.target.value }))}
+                  className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
+                <div className="grid grid-cols-5 gap-2">
+                  <Input placeholder="City" value={formData.pickupCity}
+                    onChange={(e) => setFormData(p => ({ ...p, pickupCity: e.target.value }))}
+                    className="col-span-2 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                  <Input placeholder="ST" maxLength={2} value={formData.pickupState}
+                    onChange={(e) => setFormData(p => ({ ...p, pickupState: e.target.value.toUpperCase() }))}
+                    className="col-span-1 h-10 border-gray-200 focus:border-[#E8726A] text-sm text-center uppercase" />
+                  <Input placeholder="Zip" value={formData.pickupZip}
+                    onChange={(e) => setFormData(p => ({ ...p, pickupZip: e.target.value }))}
+                    className="col-span-2 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                </div>
+              </div>
+
+              {/* Same address toggle */}
+              <label className="flex items-center gap-2.5 cursor-pointer bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5">
+                <Checkbox checked={formData.sameAddress} onCheckedChange={(c) => setFormData(p => ({ ...p, sameAddress: c as boolean }))} />
+                <span className="text-sm text-gray-700 font-medium">Same address for pickup &amp; delivery</span>
+              </label>
+
+              {/* Delivery address (shown when different) */}
+              {!formData.sameAddress && (
+                <div className="space-y-2">
+                  <Label className="font-semibold text-[#0D2240] text-sm">Delivery Address</Label>
+                  <Input placeholder="Street address" value={formData.deliveryStreet}
+                    onChange={(e) => setFormData(p => ({ ...p, deliveryStreet: e.target.value }))}
+                    className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
+                  <div className="grid grid-cols-5 gap-2">
+                    <Input placeholder="City" value={formData.deliveryCity}
+                      onChange={(e) => setFormData(p => ({ ...p, deliveryCity: e.target.value }))}
+                      className="col-span-2 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                    <Input placeholder="ST" maxLength={2} value={formData.deliveryState}
+                      onChange={(e) => setFormData(p => ({ ...p, deliveryState: e.target.value.toUpperCase() }))}
+                      className="col-span-1 h-10 border-gray-200 focus:border-[#E8726A] text-sm text-center uppercase" />
+                    <Input placeholder="Zip" value={formData.deliveryZip}
+                      onChange={(e) => setFormData(p => ({ ...p, deliveryZip: e.target.value }))}
+                      className="col-span-2 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>{tf.back}</Button>
@@ -856,7 +913,8 @@ export function WashFoldForm() {
                 { label: tf.labelAddOns,     value: addOnsSummary === tw.standardNone ? tw.none : addOnsSummary },
                 { label: tf.labelPickup,     value: pickupSummary },
                 { label: tf.labelDelivery,   value: deliverySummary },
-                { label: tf.labelAddress,    value: formData.address },
+                { label: "Pickup Address",   value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
+                ...(!formData.sameAddress ? [{ label: "Delivery Address", value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
               ].map((row) => (
                 <div key={row.label} className="flex justify-between gap-4">
                   <span className="text-gray-400 shrink-0">{row.label}</span>
@@ -914,10 +972,6 @@ export function WashFoldForm() {
 
             {/* ── Required agreements + signature ── */}
             <div className="rounded-2xl border-2 border-[#E8726A]/25 bg-[#fdf6f5]/60 p-4 space-y-3">
-              <p className="text-[10px] font-extrabold text-[#E8726A] uppercase tracking-widest flex items-center gap-1.5">
-                <span className="text-sm">✱</span> All 3 fields are required to proceed
-              </p>
-
               {/* Terms */}
               <label className={`flex items-start gap-3 cursor-pointer rounded-xl border-2 p-3 transition-all ${formData.agreedToTerms ? "border-green-300 bg-green-50" : "border-dashed border-gray-300 bg-white hover:border-[#E8726A]/50"}`}>
                 <Checkbox checked={formData.agreedToTerms}
