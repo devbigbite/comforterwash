@@ -178,6 +178,41 @@ export async function resetSiteText(key: keyof SiteText): Promise<void> {
   revalidatePath("/admin/images")
 }
 
+// ── Service Area Polygon ──────────────────────────────────────────────────────
+
+export async function getServiceAreaPolygon(): Promise<object | null> {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "service_area_polygon")
+      .single()
+    if (!data?.value) return null
+    return JSON.parse(data.value)
+  } catch {
+    return null
+  }
+}
+
+export async function setServiceAreaPolygon(geojson: object): Promise<void> {
+  const supabase = await createClient()
+  await supabase.from("settings").upsert({
+    key: "service_area_polygon",
+    value: JSON.stringify(geojson),
+    updated_at: new Date().toISOString(),
+  })
+  revalidatePath("/service-areas")
+  revalidatePath("/admin/service-area")
+}
+
+export async function deleteServiceAreaPolygon(): Promise<void> {
+  const supabase = await createClient()
+  await supabase.from("settings").delete().eq("key", "service_area_polygon")
+  revalidatePath("/service-areas")
+  revalidatePath("/admin/service-area")
+}
+
 // ── Delivery Fee ─────────────────────────────────────────────────────────────
 
 export interface DeliveryFeeSettings {

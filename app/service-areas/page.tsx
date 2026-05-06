@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { ServiceAreaMap } from "@/components/service-area-map"
+import { getServiceAreaPolygon } from "@/app/actions/settings"
 
 export const metadata = {
   title: "Service Areas | WashFold Orlando",
@@ -10,13 +11,16 @@ export const dynamic = "force-dynamic"
 
 export default async function ServiceAreasPage() {
   const supabase = await createClient()
-  const { data: areas } = await supabase
-    .from("service_areas")
-    .select("zip_code, city, active")
-    .order("city")
-    .order("zip_code")
+  const [{ data: areas }, polygon] = await Promise.all([
+    supabase
+      .from("service_areas")
+      .select("zip_code, city, active")
+      .order("city")
+      .order("zip_code"),
+    getServiceAreaPolygon(),
+  ])
 
-  const activeAreas  = (areas ?? []).filter(a => a.active)
+  const activeAreas = (areas ?? []).filter(a => a.active)
   const cities = [...new Set(activeAreas.map(a => a.city))].sort()
 
   return (
@@ -39,10 +43,10 @@ export default async function ServiceAreasPage() {
 
       {/* Map */}
       <div className="mx-auto max-w-4xl px-4 py-10">
-        <ServiceAreaMap areas={activeAreas} />
+        <ServiceAreaMap polygon={polygon} />
 
         <p className="text-center text-xs text-gray-400 mt-3">
-          Each shaded circle represents an active service ZIP code. Click a circle for details.
+          Shaded area shows our delivery zone. Use the ZIP checker below to confirm your address.
         </p>
       </div>
 
