@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { RouteTimeWindowEditor } from "./route-time-window-editor"
+import { RouteEditor } from "./route-editor"
 import type { Route } from "@/lib/route-availability"
 
 async function createRoute(formData: FormData) {
@@ -39,6 +40,28 @@ async function deleteRoute(id: string) {
   "use server"
   const supabase = createAdminClient()
   await supabase.from("routes").delete().eq("id", id)
+  revalidatePath("/admin/routes")
+}
+
+async function updateRoute(id: string, formData: FormData) {
+  "use server"
+  const supabase = createAdminClient()
+  const pickupDays   = formData.getAll("pickup_days") as string[]
+  const deliveryDays = formData.getAll("delivery_days") as string[]
+  const areas = (formData.get("service_areas") as string)
+    .split(",").map(s => s.trim()).filter(Boolean)
+  const biweeklyDate = formData.get("biweekly_start_date") as string || null
+
+  await supabase.from("routes").update({
+    name:                formData.get("name") as string,
+    recurrence:          formData.get("recurrence") as string,
+    turnaround_days:     parseInt(formData.get("turnaround_days") as string || "3", 10),
+    biweekly_start_date: biweeklyDate || null,
+    service_areas:       areas,
+    pickup_days:         pickupDays,
+    delivery_days:       deliveryDays,
+    notes:               formData.get("notes") as string || null,
+  }).eq("id", id)
   revalidatePath("/admin/routes")
 }
 
@@ -212,19 +235,22 @@ export default async function RoutesPage() {
                 </div>
                 {r.notes && <p className="text-xs text-gray-400 italic">{r.notes}</p>}
 
+                {/* Inline route editor */}
+                <RouteEditor route={r as Route & { service_areas?: string[]; notes?: string }} onSave={updateRoute} />
+
                 {/* Time windows editor */}
                 <RouteTimeWindowEditor routeId={r.id} initialWindows={r.time_windows ?? []} />
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2 shrink-0">
+              <div className="flex flex-col gap-2 shrink-0">
                 <form action={toggleRoute.bind(null, r.id, false)}>
-                  <button className="text-[10px] font-bold text-amber-600 border border-amber-200 bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors uppercase">
+                  <button className="w-full text-[10px] font-bold text-amber-600 border border-amber-200 bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors uppercase">
                     Deactivate
                   </button>
                 </form>
                 <form action={deleteRoute.bind(null, r.id)}>
-                  <button className="text-[10px] font-bold text-red-400 border border-red-100 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors uppercase">
+                  <button className="w-full text-[10px] font-bold text-red-400 border border-red-100 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors uppercase">
                     Delete
                   </button>
                 </form>
