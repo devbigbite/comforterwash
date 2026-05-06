@@ -7,20 +7,14 @@ export default async function AdminImagesPage() {
   const [images, text] = await Promise.all([getSiteImages(), getSiteText()])
 
   return (
-    <main className="min-h-screen bg-[#f7f8fb]">
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold text-[#0D2240] mb-1">Site Images</h1>
-            <p className="text-sm text-gray-400">
-              Upload photos and edit text for each section of the homepage. Changes go live immediately.
-            </p>
-          </div>
-          <a href="/admin" className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors">← Admin</a>
-        </div>
-
-        <SiteImagesEditor initialImages={images} initialText={text} />
+    <div className="mx-auto max-w-2xl px-4 py-10">
+      <div className="mb-8">
+        <h1 className="text-2xl font-extrabold text-[#0D2240] mb-1">Site Images</h1>
+        <p className="text-sm text-gray-400">
+          Upload photos and edit text for each section of the homepage. Changes go live immediately.
+        </p>
       </div>
-    </main>
+      <SiteImagesEditor initialImages={images} initialText={text} />
+    </div>
   )
 }

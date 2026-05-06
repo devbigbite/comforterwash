@@ -204,23 +204,7 @@ export default function PricingPage() {
   const labelCls = "block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5"
 
   return (
-    <div className="min-h-screen bg-[#f8faff]">
-      <header className="bg-[#0D2240] px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <svg width="28" height="28" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="24" cy="24" r="24" fill="#0D2240" />
-            <circle cx="24" cy="24" r="22" fill="#142d52" />
-            <path d="M8 24 Q11 19 14 24 Q17 29 20 24 Q23 19 26 24 Q29 29 32 24 Q35 19 38 24"
-              stroke="#E8726A" strokeWidth="3" strokeLinecap="round" fill="none" />
-          </svg>
-          <span className="text-white font-extrabold text-lg tracking-tight">
-            Wash<span className="text-[#E8726A]">Fold</span>
-            <span className="ml-1.5 text-white/40 text-xs font-semibold uppercase tracking-widest">Admin</span>
-          </span>
-        </div>
-        <Link href="/admin" className="text-white/60 hover:text-white text-sm transition-colors">← Dashboard</Link>
-      </header>
-
+    <>
       <div className="mx-auto max-w-2xl px-6 py-10 space-y-6">
         <div className="mb-2">
           <h1 className="text-2xl font-extrabold text-[#0D2240]">Pricing</h1>
@@ -427,6 +411,6 @@ export default function PricingPage() {
           onRefresh={loadAll}
         />
       </div>
-    </div>
+    </>
   )
 }

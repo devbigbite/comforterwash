@@ -4,8 +4,7 @@ import { TodayView } from "@/components/admin/today-view"
 import { UpcomingView } from "@/components/admin/upcoming-view"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Package, TruckIcon, CheckCircle2, Clock, LogOut } from "lucide-react"
-import { logoutAction } from "./login/actions"
+import { Package, TruckIcon, CheckCircle2, Clock } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
@@ -25,47 +24,7 @@ export default async function AdminDashboard() {
   const todayDeliveries = bookings.filter((b) => b.delivery_date === today && b.status !== "cancelled")
 
   return (
-    <div className="min-h-screen bg-[#f8faff]">
-      {/* Header */}
-      <header className="bg-[#0D2240] px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <svg width="28" height="28" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="24" cy="24" r="24" fill="#0D2240" />
-            <circle cx="24" cy="24" r="22" fill="#142d52" />
-            <path d="M8 24 Q11 19 14 24 Q17 29 20 24 Q23 19 26 24 Q29 29 32 24 Q35 19 38 24"
-              stroke="#E8726A" strokeWidth="3" strokeLinecap="round" fill="none" />
-          </svg>
-          <span className="text-white font-extrabold text-lg tracking-tight">
-            Wash<span className="text-[#E8726A]">Fold</span>
-            <span className="ml-1.5 text-white/40 text-xs font-semibold uppercase tracking-widest">Admin</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <a href="/admin/search" className="text-white/60 hover:text-white text-sm transition-colors">Search</a>
-          <a href="/admin/workers" className="text-white/60 hover:text-white text-sm transition-colors">Workers</a>
-          <a href="/admin/subscriptions" className="text-white/60 hover:text-white text-sm transition-colors">Subscriptions</a>
-          <a href="/admin/routes" className="text-white/60 hover:text-white text-sm transition-colors">Routes</a>
-          <a href="/admin/promos" className="text-white/60 hover:text-white text-sm transition-colors">Promotions</a>
-          <a href="/admin/holidays" className="text-white/60 hover:text-white text-sm transition-colors">Holidays</a>
-          <a href="/admin/reports" className="text-white/60 hover:text-white text-sm transition-colors">Reports</a>
-          <a href="/admin/pricing" className="text-white/60 hover:text-white text-sm transition-colors">Pricing</a>
-          <a href="/admin/images" className="text-white/60 hover:text-white text-sm transition-colors">Images</a>
-          <a href="/admin/tips" className="text-white/60 hover:text-white text-sm transition-colors">Tips</a>
-          <a href="/admin/facilities" className="text-white/60 hover:text-white text-sm transition-colors">Facilities</a>
-          <a href="/admin/zip-codes" className="text-white/60 hover:text-white text-sm transition-colors">Areas</a>
-          <a href="/operator" className="text-white/60 hover:text-white text-sm transition-colors">Operator →</a>
-          <form action={logoutAction}>
-            <button
-              type="submit"
-              className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </button>
-          </form>
-        </div>
-      </header>
-
+    <>
       <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-4">
@@ -159,6 +118,6 @@ export default async function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </>
   )
 }
