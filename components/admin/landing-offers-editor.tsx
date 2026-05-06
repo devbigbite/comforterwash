@@ -14,6 +14,7 @@ export function LandingOffersEditor({ initialOffers }: { initialOffers: LandingO
   const [offers, setOffers] = useState<LandingOffer[]>(initialOffers)
   const [saving, setSaving] = useState<number | null>(null)
   const [saved, setSaved] = useState<number | null>(null)
+  const [toggling, setToggling] = useState<number | null>(null)
 
   async function handleSave(i: number) {
     setSaving(i)
@@ -21,6 +22,15 @@ export function LandingOffersEditor({ initialOffers }: { initialOffers: LandingO
     setSaving(null)
     setSaved(i)
     setTimeout(() => setSaved(null), 2000)
+  }
+
+  async function handleToggle(i: number) {
+    const newEnabled = !offers[i].enabled
+    const updated = offers.map((o, idx) => idx === i ? { ...o, enabled: newEnabled } : o)
+    setOffers(updated)
+    setToggling(i)
+    await setLandingOffer(i, updated[i])
+    setToggling(null)
   }
 
   function update(i: number, field: keyof LandingOffer, value: string | boolean) {
@@ -42,10 +52,11 @@ export function LandingOffersEditor({ initialOffers }: { initialOffers: LandingO
                 <p className="text-xs text-gray-400">{offer.enabled ? "Visible on site" : "Hidden from site"}</p>
               </div>
             </div>
-            {/* Toggle */}
+            {/* Toggle — auto-saves immediately */}
             <button
-              onClick={() => { update(i, "enabled", !offer.enabled) }}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${offer.enabled ? "bg-[#E8726A]" : "bg-gray-200"}`}
+              onClick={() => handleToggle(i)}
+              disabled={toggling === i}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-60 ${offer.enabled ? "bg-[#E8726A]" : "bg-gray-200"}`}
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${offer.enabled ? "translate-x-6" : "translate-x-1"}`} />
             </button>

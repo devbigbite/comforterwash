@@ -38,7 +38,7 @@ export function ZipChecker() {
             setStatus("idle")
           }}
           onKeyDown={(e) => e.key === "Enter" && checkZip()}
-          className="flex-1 rounded-xl border border-[#d0d8e8] px-4 py-3 text-sm text-[#0D2240] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/40"
+          className="flex-1 rounded-xl border border-[#d0d8e8] bg-white px-4 py-3 text-sm text-[#0D2240] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/40"
         />
         <button
           onClick={checkZip}

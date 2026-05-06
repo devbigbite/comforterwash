@@ -4,7 +4,7 @@ import Link from "next/link"
 
 export const metadata = {
   title: "Book Comforter Wash — WashFold Orlando",
-  description: "Schedule pickup and delivery for your comforter. $33 flat, any size.",
+  description: "Schedule pickup and delivery for your comforter. Fully water washed, from $35.",
 }
 
 export default function ComforterWashPage() {

@@ -113,7 +113,7 @@ export default function Home() {
                 icon: "🛏️",
                 title: tr.services.comforterTitle,
                 desc: tr.services.comforterDesc,
-                price: "$33",
+                price: "from $35",
                 unit: tr.services.perComforter,
               },
               {
