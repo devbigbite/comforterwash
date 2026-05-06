@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import Image from "next/image"
 import type { TranslationKeys } from "@/lib/translations/en"
+import { DEFAULT_TEXT, type SiteText } from "@/lib/site-text-config"
 
 type HeroTr = TranslationKeys["hero"]
 
@@ -23,9 +24,11 @@ const DEFAULT_CAROUSEL_IMAGES: CarouselImages = {
 export default function HeroCarousel({
   tr,
   images = DEFAULT_CAROUSEL_IMAGES,
+  text = DEFAULT_TEXT,
 }: {
   tr?: HeroTr
   images?: CarouselImages
+  text?: SiteText
 }) {
   const [active, setActive] = useState(0)
   const [transitioning, setTransitioning] = useState(false)
@@ -58,9 +61,9 @@ export default function HeroCarousel({
     {
       id: 0,
       type: "full" as const,
-      headline: tr?.slide1Headline ?? "Laundry Service That Feels Like Family",
-      subline: tr?.slide1Sub ?? "Free pickup & delivery · Wash, fold & comforter cleaning · Orlando FL",
-      cta: tr?.slide1Cta ?? "Schedule a Pickup",
+      headline: text.slide_1_headline || tr?.slide1Headline || DEFAULT_TEXT.slide_1_headline,
+      subline:  text.slide_1_subline  || tr?.slide1Sub     || DEFAULT_TEXT.slide_1_subline,
+      cta:      text.slide_1_cta      || tr?.slide1Cta     || DEFAULT_TEXT.slide_1_cta,
       overlay: "from-[#0D2240]/80 via-[#0D2240]/50 to-transparent",
       objectPos: "object-center",
     },
@@ -68,17 +71,17 @@ export default function HeroCarousel({
       id: 1,
       type: "steps" as const,
       panels: [
-        { step: "1", label: tr?.slide2Order ?? "ORDER", desc: tr?.slide2OrderDesc ?? "Schedule your pickup in seconds", accentColor: "#a78bfa" },
-        { step: "2", label: tr?.slide2Pickup ?? "WE PICK UP", desc: tr?.slide2PickupDesc ?? "We pick up your laundry right from your door", accentColor: "#38bdf8" },
-        { step: "3", label: tr?.slide2Deliver ?? "WE DELIVER", desc: tr?.slide2DeliverDesc ?? "Fresh, clean & folded delivered to you", accentColor: "#38bdf8" },
+        { step: "1", label: text.slide_2_p1_label || DEFAULT_TEXT.slide_2_p1_label, desc: text.slide_2_p1_desc || DEFAULT_TEXT.slide_2_p1_desc, accentColor: "#a78bfa" },
+        { step: "2", label: text.slide_2_p2_label || DEFAULT_TEXT.slide_2_p2_label, desc: text.slide_2_p2_desc || DEFAULT_TEXT.slide_2_p2_desc, accentColor: "#38bdf8" },
+        { step: "3", label: text.slide_2_p3_label || DEFAULT_TEXT.slide_2_p3_label, desc: text.slide_2_p3_desc || DEFAULT_TEXT.slide_2_p3_desc, accentColor: "#38bdf8" },
       ],
     },
     {
       id: 2,
       type: "full" as const,
-      headline: tr?.slide3Headline ?? "We Come to You. You Enjoy Life.",
-      subline: tr?.slide3Sub ?? "Professional wash & fold starting at $2.50/lb · Comforters from $33",
-      cta: tr?.slide3Cta ?? "See Pricing",
+      headline: text.slide_3_headline || tr?.slide3Headline || DEFAULT_TEXT.slide_3_headline,
+      subline:  text.slide_3_subline  || tr?.slide3Sub     || DEFAULT_TEXT.slide_3_subline,
+      cta:      text.slide_3_cta      || tr?.slide3Cta     || DEFAULT_TEXT.slide_3_cta,
       overlay: "from-[#E8726A]/70 via-[#0D2240]/60 to-[#0D2240]/80",
       objectPos: "object-top",
     },

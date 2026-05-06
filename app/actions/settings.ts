@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
 import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
+import { DEFAULT_TEXT, type SiteText } from "@/lib/site-text-config"
 
 export async function getComforterPromo(): Promise<boolean> {
   try {
@@ -133,6 +134,46 @@ export async function uploadSiteImage(key: string, formData: FormData): Promise<
 export async function resetSiteImage(key: string): Promise<void> {
   const supabase = await createClient()
   await supabase.from("settings").delete().eq("key", `img_${key}`)
+  revalidatePath("/")
+  revalidatePath("/admin/images")
+}
+
+// ── Site Text ────────────────────────────────────────────────────────────────
+
+export async function getSiteText(): Promise<SiteText> {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from("settings")
+      .select("key,value")
+      .like("key", "txt_%")
+    const text: SiteText = { ...DEFAULT_TEXT }
+    if (data) {
+      data.forEach(({ key, value }: { key: string; value: string }) => {
+        const textKey = key.replace(/^txt_/, "") as keyof SiteText
+        if (textKey in text && value) text[textKey] = value
+      })
+    }
+    return text
+  } catch {
+    return { ...DEFAULT_TEXT }
+  }
+}
+
+export async function setSiteTextValue(key: keyof SiteText, value: string): Promise<void> {
+  const supabase = await createClient()
+  await supabase.from("settings").upsert({
+    key: `txt_${key}`,
+    value,
+    updated_at: new Date().toISOString(),
+  })
+  revalidatePath("/")
+  revalidatePath("/admin/images")
+}
+
+export async function resetSiteText(key: keyof SiteText): Promise<void> {
+  const supabase = await createClient()
+  await supabase.from("settings").delete().eq("key", `txt_${key}`)
   revalidatePath("/")
   revalidatePath("/admin/images")
 }

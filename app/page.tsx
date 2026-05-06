@@ -7,9 +7,10 @@ import Link from "next/link"
 import { useLang } from "@/components/lang-provider"
 import { LangToggle } from "@/components/lang-toggle"
 import { useState, useEffect } from "react"
-import { getLandingOffers, getSiteImages } from "@/app/actions/settings"
+import { getLandingOffers, getSiteImages, getSiteText } from "@/app/actions/settings"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
 import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
+import { DEFAULT_TEXT, type SiteText } from "@/lib/site-text-config"
 
 function Logo({ size = 40 }: { size?: number }) {
   return (
@@ -30,9 +31,11 @@ export default function Home() {
   // null until loaded — prevents flash of disabled offers on first render
   const [offers, setOffers] = useState<LandingOffer[] | null>(null)
   const [images, setImages] = useState<SiteImages>(DEFAULT_IMAGES)
+  const [siteText, setSiteText] = useState<SiteText>(DEFAULT_TEXT)
   useEffect(() => {
     getLandingOffers().then(setOffers)
     getSiteImages().then(setImages)
+    getSiteText().then(setSiteText)
   }, [])
   const visibleOffers = (offers ?? []).filter(o => o.enabled)
   return (
@@ -95,6 +98,7 @@ export default function Home() {
       <HeroCarousel
         tr={tr.hero}
         images={{ slide1: images.slide_1, slide2: images.slide_2, slide3: images.slide_3 }}
+        text={siteText}
       />
 
       {/* ── Our Services — immediately after hero ──────────────────────── */}
