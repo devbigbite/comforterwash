@@ -2,6 +2,7 @@ import { LogOut } from "lucide-react"
 import { logoutAction } from "@/app/admin/login/actions"
 
 const NAV_LINKS = [
+  { href: "/admin/dispatch",      label: "Dispatch" },
   { href: "/admin/search",        label: "Search" },
   { href: "/admin/workers",       label: "Workers" },
   { href: "/admin/subscriptions", label: "Subscriptions" },
