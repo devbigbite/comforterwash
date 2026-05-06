@@ -19,6 +19,7 @@ function toShipdayDate(date: string): string {
 
 export interface ShipdayOrderInput {
   id: string
+  short_code?: string | null
   customer_name: string
   customer_email: string
   customer_phone: string
@@ -61,7 +62,7 @@ export async function createShipdayOrder(booking: ShipdayOrderInput): Promise<vo
     return
   }
 
-  const baseCode = booking.id.slice(0, 8).toUpperCase()
+  const baseCode = booking.short_code ?? booking.id.slice(0, 6).toUpperCase()
   const total = (booking.total_amount / 100).toFixed(2)
   const facilityAddress = process.env.BUSINESS_ADDRESS ?? "Orlando, FL"
   const facilityPhone = process.env.BUSINESS_PHONE ?? ""

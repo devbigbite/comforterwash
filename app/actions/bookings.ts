@@ -88,7 +88,7 @@ export async function createBooking(data: BookingData) {
 
   // Auto-create order bags
   try {
-    const orderCode = booking.id.slice(0, 8).toUpperCase()
+    const orderCode = booking.short_code ?? booking.id.slice(0, 6).toUpperCase()
     const numBags = data.numBags ?? data.numComforters ?? 1
     const bags = Array.from({ length: numBags }, (_, i) => ({
       booking_id: booking.id,
@@ -113,6 +113,7 @@ export async function createBooking(data: BookingData) {
   try {
     await createShipdayOrder({
       id: booking.id,
+      short_code: booking.short_code ?? null,
       customer_name: booking.customer_name,
       customer_email: booking.customer_email,
       customer_phone: booking.customer_phone,
