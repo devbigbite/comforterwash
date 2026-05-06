@@ -79,7 +79,7 @@ export default function Home() {
               { label: tr.nav.pickupDelivery, href: "#services" },
               { label: tr.nav.howItWorks, href: "#how" },
               { label: tr.nav.pricing, href: "#pricing" },
-              { label: tr.nav.serviceAreas, href: "#areas" },
+              { label: tr.nav.serviceAreas, href: "/service-areas" },
               { label: tr.nav.faq, href: "#faq" },
             ].map((n) => (
               <a key={n.label} href={n.href} className="px-3 py-2 text-sm font-semibold text-[#0D2240]/60 hover:text-[#E8726A] transition-colors rounded-lg hover:bg-orange-50 uppercase tracking-wide text-xs">
@@ -468,7 +468,7 @@ export default function Home() {
               <Link href="/book/comforter-wash" className="hover:text-[#E8726A] transition-colors">{tr.footer.comforterWash}</Link>
               <Link href="/book/wash-fold" className="hover:text-[#E8726A] transition-colors">{tr.footer.washFold}</Link>
               <Link href="/book/wash-only" className="hover:text-[#E8726A] transition-colors">{tr.footer.washOnly}</Link>
-              <a href="#areas" className="hover:text-[#E8726A] transition-colors">{tr.footer.serviceAreas}</a>
+              <Link href="/service-areas" className="hover:text-[#E8726A] transition-colors">{tr.footer.serviceAreas}</Link>
               <a href="#faq" className="hover:text-[#E8726A] transition-colors">{tr.footer.faq}</a>
             </div>
             <p className="text-white/25 text-xs">&copy; {new Date().getFullYear()} WashFold Orlando</p>
