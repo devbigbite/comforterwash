@@ -245,17 +245,49 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
           bags={(bags ?? []).map(b => ({ id: b.id, bag_number: b.bag_number, label_code: b.label_code }))}
         />
 
+        {/* Order at a glance */}
+        {(() => {
+          const isWashFold    = booking.service_type === "wash_fold"
+          const isWashOnly    = booking.service_type === "wash_only"
+          const isComforter   = booking.service_type === "comforter_wash"
+          const bagCount      = bags?.length ?? 0
+          const comforterCount= booking.num_comforters ?? bagCount
+          const icon          = isComforter ? "🛏️" : isWashOnly ? "🫧" : "🧺"
+          const serviceLabel  = isComforter ? "Comforter Wash" : isWashOnly ? "Wash Only" : "Wash & Fold"
+          const countLabel    = isComforter
+            ? `${comforterCount} comforter${comforterCount !== 1 ? "s" : ""}${booking.comforter_size ? ` · ${booking.comforter_size}` : ""}`
+            : `${bagCount} bag${bagCount !== 1 ? "s" : ""}`
+          const weightLabel   = booking.pounds ? `~${booking.pounds} lbs estimated` : null
+
+          return (
+            <div className="bg-[#0D2240] rounded-2xl px-5 py-4 flex items-center gap-4">
+              <span className="text-3xl">{icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-extrabold text-lg leading-tight">{serviceLabel}</p>
+                <p className="text-[#E8726A] font-bold text-base">{countLabel}</p>
+                {weightLabel && <p className="text-white/50 text-xs mt-0.5">{weightLabel}</p>}
+              </div>
+              {booking.actual_weight_lbs && (
+                <div className="text-right shrink-0">
+                  <p className="text-white/50 text-[10px] uppercase tracking-wide">Actual</p>
+                  <p className="text-green-400 font-extrabold text-lg">{booking.actual_weight_lbs} lbs</p>
+                </div>
+              )}
+            </div>
+          )
+        })()}
+
         {/* Order summary */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div className="grid grid-cols-4 gap-3 text-center text-sm">
-            <div><p className="text-gray-400 text-xs">Service</p><p className="font-bold text-[#0D2240] text-xs">{booking.service_type === "wash_fold" ? "W&F" : "Comforter"}</p></div>
-            <div><p className="text-gray-400 text-xs">Bags</p><p className="font-bold text-[#0D2240]">{bags?.length ?? 0}</p></div>
-            <div><p className="text-gray-400 text-xs">Est. lbs</p><p className="font-bold text-[#0D2240]">{booking.pounds ?? "—"}</p></div>
-            <div><p className="text-gray-400 text-xs">Actual lbs</p><p className={`font-bold ${booking.actual_weight_lbs ? "text-green-600" : "text-gray-300"}`}>{booking.actual_weight_lbs ?? "—"}</p></div>
+            <div><p className="text-gray-500 text-xs">Service</p><p className="font-bold text-[#0D2240] text-xs">{booking.service_type === "wash_fold" ? "W&F" : booking.service_type === "wash_only" ? "Wash Only" : "Comforter"}</p></div>
+            <div><p className="text-gray-500 text-xs">Bags</p><p className="font-bold text-[#0D2240]">{bags?.length ?? 0}</p></div>
+            <div><p className="text-gray-500 text-xs">Est. lbs</p><p className="font-bold text-[#0D2240]">{booking.pounds ?? "—"}</p></div>
+            <div><p className="text-gray-500 text-xs">Actual lbs</p><p className={`font-bold ${booking.actual_weight_lbs ? "text-green-600" : "text-gray-300"}`}>{booking.actual_weight_lbs ?? "—"}</p></div>
           </div>
           {booking.actual_weight_lbs && (
             <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between text-xs">
-              <span className="text-gray-400">Customer charge</span>
+              <span className="text-gray-500">Customer charge</span>
               <span className="font-bold text-[#0D2240]">${((booking.customer_final_cents ?? 0) / 100).toFixed(2)} ({Math.max(booking.actual_weight_lbs, CUSTOMER_MIN_LBS)} lbs)</span>
             </div>
           )}
