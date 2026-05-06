@@ -50,7 +50,7 @@ const es = {
     heading: "¿Por Qué Elegir WashFold Orlando?",
     subheading: "Calidad y Servicio Sin Igual en Cada Carga",
     body1: "En WashFold Orlando entendemos las exigencias de tu vida familiar. Nos dedicamos a ofrecerte un servicio de lavandería de primera que se adapta a tus necesidades — sirviendo Orlando y áreas cercanas con lavado profesional y limpieza de edredones, diseñado para tu comodidad.",
-    body2: "Nuestra instalación privada garantiza un ambiente limpio y controlado para tus prendas. Con recogida y entrega gratuita cada vez, hacemos el día de lavado sin esfuerzo — dándote más tiempo para lo que realmente importa.",
+    body2: "Dándote más tiempo para lo que realmente importa.",
     photoTag: "Recogida y Entrega",
     photoHeadline: "Vamos a Ti.\nTú Disfrutas la Vida.",
     photoCta: "Programar Recogida",
