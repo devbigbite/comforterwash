@@ -1,6 +1,6 @@
 const es = {
   common: {
-    schedulePickup: "Programar Recogida",
+    schedulePickup: "Programar Recogido",
     bookNow: "Reservar Ahora",
     next: "Siguiente",
     back: "Atrás",
@@ -22,7 +22,7 @@ const es = {
   hero: {
     slide1Headline: "Servicio de Lavandería con Toque Familiar",
     slide1Sub: "Recogida y entrega gratis · Lavado, secado y edredones · Orlando FL",
-    slide1Cta: "Programar Recogida",
+    slide1Cta: "Programar Recogido",
     slide2Order: "ORDENA",
     slide2OrderDesc: "Programa tu recogida en segundos",
     slide2Pickup: "RECOGEMOS",
@@ -40,7 +40,7 @@ const es = {
     washFoldTitle: "Lavado y Doblado",
     washFoldDesc: "Entrega tu ropa sucia y recíbela limpia, clasificada, lavada, secada y perfectamente doblada.",
     washFoldUnit: "por lb · mín. 20 lb",
-    details: "Programar Recogida »",
+    details: "Programar Recogido »",
     perComforter: "por edredón",
     washOnlyTitle: "Solo Lavado",
     washOnlyDesc: "Ropa lavada y secada, devuelta limpia en una bolsa — sin doblar. Ideal si prefieres doblarla tú.",
@@ -53,7 +53,7 @@ const es = {
     body2: "Dándote más tiempo para lo que realmente importa.",
     photoTag: "Recogida y Entrega",
     photoHeadline: "Vamos a Ti.\nTú Disfrutas la Vida.",
-    photoCta: "Programar Recogida",
+    photoCta: "Programar Recogido",
   },
   steps: {
     heading: "¡Ropa Limpia en 3 Simples Pasos!",
@@ -67,7 +67,7 @@ const es = {
     step3Title: "Disfruta tu Tiempo Libre",
     step3Desc: "Tu ropa será devuelta limpia, doblada y entregada en 72 horas.",
     step3Cta: "Agenda una Recogida »",
-    cta: "Programar Recogida",
+    cta: "Programar Recogido",
   },
   offers: {
     heading: "¡Ofertas Especiales para Hacer el Día de Lavado Más Fácil!",

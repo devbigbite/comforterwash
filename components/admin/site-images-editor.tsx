@@ -328,7 +328,7 @@ export function SiteImagesEditor({
                       <p className="text-[10px] text-gray-400 italic">Leave blank to use Spanish translation automatically.</p>
                       <TextField label="Titular (ES)" value={text.slide_1_headline_es} defaultValue="" placeholder="Servicio de lavandería que se siente como familia" onSave={v => saveText("slide_1_headline_es", v)} />
                       <TextField label="Subtítulo (ES)" value={text.slide_1_subline_es} defaultValue="" placeholder="Recogida y entrega gratis · Orlando FL" onSave={v => saveText("slide_1_subline_es", v)} multiline />
-                      <TextField label="Botón (ES)" value={text.slide_1_cta_es} defaultValue="" placeholder="Programar Recogida" onSave={v => saveText("slide_1_cta_es", v)} />
+                      <TextField label="Botón (ES)" value={text.slide_1_cta_es} defaultValue="" placeholder="Programar Recogido" onSave={v => saveText("slide_1_cta_es", v)} />
                     </>
                   )}
                 </div>
@@ -427,7 +427,7 @@ export function SiteImagesEditor({
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Superposición de foto (ES)</p>
                         <TextField label="Etiqueta (ES)" value={text.why_photo_tag_es} defaultValue="" placeholder="Recogida y entrega" onSave={v => saveText("why_photo_tag_es", v)} />
                         <TextField label="Titular foto (ES)" value={text.why_photo_headline_es} defaultValue="" placeholder="Llegamos a ti.\nTú disfrutas la vida." onSave={v => saveText("why_photo_headline_es", v)} multiline />
-                        <TextField label="Botón foto (ES)" value={text.why_photo_cta_es} defaultValue="" placeholder="Programar Recogida" onSave={v => saveText("why_photo_cta_es", v)} />
+                        <TextField label="Botón foto (ES)" value={text.why_photo_cta_es} defaultValue="" placeholder="Programar Recogido" onSave={v => saveText("why_photo_cta_es", v)} />
                       </div>
                     </>
                   )}
