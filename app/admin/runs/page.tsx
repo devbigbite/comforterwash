@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useTransition } from "react"
-import { createTransportRun, cancelTransportRun, getTransportRuns, getEligibleOrdersForRun, getActiveFacilities, type TransportRun } from "@/app/actions/transport-runs"
+import { createTransportRun, cancelTransportRun, getTransportRuns, getEligibleOrdersForRun, getActiveFacilities, checkFacilityAccessNow, type TransportRun } from "@/app/actions/transport-runs"
 import Link from "next/link"
 
 // ─── This page needs server-fetched data — use a thin server wrapper ──────────
@@ -52,6 +52,7 @@ export default function RunsPage() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set())
   const [eligibleLoading, setEligibleLoading] = useState(false)
   const [tabFilter, setTabFilter]     = useState<"pending" | "completed">("pending")
+  const [accessStatus, setAccessStatus] = useState<{ accessible: boolean; windows: { label: string | null; days_of_week: number[]; start_time: string; end_time: string; overnight: boolean }[] } | null>(null)
 
   async function loadData() {
     setLoading(true)
@@ -66,6 +67,13 @@ export default function RunsPage() {
     loadData()
     getActiveFacilities().then(setFacilities)
   }, [])
+
+  // Check facility access window when facilityId changes
+  useEffect(() => {
+    setAccessStatus(null)
+    if (!facilityId) return
+    checkFacilityAccessNow(facilityId).then(setAccessStatus)
+  }, [facilityId])
 
   // Re-fetch eligible orders when runType or facilityId changes
   useEffect(() => {
@@ -201,6 +209,40 @@ export default function RunsPage() {
                 />
               )}
             </div>
+
+            {/* Access window warning */}
+            {facilityId && accessStatus && (
+              <div className={`rounded-xl px-4 py-3 border text-sm flex items-start gap-2.5 ${
+                accessStatus.accessible
+                  ? "bg-green-50 border-green-200 text-green-800"
+                  : "bg-amber-50 border-amber-200 text-amber-800"
+              }`}>
+                <span className="text-base mt-0.5">{accessStatus.accessible ? "✅" : "⚠️"}</span>
+                <div>
+                  {accessStatus.windows.length === 0 ? (
+                    <p className="font-semibold">No access restrictions — facility available anytime.</p>
+                  ) : accessStatus.accessible ? (
+                    <p className="font-semibold">Currently within access window — good to go.</p>
+                  ) : (
+                    <p className="font-semibold">Outside facility access hours right now.</p>
+                  )}
+                  {accessStatus.windows.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {accessStatus.windows.map((w, i) => {
+                        const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+                        const fmt = (t: string) => { const [h,m] = t.split(":"); const hr=parseInt(h); return `${hr%12||12}:${m} ${hr>=12?"PM":"AM"}` }
+                        const dayList = w.days_of_week.sort((a,b)=>a-b).map(d=>days[d]).join(", ")
+                        return (
+                          <li key={i} className="text-xs opacity-80">
+                            {w.label && <strong>{w.label}: </strong>}{dayList} · {fmt(w.start_time)}–{fmt(w.end_time)}{w.overnight ? " (overnight)" : ""}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Assign to */}
             <div className="grid grid-cols-2 gap-3">

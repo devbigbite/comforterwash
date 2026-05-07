@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import Link from "next/link"
+import { FacilityAccessWindowsEditor, type AccessWindow } from "@/components/admin/FacilityAccessWindowsEditor"
 
 // ── shared field CSS ─────────────────────────────────────────────────────────
 const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-full"
@@ -209,10 +210,15 @@ const STORAGE_LABEL: Record<number, { label: string; color: string }> = {
 
 export default async function FacilitiesPage() {
   const supabase = createAdminClient()
-  const { data: facilities } = await supabase
-    .from("facilities")
-    .select("*, machine_groups(count)")
-    .order("name")
+  const [{ data: facilities }, { data: allWindows }] = await Promise.all([
+    supabase.from("facilities").select("*, machine_groups(count)").order("name"),
+    supabase.from("facility_access_windows").select("*").eq("active", true).order("start_time"),
+  ])
+  const windowsByFacility = (allWindows ?? []).reduce<Record<string, AccessWindow[]>>((acc, w) => {
+    if (!acc[w.facility_id]) acc[w.facility_id] = []
+    acc[w.facility_id].push(w as AccessWindow)
+    return acc
+  }, {})
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -318,6 +324,15 @@ export default async function FacilitiesPage() {
                       Partner Portal ↗
                     </a>
                   )}
+                  {(windowsByFacility[f.id] ?? []).length > 0 ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      🕐 {(windowsByFacility[f.id] ?? []).length} access window{(windowsByFacility[f.id] ?? []).length !== 1 ? "s" : ""}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-50 text-gray-400 border border-gray-200">
+                      No access windows
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -352,6 +367,13 @@ export default async function FacilitiesPage() {
                   </button>
                 </div>
               </form>
+              {/* Access windows editor — outside the edit form so it can use client actions */}
+              <div className="px-5 pb-5 bg-[#f7f8fb] border-t border-gray-100">
+                <FacilityAccessWindowsEditor
+                  facilityId={f.id}
+                  initial={windowsByFacility[f.id] ?? []}
+                />
+              </div>
             </details>
           </div>
         ))}
