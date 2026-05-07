@@ -19,7 +19,7 @@ import {
 // ─────────────────────────────────────────────────────────────────
 // Configuration
 // ─────────────────────────────────────────────────────────────────
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing_configure_in_vercel")
 
 const FROM_CUSTOMER = "WashFold Orlando <hello@washfoldorlando.com>"
 const FROM_ADMIN    = "WashFold Orlando <bookings@washfoldorlando.com>"
