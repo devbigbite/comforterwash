@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { ZipChecker } from "@/components/zip-checker"
+import { MessageUsModal } from "@/components/message-us-modal"
 
 export const metadata = {
   title: "Service Areas | WashFold Orlando",
@@ -80,10 +81,10 @@ export default async function ServiceAreasPage() {
         <div className="rounded-2xl bg-[#0D2240] p-8 text-center mt-10">
           <p className="text-white font-extrabold text-xl mb-2">Don&apos;t see your ZIP code?</p>
           <p className="text-white/60 text-sm mb-5">We&apos;re expanding fast. Reach out and we&apos;ll let you know when we&apos;re in your area.</p>
-          <a href="tel:4075550100"
-            className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-8 py-3 rounded-full uppercase tracking-wide transition-colors">
-            Call Us
-          </a>
+          <MessageUsModal
+            label="Message Us"
+            className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-8 py-3 rounded-full uppercase tracking-wide transition-colors cursor-pointer"
+          />
         </div>
       </div>
 
