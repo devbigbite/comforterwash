@@ -18,7 +18,10 @@ const NAV_LINKS = [
   { href: "/admin/facilities",    label: "Facilities" },
   { href: "/admin/zip-codes",     label: "Areas" },
   { href: "/admin/service-area",  label: "Area Map" },
-  { href: "/operator",            label: "Operator →" },
+  { href: "/admin/settings",      label: "Settings" },
+  { href: "/staff",                 label: "Staff Clock" },
+  { href: "/driver",                label: "Driver →" },
+  { href: "/operator",              label: "Operator →" },
 ]
 
 export function AdminHeader() {
