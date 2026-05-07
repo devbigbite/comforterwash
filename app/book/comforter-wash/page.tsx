@@ -1,5 +1,6 @@
 import { BookingForm } from "@/components/booking-form"
 import { LangToggle } from "@/components/lang-toggle"
+import { BookingPageTitle } from "@/components/booking-page-title"
 import Link from "next/link"
 
 export const metadata = {
@@ -36,7 +37,7 @@ export default function ComforterWashPage() {
           <span className="text-2xl">🛏️</span>
           <span className="text-white font-bold text-sm">Comforter Wash</span>
         </div>
-        <h1 className="text-3xl font-extrabold text-white mb-1">Schedule Your Pickup</h1>
+        <h1 className="text-3xl font-extrabold text-white mb-1"><BookingPageTitle /></h1>
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-10">

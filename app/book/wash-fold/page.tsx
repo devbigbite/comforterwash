@@ -1,5 +1,6 @@
 import { WashFoldForm } from "@/components/wash-fold-form"
 import { LangToggle } from "@/components/lang-toggle"
+import { BookingPageTitle } from "@/components/booking-page-title"
 import Link from "next/link"
 
 export const metadata = {
@@ -36,7 +37,7 @@ export default function WashFoldPage() {
           <span className="text-2xl">👕</span>
           <span className="text-white font-bold text-sm">Wash &amp; Fold</span>
         </div>
-        <h1 className="text-3xl font-extrabold text-white mb-1">Schedule Your Pickup</h1>
+        <h1 className="text-3xl font-extrabold text-white mb-1"><BookingPageTitle /></h1>
         <p className="text-white/60 text-sm">$2.40/lb one-time · $2.15/lb with subscription · 20 lb minimum</p>
       </div>
 

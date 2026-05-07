@@ -221,6 +221,11 @@ const es = {
     standard:      "Estándar",
     bag:           "bolsa",
     bags:          "bolsas",
+    schedulePickup:     "Programa tu Recogido",
+    contactInfoSubtitle: "Entra tu Información de Contacto y Dirección de Servicio",
+    pickupAddressLabel:  "Dirección de Recogida",
+    deliveryAddressLabel: "Dirección de Entrega",
+    sameAddressLabel:    "Misma dirección para Pickup & Delivery",
   },
 
   // ── Comforter booking form ──────────────────────────────────────────────────

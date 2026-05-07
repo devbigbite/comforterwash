@@ -272,8 +272,8 @@ export function BookingForm() {
               { label: tf.labelName,     value: formData.name },
               { label: tf.labelPickup,   value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
               { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
-              { label: "Pickup Address", value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
-              ...(!formData.sameAddress ? [{ label: "Delivery Address", value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
+              { label: tf.pickupAddressLabel, value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
+              ...(!formData.sameAddress ? [{ label: tf.deliveryAddressLabel, value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
               { label: tf.labelAddOns,   value: addOnsSummary },
             ].map(row => (
               <div key={row.label} className="flex justify-between gap-4 text-sm">
@@ -629,7 +629,7 @@ export function BookingForm() {
           <div className="space-y-5">
             <div>
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.whereToGo}</h3>
-              <p className="text-sm text-gray-400">Enter your contact info and service address.</p>
+              <p className="text-sm text-gray-400">{tf.contactInfoSubtitle}</p>
             </div>
             <div className="space-y-4">
               {CONTACT_FIELDS.map(({ label, key, placeholder, type }) => (
@@ -644,7 +644,7 @@ export function BookingForm() {
 
               {/* Pickup address */}
               <div className="space-y-2">
-                <Label className="font-semibold text-[#0D2240] text-sm">Pickup Address</Label>
+                <Label className="font-semibold text-[#0D2240] text-sm">{tf.pickupAddressLabel}</Label>
                 <Input placeholder="Street address" value={formData.pickupStreet}
                   onChange={e => setFormData(p => ({ ...p, pickupStreet: e.target.value }))}
                   className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
@@ -664,13 +664,13 @@ export function BookingForm() {
               {/* Same address toggle */}
               <label className="flex items-center gap-2.5 cursor-pointer bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5">
                 <Checkbox checked={formData.sameAddress} onCheckedChange={c => setFormData(p => ({ ...p, sameAddress: c as boolean }))} />
-                <span className="text-sm text-gray-700 font-medium">Same address for pickup &amp; delivery</span>
+                <span className="text-sm text-gray-700 font-medium">{tf.sameAddressLabel}</span>
               </label>
 
               {/* Delivery address (shown when different) */}
               {!formData.sameAddress && (
                 <div className="space-y-2">
-                  <Label className="font-semibold text-[#0D2240] text-sm">Delivery Address</Label>
+                  <Label className="font-semibold text-[#0D2240] text-sm">{tf.deliveryAddressLabel}</Label>
                   <Input placeholder="Street address" value={formData.deliveryStreet}
                     onChange={e => setFormData(p => ({ ...p, deliveryStreet: e.target.value }))}
                     className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
@@ -709,8 +709,8 @@ export function BookingForm() {
               {[
                 { label: tf.labelPickup,    value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
                 { label: tf.labelDelivery,  value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
-                { label: "Pickup Address",  value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
-                ...(!formData.sameAddress ? [{ label: "Delivery Address", value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
+                { label: tf.pickupAddressLabel,  value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
+                ...(!formData.sameAddress ? [{ label: tf.deliveryAddressLabel, value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
                 { label: tf.labelAddOns,    value: addOnsSummary },
               ].map(row => (
                 <div key={row.label} className="flex justify-between gap-4">

@@ -1,5 +1,6 @@
 import { WashOnlyForm } from "@/components/wash-only-form"
 import { LangToggle } from "@/components/lang-toggle"
+import { BookingPageTitle } from "@/components/booking-page-title"
 import Link from "next/link"
 
 export const metadata = {
@@ -34,7 +35,7 @@ export default function WashOnlyPage() {
           <span className="text-2xl">🧺</span>
           <span className="text-white font-bold text-sm">Wash Only</span>
         </div>
-        <h1 className="text-3xl font-extrabold text-white mb-1">Schedule Your Pickup</h1>
+        <h1 className="text-3xl font-extrabold text-white mb-1"><BookingPageTitle /></h1>
         <p className="text-white/60 text-sm">$1.99/lb · 20 lb minimum · Returned clean, unfolded</p>
       </div>
 

@@ -221,6 +221,11 @@ const en = {
     standard:      "Standard",
     bag:           "bag",
     bags:          "bags",
+    schedulePickup:     "Schedule Your Pickup",
+    contactInfoSubtitle: "Enter your contact info and service address.",
+    pickupAddressLabel:  "Pickup Address",
+    deliveryAddressLabel: "Delivery Address",
+    sameAddressLabel:    "Same address for pickup & delivery",
   },
 
   // ── Comforter booking form ──────────────────────────────────────────────────
