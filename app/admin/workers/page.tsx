@@ -157,7 +157,18 @@ export default async function WorkersPage({
                       </summary>
                       <form action={updatePayRates} className="mt-3 bg-white border border-gray-200 rounded-xl p-4 space-y-3 min-w-[340px]">
                         <input type="hidden" name="workerId" value={w.id} />
-                        <p className="text-xs font-bold text-[#0D2240] uppercase tracking-wide">Driver Rates</p>
+                        {/* Hourly wage — used for clock-in/out pay calculation */}
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
+                          <span className="text-lg">⏱</span>
+                          <div className="flex-1">
+                            <label className="text-[10px] text-amber-700 uppercase tracking-wide font-bold block mb-1">Hourly Wage ($/hr)</label>
+                            <input type="number" name="hourly_wage" step="0.01" min="0"
+                              defaultValue={((w.hourly_wage_cents ?? 0) / 100).toFixed(2)}
+                              className="w-full border border-amber-200 bg-white rounded-lg px-3 py-2 text-sm font-bold text-[#0D2240] focus:outline-none focus:border-amber-400" />
+                          </div>
+                          <p className="text-[10px] text-amber-600 leading-tight max-w-[90px]">Used for time-sheet pay calculations</p>
+                        </div>
+                        <p className="text-xs font-bold text-[#0D2240] uppercase tracking-wide">Driver Stripe Rates</p>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="text-[10px] text-gray-400 uppercase tracking-wide block mb-1">Per Order ($)</label>
@@ -172,7 +183,7 @@ export default async function WorkersPage({
                               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#E8726A]" />
                           </div>
                         </div>
-                        <p className="text-xs font-bold text-[#0D2240] uppercase tracking-wide pt-1">Operator Rates</p>
+                        <p className="text-xs font-bold text-[#0D2240] uppercase tracking-wide pt-1">Operator Stripe Rates</p>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="text-[10px] text-gray-400 uppercase tracking-wide block mb-1">Per Hour ($)</label>
@@ -217,30 +228,4 @@ export default async function WorkersPage({
 
 // Client component just for the Stripe button (needs redirect)
 function StripeConnectButton({ workerId, hasAccount, onboardingComplete }: {
-  workerId: string
-  hasAccount: boolean
-  onboardingComplete: boolean
-}) {
-  return (
-    <form action={async () => {
-      "use server"
-      const { createStripeConnectAccount } = await import("@/app/actions/workers")
-      const result = await createStripeConnectAccount(workerId)
-      if (result.url) {
-        // We can't redirect from a server action embedded in RSC easily,
-        // so we link to the worker detail page which handles this
-      }
-    }}>
-      <Link href={`/admin/workers/${workerId}`}
-        className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors uppercase tracking-wide border ${
-          onboardingComplete
-            ? "border-green-200 text-green-700 bg-green-50"
-            : hasAccount
-            ? "border-amber-200 text-amber-700 bg-amber-50"
-            : "border-[#0D2240] text-[#0D2240] hover:bg-[#0D2240] hover:text-white"
-        }`}>
-        {onboardingComplete ? "✓ Stripe Connected" : hasAccount ? "⏳ Resend Stripe Link" : "⚡ Connect Stripe"}
-      </Link>
-    </form>
-  )
-}
+  worker

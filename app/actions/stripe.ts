@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createBooking } from "./bookings"
 import { createSubscription } from "./subscriptions"
+import { sendBookingConfirmationEmail, sendAdminNewOrderEmail } from "@/lib/email"
 
 // ── Checkout session ──────────────────────────────────────────────────────────
 // amountCents: the pre-auth ceiling (already includes 25% buffer for wash-fold)
@@ -131,11 +132,6 @@ export async function handleSuccessfulPayment(sessionId: string) {
           firstDeliveryDateStr:  meta.deliveryDate,
         }).catch(err => console.error("[stripe] createSubscription failed:", err))
       }
-    }
 
-    return { success: true }
-  } catch (error) {
-    console.error("[stripe] handleSuccessfulPayment error:", error)
-    return { success: false, error: "Failed to save booking" }
-  }
-}
+      // ── Send confirmation emails (fire-and-forget, don't block payment) ──
+      if (meta.custome

@@ -58,6 +58,7 @@ export async function updatePayRates(formData: FormData) {
     driver_per_mile_cents:    Math.round(parseFloat(formData.get("driver_per_mile") as string || "0") * 100),
     operator_per_hour_cents:  Math.round(parseFloat(formData.get("operator_per_hour") as string || "0") * 100),
     operator_per_mile_cents:  Math.round(parseFloat(formData.get("operator_per_mile") as string || "0") * 100),
+    hourly_wage_cents:        Math.round(parseFloat(formData.get("hourly_wage") as string || "0") * 100),
     status: "active",
   }).eq("id", workerId)
 
@@ -183,7 +184,4 @@ export async function issuePayout(formData: FormData) {
     notes:             notes || null,
   })
 
-  revalidatePath("/admin/workers")
-  revalidatePath(`/admin/workers/${workerId}`)
-  return { success: true, amountCents }
-}
+  revalidatePath("

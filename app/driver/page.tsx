@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { PinGate } from "@/components/pin-gate"
+import { getPendingRunsForRole } from "@/app/actions/transport-runs"
+import type { TransportRun } from "@/app/actions/transport-runs"
 
 interface RouteOrder {
   id: string
@@ -23,15 +25,21 @@ export default function DriverHome() {
   const [error, setError] = useState("")
   const [pickups, setPickups] = useState<RouteOrder[]>([])
   const [deliveries, setDeliveries] = useState<RouteOrder[]>([])
+  const [pendingRuns, setPendingRuns] = useState<TransportRun[]>([])
   const [routeLoading, setRouteLoading] = useState(true)
   const router = useRouter()
 
   const today = new Date().toISOString().split("T")[0]
 
   useEffect(() => {
-    async function loadRoute() {
+    async function loadData() {
       const supabase = createClient()
-      const [{ data: todayPickups }, { data: todayDeliveries }] = await Promise.all([
+
+      const [
+        { data: todayPickups },
+        { data: todayDeliveries },
+        runs,
+      ] = await Promise.all([
         supabase
           .from("bookings")
           .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
@@ -42,30 +50,31 @@ export default function DriverHome() {
           .from("bookings")
           .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
           .eq("delivery_date", today)
-          .eq("status", "ready")
+          .eq("status", "ready_at_warehouse")
           .order("delivery_date"),
+        getPendingRunsForRole("driver"),
       ])
+
       setPickups(todayPickups ?? [])
       setDeliveries(todayDeliveries ?? [])
+      setPendingRuns(runs)
       setRouteLoading(false)
     }
-    loadRoute()
+    loadData()
   }, [today])
 
   async function lookup() {
-    const cleaned = code.trim().replace(/\D/g, "") // digits only
+    const cleaned = code.trim().replace(/\D/g, "")
     if (cleaned.length < 4) { setError("Enter at least 4 digits"); return }
     setLoading(true)
     setError("")
     const supabase = createClient()
-    // Exact 6-digit short code match
     const { data: byCode } = await supabase
       .from("bookings")
       .select("id")
       .eq("short_code", cleaned)
       .maybeSingle()
     if (byCode) { router.push(`/driver/order/${byCode.id}`); return }
-    // Fallback prefix match for legacy orders
     const { data: byId } = await supabase
       .from("bookings")
       .select("id")
@@ -77,7 +86,6 @@ export default function DriverHome() {
     router.push(`/driver/order/${byId.id}`)
   }
 
-  // Hidden input captures barcode scanner keystrokes
   function handleScannerInput(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/\D/g, "").slice(0, 6)
     setCode(digits)
@@ -86,6 +94,9 @@ export default function DriverHome() {
   function handleScannerKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter" && code.length >= 4) lookup()
   }
+
+  const toFacilityRuns  = pendingRuns.filter(r => r.run_type === "to_facility")
+  const toWarehouseRuns = pendingRuns.filter(r => r.run_type === "to_warehouse")
 
   return (
     <PinGate role="driver">
@@ -99,36 +110,80 @@ export default function DriverHome() {
         <p className="text-white/50 text-sm">WashFold Orlando · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}</p>
       </div>
 
-      {/* Capability description */}
-      <div className="px-4 pb-4 max-w-sm mx-auto">
-        <div className="bg-white/8 rounded-2xl px-5 py-4 space-y-3">
-          <p className="text-white/70 text-xs font-bold uppercase tracking-widest">What you can do here</p>
-          <div className="space-y-2.5">
-            {[
-              { icon: "📦", text: "View today's pickups — customers expecting you to collect their laundry bags" },
-              { icon: "🏭", text: "Check bags in at the facility — scan or enter each bag's 6-digit code to log arrival" },
-              { icon: "🎉", text: "See orders marked Ready — bags fully processed and waiting for delivery" },
-              { icon: "✅", text: "Mark orders delivered once clean laundry is handed back to the customer" },
-            ].map(({ icon, text }) => (
-              <div key={text} className="flex items-start gap-3">
-                <span className="text-base shrink-0 mt-0.5">{icon}</span>
-                <p className="text-white/50 text-xs leading-relaxed">{text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       <div className="px-4 space-y-4 pb-10 max-w-sm mx-auto">
 
-        {/* Loading state */}
         {routeLoading && (
           <div className="text-center py-4">
-            <p className="text-white/30 text-sm">Loading today&apos;s route…</p>
+            <p className="text-white/30 text-sm">Loading…</p>
           </div>
         )}
 
-        {/* Today's pickups */}
+        {/* ── Pending transport runs ──────────────────────────── */}
+        {!routeLoading && toFacilityRuns.length > 0 && (
+          <div>
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">
+              🏭 Transport to Facility ({toFacilityRuns.length})
+            </p>
+            <div className="space-y-2">
+              {toFacilityRuns.map(run => (
+                <button
+                  key={run.id}
+                  onClick={() => router.push(`/driver/run/${run.id}`)}
+                  className="w-full bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-2xl p-4 text-left transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-bold text-sm">
+                        🏭 {run.facility_name ?? "Facility"} run
+                      </p>
+                      <p className="text-white/50 text-xs mt-0.5">
+                        {run.order_ids.length} order{run.order_ids.length !== 1 ? "s" : ""} · Warehouse → Facility
+                      </p>
+                      {run.notes && (
+                        <p className="text-white/30 text-xs mt-0.5 truncate">{run.notes}</p>
+                      )}
+                    </div>
+                    <span className="text-purple-300 font-bold text-xs shrink-0">EXECUTE →</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!routeLoading && toWarehouseRuns.length > 0 && (
+          <div>
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">
+              🏪 Return to Warehouse ({toWarehouseRuns.length})
+            </p>
+            <div className="space-y-2">
+              {toWarehouseRuns.map(run => (
+                <button
+                  key={run.id}
+                  onClick={() => router.push(`/driver/run/${run.id}`)}
+                  className="w-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-2xl p-4 text-left transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-bold text-sm">
+                        🏪 {run.facility_name ?? "Facility"} → Warehouse
+                      </p>
+                      <p className="text-white/50 text-xs mt-0.5">
+                        {run.order_ids.length} order{run.order_ids.length !== 1 ? "s" : ""} · Facility → Warehouse
+                      </p>
+                      {run.notes && (
+                        <p className="text-white/30 text-xs mt-0.5 truncate">{run.notes}</p>
+                      )}
+                    </div>
+                    <span className="text-amber-300 font-bold text-xs shrink-0">EXECUTE →</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Today's pickups ─────────────────────────────────── */}
         {!routeLoading && pickups.length > 0 && (
           <div>
             <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">📦 Today&apos;s Pickups ({pickups.length})</p>
@@ -155,7 +210,7 @@ export default function DriverHome() {
           </div>
         )}
 
-        {/* Today's deliveries */}
+        {/* ── Ready to deliver ────────────────────────────────── */}
         {!routeLoading && deliveries.length > 0 && (
           <div>
             <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">🎉 Ready to Deliver ({deliveries.length})</p>
@@ -182,30 +237,28 @@ export default function DriverHome() {
           </div>
         )}
 
-        {!routeLoading && pickups.length === 0 && deliveries.length === 0 && (
+        {!routeLoading && pickups.length === 0 && deliveries.length === 0 && pendingRuns.length === 0 && (
           <div className="bg-white/5 rounded-2xl px-5 py-5 text-center">
             <p className="text-2xl mb-2">🚐</p>
-            <p className="text-white/50 text-sm font-semibold">No scheduled stops for today.</p>
+            <p className="text-white/50 text-sm font-semibold">Nothing assigned for today.</p>
             <p className="text-white/30 text-xs mt-1 leading-relaxed">
-              Pickups and ready deliveries will appear here.<br />
+              Pickups, deliveries, and transport runs will appear here.<br />
               Use the lookup below to find any order by its bag label code.
             </p>
           </div>
         )}
 
-        {/* Manual lookup — custom numeric keypad */}
+        {/* Manual lookup */}
         <div className="bg-white rounded-3xl p-5 shadow-2xl">
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
             Find an order
           </label>
 
-          {/* Hidden input — captures barcode scanner without showing system keyboard */}
           <input
             type="text" aria-hidden="true" tabIndex={-1}
             value={code} onChange={handleScannerInput} onKeyDown={handleScannerKey}
             className="sr-only" autoComplete="off" />
 
-          {/* Display */}
           <div className={`w-full rounded-2xl border-2 px-4 py-3 mb-1 text-center transition-colors ${error ? "border-red-300 bg-red-50" : code.length > 0 ? "border-[#E8726A]" : "border-gray-200"}`}>
             {code.length > 0 ? (
               <span className="text-3xl font-mono font-bold text-[#0D2240] tracking-[0.4em]">{code}</span>
@@ -215,53 +268,4 @@ export default function DriverHome() {
           </div>
           {error && <p className="text-sm text-red-500 font-medium mb-2 text-center">{error}</p>}
 
-          {/* Numeric keypad */}
-          <div className="grid grid-cols-3 gap-2 mt-3">
-            {["1","2","3","4","5","6","7","8","9"].map(n => (
-              <button key={n} type="button"
-                onClick={() => { if (code.length < 6) { setCode(c => c + n); setError("") } }}
-                className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">
-                {n}
-              </button>
-            ))}
-            {/* Bottom row: clear, 0, backspace */}
-            <button type="button"
-              onClick={() => { setCode(""); setError("") }}
-              className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 active:bg-red-100 text-gray-400 font-bold text-sm transition-colors select-none">
-              CLR
-            </button>
-            <button type="button"
-              onClick={() => { if (code.length < 6) { setCode(c => c + "0"); setError("") } }}
-              className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">
-              0
-            </button>
-            <button type="button"
-              onClick={() => { setCode(c => c.slice(0, -1)); setError("") }}
-              className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 active:bg-amber-100 text-gray-500 font-bold text-xl transition-colors select-none">
-              ⌫
-            </button>
-          </div>
-
-          <button
-            onClick={lookup}
-            disabled={loading || code.length < 4}
-            className="w-full mt-3 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors">
-            {loading ? "Looking up…" : "Find Order →"}
-          </button>
-
-          <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
-            <span className="text-sm mt-0.5">📷</span>
-            <p className="text-[11px] text-gray-400 leading-relaxed">
-              <strong className="text-gray-500">Using a barcode scanner?</strong> It will auto-fill the number and submit.
-            </p>
-          </div>
-        </div>
-
-        <div className="text-center">
-          <a href="/operator" className="text-white/20 text-xs hover:text-white/40 transition-colors">Switch to Operator view</a>
-        </div>
-      </div>
-    </div>
-    </PinGate>
-  )
-}
+          <div className="grid grid-cols-3 gap-2 mt-3

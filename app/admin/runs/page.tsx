@@ -1,0 +1,435 @@
+"use client"
+
+import { useState, useEffect, useTransition } from "react"
+import { createTransportRun, cancelTransportRun, getTransportRuns, getEligibleOrdersForRun, getActiveFacilities, type TransportRun } from "@/app/actions/transport-runs"
+import Link from "next/link"
+
+// ─── This page needs server-fetched data — use a thin server wrapper ──────────
+// We keep it client for the interactive create form.
+// Data is loaded via useEffect calls to the server actions.
+
+interface Facility { id: string; name: string; address: string | null }
+interface EligibleOrder {
+  id: string; short_code: string | null; customer_name: string
+  customer_address: string; num_bags: number | null; service_type: string
+  actual_weight_lbs: number | null
+}
+
+const RUN_TYPE_LABEL: Record<string, string> = {
+  to_facility:  "Warehouse → Facility",
+  to_warehouse: "Facility → Warehouse",
+}
+const RUN_TYPE_ICON: Record<string, string> = {
+  to_facility:  "🏭",
+  to_warehouse: "📦",
+}
+const STATUS_STYLE: Record<string, string> = {
+  pending:   "bg-amber-100 text-amber-700",
+  completed: "bg-green-100 text-green-700",
+  cancelled: "bg-gray-100 text-gray-500",
+}
+
+function serviceLabel(st: string) {
+  if (st === "wash_fold") return "W&F"
+  if (st === "wash_only") return "Wash Only"
+  return "Comforter"
+}
+
+export default function RunsPage() {
+  const [runs, setRuns]           = useState<TransportRun[]>([])
+  const [facilities, setFacilities] = useState<Facility[]>([])
+  const [eligible, setEligible]   = useState<EligibleOrder[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [showCreate, setShowCreate] = useState(false)
+  const [isPending, startTransition] = useTransition()
+
+  // Create-form state
+  const [runType, setRunType]         = useState<"to_facility" | "to_warehouse">("to_facility")
+  const [facilityId, setFacilityId]   = useState("")
+  const [assignedTo, setAssignedTo]   = useState("")
+  const [assignedRole, setAssignedRole] = useState<"driver" | "operator">("driver")
+  const [notes, setNotes]             = useState("")
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set())
+  const [eligibleLoading, setEligibleLoading] = useState(false)
+  const [tabFilter, setTabFilter]     = useState<"pending" | "completed">("pending")
+
+  async function loadData() {
+    setLoading(true)
+    const [runsData] = await Promise.all([
+      getTransportRuns(["pending", "completed", "cancelled"]),
+    ])
+    setRuns(runsData)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadData()
+    getActiveFacilities().then(setFacilities)
+  }, [])
+
+  // Re-fetch eligible orders when runType or facilityId changes
+  useEffect(() => {
+    if (!showCreate) return
+    setEligibleLoading(true)
+    setSelectedOrderIds(new Set())
+    getEligibleOrdersForRun(runType, facilityId || undefined)
+      .then(data => { setEligible(data as EligibleOrder[]); setEligibleLoading(false) })
+  }, [runType, facilityId, showCreate])
+
+  function toggleOrder(id: string) {
+    setSelectedOrderIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    if (selectedOrderIds.size === eligible.length) {
+      setSelectedOrderIds(new Set())
+    } else {
+      setSelectedOrderIds(new Set(eligible.map(o => o.id)))
+    }
+  }
+
+  async function handleCreate() {
+    if (!facilityId || !assignedTo.trim() || selectedOrderIds.size === 0) return
+    const fd = new FormData()
+    fd.append("runType",      runType)
+    fd.append("facilityId",   facilityId)
+    fd.append("assignedTo",   assignedTo.trim())
+    fd.append("assignedRole", assignedRole)
+    fd.append("notes",        notes)
+    fd.append("orderIds",     [...selectedOrderIds].join(","))
+
+    startTransition(async () => {
+      const result = await createTransportRun(fd)
+      if (result.error) { alert(result.error); return }
+      setShowCreate(false)
+      setRunType("to_facility")
+      setFacilityId("")
+      setAssignedTo("")
+      setNotes("")
+      setSelectedOrderIds(new Set())
+      await loadData()
+    })
+  }
+
+  async function handleCancel(runId: string) {
+    if (!confirm("Cancel this run? Orders will remain at their current status.")) return
+    await cancelTransportRun(runId)
+    await loadData()
+  }
+
+  const filteredRuns = runs.filter(r =>
+    tabFilter === "pending" ? r.status === "pending" : r.status !== "pending"
+  )
+
+  const pendingCount   = runs.filter(r => r.status === "pending").length
+  const completedCount = runs.filter(r => r.status === "completed").length
+
+  return (
+    <div className="min-h-screen bg-[#f7f8fb]">
+      <div className="mx-auto max-w-4xl px-4 py-8">
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-extrabold text-[#0D2240]">Transport Runs</h1>
+            <p className="text-sm text-gray-400 mt-0.5">Batch warehouse ↔ facility transport jobs</p>
+          </div>
+          <button
+            onClick={() => setShowCreate(s => !s)}
+            className="bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors"
+          >
+            {showCreate ? "✕ Cancel" : "+ New Run"}
+          </button>
+        </div>
+
+        {/* ── Create Run Panel ──────────────────────────────────────── */}
+        {showCreate && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8 space-y-5">
+            <h2 className="font-extrabold text-[#0D2240] text-lg">Create Transport Run</h2>
+
+            {/* Run type */}
+            <div className="grid grid-cols-2 gap-3">
+              {(["to_facility", "to_warehouse"] as const).map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setRunType(type)}
+                  className={`rounded-xl border-2 p-4 text-left transition-colors ${
+                    runType === type
+                      ? "border-[#E8726A] bg-orange-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <p className="text-2xl mb-1">{RUN_TYPE_ICON[type]}</p>
+                  <p className="font-bold text-[#0D2240] text-sm">{RUN_TYPE_LABEL[type]}</p>
+                  <p className="text-gray-400 text-xs mt-0.5">
+                    {type === "to_facility"
+                      ? "Pick up at_warehouse orders → drop at laundromat"
+                      : "Pick up ready orders at laundromat → return to warehouse"}
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            {/* Facility */}
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                {runType === "to_facility" ? "Destination Facility" : "Source Facility"} *
+              </label>
+              {facilities.length > 0 ? (
+                <select
+                  value={facilityId}
+                  onChange={e => setFacilityId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                >
+                  <option value="">— select facility —</option>
+                  {facilities.map(f => (
+                    <option key={f.id} value={f.id}>{f.name}{f.address ? ` · ${f.address}` : ""}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={facilityId}
+                  onChange={e => setFacilityId(e.target.value)}
+                  placeholder="Facility ID (facilities loading…)"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none"
+                />
+              )}
+            </div>
+
+            {/* Assign to */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Assign To *
+                </label>
+                <input
+                  value={assignedTo}
+                  onChange={e => setAssignedTo(e.target.value)}
+                  placeholder="Worker name"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Role *
+                </label>
+                <select
+                  value={assignedRole}
+                  onChange={e => setAssignedRole(e.target.value as "driver" | "operator")}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                >
+                  <option value="driver">Driver</option>
+                  <option value="operator">Operator</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Orders */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Orders to Include *
+                  {selectedOrderIds.size > 0 && (
+                    <span className="ml-2 text-[#E8726A]">({selectedOrderIds.size} selected)</span>
+                  )}
+                </label>
+                {eligible.length > 0 && (
+                  <button type="button" onClick={toggleAll}
+                    className="text-xs text-[#E8726A] font-semibold hover:underline">
+                    {selectedOrderIds.size === eligible.length ? "Deselect all" : "Select all"}
+                  </button>
+                )}
+              </div>
+
+              {!facilityId && (
+                <p className="text-sm text-gray-400 py-4 text-center bg-gray-50 rounded-xl">
+                  Select a facility first to see eligible orders.
+                </p>
+              )}
+
+              {facilityId && eligibleLoading && (
+                <p className="text-sm text-gray-400 py-4 text-center bg-gray-50 rounded-xl">Loading orders…</p>
+              )}
+
+              {facilityId && !eligibleLoading && eligible.length === 0 && (
+                <div className="bg-gray-50 rounded-xl py-6 text-center">
+                  <p className="text-gray-400 text-sm font-semibold">No eligible orders</p>
+                  <p className="text-gray-400 text-xs mt-1">
+                    {runType === "to_facility"
+                      ? "No orders are currently at_warehouse waiting for transport."
+                      : "No orders are ready at this facility for return transport."}
+                  </p>
+                </div>
+              )}
+
+              {facilityId && !eligibleLoading && eligible.length > 0 && (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {eligible.map(o => (
+                    <label
+                      key={o.id}
+                      className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
+                        selectedOrderIds.has(o.id)
+                          ? "border-[#E8726A] bg-orange-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedOrderIds.has(o.id)}
+                        onChange={() => toggleOrder(o.id)}
+                        className="mt-0.5 accent-[#E8726A]"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-[#0D2240] text-sm">{o.customer_name}</span>
+                          <span className="font-mono text-xs text-gray-400">{o.short_code ?? o.id.slice(0,6).toUpperCase()}</span>
+                        </div>
+                        <p className="text-xs text-gray-500 truncate mt-0.5">{o.customer_address}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-xs font-bold text-gray-600">{serviceLabel(o.service_type)}</p>
+                        <p className="text-xs text-gray-400">{o.num_bags ?? "?"} bags</p>
+                        {o.actual_weight_lbs && (
+                          <p className="text-xs text-green-600 font-semibold">{o.actual_weight_lbs} lbs</p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Notes (optional)</label>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={2}
+                placeholder="Any instructions for the driver/operator…"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 resize-none"
+              />
+            </div>
+
+            <button
+              onClick={handleCreate}
+              disabled={isPending || !facilityId || !assignedTo.trim() || selectedOrderIds.size === 0}
+              className="w-full bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white font-extrabold py-3.5 rounded-xl text-sm transition-colors"
+            >
+              {isPending
+                ? "Creating…"
+                : `Create Run · ${selectedOrderIds.size} order${selectedOrderIds.size !== 1 ? "s" : ""} · ${
+                    runType === "to_facility"
+                      ? `→ ${facilities.find(f => f.id === facilityId)?.name ?? "facility"}`
+                      : `→ Warehouse`
+                  }`
+              }
+            </button>
+          </div>
+        )}
+
+        {/* ── Tabs ─────────────────────────────────────────────────── */}
+        <div className="flex gap-2 mb-4">
+          {([["pending", `Pending (${pendingCount})`], ["completed", `History (${completedCount})`]] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setTabFilter(key)}
+              className={`px-4 py-2 rounded-xl font-bold text-sm transition-colors ${
+                tabFilter === key
+                  ? "bg-[#0D2240] text-white"
+                  : "bg-white text-gray-500 border border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Run List ─────────────────────────────────────────────── */}
+        {loading ? (
+          <div className="text-center py-12 text-gray-400 text-sm">Loading runs…</div>
+        ) : filteredRuns.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+            <p className="text-3xl mb-3">{tabFilter === "pending" ? "🚐" : "✅"}</p>
+            <p className="text-gray-400 text-sm font-semibold">
+              {tabFilter === "pending" ? "No pending runs. Create one above." : "No completed runs yet."}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredRuns.map(run => (
+              <div key={run.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-xl">{RUN_TYPE_ICON[run.run_type]}</span>
+                      <span className="font-extrabold text-[#0D2240]">{RUN_TYPE_LABEL[run.run_type]}</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[run.status]}`}>
+                        {run.status}
+                      </span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        run.assigned_role === "driver"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-purple-100 text-purple-700"
+                      }`}>
+                        {run.assigned_role}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      <strong>{run.facility_name ?? "Facility"}</strong>
+                      {" · "}
+                      {run.order_ids.length} order{run.order_ids.length !== 1 ? "s" : ""}
+                      {" · Assigned to "}
+                      <strong>{run.assigned_to}</strong>
+                    </p>
+                    {run.notes && (
+                      <p className="text-xs text-gray-400 mt-1 italic">"{run.notes}"</p>
+                    )}
+                    {run.completed_at && (
+                      <p className="text-xs text-green-600 mt-1 font-semibold">
+                        ✅ Completed {new Date(run.completed_at).toLocaleString()} by {run.completed_by}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">
+                      Created {new Date(run.created_at).toLocaleString()}
+                      {" · "}
+                      <span className="font-mono">{run.id.slice(0,8).toUpperCase()}</span>
+                    </p>
+                  </div>
+
+                  {run.status === "pending" && (
+                    <button
+                      onClick={() => handleCancel(run.id)}
+                      className="shrink-0 text-xs text-red-400 hover:text-red-600 font-semibold px-3 py-1.5 border border-red-200 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+
+                {/* Order IDs list (compact) */}
+                <div className="mt-3 pt-3 border-t border-gray-50 flex flex-wrap gap-1.5">
+                  {run.order_ids.map(oid => (
+                    <Link
+                      key={oid}
+                      href={`/admin/orders/${oid}`}
+                      className="text-xs font-mono bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded-lg transition-colors"
+                    >
+                      {oid.slice(0,8).toUpperCase()}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

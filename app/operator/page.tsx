@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { PinGate } from "@/components/pin-gate"
+import { getPendingRunsForRole } from "@/app/actions/transport-runs"
+import type { TransportRun } from "@/app/actions/transport-runs"
 
 interface WorkOrder {
   id: string
@@ -24,19 +26,21 @@ interface Facility {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  at_facility: "At Facility",
-  in_washer:   "In Washer",
-  in_dryer:    "In Dryer",
-  folded:      "Folded",
-  ready:       "Ready",
+  at_warehouse: "At Warehouse",
+  at_facility:  "At Facility",
+  in_washer:    "In Washer",
+  in_dryer:     "In Dryer",
+  folded:       "Folded",
+  ready:        "Ready",
 }
 
 const STATUS_DOT: Record<string, string> = {
-  at_facility: "bg-purple-400",
-  in_washer:   "bg-cyan-400",
-  in_dryer:    "bg-orange-400",
-  folded:      "bg-yellow-400",
-  ready:       "bg-green-400",
+  at_warehouse: "bg-amber-400",
+  at_facility:  "bg-purple-400",
+  in_washer:    "bg-cyan-400",
+  in_dryer:     "bg-orange-400",
+  folded:       "bg-yellow-400",
+  ready:        "bg-green-400",
 }
 
 export default function OperatorHome() {
@@ -44,28 +48,28 @@ export default function OperatorHome() {
   const [lookupLoading, setLookupLoading] = useState(false)
   const [error, setError] = useState("")
   const [queue, setQueue] = useState<WorkOrder[]>([])
+  const [pendingRuns, setPendingRuns] = useState<TransportRun[]>([])
   const [queueLoading, setQueueLoading] = useState(true)
   const [facilities, setFacilities] = useState<Facility[]>([])
   const [selectedFacilityId, setSelectedFacilityId] = useState<string>("")
   const router = useRouter()
 
   useEffect(() => {
-    async function loadQueue() {
+    async function loadData() {
       const supabase = createClient()
 
-      // Load facilities for the filter dropdown
-      const { data: facilityList } = await supabase
-        .from("facilities")
-        .select("id, name")
-        .eq("active", true)
-        .order("name")
+      const [{ data: facilityList }, runs] = await Promise.all([
+        supabase.from("facilities").select("id, name").eq("active", true).order("name"),
+        getPendingRunsForRole("operator"),
+      ])
       setFacilities(facilityList ?? [])
+      setPendingRuns(runs)
 
-      // Get all bookings with bags currently in the operator's zone
+      // Bags currently in the operator zone — include at_warehouse so they appear in queue
       const { data: bags } = await supabase
         .from("order_bags")
         .select("booking_id, status")
-        .in("status", ["at_facility", "in_washer", "in_dryer", "folded"])
+        .in("status", ["at_warehouse", "at_facility", "in_washer", "in_dryer", "folded"])
 
       if (!bags?.length) { setQueueLoading(false); return }
 
@@ -75,13 +79,12 @@ export default function OperatorHome() {
         .from("bookings")
         .select("id, short_code, customer_name, service_type, delivery_date, status, num_bags, facility_processing_mode, assigned_facility_id")
         .in("id", bookingIds)
-        .not("facility_processing_mode", "eq", "partner_attendant") // partner portal handles those
+        .not("facility_processing_mode", "eq", "partner_attendant")
         .order("delivery_date")
 
       if (!bookings) { setQueueLoading(false); return }
 
-      // Enrich with bag status info
-      const STATUS_ORDER = ["at_facility", "in_washer", "in_dryer", "folded", "ready"]
+      const STATUS_ORDER = ["at_warehouse", "at_facility", "in_washer", "in_dryer", "folded", "ready"]
       const enriched: WorkOrder[] = bookings.map(b => {
         const orderBags = bags.filter(bag => bag.booking_id === b.id)
         const statuses = orderBags.map(bag => bag.status)
@@ -103,23 +106,21 @@ export default function OperatorHome() {
       setQueue(enriched)
       setQueueLoading(false)
     }
-    loadQueue()
+    loadData()
   }, [])
 
   async function lookup() {
-    const cleaned = code.trim().replace(/\D/g, "") // digits only
+    const cleaned = code.trim().replace(/\D/g, "")
     if (cleaned.length < 4) { setError("Enter at least 4 digits"); return }
     setLookupLoading(true)
     setError("")
     const supabase = createClient()
-    // Exact 6-digit match
     const { data: byCode } = await supabase
       .from("bookings")
       .select("id")
       .eq("short_code", cleaned)
       .maybeSingle()
     if (byCode) { router.push(`/operator/order/${byCode.id}`); return }
-    // Fallback prefix match for legacy orders
     const { data: byId } = await supabase
       .from("bookings")
       .select("id")
@@ -131,7 +132,6 @@ export default function OperatorHome() {
     router.push(`/operator/order/${byId.id}`)
   }
 
-  // Hidden input captures barcode scanner keystrokes (scanners type fast then send Enter)
   function handleScannerInput(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/\D/g, "").slice(0, 6)
     setCode(digits)
@@ -145,6 +145,9 @@ export default function OperatorHome() {
     ? queue.filter(o => o.assigned_facility_id === selectedFacilityId)
     : queue
 
+  const toFacilityRuns  = pendingRuns.filter(r => r.run_type === "to_facility")
+  const toWarehouseRuns = pendingRuns.filter(r => r.run_type === "to_warehouse")
+
   return (
     <PinGate role="operator">
     <div className="min-h-screen bg-[#0D2240]">
@@ -157,27 +160,78 @@ export default function OperatorHome() {
         <p className="text-white/50 text-sm">Laundry processing · Wash · Dry · Fold</p>
       </div>
 
-      {/* Capability description */}
-      <div className="px-4 pb-4 max-w-sm mx-auto">
-        <div className="bg-white/8 rounded-2xl px-5 py-4 space-y-3">
-          <p className="text-white/70 text-xs font-bold uppercase tracking-widest">What you can do here</p>
-          <div className="space-y-2.5">
-            {[
-              { icon: "⚖️", text: "Enter actual bag weight — triggers final billing and captures pre-authorization" },
-              { icon: "🧺", text: "Track each bag through Washer → Dryer → Folded → Ready stages" },
-              { icon: "📋", text: "View all orders currently in process at this facility" },
-              { icon: "✅", text: "Mark orders ready for driver pickup when all bags are folded" },
-            ].map(({ icon, text }) => (
-              <div key={text} className="flex items-start gap-3">
-                <span className="text-base shrink-0 mt-0.5">{icon}</span>
-                <p className="text-white/50 text-xs leading-relaxed">{text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       <div className="px-4 space-y-4 pb-10 max-w-sm mx-auto">
+
+        {queueLoading && (
+          <div className="text-center py-4">
+            <p className="text-white/30 text-sm">Loading…</p>
+          </div>
+        )}
+
+        {/* ── Pending transport runs ──────────────────────────── */}
+        {!queueLoading && toFacilityRuns.length > 0 && (
+          <div>
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">
+              🏭 Transport to Facility ({toFacilityRuns.length})
+            </p>
+            <div className="space-y-2">
+              {toFacilityRuns.map(run => (
+                <button
+                  key={run.id}
+                  onClick={() => router.push(`/operator/run/${run.id}`)}
+                  className="w-full bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-2xl p-4 text-left transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-bold text-sm">
+                        🏭 {run.facility_name ?? "Facility"} run
+                      </p>
+                      <p className="text-white/50 text-xs mt-0.5">
+                        {run.order_ids.length} order{run.order_ids.length !== 1 ? "s" : ""} · Warehouse → Facility
+                      </p>
+                      {run.notes && (
+                        <p className="text-white/30 text-xs mt-0.5 truncate">{run.notes}</p>
+                      )}
+                    </div>
+                    <span className="text-purple-300 font-bold text-xs shrink-0">EXECUTE →</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!queueLoading && toWarehouseRuns.length > 0 && (
+          <div>
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">
+              🏪 Return to Warehouse ({toWarehouseRuns.length})
+            </p>
+            <div className="space-y-2">
+              {toWarehouseRuns.map(run => (
+                <button
+                  key={run.id}
+                  onClick={() => router.push(`/operator/run/${run.id}`)}
+                  className="w-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-2xl p-4 text-left transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-bold text-sm">
+                        🏪 {run.facility_name ?? "Facility"} → Warehouse
+                      </p>
+                      <p className="text-white/50 text-xs mt-0.5">
+                        {run.order_ids.length} order{run.order_ids.length !== 1 ? "s" : ""} · Facility → Warehouse
+                      </p>
+                      {run.notes && (
+                        <p className="text-white/30 text-xs mt-0.5 truncate">{run.notes}</p>
+                      )}
+                    </div>
+                    <span className="text-amber-300 font-bold text-xs shrink-0">EXECUTE →</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Facility filter */}
         {!queueLoading && facilities.length > 1 && (
@@ -198,12 +252,6 @@ export default function OperatorHome() {
         )}
 
         {/* Work queue */}
-        {queueLoading && (
-          <div className="text-center py-4">
-            <p className="text-white/30 text-sm">Loading queue…</p>
-          </div>
-        )}
-
         {!queueLoading && filteredQueue.length > 0 && (
           <div>
             <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">
@@ -239,36 +287,34 @@ export default function OperatorHome() {
           </div>
         )}
 
-        {!queueLoading && filteredQueue.length === 0 && (
+        {!queueLoading && filteredQueue.length === 0 && pendingRuns.length === 0 && (
           <div className="bg-white/5 rounded-2xl px-5 py-5 text-center">
             <p className="text-2xl mb-2">🧺</p>
             <p className="text-white/50 text-sm font-semibold">
               {selectedFacilityId && queue.length > 0
                 ? "No bags at this facility right now."
-                : "No bags at the facility right now."}
+                : "No bags in queue right now."}
             </p>
             <p className="text-white/30 text-xs mt-1 leading-relaxed">
               {selectedFacilityId && queue.length > 0
                 ? <>Try switching to &ldquo;All Facilities&rdquo; to see the full queue.</>
-                : <>When a driver checks in bags, they&apos;ll appear here ready to process.<br />Use the lookup below to find a specific order by its bag label code.</>
+                : <>When a transport run arrives, bags will appear here ready to process.<br />Use the lookup below to find a specific order by its bag label code.</>
               }
             </p>
           </div>
         )}
 
-        {/* Manual lookup — custom numeric keypad */}
+        {/* Manual lookup */}
         <div className="bg-white rounded-3xl p-5 shadow-2xl">
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
             Find an order
           </label>
 
-          {/* Hidden input — captures barcode scanner without showing system keyboard */}
           <input
             type="text" aria-hidden="true" tabIndex={-1}
             value={code} onChange={handleScannerInput} onKeyDown={handleScannerKey}
             className="sr-only" autoComplete="off" />
 
-          {/* Display */}
           <div className={`w-full rounded-2xl border-2 px-4 py-3 mb-1 text-center transition-colors ${error ? "border-red-300 bg-red-50" : code.length > 0 ? "border-[#E8726A]" : "border-gray-200"}`}>
             {code.length > 0 ? (
               <span className="text-3xl font-mono font-bold text-[#0D2240] tracking-[0.4em]">{code}</span>
@@ -278,53 +324,8 @@ export default function OperatorHome() {
           </div>
           {error && <p className="text-sm text-red-500 font-medium mb-2 text-center">{error}</p>}
 
-          {/* Numeric keypad */}
           <div className="grid grid-cols-3 gap-2 mt-3">
             {["1","2","3","4","5","6","7","8","9"].map(n => (
               <button key={n} type="button"
                 onClick={() => { if (code.length < 6) { setCode(c => c + n); setError("") } }}
-                className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">
-                {n}
-              </button>
-            ))}
-            {/* Bottom row: clear, 0, backspace */}
-            <button type="button"
-              onClick={() => { setCode(""); setError("") }}
-              className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 active:bg-red-100 text-gray-400 font-bold text-sm transition-colors select-none">
-              CLR
-            </button>
-            <button type="button"
-              onClick={() => { if (code.length < 6) { setCode(c => c + "0"); setError("") } }}
-              className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">
-              0
-            </button>
-            <button type="button"
-              onClick={() => { setCode(c => c.slice(0, -1)); setError("") }}
-              className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 active:bg-amber-100 text-gray-500 font-bold text-xl transition-colors select-none">
-              ⌫
-            </button>
-          </div>
-
-          <button
-            onClick={lookup}
-            disabled={lookupLoading || code.length < 4}
-            className="w-full mt-3 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors">
-            {lookupLoading ? "Looking up…" : "Find Order →"}
-          </button>
-
-          <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
-            <span className="text-sm mt-0.5">📷</span>
-            <p className="text-[11px] text-gray-400 leading-relaxed">
-              <strong className="text-gray-500">Using a barcode scanner?</strong> It will auto-fill the number and submit.
-            </p>
-          </div>
-        </div>
-
-        <div className="text-center">
-          <a href="/driver" className="text-white/20 text-xs hover:text-white/40 transition-colors">Switch to Driver view</a>
-        </div>
-      </div>
-    </div>
-    </PinGate>
-  )
-}
+             

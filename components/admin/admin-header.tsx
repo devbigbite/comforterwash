@@ -13,6 +13,8 @@ const NAV_LINKS = [
   { href: "/admin/pricing",       label: "Pricing" },
   { href: "/admin/images",        label: "Images" },
   { href: "/admin/tips",          label: "Tips" },
+  { href: "/admin/runs",          label: "Runs" },
+  { href: "/admin/schedule",      label: "Schedule" },
   { href: "/admin/facilities",    label: "Facilities" },
   { href: "/admin/zip-codes",     label: "Areas" },
   { href: "/admin/service-area",  label: "Area Map" },
@@ -45,11 +47,4 @@ export function AdminHeader() {
         <form action={logoutAction}>
           <button type="submit"
             className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors">
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
-        </form>
-      </div>
-    </header>
-  )
-}
+            <LogOut classNa

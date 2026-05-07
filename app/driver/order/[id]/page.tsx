@@ -14,18 +14,25 @@ const DEFAULT_RATE_CENTS: Record<string, number> = {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "Pending", picked_up: "Picked Up", at_facility: "At Facility",
+  pending: "Pending", picked_up: "Picked Up",
+  at_warehouse: "At Warehouse",
+  at_facility: "At Facility",
   in_washer: "In Washer", in_dryer: "In Dryer", folded: "Folded",
-  ready: "Ready", out_for_delivery: "Out for Delivery", delivered: "Delivered",
+  ready: "Ready",
+  ready_at_warehouse: "Ready at Warehouse",
+  out_for_delivery: "Out for Delivery", delivered: "Delivered",
 }
 const STATUS_COLOR: Record<string, string> = {
   pending: "bg-gray-100 text-gray-500", picked_up: "bg-blue-500 text-white",
+  at_warehouse: "bg-amber-500 text-white",
   at_facility: "bg-purple-500 text-white", in_washer: "bg-cyan-500 text-white",
   in_dryer: "bg-orange-500 text-white", folded: "bg-yellow-500 text-white",
-  ready: "bg-green-500 text-white", out_for_delivery: "bg-green-600 text-white",
+  ready: "bg-green-500 text-white",
+  ready_at_warehouse: "bg-teal-500 text-white",
+  out_for_delivery: "bg-green-600 text-white",
   delivered: "bg-[#0D2240] text-white",
 }
-const ALL_STATUSES = ["pending","picked_up","at_facility","in_washer","in_dryer","folded","ready","out_for_delivery","delivered"]
+const ALL_STATUSES = ["pending","picked_up","at_warehouse","at_facility","in_washer","in_dryer","folded","ready","ready_at_warehouse","out_for_delivery","delivered"]
 
 // ── Batch: confirm pickup of all pending bags ─────────────────────────────────
 async function confirmPickup(formData: FormData) {
@@ -42,30 +49,22 @@ async function confirmPickup(formData: FormData) {
   revalidatePath(`/driver/order/${bookingId}`)
 }
 
-// ── Batch: drop-off at facility + weight entry ────────────────────────────────
+// ── Batch: drop-off at WAREHOUSE + weight entry ───────────────────────────────
+// Driver weighs and drops bags at the static warehouse.
+// Facility assignment happens later when a transport run is executed.
 async function confirmDropoff(formData: FormData) {
   "use server"
-  const bookingId    = formData.get("bookingId") as string
-  const facilityId   = formData.get("facilityId") as string
-  const weightLbs    = parseFloat(formData.get("weightLbs") as string)
-  const driverName   = (formData.get("driverName") as string) || "driver"
-  if (!facilityId || isNaN(weightLbs) || weightLbs <= 0) return
+  const bookingId  = formData.get("bookingId") as string
+  const weightLbs  = parseFloat(formData.get("weightLbs") as string)
+  const driverName = (formData.get("driverName") as string) || "driver"
+  if (isNaN(weightLbs) || weightLbs <= 0) return
 
   const supabase = createAdminClient()
 
-  const facilityProcessingMode = (formData.get("facilityProcessingMode") as string) || "own_operator"
-
-  // Get facility config for cost calculation
-  const { data: facility } = await supabase
-    .from("facilities")
-    .select("rate_per_lb, minimum_lbs")
-    .eq("id", facilityId)
-    .single()
-
-  // Look up booking to get locked-in rate
+  // Look up booking to get locked-in rate for customer billing
   const { data: bk } = await supabase
     .from("bookings")
-    .select("price_per_lb_cents, service_type")
+    .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents")
     .eq("id", bookingId)
     .single()
 
@@ -73,54 +72,39 @@ async function confirmDropoff(formData: FormData) {
     ?? DEFAULT_RATE_CENTS[bk?.service_type ?? "wash_fold"]
     ?? 250
 
-  // Calculate billing
+  // Calculate customer billing (facility cost calculated later when facility is assigned)
   const customerChargeLbs  = Math.max(weightLbs, CUSTOMER_MIN_LBS)
   const customerFinalCents = customerChargeLbs * ratePerLbCents
 
-  let facilityCostCents: number | null = null
-  if (facility?.rate_per_lb) {
-    const facilityLbs = Math.max(weightLbs, facility.minimum_lbs ?? 0)
-    facilityCostCents = Math.round(facilityLbs * facility.rate_per_lb * 100)
-  }
-
-  // Update booking
+  // Update booking — status at_warehouse, weight + billing locked in
   await supabase.from("bookings").update({
-    assigned_facility_id: facilityId,
-    facility_processing_mode: facilityProcessingMode,
-    actual_weight_lbs: weightLbs,
+    actual_weight_lbs:    weightLbs,
     customer_final_cents: customerFinalCents,
-    facility_cost_cents: facilityCostCents,
-    weight_entered_by: driverName,
-    weight_entered_at: new Date().toISOString(),
-    status: "at_facility",
+    weight_entered_by:    driverName,
+    weight_entered_at:    new Date().toISOString(),
+    status:               "at_warehouse",
+    // Note: assigned_facility_id set later by transport run
   }).eq("id", bookingId)
 
-  // Advance all picked_up bags to at_facility
-  await supabase.from("order_bags").update({ status: "at_facility" })
+  // Advance all picked_up bags to at_warehouse
+  await supabase.from("order_bags").update({ status: "at_warehouse" })
     .eq("booking_id", bookingId).eq("status", "picked_up")
 
   // Event log
   await supabase.from("order_events").insert({
-    booking_id: bookingId,
-    facility_id: facilityId,
-    event_type: "bags_received",
-    notes: `Actual weight: ${weightLbs} lbs · Customer billed: ${customerChargeLbs} lbs ($${(customerFinalCents / 100).toFixed(2)})${facilityCostCents ? ` · Facility cost: $${(facilityCostCents / 100).toFixed(2)}` : ""}`,
-    created_by: driverName,
+    booking_id:  bookingId,
+    event_type:  "dropped_at_warehouse",
+    notes:       `Weight: ${weightLbs} lbs · Customer billed: ${customerChargeLbs} lbs ($${(customerFinalCents / 100).toFixed(2)})`,
+    created_by:  driverName,
   })
 
-  // Trigger Stripe capture for wash-fold (pre-authorized)
+  // Trigger Stripe capture for wash-fold — we have the weight, capture now
   try {
-    const { data: booking } = await supabase
-      .from("bookings")
-      .select("stripe_payment_intent_id, pre_auth_cents, service_type")
-      .eq("id", bookingId)
-      .single()
-
-    if (booking?.service_type === "wash_fold" && booking.stripe_payment_intent_id && booking.pre_auth_cents) {
+    if (bk?.service_type === "wash_fold" && bk.stripe_payment_intent_id && bk.pre_auth_cents) {
       await capturePayment(bookingId)
     }
   } catch (err) {
-    console.error("[stripe] Capture failed after dropoff:", err)
+    console.error("[stripe] Capture failed after warehouse dropoff:", err)
   }
 
   revalidatePath(`/driver/order/${bookingId}`)
@@ -188,23 +172,20 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
   if (!booking) notFound()
 
   const { data: bags } = await supabase.from("order_bags").select("*").eq("booking_id", id).order("bag_number")
-  const { data: facilities } = await supabase.from("facilities").select("id, name, address, supports_own_operator, supports_partner_attendant, rate_per_lb, minimum_lbs").eq("active", true).order("name")
 
-  const orderCode    = booking.short_code ?? booking.id.slice(0, 6).toUpperCase()
-  const allStatuses  = bags?.map(b => b.status) ?? []
-  const allPending   = allStatuses.every(s => s === "pending")
-  const allPickedUp  = allStatuses.every(s => s === "picked_up")
-  const allAtFacility = allStatuses.every(s => ["at_facility","in_washer","in_dryer","folded"].includes(s))
-  const allReady     = allStatuses.every(s => s === "ready")
-  const allOutForDel = allStatuses.every(s => s === "out_for_delivery")
-  const allDone      = allStatuses.every(s => s === "delivered")
-  const somePickedUp = allStatuses.some(s => s === "picked_up")
+  const orderCode         = booking.short_code ?? booking.id.slice(0, 6).toUpperCase()
+  const allStatuses       = bags?.map(b => b.status) ?? []
+  const allPending        = allStatuses.every(s => s === "pending")
+  const allPickedUp       = allStatuses.every(s => s === "picked_up")
+  const allAtWarehouse    = allStatuses.every(s => s === "at_warehouse")
+  const allAtFacility     = allStatuses.every(s => ["at_facility","in_washer","in_dryer","folded"].includes(s))
+  const allReady          = allStatuses.every(s => s === "ready")
+  const allReadyAtWarehouse = allStatuses.every(s => s === "ready_at_warehouse")
+  const allOutForDel      = allStatuses.every(s => s === "out_for_delivery")
+  const allDone           = allStatuses.every(s => s === "delivered")
+  const somePickedUp      = allStatuses.some(s => s === "picked_up")
 
-  // Margin warning for dropoff
-  const estimatedLbs  = booking.pounds ?? 0
-  const facilityWarning = facilities?.filter(f =>
-    f.rate_per_lb && (f.minimum_lbs ?? 0) > estimatedLbs
-  ).map(f => f.name)
+  const estimatedLbs = booking.pounds ?? 0
 
   return (
     <div className="min-h-screen bg-[#f7f8fb]">
@@ -297,18 +278,19 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
         <DriverOrderClient
           bookingId={booking.id}
           bags={bags ?? []}
-          facilities={facilities ?? []}
           estimatedLbs={estimatedLbs}
-          facilityWarning={facilityWarning ?? []}
           allPending={allPending}
           allPickedUp={allPickedUp}
           somePickedUp={somePickedUp}
+          allAtWarehouse={allAtWarehouse}
           allAtFacility={allAtFacility}
           allReady={allReady}
+          allReadyAtWarehouse={allReadyAtWarehouse}
           allOutForDel={allOutForDel}
           allDone={allDone}
           pickupDate={booking.pickup_date ?? null}
           deliveryDate={booking.delivery_date ?? null}
+          assignedFacilityName={(booking.assigned_facility as { name?: string } | null)?.name ?? null}
           confirmPickup={confirmPickup}
           confirmDropoff={confirmDropoff}
           confirmDelivery={confirmDelivery}
@@ -343,3 +325,4 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
     </div>
   )
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
