@@ -42,7 +42,7 @@ export default function StaffClockPage() {
     if (!selectedName) { setOpenPunch(null); return }
     getOpenPunch(selectedName).then(punch => {
       setOpenPunch(punch)
-      if (punch) setElapsedMins((punch.clocked_in_at, null))
+      if (punch) setElapsedMins(minutesBetween(punch.clocked_in_at, null))
     })
   }, [selectedName])
 
@@ -51,7 +51,7 @@ export default function StaffClockPage() {
     if (timerRef.current) clearInterval(timerRef.current)
     if (openPunch) {
       timerRef.current = setInterval(() => {
-        setElapsedMins((openPunch.clocked_in_at, null))
+        setElapsedMins(minutesBetween(openPunch.clocked_in_at, null))
       }, 60000)
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current) }

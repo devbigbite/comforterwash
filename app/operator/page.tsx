@@ -377,6 +377,3 @@ export default function OperatorHome() {
     </PinGate>
   )
 }
-              <button key={n} type="button"
-                onClick={() => { if (code.length < 6) { setCode(c => c + n); setError("") } }}
-                className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-
