@@ -65,7 +65,7 @@ async function getReportData(from: string, to: string) {
 
     supabase
       .from("workers")
-      .select("id, full_name, roles, status"),
+      .select("id, name, roles, status"),
 
     supabase
       .from("worker_payouts")
@@ -612,7 +612,7 @@ export default async function ReportsPage({
             <tbody className="divide-y divide-gray-50">
               {workers.map(w => (
                 <tr key={w.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-semibold text-[#0D2240] text-xs">{w.full_name}</td>
+                  <td className="px-4 py-3 font-semibold text-[#0D2240] text-xs">{(w as any).name ?? ""}</td>
                   <td className="px-4 py-3 text-xs text-gray-500">{(w.roles as string[]).join(", ")}</td>
                   <td className="px-4 py-3">
                     <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
