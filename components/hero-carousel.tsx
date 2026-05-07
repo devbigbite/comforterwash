@@ -196,6 +196,9 @@ export default function HeroCarousel({
         )}
       </div>
 
+      {/* Bottom-edge fade — clean transition to next section on all slides */}
+      <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-b from-transparent to-[#0D2240] pointer-events-none z-10" />
+
       {/* Dots */}
       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2.5 z-20">
         {slides.map((_, i) => (
