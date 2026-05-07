@@ -50,6 +50,12 @@ const ROLE_DOT: Record<string, string> = {
   admin:    "bg-gray-400",
 }
 
+const ROLE_BLOCK: Record<string, string> = {
+  driver:   "bg-blue-500",
+  operator: "bg-violet-600",
+  admin:    "bg-slate-500",
+}
+
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -335,165 +341,284 @@ export default function AdminSchedulePage() {
       )}
 
       {/* ── SCHEDULE ────────────────────────────────────────────────────────── */}
-      {tab === "schedule" && (
-        <div>
-          {/* Week nav */}
-          <div className="flex items-center justify-between mb-5">
-            <button
-              onClick={() => setWeekStart(w => addDays(w, -7))}
-              className="bg-white border border-gray-200 hover:border-gray-300 rounded-xl px-4 py-2 text-sm font-bold text-gray-600 transition-colors"
-            >← Prev</button>
-            <div className="text-center">
+      {tab === "schedule" && (() => {
+        const today = new Date().toISOString().split("T")[0]
+
+        // All worker names: active workers union shift workers
+        const allScheduleWorkers = [
+          ...new Set([
+            ...workers.map(w => w.name),
+            ...shifts.map(s => s.worker_name),
+          ])
+        ].sort()
+
+        // Per-worker weekly hours
+        function shiftMins(s: ScheduledShift) {
+          const [sh, sm] = s.start_time.split(":").map(Number)
+          const [eh, em] = s.end_time.split(":").map(Number)
+          return Math.max(0, (eh * 60 + em) - (sh * 60 + sm))
+        }
+
+        const totalScheduledHours = shifts.reduce((acc, s) => acc + shiftMins(s), 0) / 60
+
+        return (
+          <div>
+            {/* Week nav */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={() => setWeekStart(w => addDays(w, -7))}
+                className="bg-white border border-gray-200 hover:border-gray-300 rounded-xl px-4 py-2 text-sm font-bold text-gray-600 transition-colors"
+              >← Prev</button>
               <p className="font-extrabold text-[#0D2240] text-sm">
                 {fmtDate(weekStart)} — {fmtDate(addDays(weekStart, 6))}
               </p>
-            </div>
-            <button
-              onClick={() => setWeekStart(w => addDays(w, 7))}
-              className="bg-white border border-gray-200 hover:border-gray-300 rounded-xl px-4 py-2 text-sm font-bold text-gray-600 transition-colors"
-            >Next →</button>
-          </div>
-
-          {/* Weekly grid */}
-          {schedLoading ? (
-            <p className="text-gray-400 text-sm text-center py-8">Loading…</p>
-          ) : (
-            <div className="grid grid-cols-7 gap-2 mb-4">
-              {DAYS.map((day, i) => {
-                const date    = weekDates[i]
-                const isToday = date === new Date().toISOString().split("T")[0]
-                const dayShifts = shiftsOn(date)
-                return (
-                  <div key={day} className={`rounded-xl border min-h-[100px] ${isToday ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-200 bg-white"}`}>
-                    <div className={`px-2 py-1.5 border-b text-xs font-bold ${isToday ? "border-[#E8726A]/30 text-[#E8726A]" : "border-gray-100 text-gray-500"}`}>
-                      <span className="block">{day}</span>
-                      <span className="font-normal text-gray-400">{new Date(date + "T12:00:00").getDate()}</span>
-                    </div>
-                    <div className="p-1.5 space-y-1">
-                      {dayShifts.map(s => (
-                        <div key={s.id} className="group relative bg-blue-50 rounded-lg px-1.5 py-1 text-[10px]">
-                          <p className="font-bold text-[#0D2240] truncate leading-tight">{s.worker_name}</p>
-                          <p className="text-gray-500">{s.start_time.slice(0,5)}–{s.end_time.slice(0,5)}</p>
-                          <span className={`inline-block mt-0.5 px-1.5 rounded-full font-bold capitalize ${ROLE_COLOR[s.role]}`}
-                            style={{ fontSize: "9px" }}>
-                            {s.role}
-                          </span>
-                          <button
-                            onClick={() => handleDeleteShift(s.id)}
-                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs transition-opacity"
-                          >×</button>
-                        </div>
-                      ))}
-                      {dayShifts.length === 0 && (
-                        <p className="text-gray-200 text-[10px] text-center py-1">—</p>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Add shift */}
-          <button
-            onClick={() => setShowAddShift(v => !v)}
-            className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors"
-          >
-            {showAddShift ? "✕ Cancel" : "+ Add Shift"}
-          </button>
-
-          {showAddShift && (
-            <form onSubmit={handleAddShift} className="mt-4 bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
-              <h3 className="font-bold text-[#0D2240] text-sm">New Shift</h3>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Worker</label>
-                  <select
-                    value={newShift.workerName}
-                    onChange={e => setNewShift(n => ({ ...n, workerName: e.target.value }))}
-                    required
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
-                  >
-                    <option value="">— Select —</option>
-                    {workers.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Role</label>
-                  <select
-                    value={newShift.role}
-                    onChange={e => setNewShift(n => ({ ...n, role: e.target.value }))}
-                    required
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
-                  >
-                    <option value="">— Role —</option>
-                    <option value="driver">Driver</option>
-                    <option value="operator">Operator</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={newShift.shiftDate}
-                    onChange={e => setNewShift(n => ({ ...n, shiftDate: e.target.value }))}
-                    required
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Start</label>
-                    <input
-                      type="time"
-                      value={newShift.startTime}
-                      onChange={e => setNewShift(n => ({ ...n, startTime: e.target.value }))}
-                      required
-                      className="w-full border border-gray-200 rounded-xl px-2 py-2 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">End</label>
-                    <input
-                      type="time"
-                      value={newShift.endTime}
-                      onChange={e => setNewShift(n => ({ ...n, endTime: e.target.value }))}
-                      required
-                      className="w-full border border-gray-200 rounded-xl px-2 py-2 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Notes (optional)</label>
-                <input
-                  type="text"
-                  value={newShift.notes}
-                  onChange={e => setNewShift(n => ({ ...n, notes: e.target.value }))}
-                  placeholder="e.g. Cover for Maria"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-[#0D2240] outline-none focus:border-[#0D2240] transition-colors"
-                />
-              </div>
-
-              {shiftError && <p className="text-red-500 text-sm font-semibold">{shiftError}</p>}
-
               <button
-                type="submit"
-                disabled={shiftSaving}
-                className="bg-[#0D2240] hover:bg-[#142d52] disabled:opacity-50 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors"
+                onClick={() => setWeekStart(w => addDays(w, 7))}
+                className="bg-white border border-gray-200 hover:border-gray-300 rounded-xl px-4 py-2 text-sm font-bold text-gray-600 transition-colors"
+              >Next →</button>
+            </div>
+
+            {/* Stats bar */}
+            <div className="flex items-center gap-6 bg-[#0D2240] rounded-2xl px-5 py-3.5 mb-4">
+              <div>
+                <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Shifts</p>
+                <p className="text-white font-extrabold text-xl">{shifts.length}</p>
+              </div>
+              <div>
+                <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Scheduled Hours</p>
+                <p className="text-white font-extrabold text-xl">{totalScheduledHours.toFixed(1)}h</p>
+              </div>
+              <div>
+                <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Staff</p>
+                <p className="text-white font-extrabold text-xl">{allScheduleWorkers.length}</p>
+              </div>
+              <div className="ml-auto">
+                <button
+                  onClick={() => {
+                    setNewShift(n => ({ ...n, workerName: "", shiftDate: weekStart }))
+                    setShowAddShift(true)
+                  }}
+                  className="bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-4 py-2 rounded-xl transition-colors"
+                >+ Create Shift</button>
+              </div>
+            </div>
+
+            {/* Sling-style grid */}
+            {schedLoading ? (
+              <p className="text-gray-400 text-sm text-center py-12">Loading…</p>
+            ) : (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
+                <table className="w-full border-collapse" style={{ minWidth: "700px" }}>
+                  {/* Header row */}
+                  <thead>
+                    <tr>
+                      <th className="bg-gray-50 border-b border-r border-gray-100 px-4 py-3 text-left w-44">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Staff</span>
+                      </th>
+                      {weekDates.map((date, i) => {
+                        const isToday = date === today
+                        return (
+                          <th key={date} className={`border-b border-r border-gray-100 px-2 py-2.5 text-center ${isToday ? "bg-[#E8726A]/8" : "bg-gray-50"}`}>
+                            <p className={`text-[10px] font-bold uppercase tracking-widest ${isToday ? "text-[#E8726A]" : "text-gray-400"}`}>{DAYS[i]}</p>
+                            <p className={`text-sm font-extrabold mt-0.5 ${isToday ? "text-[#E8726A]" : "text-[#0D2240]"}`}>
+                              {new Date(date + "T12:00:00").getDate()}
+                            </p>
+                          </th>
+                        )
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allScheduleWorkers.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-gray-400 text-sm">
+                          No workers yet. Add workers via the Workers page, then create shifts.
+                        </td>
+                      </tr>
+                    ) : (
+                      allScheduleWorkers.map(workerName => {
+                        const workerObj  = workers.find(w => w.name === workerName)
+                        const weekShifts = shifts.filter(s => s.worker_name === workerName)
+                        const weekMins   = weekShifts.reduce((acc, s) => acc + shiftMins(s), 0)
+                        const firstRole  = weekShifts[0]?.role ?? workerObj?.roles?.[0] ?? "driver"
+                        const initials   = workerName.split(" ").map((p: string) => p[0]).join("").slice(0, 2).toUpperCase()
+
+                        return (
+                          <tr key={workerName} className="border-b border-gray-100 last:border-0">
+                            {/* Worker label */}
+                            <td className="border-r border-gray-100 px-3 py-2 w-44">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-extrabold text-white shrink-0 ${ROLE_BLOCK[firstRole] ?? "bg-slate-500"}`}>
+                                  {initials}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-[#0D2240] text-xs leading-tight truncate">{workerName}</p>
+                                  <p className="text-[10px] text-gray-400 tabular-nums">
+                                    {weekMins > 0 ? `${(weekMins / 60).toFixed(1)}h / wk` : "0h"}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Day cells */}
+                            {weekDates.map(date => {
+                              const dayShifts = shifts.filter(s => s.worker_name === workerName && s.shift_date === date)
+                              const isToday   = date === today
+                              return (
+                                <td
+                                  key={date}
+                                  className={`relative border-r border-gray-100 p-1 align-top group/cell ${isToday ? "bg-[#E8726A]/5" : ""}`}
+                                  style={{ minWidth: "80px", minHeight: "56px" }}
+                                >
+                                  {dayShifts.map(s => (
+                                    <div
+                                      key={s.id}
+                                      className={`group/shift relative rounded-lg px-2 py-1 mb-1 text-white text-[10px] cursor-default ${ROLE_BLOCK[s.role] ?? "bg-slate-500"}`}
+                                    >
+                                      <p className="font-bold leading-tight tabular-nums">
+                                        {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
+                                      </p>
+                                      <p className="capitalize opacity-70" style={{ fontSize: "9px" }}>{s.role}</p>
+                                      {s.notes && <p className="opacity-50 truncate" style={{ fontSize: "9px" }}>{s.notes}</p>}
+                                      <button
+                                        onClick={() => handleDeleteShift(s.id)}
+                                        className="absolute top-0.5 right-1 opacity-0 group-hover/shift:opacity-100 font-bold hover:text-red-200 transition-opacity text-xs leading-none"
+                                      >×</button>
+                                    </div>
+                                  ))}
+                                  {/* Hover "+" to add shift for this worker on this day */}
+                                  <button
+                                    onClick={() => {
+                                      setNewShift(n => ({ ...n, workerName, shiftDate: date }))
+                                      setShowAddShift(true)
+                                    }}
+                                    className="absolute bottom-1 right-1 opacity-0 group-hover/cell:opacity-100 w-5 h-5 bg-gray-200 hover:bg-[#0D2240] hover:text-white text-gray-500 rounded font-bold text-xs flex items-center justify-center transition-all"
+                                  >+</button>
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Add Shift Modal */}
+            {showAddShift && (
+              <div
+                className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+                onClick={() => setShowAddShift(false)}
               >
-                {shiftSaving ? "Saving…" : "Save Shift"}
-              </button>
-            </form>
-          )}
-        </div>
-      )}
+                <div
+                  className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between mb-5">
+                    <h3 className="font-extrabold text-[#0D2240] text-lg">New Shift</h3>
+                    <button onClick={() => setShowAddShift(false)} className="text-gray-300 hover:text-gray-500 text-2xl font-bold leading-none">×</button>
+                  </div>
+
+                  <form onSubmit={handleAddShift} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Worker</label>
+                        <select
+                          value={newShift.workerName}
+                          onChange={e => setNewShift(n => ({ ...n, workerName: e.target.value }))}
+                          required
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                        >
+                          <option value="">— Select —</option>
+                          {workers.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Role</label>
+                        <select
+                          value={newShift.role}
+                          onChange={e => setNewShift(n => ({ ...n, role: e.target.value }))}
+                          required
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                        >
+                          <option value="">— Role —</option>
+                          <option value="driver">🚐 Driver</option>
+                          <option value="operator">🏭 Operator</option>
+                          <option value="admin">⚙️ Admin</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={newShift.shiftDate}
+                        onChange={e => setNewShift(n => ({ ...n, shiftDate: e.target.value }))}
+                        required
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Start</label>
+                        <input
+                          type="time"
+                          value={newShift.startTime}
+                          onChange={e => setNewShift(n => ({ ...n, startTime: e.target.value }))}
+                          required
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">End</label>
+                        <input
+                          type="time"
+                          value={newShift.endTime}
+                          onChange={e => setNewShift(n => ({ ...n, endTime: e.target.value }))}
+                          required
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Notes (optional)</label>
+                      <input
+                        type="text"
+                        value={newShift.notes}
+                        onChange={e => setNewShift(n => ({ ...n, notes: e.target.value }))}
+                        placeholder="e.g. Cover for Maria"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] outline-none focus:border-[#0D2240] transition-colors"
+                      />
+                    </div>
+
+                    {shiftError && <p className="text-red-500 text-sm font-semibold">{shiftError}</p>}
+
+                    <div className="flex gap-3 pt-1">
+                      <button
+                        type="submit"
+                        disabled={shiftSaving}
+                        className="flex-1 bg-[#0D2240] hover:bg-[#142d52] disabled:opacity-50 text-white font-bold text-sm py-3 rounded-xl transition-colors"
+                      >
+                        {shiftSaving ? "Saving…" : "Save Shift"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddShift(false)}
+                        className="px-5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm py-3 rounded-xl transition-colors"
+                      >Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── TIME SHEET ──────────────────────────────────────────────────────── */}
       {tab === "timesheet" && (() => {
