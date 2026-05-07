@@ -96,7 +96,7 @@ export default function HeroCarousel({
   const isExternal = currentImage.startsWith("http")
 
   return (
-    <section className="relative w-full overflow-hidden" style={{ minHeight: "clamp(420px, 65vw, 560px)" }}>
+    <section className="relative w-full overflow-hidden" style={{ minHeight: "clamp(460px, 70vw, 580px)" }}>
       {/* Background image — per slide */}
       <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: transitioning ? 0 : 1 }}>
         {slide.type === "full" && (
@@ -137,11 +137,12 @@ export default function HeroCarousel({
               src={currentImage}
               alt="How it works"
               fill
-              className="object-cover object-center"
+              className="object-contain object-center"
+              style={{ background: "#0D2240" }}
               unoptimized={isExternal}
             />
             {/* Gradient: dark at bottom for text legibility */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/85" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0D2240]/90" />
 
             {/* Mobile: centered label above + 3 step badges row */}
             <div className="absolute inset-x-0 bottom-0 pb-12 px-4 flex flex-col items-center gap-4 sm:hidden">
