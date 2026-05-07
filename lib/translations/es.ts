@@ -223,7 +223,7 @@ const es = {
     bags:          "bolsas",
     schedulePickup:     "Programa tu Recogido",
     contactInfoSubtitle: "Entra tu Información de Contacto y Dirección de Servicio",
-    pickupAddressLabel:  "Dirección de Recogida",
+    pickupAddressLabel:  "Dirección de Recogido",
     deliveryAddressLabel: "Dirección de Entrega",
     sameAddressLabel:    "Misma dirección para Pickup & Delivery",
   },
