@@ -236,7 +236,7 @@ const es = {
     careWarningText: "Lavamos en agua fría/tibia y secamos en secadora. No podemos procesar artículos etiquetados \"Solo Limpieza en Seco\", \"No Usar Secadora\", edredones con peso añadido ni plumas. Todo edredón debe tener etiqueta de cuidado.",
     pickupDateTitle: "Fecha y Hora de Recogida",
     pickupDaysNote: "Selecciona una fecha disponible",
-    pickupWhen:    "¿Cuándo deseas la recogida?",
+    pickupWhen:    "¿Cuándo deseas el recogido?",
     deliveryDateTitle: "Fecha y Hora de Entrega",
     deliveryGapNote: "72 horas después de la recogida",
     deliveryWhen:  "¿Cuándo deseas la entrega?",
