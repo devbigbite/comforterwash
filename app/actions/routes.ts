@@ -88,7 +88,8 @@ export async function createRouteTimeWindow(
   endTime: string,
   label: string,
   maxBookings: number | null,
-  isPrivate: boolean
+  isPrivate: boolean,
+  windowType: 'both' | 'pickup_only' | 'delivery_only' = 'both'
 ): Promise<{ error?: string }> {
   const supabase = createAdminClient()
 
@@ -110,6 +111,7 @@ export async function createRouteTimeWindow(
     max_bookings: maxBookings,
     is_private:   isPrivate,
     sort_order:   nextSort,
+    window_type:  windowType,
   })
 
   if (error) return { error: error.message }

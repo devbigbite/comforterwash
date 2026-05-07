@@ -39,6 +39,7 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
   const [endTime, setEndTime] = useState("13:00")
   const [maxBookings, setMaxBookings] = useState("")
   const [isPrivate, setIsPrivate] = useState(false)
+  const [windowType, setWindowType] = useState<'both' | 'pickup_only' | 'delivery_only'>('both')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState("")
 
@@ -47,6 +48,7 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
     setEndTime("13:00")
     setMaxBookings("")
     setIsPrivate(false)
+    setWindowType('both')
     setError("")
     setAdding(false)
   }
@@ -60,7 +62,7 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
     startTransition(async () => {
       const label = buildLabel(startTime, endTime)
       const max = maxBookings ? parseInt(maxBookings, 10) : null
-      const result = await createRouteTimeWindow(routeId, startTime, endTime, label, max, isPrivate)
+      const result = await createRouteTimeWindow(routeId, startTime, endTime, label, max, isPrivate, windowType)
       if (result.error) {
         setError(result.error)
         return
@@ -74,6 +76,7 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
         max_bookings: max,
         is_private: isPrivate,
         sort_order: prev.length,
+        window_type: windowType,
       }])
       resetForm()
     })
@@ -115,6 +118,15 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
           <div key={w.id} className="flex items-center justify-between gap-3 bg-gray-50 rounded-xl px-3 py-2">
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold text-[#0D2240]">{w.label}</span>
+              {(w.window_type && w.window_type !== 'both') && (
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase border ${
+                  w.window_type === 'pickup_only'
+                    ? 'text-blue-700 bg-blue-50 border-blue-200'
+                    : 'text-green-700 bg-green-50 border-green-200'
+                }`}>
+                  {w.window_type === 'pickup_only' ? 'Pickup only' : 'Delivery only'}
+                </span>
+              )}
               {w.is_private && (
                 <span className="text-[9px] font-bold text-purple-600 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded-full uppercase">Private</span>
               )}
@@ -211,6 +223,28 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
               </button>
               <span className="text-xs font-semibold text-gray-600">Private</span>
             </label>
+          </div>
+
+          {/* Window type */}
+          <div>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Applies To</label>
+            <div className="flex gap-2">
+              {(['both', 'pickup_only', 'delivery_only'] as const).map(t => (
+                <button
+                  key={t} type="button"
+                  onClick={() => setWindowType(t)}
+                  className={`flex-1 text-[10px] font-bold py-2 rounded-xl border-2 transition-all uppercase tracking-wide ${
+                    windowType === t
+                      ? t === 'both' ? 'bg-[#0D2240] text-white border-[#0D2240]'
+                        : t === 'pickup_only' ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-green-600 text-white border-green-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
+                  }`}
+                >
+                  {t === 'both' ? 'Both' : t === 'pickup_only' ? 'Pickup only' : 'Delivery only'}
+                </button>
+              ))}
+            </div>
           </div>
 
           {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}

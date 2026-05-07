@@ -17,6 +17,11 @@ export type TimeWindow = {
   max_bookings: number | null
   is_private: boolean
   sort_order: number
+  /** Controls whether this window appears for pickup, delivery, or both.
+   *  'both' (default) — shown on pickup AND delivery date pickers
+   *  'pickup_only'    — shown only when selecting a pickup time slot
+   *  'delivery_only'  — shown only when selecting a delivery time slot */
+  window_type: 'both' | 'pickup_only' | 'delivery_only'
 }
 
 export type Route = {
@@ -124,6 +129,10 @@ export function getTimeWindowsForDate(
   for (const route of matchingRoutes) {
     for (const w of (route.time_windows ?? [])) {
       if (w.is_private) continue
+      // Filter by window_type: 'both' always included; type-specific only match their side
+      const wt = w.window_type ?? 'both'
+      if (wt === 'pickup_only'   && type !== 'pickup')   continue
+      if (wt === 'delivery_only' && type !== 'delivery') continue
       const key = `${w.start_time}-${w.end_time}`
       if (!seen.has(key)) {
         seen.add(key)
@@ -154,6 +163,10 @@ export function getAllTimeWindows(routes: Route[]): TimeWindow[] {
     if (!route.active) continue
     for (const w of (route.time_windows ?? [])) {
       if (w.is_private) continue
+      // Filter by window_type: 'both' always included; type-specific only match their side
+      const wt = w.window_type ?? 'both'
+      if (wt === 'pickup_only'   && type !== 'pickup')   continue
+      if (wt === 'delivery_only' && type !== 'delivery') continue
       const key = `${w.start_time}-${w.end_time}`
       if (!seen.has(key)) {
         seen.add(key)
