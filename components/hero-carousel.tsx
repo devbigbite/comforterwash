@@ -96,7 +96,7 @@ export default function HeroCarousel({
   const isExternal = currentImage.startsWith("http")
 
   return (
-    <section className="relative w-full overflow-hidden" style={{ minHeight: "clamp(380px, 55vw, 560px)" }}>
+    <section className="relative w-full overflow-hidden" style={{ minHeight: "clamp(420px, 65vw, 560px)" }}>
       {/* Background image — per slide */}
       <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: transitioning ? 0 : 1 }}>
         {slide.type === "full" && (
@@ -112,7 +112,7 @@ export default function HeroCarousel({
       </div>
 
       {/* Slide content */}
-      <div className="relative z-10 w-full h-full transition-opacity duration-700" style={{ minHeight: "clamp(380px, 55vw, 560px)", opacity: transitioning ? 0 : 1 }}>
+      <div className="relative z-10 w-full h-full transition-opacity duration-700" style={{ minHeight: "clamp(420px, 65vw, 560px)", opacity: transitioning ? 0 : 1 }}>
 
         {/* Full-width text slide */}
         {slide.type === "full" && (
@@ -140,22 +140,48 @@ export default function HeroCarousel({
               className="object-cover object-center"
               unoptimized={isExternal}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/75" />
-            <div className="absolute inset-0 grid grid-cols-3">
-              {slide.panels.map((panel, i) => (
-                <div key={i} className="relative flex flex-col justify-end p-3 sm:p-5 md:p-7">
-                  <div className="flex items-center gap-1.5 sm:gap-3 mb-1">
+            {/* Gradient: dark at bottom for text legibility */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/85" />
+
+            {/* Mobile: centered label above + 3 step badges row */}
+            <div className="absolute inset-x-0 bottom-0 pb-12 px-4 flex flex-col items-center gap-4 sm:hidden">
+              <p className="text-white font-extrabold text-xl uppercase tracking-widest drop-shadow text-center">
+                How It Works
+              </p>
+              <div className="flex items-stretch gap-2 w-full max-w-sm">
+                {slide.panels.map((panel, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-xl px-2 py-3 border border-white/10">
                     <span
-                      className="flex items-center justify-center w-6 h-6 sm:w-9 sm:h-9 rounded-full text-xs sm:text-base font-extrabold border-2 shrink-0"
+                      className="flex items-center justify-center w-8 h-8 rounded-full text-sm font-extrabold border-2 shrink-0"
                       style={{ borderColor: panel.accentColor, color: panel.accentColor }}
                     >
                       {panel.step}
                     </span>
-                    <span className="text-white font-extrabold text-xs sm:text-base md:text-lg uppercase tracking-wide drop-shadow leading-tight">
+                    <span className="text-white font-extrabold text-[11px] uppercase tracking-wide text-center leading-tight">
+                      {panel.label}
+                    </span>
+                    <p className="text-white/70 text-[10px] leading-snug text-center">{panel.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Desktop: full-height 3-column panels */}
+            <div className="absolute inset-0 hidden sm:grid grid-cols-3">
+              {slide.panels.map((panel, i) => (
+                <div key={i} className="relative flex flex-col justify-end p-5 md:p-7">
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <span
+                      className="flex items-center justify-center w-9 h-9 rounded-full text-base font-extrabold border-2 shrink-0"
+                      style={{ borderColor: panel.accentColor, color: panel.accentColor }}
+                    >
+                      {panel.step}
+                    </span>
+                    <span className="text-white font-extrabold text-base md:text-lg uppercase tracking-wide drop-shadow leading-tight">
                       {panel.label}
                     </span>
                   </div>
-                  <p className="text-white/80 text-[10px] sm:text-sm leading-snug sm:ml-12 hidden sm:block">{panel.desc}</p>
+                  <p className="text-white/80 text-sm leading-snug ml-12">{panel.desc}</p>
                   {i < 2 && (
                     <div
                       className="absolute top-0 right-0 bottom-0 w-px opacity-40"
