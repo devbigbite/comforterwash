@@ -96,7 +96,7 @@ export default function HeroCarousel({
   const isExternal = currentImage.startsWith("http")
 
   return (
-    <section className="relative w-full overflow-hidden" style={{ minHeight: "clamp(460px, 70vw, 580px)" }}>
+    <section className="relative w-full overflow-hidden -mb-px" style={{ minHeight: "clamp(460px, 70vw, 580px)" }}>
       {/* Background image — per slide */}
       <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: transitioning ? 0 : 1 }}>
         {slide.type === "full" && (
