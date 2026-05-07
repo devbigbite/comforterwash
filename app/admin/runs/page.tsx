@@ -8,7 +8,7 @@ import Link from "next/link"
 // We keep it client for the interactive create form.
 // Data is loaded via useEffect calls to the server actions.
 
-interface Facility { id: string; name: string; address: string | null }
+interface Facility { id: string; name: string; address: string | null; supports_own_operator: boolean; supports_partner_attendant: boolean }
 interface EligibleOrder {
   id: string; short_code: string | null; customer_name: string
   customer_address: string; num_bags: number | null; service_type: string
@@ -49,6 +49,7 @@ export default function RunsPage() {
   const [assignedTo, setAssignedTo]   = useState("")
   const [assignedRole, setAssignedRole] = useState<"driver" | "operator">("driver")
   const [notes, setNotes]             = useState("")
+  const [processingMode, setProcessingMode] = useState<"own_operator" | "partner_attendant" | "">("")
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set())
   const [eligibleLoading, setEligibleLoading] = useState(false)
   const [tabFilter, setTabFilter]     = useState<"pending" | "completed">("pending")
@@ -103,6 +104,9 @@ export default function RunsPage() {
 
   async function handleCreate() {
     if (!facilityId || !assignedTo.trim() || selectedOrderIds.size === 0) return
+    const selFacility = facilities.find(f => f.id === facilityId)
+    const isHybrid = selFacility?.supports_own_operator && selFacility?.supports_partner_attendant
+    if (isHybrid && !processingMode) return
     const fd = new FormData()
     fd.append("runType",      runType)
     fd.append("facilityId",   facilityId)
@@ -110,6 +114,7 @@ export default function RunsPage() {
     fd.append("assignedRole", assignedRole)
     fd.append("notes",        notes)
     fd.append("orderIds",     [...selectedOrderIds].join(","))
+    if (processingMode) fd.append("processingMode", processingMode)
 
     startTransition(async () => {
       const result = await createTransportRun(fd)
@@ -117,6 +122,7 @@ export default function RunsPage() {
       setShowCreate(false)
       setRunType("to_facility")
       setFacilityId("")
+      setProcessingMode("")
       setAssignedTo("")
       setNotes("")
       setSelectedOrderIds(new Set())
@@ -243,6 +249,52 @@ export default function RunsPage() {
                 </div>
               </div>
             )}
+
+            {/* Processing mode — only for hybrid facilities */}
+            {facilityId && (() => {
+              const selF = facilities.find(f => f.id === facilityId)
+              const isHybrid = selF?.supports_own_operator && selF?.supports_partner_attendant
+              const ownOnly  = selF?.supports_own_operator && !selF?.supports_partner_attendant
+              const partOnly = !selF?.supports_own_operator && selF?.supports_partner_attendant
+              if (!selF) return null
+              if (ownOnly)  return <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700 font-semibold"><span>🔵</span> WashFold operator handles all work at this facility</div>
+              if (partOnly) return <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-xl px-4 py-3 text-sm text-purple-700 font-semibold"><span>🟣</span> Facility attendant handles all work at this facility</div>
+              if (isHybrid) return (
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    Who handles this batch? <span className="text-[#E8726A]">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button type="button" onClick={() => setProcessingMode("own_operator")}
+                      className={`flex items-center gap-2.5 rounded-xl border-2 px-4 py-3 text-sm font-bold transition-all ${
+                        processingMode === "own_operator"
+                          ? "border-blue-500 bg-blue-50 text-blue-700"
+                          : "border-gray-200 text-gray-500 hover:border-blue-300"
+                      }`}>
+                      <span className="text-lg">🔵</span>
+                      <div className="text-left">
+                        <p>Our Operator</p>
+                        <p className="text-[10px] font-normal opacity-70">WashFold staff runs the machines</p>
+                      </div>
+                    </button>
+                    <button type="button" onClick={() => setProcessingMode("partner_attendant")}
+                      className={`flex items-center gap-2.5 rounded-xl border-2 px-4 py-3 text-sm font-bold transition-all ${
+                        processingMode === "partner_attendant"
+                          ? "border-purple-500 bg-purple-50 text-purple-700"
+                          : "border-gray-200 text-gray-500 hover:border-purple-300"
+                      }`}>
+                      <span className="text-lg">🟣</span>
+                      <div className="text-left">
+                        <p>Their Attendant</p>
+                        <p className="text-[10px] font-normal opacity-70">Facility staff handles washing</p>
+                      </div>
+                    </button>
+                  </div>
+                  {!processingMode && <p className="text-xs text-amber-600 font-semibold mt-1.5">⚠ Select who handles this batch before creating the run.</p>}
+                </div>
+              )
+              return null
+            })()}
 
             {/* Assign to */}
             <div className="grid grid-cols-2 gap-3">
@@ -422,6 +474,15 @@ export default function RunsPage() {
                       }`}>
                         {run.assigned_role}
                       </span>
+                      {run.processing_mode && (
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                          run.processing_mode === "own_operator"
+                            ? "bg-blue-50 text-blue-600 border border-blue-200"
+                            : "bg-purple-50 text-purple-600 border border-purple-200"
+                        }`}>
+                          {run.processing_mode === "own_operator" ? "🔵 Our Operator" : "🟣 Their Attendant"}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-600">
                       <strong>{run.facility_name ?? "Facility"}</strong>

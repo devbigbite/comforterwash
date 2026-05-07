@@ -20,6 +20,7 @@ export interface TransportRun {
   completed_at: string | null
   completed_by: string | null
   shipday_order_id: number | null
+  processing_mode: 'own_operator' | 'partner_attendant' | null
 }
 
 export interface RunOrder {
@@ -41,7 +42,8 @@ export async function createTransportRun(formData: FormData) {
   const assignedTo  = formData.get("assignedTo") as string
   const assignedRole= formData.get("assignedRole") as "driver" | "operator"
   const notes       = (formData.get("notes") as string) || null
-  const orderIdsRaw = formData.get("orderIds")   as string  // comma-separated UUIDs
+  const orderIdsRaw      = formData.get("orderIds")        as string  // comma-separated UUIDs
+  const processingMode   = (formData.get("processingMode") as string) || null
 
   const orderIds = orderIdsRaw
     ? orderIdsRaw.split(",").map(s => s.trim()).filter(Boolean)
@@ -66,9 +68,10 @@ export async function createTransportRun(formData: FormData) {
       facility_name: facility?.name ?? null,
       assigned_to:   assignedTo,
       assigned_role: assignedRole,
-      order_ids:     orderIds,
+      order_ids:        orderIds,
       notes,
-      status: "pending",
+      status:           "pending",
+      processing_mode:  processingMode,
     })
     .select()
     .single()
@@ -175,9 +178,9 @@ export async function completeTransportRun(formData: FormData) {
       .eq("id", run.facility_id)
       .single()
 
-    const facilityProcessingMode = facility?.supports_own_operator === false
-      ? "partner_attendant"
-      : "own_operator"
+    // Use the mode set when the run was created; fall back to facility default
+    const facilityProcessingMode: string = run.processing_mode
+      ?? (facility?.supports_own_operator === false ? "partner_attendant" : "own_operator")
 
     // Update bags
     await supabase
@@ -316,10 +319,10 @@ export async function getActiveFacilities() {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("facilities")
-    .select("id, name, address")
+    .select("id, name, address, supports_own_operator, supports_partner_attendant")
     .eq("active", true)
     .order("name")
-  return (data ?? []) as { id: string; name: string; address: string | null }[]
+  return (data ?? []) as { id: string; name: string; address: string | null; supports_own_operator: boolean; supports_partner_attendant: boolean }[]
 }
 
 // ── Orders eligible to be added to a new run ──────────────────────────────────
