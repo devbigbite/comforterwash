@@ -93,7 +93,7 @@ const es = {
     r2Label: "Cliente · Orlando",
     r3Quote: "Siempre son puntuales, la ropa queda perfectamente doblada y el enlace de rastreo es muy tranquilizador. Lo recomiendo mucho.",
     r3Name: "Keisha R.",
-    r3Label: "Cliente Frecuente · Dr. Phillips",
+    r3Label: "Cliente Frecuente · Celebration",
   },
   zip: {
     heading: "¿Llegamos a Tu Puerta?",
