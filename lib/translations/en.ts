@@ -40,7 +40,7 @@ const en = {
     washFoldTitle: "Wash & Fold",
     washFoldDesc: "Drop off your family's clothes dirty, get them back sorted, washed, dried, and neatly folded.",
     washFoldUnit: "per lb · 20 lb min",
-    details: "Book Now »",
+    details: "Book Now",
     perComforter: "per comforter",
     washOnlyTitle: "Wash Only",
     washOnlyDesc: "Clothes washed & dried, returned clean in a bag — unfolded. Perfect if you prefer to fold your own.",

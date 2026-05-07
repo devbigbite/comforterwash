@@ -78,15 +78,13 @@ export default function Home() {
                 <div className="flex-1">
                   <h3 className="font-extrabold text-white uppercase tracking-wide text-sm mb-1">{svc.title}</h3>
                   <p className="text-white/50 text-xs leading-relaxed mb-3">{svc.desc}</p>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-[#E8726A] font-extrabold text-xl">{svc.price}</span>
-                      <span className="text-white/40 text-xs ml-1">{svc.unit}</span>
-                    </div>
-                    <span className="text-[#E8726A] text-xs font-bold uppercase tracking-wide group-hover:translate-x-1 transition-transform inline-block">
-                      {tr.services.details}
-                    </span>
+                  <div className="mb-3">
+                    <span className="text-[#E8726A] font-extrabold text-xl">{svc.price}</span>
+                    <span className="text-white/40 text-xs ml-1">{svc.unit}</span>
                   </div>
+                  <span className="inline-block bg-[#E8726A] group-hover:bg-[#d45f57] text-white font-bold text-xs px-4 py-2 rounded-full uppercase tracking-wide transition-colors">
+                    {tr.services.details}
+                  </span>
                 </div>
               </Link>
             ))}

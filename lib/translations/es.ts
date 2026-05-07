@@ -40,7 +40,7 @@ const es = {
     washFoldTitle: "Lavado y Doblado",
     washFoldDesc: "Entrega tu ropa sucia y recíbela limpia, clasificada, lavada, secada y perfectamente doblada.",
     washFoldUnit: "por lb · mín. 20 lb",
-    details: "Programar Recogido »",
+    details: "Programar Recogido",
     perComforter: "por edredón",
     washOnlyTitle: "Solo Lavado",
     washOnlyDesc: "Ropa lavada y secada, devuelta limpia en una bolsa — sin doblar. Ideal si prefieres doblarla tú.",
