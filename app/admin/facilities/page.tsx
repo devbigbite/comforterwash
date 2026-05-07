@@ -231,7 +231,7 @@ export default async function FacilitiesPage() {
       </div>
 
       {/* ── Partner Portal Links ── */}
-      {facilities && facilities.some(f => f.active && f.supports_partner_attendant) && (
+      {facilities && facilities.some(f => f.active && f.partner_access_code) && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
           <h2 className="font-bold text-[#0D2240] mb-1">Partner Portal Links</h2>
           <p className="text-xs text-gray-400 mb-4">Share these links with each facility owner — they only see their own data.</p>
@@ -350,7 +350,7 @@ export default async function FacilitiesPage() {
                       ⏱ Limit: {[f.processing_limit_days ? `${f.processing_limit_days}d` : null, f.processing_limit_hours ? `${f.processing_limit_hours}h` : null].filter(Boolean).join(" ") || "set"}
                     </span>
                   )}
-                  {f.supports_partner_attendant && f.partner_access_code && (
+                  {f.partner_access_code && (
                     <a href={`/partner/${f.partner_access_code}`} target="_blank" rel="noreferrer"
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E8726A]/10 text-[#E8726A] border border-[#E8726A]/20 hover:bg-[#E8726A]/20 transition-colors">
                       Partner Portal ↗
