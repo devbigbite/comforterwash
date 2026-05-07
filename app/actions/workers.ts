@@ -184,4 +184,8 @@ export async function issuePayout(formData: FormData) {
     notes:             notes || null,
   })
 
-  revalidatePath("
+  revalidatePath("/admin/workers")
+  revalidatePath(`/admin/workers/${workerId}`)
+  return { success: true, amountCents }
+}
+                   

@@ -637,4 +637,73 @@ export default function AdminSchedulePage() {
                             </div>
                             <div>
                               <label className="text-xs text-gray-400 font-bold">Break (min)</label>
-                              <input type="number" min="0" value
+                              <input type="number" min="0" value={editForm.breakMinutes}
+                                onChange={e => setEditForm(f => ({ ...f, breakMinutes: e.target.value }))}
+                                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
+                            </div>
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <button onClick={() => handleSaveEdit(punch)}
+                              className="bg-[#0D2240] text-white text-xs font-bold px-3 py-1.5 rounded-lg">Save</button>
+                            <button onClick={() => setEditPunchId(null)}
+                              className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1.5 rounded-lg">Cancel</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+
+                    return (
+                      <tr key={punch.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-2.5 font-semibold text-[#0D2240]">{punch.worker_name}</td>
+                        <td className="px-4 py-2.5">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold capitalize ${ROLE_COLOR[punch.role]}`}>
+                            {punch.role}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-600 tabular-nums">
+                          {fmtTime(punch.clocked_in_at)}
+                          <br/><span className="text-gray-300 text-xs">{punch.clocked_in_at.split("T")[0]}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-600 tabular-nums">
+                          {punch.clocked_out_at ? fmtTime(punch.clocked_out_at) : <span className="text-green-500 font-bold text-xs">Active ●</span>}
+                          {punch.break_minutes > 0 && <span className="text-gray-300 text-xs block">−{punch.break_minutes}m break</span>}
+                        </td>
+                        <td className="px-4 py-2.5 font-bold text-[#0D2240] tabular-nums">
+                          {mins !== null ? formatDuration(mins) : "—"}
+                        </td>
+                        <td className="px-4 py-2.5 tabular-nums">
+                          {payCents !== null ? (
+                            <span className="font-bold text-green-600">${(payCents / 100).toFixed(2)}</span>
+                          ) : wageCents === 0 ? (
+                            <span className="text-gray-300 text-xs">No rate</span>
+                          ) : (
+                            <span className="text-gray-300 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <button
+                            onClick={() => {
+                              setEditPunchId(punch.id)
+                              setEditForm({
+                                clockedInAt:  punch.clocked_in_at,
+                                clockedOutAt: punch.clocked_out_at ?? "",
+                                breakMinutes: String(punch.break_minutes ?? 0),
+                              })
+                            }}
+                            className="text-gray-300 hover:text-gray-500 text-xs font-bold transition-colors"
+                          >Edit</button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        )
+      })()}
+      )}
+    </div>
+  )
+}

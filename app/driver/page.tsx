@@ -268,4 +268,57 @@ export default function DriverHome() {
           </div>
           {error && <p className="text-sm text-red-500 font-medium mb-2 text-center">{error}</p>}
 
-          <div className="grid grid-cols-3 gap-2 mt-3
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            {["1","2","3","4","5","6","7","8","9"].map(n => (
+              <button key={n} type="button"
+                onClick={() => { if (code.length < 6) { setCode(c => c + n); setError("") } }}
+                className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">
+                {n}
+              </button>
+            ))}
+            <button type="button"
+              onClick={() => { setCode(""); setError("") }}
+              className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 active:bg-red-100 text-gray-400 font-bold text-sm transition-colors select-none">
+              CLR
+            </button>
+            <button type="button"
+              onClick={() => { if (code.length < 6) { setCode(c => c + "0"); setError("") } }}
+              className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">
+              0
+            </button>
+            <button type="button"
+              onClick={() => { setCode(c => c.slice(0, -1)); setError("") }}
+              className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 active:bg-amber-100 text-gray-500 font-bold text-xl transition-colors select-none">
+              ⌫
+            </button>
+          </div>
+
+          <button
+            onClick={lookup}
+            disabled={loading || code.length < 4}
+            className="w-full mt-3 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors">
+            {loading ? "Looking up…" : "Find Order →"}
+          </button>
+
+          <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
+            <span className="text-sm mt-0.5">📷</span>
+            <p className="text-[11px] text-gray-400 leading-relaxed">
+              <strong className="text-gray-500">Using a barcode scanner?</strong> It will auto-fill the number and submit.
+            </p>
+          </div>
+        </div>
+
+        <div className="text-center space-y-2">
+          <div>
+            <a href="/staff" className="text-white/40 text-xs hover:text-white/60 transition-colors font-semibold">🕐 Clock In / Out</a>
+          </div>
+          <div>
+            <a href="/operator" className="text-white/20 text-xs hover:text-white/40 transition-colors">Switch to Operator view</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    </PinGate>
+  )
+}
+            {["1","2","3","4","5","6","7","8","9"].map

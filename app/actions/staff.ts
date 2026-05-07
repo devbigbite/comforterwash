@@ -226,4 +226,7 @@ export async function updatePunch(formData: FormData) {
     })
     .eq("id", punchId)
 
-  revalidatePath("
+  revalidatePath("/admin/schedule")
+  return { success: true }
+}
+                   
