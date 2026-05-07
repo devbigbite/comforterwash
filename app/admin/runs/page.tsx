@@ -396,10 +396,20 @@ export default function RunsPage() {
                         ✅ Completed {new Date(run.completed_at).toLocaleString()} by {run.completed_by}
                       </p>
                     )}
-                    <p className="text-xs text-gray-400 mt-1">
-                      Created {new Date(run.created_at).toLocaleString()}
-                      {" · "}
+                    <p className="text-xs text-gray-400 mt-1 flex items-center gap-2 flex-wrap">
+                      <span>Created {new Date(run.created_at).toLocaleString()}</span>
+                      <span className="text-gray-300">·</span>
                       <span className="font-mono">{run.id.slice(0,8).toUpperCase()}</span>
+                      {run.shipday_order_id ? (
+                        <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 border border-blue-200 text-xs font-bold px-2 py-0.5 rounded-full">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H19a1 1 0 001-1v-5a1 1 0 00-.293-.707l-3-3A1 1 0 0016 5h-3V4a1 1 0 00-1-1H3z"/></svg>
+                          Shipday #{run.shipday_order_id}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-600 border border-amber-200 text-xs font-semibold px-2 py-0.5 rounded-full">
+                          ⚠ Not in Shipday
+                        </span>
+                      )}
                     </p>
                   </div>
 

@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { createShipdayRunOrder } from "@/lib/shipday"
 
 export interface TransportRun {
   id: string
@@ -17,6 +18,7 @@ export interface TransportRun {
   created_at: string
   completed_at: string | null
   completed_by: string | null
+  shipday_order_id: number | null
 }
 
 export interface RunOrder {
@@ -73,6 +75,54 @@ export async function createTransportRun(formData: FormData) {
   if (error) {
     console.error("[transport-runs] create error:", error)
     return { error: "Failed to create run" }
+  }
+
+  // ── Push to Shipday so driver sees it in their app ─────────────────────────
+  try {
+    // Fetch warehouse address from settings
+    const { data: warehouseSetting } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "warehouse_address")
+      .single()
+    const warehouseAddress = warehouseSetting?.value ?? process.env.BUSINESS_ADDRESS ?? "Orlando, FL"
+
+    // Fetch facility address
+    const { data: facilityData } = await supabase
+      .from("facilities")
+      .select("name, address")
+      .eq("id", facilityId)
+      .single()
+
+    const facilityAddress = facilityData?.address ?? run.facility_name ?? "Facility"
+    const facilityName    = facilityData?.name    ?? run.facility_name ?? "Facility"
+
+    const fromAddress = runType === "to_facility" ? warehouseAddress : facilityAddress
+    const toAddress   = runType === "to_facility" ? facilityAddress  : warehouseAddress
+
+    const orderSummary = `${orderIds.length} order${orderIds.length !== 1 ? "s" : ""} · assigned to ${assignedTo}`
+
+    const today = new Date().toISOString().split("T")[0]
+
+    const shipdayOrderId = await createShipdayRunOrder({
+      runId:        run.id,
+      runType,
+      facilityName,
+      fromAddress,
+      toAddress,
+      orderSummary,
+      runDate:      today,
+    })
+
+    if (shipdayOrderId) {
+      await supabase
+        .from("transport_runs")
+        .update({ shipday_order_id: shipdayOrderId })
+        .eq("id", run.id)
+      run.shipday_order_id = shipdayOrderId
+    }
+  } catch (err) {
+    console.error("[transport-runs] Shipday run order failed (non-fatal):", err)
   }
 
   revalidatePath("/admin/runs")

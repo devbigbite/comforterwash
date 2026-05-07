@@ -289,3 +289,69 @@ export async function createShipdayOrder(booking: ShipdayOrderInput): Promise<Sh
 
   return { pickupOrderId, deliveryOrderId }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Transport Run → Shipday
+// Creates a single Shipday order representing a warehouse↔facility run.
+// The "restaurant" (origin) and "customer" (destination) are both internal
+// addresses — no real customer is involved.
+// ─────────────────────────────────────────────────────────────────────────────
+export interface ShipdayRunInput {
+  runId:        string
+  runType:      "to_facility" | "to_warehouse"
+  facilityName: string
+  fromAddress:  string   // origin address
+  toAddress:    string   // destination address
+  orderSummary: string   // e.g. "4 orders · 14 bags"
+  runDate:      string   // YYYY-MM-DD (today)
+}
+
+export async function createShipdayRunOrder(run: ShipdayRunInput): Promise<number | null> {
+  const apiKey = process.env.SHIPDAY_API_KEY
+  if (!apiKey) {
+    console.error("[shipday] SHIPDAY_API_KEY not set — skipping run dispatch")
+    return null
+  }
+
+  const shortId   = run.runId.slice(0, 8).toUpperCase()
+  const prefix    = run.runType === "to_facility" ? "RUN" : "RTN"
+  const orderNum  = `${prefix}-${shortId}`
+  const label     = run.runType === "to_facility"
+    ? `Warehouse → ${run.facilityName}`
+    : `${run.facilityName} → Warehouse`
+
+  const payload = {
+    orderNumber:           orderNum,
+    customerName:          run.runType === "to_facility" ? run.facilityName : "WashFold Warehouse",
+    customerAddress:       run.toAddress,
+    customerEmail:         "",
+    customerPhoneNumber:   "",
+    restaurantName:        run.runType === "to_facility" ? "WashFold Warehouse" : run.facilityName,
+    restaurantAddress:     run.fromAddress,
+    restaurantPhoneNumber: process.env.BUSINESS_PHONE ?? "",
+    pickupDate:            toShipdayDate(run.runDate),
+    expectedPickupTime:    "09:00:00",
+    paymentMethod:         "NO_PAYMENT",
+    subtotal:              "0.00",
+    tax:                   "0.00",
+    totalOrderCost:        "0.00",
+    tips:                  "0.00",
+    orderItems: [
+      {
+        name:      label,
+        quantity:  1,
+        unitPrice: "0.00",
+        details:   run.orderSummary,
+      },
+    ],
+  }
+
+  try {
+    const id = await postShipdayOrder(apiKey, payload)
+    if (id) console.log(`[shipday] Run order created: ${orderNum} → Shipday id=${id}`)
+    return id
+  } catch (err) {
+    console.error("[shipday] Failed to create run order:", err)
+    return null
+  }
+}
