@@ -8,15 +8,6 @@ export const metadata = {
 
 export const dynamic = "force-dynamic"
 
-const AREA_ICONS: Record<string, string> = {
-  "32821": "🏘️",
-  "32824": "🌿",
-  "32827": "🏥",
-  "32832": "🌲",
-  "32837": "🦅",
-  "34747": "✨",
-}
-
 export default async function ServiceAreasPage() {
   const supabase = await createClient()
   const { data: areas } = await supabase
@@ -67,7 +58,7 @@ export default async function ServiceAreasPage() {
             {activeAreas.map(area => (
               <div key={area.zip_code} className="group rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md hover:border-[#E8726A]/30 transition-all p-6">
                 <div className="flex items-start justify-between gap-3 mb-3">
-                  <span className="text-3xl">{AREA_ICONS[area.zip_code] ?? "📍"}</span>
+                  <span className="text-3xl">📍</span>
                   <span className="text-xs font-bold bg-[#0D2240]/5 text-[#0D2240] px-2.5 py-1 rounded-full">
                     {area.city}
                   </span>
