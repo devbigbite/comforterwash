@@ -213,3 +213,32 @@ export async function updatePunch(formData: FormData) {
   revalidatePath("/admin/schedule")
   return { success: true }
 }
+
+export async function createPunch(formData: FormData) {
+  const supabase      = createAdminClient()
+  const workerName    = formData.get("workerName")    as string
+  const role          = formData.get("role")          as string
+  const date          = formData.get("date")          as string   // YYYY-MM-DD
+  const startTime     = formData.get("startTime")     as string   // HH:MM
+  const endTime       = (formData.get("endTime")      as string) || null
+  const breakMinutes  = parseInt(formData.get("breakMinutes") as string || "0", 10)
+
+  if (!workerName || !role || !date || !startTime) return { error: "Missing required fields" }
+
+  const clockedInAt  = `${date}T${startTime}:00`
+  const clockedOutAt = endTime ? `${date}T${endTime}:00` : null
+
+  const { error } = await supabase
+    .from("staff_time_punches")
+    .insert({
+      worker_name:    workerName,
+      role,
+      clocked_in_at:  clockedInAt,
+      clocked_out_at: clockedOutAt,
+      break_minutes:  isNaN(breakMinutes) ? 0 : breakMinutes,
+    })
+
+  revalidatePath("/admin/schedule")
+  if (error) return { error: error.message }
+  return { success: true }
+}

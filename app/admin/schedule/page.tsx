@@ -10,6 +10,7 @@ import {
   deleteShift,
   clockOut,
   updatePunch,
+  createPunch,
   } from "@/app/actions/staff"
 import { minutesBetween, formatDuration } from "@/lib/staff-utils"
 import type { TimePunch, ScheduledShift, ActiveWorker } from "@/app/actions/staff"
@@ -90,6 +91,15 @@ export default function AdminSchedulePage() {
   const [tsLoading, setTsLoading] = useState(false)
   const [editPunchId, setEditPunchId] = useState<string | null>(null)
   const [editForm, setEditForm]   = useState({ clockedInAt: "", clockedOutAt: "", breakMinutes: "0" })
+
+  // ── Add Punch state ────────────────────────────────────────────────────────
+  const [showAddPunch, setShowAddPunch]   = useState(false)
+  const [addPunchForm, setAddPunchForm]   = useState({
+    workerName: "", role: "", date: new Date().toISOString().split("T")[0],
+    startTime: "09:00", endTime: "", breakMinutes: "0",
+  })
+  const [addPunchSaving, setAddPunchSaving] = useState(false)
+  const [addPunchError,  setAddPunchError]  = useState<string | null>(null)
 
   // ── Load data ──────────────────────────────────────────────────────────────
 
@@ -179,6 +189,24 @@ export default function AdminSchedulePage() {
     fd.append("breakMinutes",   editForm.breakMinutes)
     await updatePunch(fd)
     setEditPunchId(null)
+    loadTimeSheet()
+  }
+
+  async function handleAddPunch(e: React.FormEvent) {
+    e.preventDefault()
+    setAddPunchSaving(true); setAddPunchError(null)
+    const fd = new FormData()
+    fd.set("workerName",   addPunchForm.workerName)
+    fd.set("role",         addPunchForm.role)
+    fd.set("date",         addPunchForm.date)
+    fd.set("startTime",    addPunchForm.startTime)
+    fd.set("endTime",      addPunchForm.endTime)
+    fd.set("breakMinutes", addPunchForm.breakMinutes)
+    const result = await createPunch(fd)
+    setAddPunchSaving(false)
+    if (result?.error) { setAddPunchError(result.error); return }
+    setShowAddPunch(false)
+    setAddPunchForm({ workerName: "", role: "", date: new Date().toISOString().split("T")[0], startTime: "09:00", endTime: "", breakMinutes: "0" })
     loadTimeSheet()
   }
 
@@ -616,7 +644,120 @@ export default function AdminSchedulePage() {
                 </div>
               </div>
             )}
+          {/* Add Punch Modal */}
+        {showAddPunch && (
+          <div
+            className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowAddPunch(false)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="font-extrabold text-[#0D2240] text-lg">Add Punch</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Manually log a clock-in/out record</p>
+                </div>
+                <button onClick={() => setShowAddPunch(false)} className="text-gray-300 hover:text-gray-500 text-2xl font-bold leading-none">×</button>
+              </div>
+
+              <form onSubmit={handleAddPunch} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Worker</label>
+                    <select
+                      value={addPunchForm.workerName}
+                      onChange={e => setAddPunchForm(f => ({ ...f, workerName: e.target.value }))}
+                      required
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                    >
+                      <option value="">— Select —</option>
+                      {tsWorkers.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Role</label>
+                    <select
+                      value={addPunchForm.role}
+                      onChange={e => setAddPunchForm(f => ({ ...f, role: e.target.value }))}
+                      required
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                    >
+                      <option value="">— Role —</option>
+                      <option value="driver">🚐 Driver</option>
+                      <option value="operator">🏭 Operator</option>
+                      <option value="admin">⚙️ Admin</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={addPunchForm.date}
+                    onChange={e => setAddPunchForm(f => ({ ...f, date: e.target.value }))}
+                    required
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Clock In</label>
+                    <input
+                      type="time"
+                      value={addPunchForm.startTime}
+                      onChange={e => setAddPunchForm(f => ({ ...f, startTime: e.target.value }))}
+                      required
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Clock Out <span className="normal-case font-normal text-gray-300">(optional)</span></label>
+                    <input
+                      type="time"
+                      value={addPunchForm.endTime}
+                      onChange={e => setAddPunchForm(f => ({ ...f, endTime: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Break (minutes)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={addPunchForm.breakMinutes}
+                    onChange={e => setAddPunchForm(f => ({ ...f, breakMinutes: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                  />
+                </div>
+
+                {addPunchError && <p className="text-red-500 text-sm font-semibold">{addPunchError}</p>}
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="submit"
+                    disabled={addPunchSaving}
+                    className="flex-1 bg-[#0D2240] hover:bg-[#142d52] disabled:opacity-50 text-white font-bold text-sm py-3 rounded-xl transition-colors"
+                  >
+                    {addPunchSaving ? "Saving…" : "Save Punch"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPunch(false)}
+                    className="px-5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm py-3 rounded-xl transition-colors"
+                  >Cancel</button>
+                </div>
+              </form>
+            </div>
           </div>
+        )}
+
+        </div>
         )
       })()}
 
@@ -658,6 +799,10 @@ export default function AdminSchedulePage() {
               onClick={loadTimeSheet}
               className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors"
             >Load</button>
+            <button
+              onClick={() => setShowAddPunch(true)}
+              className="bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors ml-auto"
+            >+ Add Punch</button>
           </div>
 
           {/* No-wage notice */}
@@ -824,6 +969,119 @@ export default function AdminSchedulePage() {
               </table>
             </div>
           )}
+        {/* Add Punch Modal */}
+        {showAddPunch && (
+          <div
+            className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowAddPunch(false)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="font-extrabold text-[#0D2240] text-lg">Add Punch</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Manually log a clock-in/out record</p>
+                </div>
+                <button onClick={() => setShowAddPunch(false)} className="text-gray-300 hover:text-gray-500 text-2xl font-bold leading-none">×</button>
+              </div>
+
+              <form onSubmit={handleAddPunch} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Worker</label>
+                    <select
+                      value={addPunchForm.workerName}
+                      onChange={e => setAddPunchForm(f => ({ ...f, workerName: e.target.value }))}
+                      required
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                    >
+                      <option value="">— Select —</option>
+                      {tsWorkers.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Role</label>
+                    <select
+                      value={addPunchForm.role}
+                      onChange={e => setAddPunchForm(f => ({ ...f, role: e.target.value }))}
+                      required
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                    >
+                      <option value="">— Role —</option>
+                      <option value="driver">🚐 Driver</option>
+                      <option value="operator">🏭 Operator</option>
+                      <option value="admin">⚙️ Admin</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={addPunchForm.date}
+                    onChange={e => setAddPunchForm(f => ({ ...f, date: e.target.value }))}
+                    required
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Clock In</label>
+                    <input
+                      type="time"
+                      value={addPunchForm.startTime}
+                      onChange={e => setAddPunchForm(f => ({ ...f, startTime: e.target.value }))}
+                      required
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Clock Out <span className="normal-case font-normal text-gray-300">(optional)</span></label>
+                    <input
+                      type="time"
+                      value={addPunchForm.endTime}
+                      onChange={e => setAddPunchForm(f => ({ ...f, endTime: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Break (minutes)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={addPunchForm.breakMinutes}
+                    onChange={e => setAddPunchForm(f => ({ ...f, breakMinutes: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                  />
+                </div>
+
+                {addPunchError && <p className="text-red-500 text-sm font-semibold">{addPunchError}</p>}
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="submit"
+                    disabled={addPunchSaving}
+                    className="flex-1 bg-[#0D2240] hover:bg-[#142d52] disabled:opacity-50 text-white font-bold text-sm py-3 rounded-xl transition-colors"
+                  >
+                    {addPunchSaving ? "Saving…" : "Save Punch"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPunch(false)}
+                    className="px-5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm py-3 rounded-xl transition-colors"
+                  >Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         </div>
         )
       })()}
