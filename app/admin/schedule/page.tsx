@@ -10,9 +10,8 @@ import {
   deleteShift,
   clockOut,
   updatePunch,
-  formatDuration,
-  minutesBetween,
-} from "@/app/actions/staff"
+  } from "@/app/actions/staff"
+import { minutesBetween, formatDuration } from "@/lib/staff-utils"
 import type { TimePunch, ScheduledShift, ActiveWorker } from "@/app/actions/staff"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -255,7 +254,7 @@ export default function AdminSchedulePage() {
                 const punch = currentPunches.find(p => p.worker_name === worker.name) ?? null
                 const isIn  = punch !== null
                 // `tick` triggers re-render every minute so elapsed time updates live
-                const elapsed = punch ? minutesBetween(punch.clocked_in_at, null) - (punch.break_minutes ?? 0) + (tick * 0) : 0
+                const elapsed = punch ? (punch.clocked_in_at, null) - (punch.break_minutes ?? 0) + (tick * 0) : 0
                 // Determine display role: clocked-in role, or first role in their list
                 const displayRole = punch?.role ?? worker.roles?.[0] ?? "driver"
 
@@ -296,7 +295,7 @@ export default function AdminSchedulePage() {
                     {isIn && punch && (
                       <div className="mt-2.5 space-y-0.5">
                         <p className="text-green-700 font-extrabold text-lg tabular-nums leading-none">
-                          {formatDuration(elapsed)}
+                          {(elapsed)}
                         </p>
                         <p className="text-green-600/60 text-xs">
                           since {fmtTime(punch.clocked_in_at)}
@@ -506,7 +505,7 @@ export default function AdminSchedulePage() {
         const totals: Record<string, { mins: number; payCents: number; wageCents: number }> = {}
         punches.forEach(p => {
           if (!p.clocked_out_at) return
-          const mins = Math.max(0, minutesBetween(p.clocked_in_at, p.clocked_out_at) - (p.break_minutes ?? 0))
+          const mins = Math.max(0, (p.clocked_in_at, p.clocked_out_at) - (p.break_minutes ?? 0))
           const wage = wageMap[p.worker_name] ?? 0
           const pay  = Math.round((mins / 60) * wage)
           if (!totals[p.worker_name]) totals[p.worker_name] = { mins: 0, payCents: 0, wageCents: wage }
@@ -558,7 +557,7 @@ export default function AdminSchedulePage() {
               <div className="text-right">
                 <p className="text-white/40 text-xs">{Object.keys(totals).length} workers</p>
                 <p className="text-white/40 text-xs">
-                  {formatDuration(Object.values(totals).reduce((s, t) => s + t.mins, 0))} total
+                  {(Object.values(totals).reduce((s, t) => s + t.mins, 0))} total
                 </p>
               </div>
             </div>
@@ -570,7 +569,7 @@ export default function AdminSchedulePage() {
               {Object.entries(totals).sort((a, b) => b[1].mins - a[1].mins).map(([name, t]) => (
                 <div key={name} className="bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm">
                   <p className="font-bold text-[#0D2240] text-sm truncate">{name}</p>
-                  <p className="text-2xl font-extrabold text-[#0D2240] mt-1">{formatDuration(t.mins)}</p>
+                  <p className="text-2xl font-extrabold text-[#0D2240] mt-1">{(t.mins)}</p>
                   <p className="text-gray-400 text-xs mt-0.5">{(t.mins / 60).toFixed(1)}h</p>
                   {t.wageCents > 0 ? (
                     <div className="mt-2 pt-2 border-t border-gray-100">
@@ -612,7 +611,7 @@ export default function AdminSchedulePage() {
                   {punches.map(punch => {
                     const isEditing = editPunchId === punch.id
                     const mins = punch.clocked_out_at
-                      ? Math.max(0, minutesBetween(punch.clocked_in_at, punch.clocked_out_at) - (punch.break_minutes ?? 0))
+                      ? Math.max(0, (punch.clocked_in_at, punch.clocked_out_at) - (punch.break_minutes ?? 0))
                       : null
                     const wageCents = wageMap[punch.worker_name] ?? 0
                     const payCents  = mins !== null && wageCents > 0
@@ -669,7 +668,7 @@ export default function AdminSchedulePage() {
                           {punch.break_minutes > 0 && <span className="text-gray-300 text-xs block">−{punch.break_minutes}m break</span>}
                         </td>
                         <td className="px-4 py-2.5 font-bold text-[#0D2240] tabular-nums">
-                          {mins !== null ? formatDuration(mins) : "—"}
+                          {mins !== null ? (mins) : "—"}
                         </td>
                         <td className="px-4 py-2.5 tabular-nums">
                           {payCents !== null ? (

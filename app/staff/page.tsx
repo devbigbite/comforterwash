@@ -6,9 +6,8 @@ import {
   getOpenPunch,
   clockIn,
   clockOut,
-  minutesBetween,
-  formatDuration,
-} from "@/app/actions/staff"
+  } from "@/app/actions/staff"
+import { minutesBetween, formatDuration } from "@/lib/staff-utils"
 import type { ActiveWorker, TimePunch } from "@/app/actions/staff"
 
 const ROLE_LABELS: Record<string, string> = {
@@ -43,7 +42,7 @@ export default function StaffClockPage() {
     if (!selectedName) { setOpenPunch(null); return }
     getOpenPunch(selectedName).then(punch => {
       setOpenPunch(punch)
-      if (punch) setElapsedMins(minutesBetween(punch.clocked_in_at, null))
+      if (punch) setElapsedMins((punch.clocked_in_at, null))
     })
   }, [selectedName])
 
@@ -52,7 +51,7 @@ export default function StaffClockPage() {
     if (timerRef.current) clearInterval(timerRef.current)
     if (openPunch) {
       timerRef.current = setInterval(() => {
-        setElapsedMins(minutesBetween(openPunch.clocked_in_at, null))
+        setElapsedMins((openPunch.clocked_in_at, null))
       }, 60000)
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
@@ -169,7 +168,7 @@ export default function StaffClockPage() {
               <div className="bg-green-500/20 border border-green-500/30 rounded-2xl p-5 text-center">
                 <p className="text-green-300 text-xs font-bold uppercase tracking-widest mb-1">Currently Clocked In</p>
                 <p className="text-white font-extrabold text-4xl mb-1 tabular-nums">
-                  {formatDuration(elapsedMins)}
+                  {(elapsedMins)}
                 </p>
                 <p className="text-white/40 text-xs">
                   {ROLE_LABELS[openPunch.role] ?? openPunch.role} · since {new Date(openPunch.clocked_in_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
@@ -187,7 +186,7 @@ export default function StaffClockPage() {
                     className="w-16 bg-white/20 text-white font-bold text-center rounded-lg px-2 py-1 text-sm outline-none"
                   />
                   {parseInt(breakMinutes || "0") > 0 && (
-                    <span className="text-white/40 text-xs">Net: {formatDuration(netMinutes)}</span>
+                    <span className="text-white/40 text-xs">Net: {(netMinutes)}</span>
                   )}
                 </div>
               </div>
