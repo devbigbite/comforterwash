@@ -59,27 +59,3 @@ export async function getAllFacilityWindows() {
     .order("facility_id")
   return data ?? []
 }
-
-/** Returns true if the given Date falls inside any access window for the facility.
- *  If no windows are defined, returns true (always accessible). */
-export function isWithinAccessWindow(
-  windows: { days_of_week: number[]; start_time: string; end_time: string; overnight: boolean }[],
-  date: Date = new Date()
-): boolean {
-  if (windows.length === 0) return true
-
-  const dayOfWeek = date.getDay()
-  const timeStr   = `${String(date.getHours()).padStart(2,"0")}:${String(date.getMinutes()).padStart(2,"0")}`
-
-  for (const w of windows) {
-    if (!w.days_of_week.includes(dayOfWeek)) continue
-
-    if (w.overnight) {
-      // e.g. 21:00 – 06:00  → valid if time >= 21:00 OR time <= 06:00
-      if (timeStr >= w.start_time || timeStr <= w.end_time) return true
-    } else {
-      if (timeStr >= w.start_time && timeStr <= w.end_time) return true
-    }
-  }
-  return false
-}
