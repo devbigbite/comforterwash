@@ -1,7 +1,7 @@
 const es = {
   common: {
     schedulePickup: "Programar Recogido",
-    bookNow: "Reservar Ahora",
+    bookNow: "Programa Ahora",
     next: "Siguiente",
     back: "Atrás",
     loading: "Cargando...",
@@ -103,7 +103,7 @@ const es = {
     checking: "Verificando...",
     available: "¡Buenas noticias! Servimos tu área. Baja para reservar.",
     unavailable: "Aún no servimos ese código postal — ¡pero estamos expandiéndonos! Vuelve pronto.",
-    bookNow: "Reservar Ahora",
+    bookNow: "Programa Ahora",
   },
   pricing: {
     heading: "Precios Simples y Transparentes",
@@ -130,7 +130,7 @@ const es = {
     feature3: "Notificaciones por SMS",
     feature4: "Seguimiento del pedido",
     footerNote: "Recogida y entrega gratis incluidas · Sin cargos ocultos",
-    cta: "Reservar Ahora",
+    cta: "Programa Ahora",
   },
   faq: {
     heading: "Preguntas Frecuentes",
