@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import Link from "next/link"
 import { FacilityAccessWindowsEditor, type AccessWindow } from "@/components/admin/FacilityAccessWindowsEditor"
+import { PartnerLinkCopy } from "@/components/admin/PartnerLinkCopy"
 
 // ── shared field CSS ─────────────────────────────────────────────────────────
 const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-full"
@@ -228,6 +229,37 @@ export default async function FacilitiesPage() {
           <p className="text-sm text-gray-400 mt-1">{facilities?.filter(f => f.active).length ?? 0} active locations</p>
         </div>
       </div>
+
+      {/* ── Partner Portal Links ── */}
+      {facilities && facilities.some(f => f.active && f.supports_partner_attendant) && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="font-bold text-[#0D2240] mb-1">Partner Portal Links</h2>
+          <p className="text-xs text-gray-400 mb-4">Share these links with each facility owner — they only see their own data.</p>
+          <div className="space-y-2">
+            {facilities.filter(f => f.active && f.partner_access_code).map(f => {
+              const url = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://comforterwash.com"}/partner/${f.partner_access_code}`
+              return (
+                <div key={f.id} className="flex items-center gap-3 bg-[#f7f8fb] rounded-xl px-4 py-3 border border-gray-100">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-[#0D2240] text-sm">{f.name}</p>
+                    <p className="text-xs text-gray-400 font-mono truncate">{url}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a
+                      href={`/partner/${f.partner_access_code}`}
+                      target="_blank" rel="noreferrer"
+                      className="text-xs font-bold text-[#E8726A] hover:underline px-3 py-1.5 rounded-lg bg-[#E8726A]/10 hover:bg-[#E8726A]/20 transition-colors"
+                    >
+                      Open ↗
+                    </a>
+                    <PartnerLinkCopy url={url} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Add facility ── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 space-y-4">
