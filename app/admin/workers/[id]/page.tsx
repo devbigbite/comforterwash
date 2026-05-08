@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { createStripeConnectAccount, syncStripeStatus, issuePayout, updatePayRates } from "@/app/actions/workers"
+import { setWorkerPin, clearWorkerPin } from "@/app/actions/staff"
 import { createClient } from "@/lib/supabase/client"
 
 type Worker = {
@@ -53,6 +54,11 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
   const [syncLoading, setSyncLoading] = useState(false)
   const [payoutLoading, setPayoutLoading] = useState(false)
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
+
+  // PIN management
+  const [newPin, setNewPin]       = useState("")
+  const [pinMsg, setPinMsg]       = useState<{ type: "ok" | "err"; text: string } | null>(null)
+  const [pinSaving, setPinSaving] = useState(false)
 
   // Payout form state
   const [payType, setPayType] = useState("delivery")
@@ -140,6 +146,24 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
     }
   }
 
+  async function handleSetPin() {
+    if (!/^\d{4}$/.test(newPin)) { setPinMsg({ type: "err", text: "PIN must be exactly 4 digits" }); return }
+    setPinSaving(true); setPinMsg(null)
+    const result = await setWorkerPin(worker!.name, newPin)
+    setPinSaving(false)
+    if (result?.error) { setPinMsg({ type: "err", text: result.error }); return }
+    setNewPin("")
+    setPinMsg({ type: "ok", text: "PIN set successfully." })
+  }
+
+  async function handleClearPin() {
+    if (!confirm(`Remove clock PIN for ${worker?.name}?`)) return
+    setPinSaving(true); setPinMsg(null)
+    await clearWorkerPin(worker!.name)
+    setPinSaving(false)
+    setPinMsg({ type: "ok", text: "PIN cleared — worker can clock in without a PIN until a new one is set." })
+  }
+
   async function handleRates(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
@@ -224,6 +248,37 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
             </button>
           )}
         </div>
+      </div>
+
+      {/* Clock PIN */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h2 className="font-extrabold text-[#0D2240] text-base mb-1">Clock PIN</h2>
+        <p className="text-xs text-gray-400 mb-4">4-digit PIN required at the Staff Clock to prevent buddy punching. Leave blank to allow PIN-free clock-in.</p>
+        <div className="flex items-center gap-3">
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="\d{4}"
+            maxLength={4}
+            placeholder="New 4-digit PIN"
+            value={newPin}
+            onChange={e => { setNewPin(e.target.value.replace(/\D/g, "").slice(0,4)); setPinMsg(null) }}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-36 focus:outline-none focus:border-[#E8726A] tracking-[0.4em] font-mono"
+          />
+          <button type="button" onClick={handleSetPin} disabled={pinSaving || newPin.length !== 4}
+            className="bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
+            {pinSaving ? "Saving…" : "Set PIN"}
+          </button>
+          <button type="button" onClick={handleClearPin} disabled={pinSaving}
+            className="text-xs font-bold text-red-400 border border-red-100 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl transition-colors uppercase tracking-wide disabled:opacity-40">
+            Clear
+          </button>
+        </div>
+        {pinMsg && (
+          <p className={`text-xs font-semibold mt-2 ${pinMsg.type === "ok" ? "text-green-600" : "text-red-500"}`}>
+            {pinMsg.text}
+          </p>
+        )}
       </div>
 
       {/* Pay Rates */}
@@ -355,54 +410,37 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
               </div>
             )}
 
-            <div>
-              <label className="text-[10px] text-gray-400 uppercase tracking-wide block mb-1">Notes (optional)</label>
-              <input type="text" value={payNotes} onChange={e => setPayNotes(e.target.value)}
-                placeholder="e.g. Order #ABC123, extra long route"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#E8726A]" />
-            </div>
-
-            <button onClick={handlePayout} disabled={payoutLoading}
-              className="w-full bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold py-3 rounded-xl text-sm uppercase tracking-wide transition-colors disabled:opacity-60">
-              {payoutLoading ? "Processing…" : "💸 Send Payout via Stripe"}
+            {/* Submit payout button */}
+            <button type="button"
+              onClick={async () => {
+                let amountCents = 0
+                if (payType === "delivery") {
+                  amountCents = (worker.driver_per_order_cents ?? 0) + Math.round(parseFloat(miles || "0") * (worker.driver_per_mile_cents ?? 0))
+                } else if (payType === "operation") {
+                  amountCents = Math.round(parseFloat(hours || "0") * (worker.operator_per_hour_cents ?? 0)) +
+                    Math.round(parseFloat(miles || "0") * (worker.operator_per_mile_cents ?? 0))
+                } else {
+                  amountCents = Math.round(parseFloat(manualAmt || "0") * 100)
+                }
+                if (amountCents <= 0) { setPayError("Enter a valid amount."); return }
+                setPayError(null); setPayLoading(true)
+                try {
+                  await issuePayout(worker.id, amountCents, payType)
+                  setPaySuccess(fmt(amountCents) + " payout sent!")
+                } catch (e: unknown) {
+                  setPayError(e instanceof Error ? e.message : "Payout failed")
+                } finally { setPayLoading(false) }
+              }}
+              disabled={payLoading}
+              className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-300 text-white font-extrabold py-3 rounded-xl transition-colors text-sm uppercase tracking-wide">
+              {payLoading ? "Sending…" : "Send Payout via Stripe"}
             </button>
+
+            {payError && <p className="text-red-500 text-xs font-semibold text-center">{payError}</p>}
+            {paySuccess && <p className="text-green-600 text-xs font-semibold text-center">{paySuccess}</p>}
           </div>
         </div>
       )}
-
-      {/* Payout history */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <h2 className="font-extrabold text-[#0D2240] text-base mb-4">Payout History</h2>
-        {payouts.length === 0 ? (
-          <p className="text-sm text-gray-400">No payouts yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {payouts.map((p) => (
-              <div key={p.id} className="flex items-center justify-between gap-4 py-2.5 border-b border-gray-50 last:border-0">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#0D2240] capitalize">{p.payout_type}</span>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
-                      p.status === "transferred" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
-                    }`}>{p.status}</span>
-                  </div>
-                  <div className="flex gap-3 text-[10px] text-gray-400 mt-0.5">
-                    <span>{new Date(p.created_at).toLocaleDateString()}</span>
-                    {p.hours != null && <span>{p.hours}h</span>}
-                    {p.miles != null && <span>{p.miles} mi</span>}
-                    {p.notes && <span>{p.notes}</span>}
-                  </div>
-                </div>
-                <span className="font-extrabold text-[#E8726A] shrink-0">{fmt(p.amount_cents)}</span>
-              </div>
-            ))}
-            <div className="pt-2 flex justify-between text-sm font-extrabold text-[#0D2240]">
-              <span>Total Paid Out</span>
-              <span className="text-[#E8726A]">{fmt(totalPaid)}</span>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   )
 }

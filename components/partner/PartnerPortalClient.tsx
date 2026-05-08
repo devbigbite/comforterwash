@@ -34,10 +34,21 @@ function fmt$(cents: number | null) {
 }
 
 const PERIOD_OPTIONS = [
-  { label: "This Week",  days: 7 },
-  { label: "This Month", days: 30 },
+  { label: "This Week",    days: 7 },
+  { label: "This Month",   days: 30 },
   { label: "Last 90 Days", days: 90 },
+  { label: "Custom",       days: 0 },
 ]
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function daysAgoStr(n: number) {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return d.toISOString().slice(0, 10)
+}
 
 export function PartnerPortalClient({
   facility, activeBookings, historyBookings, today, facilityCode, markOrderReadyAction,
@@ -49,8 +60,12 @@ export function PartnerPortalClient({
   facilityCode: string
   markOrderReadyAction: (fd: FormData) => Promise<void>
 }) {
-  const [tab, setTab]       = useState<"active" | "billing">("active")
-  const [period, setPeriod] = useState(30)
+  const [tab, setTab]         = useState<"active" | "billing">("active")
+  const [period, setPeriod]   = useState(30)
+  const [customFrom, setFrom] = useState(daysAgoStr(30))
+  const [customTo, setTo]     = useState(todayStr())
+
+  const isCustom = period === 0
 
   // Active split
   const needsWork = activeBookings.filter(b =>
@@ -62,10 +77,12 @@ export function PartnerPortalClient({
   )
 
   // Billing period filter
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - period)
-  const cutoffStr = cutoff.toISOString().slice(0, 10)
-  const periodHistory = historyBookings.filter(b => (b.delivery_date ?? "") >= cutoffStr)
+  const fromStr = isCustom ? customFrom : daysAgoStr(period)
+  const toStr   = isCustom ? customTo   : todayStr()
+  const periodHistory = historyBookings.filter(b => {
+    const d = b.delivery_date ?? ""
+    return d >= fromStr && d <= toStr
+  })
 
   const totalLbs       = periodHistory.reduce((s, b) => s + (b.actual_weight_lbs ?? 0), 0)
   const totalOrders    = periodHistory.length
@@ -248,16 +265,46 @@ export function PartnerPortalClient({
         {tab === "billing" && (
           <>
             {/* Period selector */}
-            <div className="flex gap-2">
-              {PERIOD_OPTIONS.map(o => (
-                <button key={o.days} onClick={() => setPeriod(o.days)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-                    period === o.days
-                      ? "bg-[#E8726A] border-[#E8726A] text-white"
-                      : "border-gray-700 text-gray-400 hover:border-gray-500"
-                  }`}
-                >{o.label}</button>
-              ))}
+            <div className="space-y-3">
+              <div className="flex gap-2 flex-wrap">
+                {PERIOD_OPTIONS.map(o => (
+                  <button key={o.days} onClick={() => setPeriod(o.days)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      period === o.days
+                        ? "bg-[#E8726A] border-[#E8726A] text-white"
+                        : "border-gray-700 text-gray-400 hover:border-gray-500"
+                    }`}
+                  >{o.label}</button>
+                ))}
+              </div>
+
+              {/* Custom date range inputs */}
+              {isCustom && (
+                <div className="flex items-center gap-3 bg-gray-900 border border-gray-700 rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-2 flex-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider shrink-0">From</label>
+                    <input
+                      type="date"
+                      value={customFrom}
+                      max={customTo}
+                      onChange={e => setFrom(e.target.value)}
+                      className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#E8726A] [color-scheme:dark]"
+                    />
+                  </div>
+                  <span className="text-gray-600 text-sm shrink-0">→</span>
+                  <div className="flex items-center gap-2 flex-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider shrink-0">To</label>
+                    <input
+                      type="date"
+                      value={customTo}
+                      min={customFrom}
+                      max={todayStr()}
+                      onChange={e => setTo(e.target.value)}
+                      className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#E8726A] [color-scheme:dark]"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Summary cards */}
@@ -303,34 +350,27 @@ export function PartnerPortalClient({
                   <p className="text-gray-500">No completed orders in this period.</p>
                 </div>
               ) : (
-                <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
-                  {/* Table header */}
-                  <div className="grid grid-cols-4 px-5 py-3 border-b border-gray-800 bg-gray-800/60">
-                    <p className="text-xs font-bold text-gray-500 uppercase">Date</p>
-                    <p className="text-xs font-bold text-gray-500 uppercase">Service</p>
-                    <p className="text-xs font-bold text-gray-500 uppercase text-right">Lbs</p>
-                    <p className="text-xs font-bold text-gray-500 uppercase text-right">Earned</p>
-                  </div>
-                  {periodHistory.map((b, i) => (
-                    <div key={b.id}
-                      className={`grid grid-cols-4 px-5 py-3.5 items-center ${i < periodHistory.length - 1 ? "border-b border-gray-800/60" : ""}`}
-                    >
-                      <p className="text-sm text-gray-400">{b.delivery_date}</p>
-                      <p className="text-sm text-gray-300">{svcLabel(b.service_type)}</p>
-                      <p className="text-sm text-white font-semibold text-right">
-                        {b.actual_weight_lbs?.toFixed(1) ?? "—"}
-                      </p>
-                      <p className="text-sm font-bold text-green-400 text-right">
-                        {fmt$(b.facility_cost_cents)}
-                      </p>
-                    </div>
-                  ))}
-                  {/* Total row */}
-                  <div className="grid grid-cols-4 px-5 py-4 bg-gray-800/60 border-t border-gray-700">
-                    <p className="text-xs font-bold text-gray-400 col-span-2">TOTAL</p>
-                    <p className="text-sm font-extrabold text-white text-right">{totalLbs.toFixed(1)} lbs</p>
-                    <p className="text-sm font-extrabold text-green-400 text-right">{fmt$(totalOwed)}</p>
-                  </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800">
+                        <th className="text-left pb-3">Order</th>
+                        <th className="text-left pb-3">Date</th>
+                        <th className="text-right pb-3">Lbs</th>
+                        <th className="text-right pb-3">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {periodHistory.map(o => (
+                        <tr key={o.id}>
+                          <td className="py-3 font-mono text-gray-300">{o.short_code || o.id.slice(0, 6).toUpperCase()}</td>
+                          <td className="py-3 text-gray-400">{o.delivery_date}</td>
+                          <td className="py-3 text-right text-gray-300">{(o.actual_weight_lbs ?? 0).toFixed(1)}</td>
+                          <td className="py-3 text-right font-bold text-green-400">{fmt$(o.facility_cost_cents ?? 0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </section>
