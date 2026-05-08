@@ -3,7 +3,8 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { createShipdayRunOrder } from "@/lib/shipday"
-import { getAllFacilityWindows, isWithinAccessWindow } from "@/app/actions/facility-windows"
+import { getAllFacilityWindows } from "@/app/actions/facility-windows"
+import { isWithinAccessWindow } from "@/lib/facility-utils"
 
 export interface TransportRun {
   id: string
