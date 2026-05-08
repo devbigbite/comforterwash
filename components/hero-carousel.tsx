@@ -137,8 +137,7 @@ export default function HeroCarousel({
               src={currentImage}
               alt="How it works"
               fill
-              className="object-contain object-center"
-              style={{ background: "#0D2240" }}
+              className="object-cover object-center"
               unoptimized={isExternal}
             />
             {/* Gradient: dark at bottom for text legibility */}
