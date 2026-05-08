@@ -139,6 +139,7 @@ export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: Em
     <div class="footer">
       <p>WashFold Orlando · Pickup &amp; Delivery Laundry Service<br/>
       <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+      <p style="margin-top:10px;font-size:11px;color:#b0b8c4;">¿Deseas recibir estas comunicaciones en español? Puedes hacer ese ajuste en tu panel de cuenta.</p>
     </div>
   `)
 
@@ -245,6 +246,7 @@ export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplat
     </div>
     <div class="footer">
       <p>WashFold Orlando · <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+      <p style="margin-top:10px;font-size:11px;color:#b0b8c4;">¿Deseas recibir estas comunicaciones en español? Puedes hacer ese ajuste en tu panel de cuenta.</p>
     </div>
   `)
 
@@ -287,6 +289,7 @@ export function buildOrderPickedUpEmail(d: OrderPickedUpData, ov: EmailTemplateO
     </div>
     <div class="footer">
       <p>WashFold Orlando · <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+      <p style="margin-top:10px;font-size:11px;color:#b0b8c4;">¿Deseas recibir estas comunicaciones en español? Puedes hacer ese ajuste en tu panel de cuenta.</p>
     </div>
   `)
 
@@ -329,6 +332,7 @@ export function buildOutForDeliveryEmail(d: OutForDeliveryData, ov: EmailTemplat
     </div>
     <div class="footer">
       <p>WashFold Orlando · <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+      <p style="margin-top:10px;font-size:11px;color:#b0b8c4;">¿Deseas recibir estas comunicaciones en español? Puedes hacer ese ajuste en tu panel de cuenta.</p>
     </div>
   `)
 
@@ -366,6 +370,7 @@ export function buildDeliveredEmail(d: DeliveredData, ov: EmailTemplateOverride 
     <div class="footer">
       <p>Thank you for choosing WashFold Orlando!<br/>
       <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+      <p style="margin-top:10px;font-size:11px;color:#b0b8c4;">¿Deseas recibir estas comunicaciones en español? Puedes hacer ese ajuste en tu panel de cuenta.</p>
     </div>
   `)
 
