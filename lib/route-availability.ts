@@ -229,4 +229,7 @@ export function getEarliestRouteDelivery(pickup: Date, routes: Route[]): Date {
   }
 
   // Absolute fallback
-  const fallback = new Date(pi
+  const fallback = new Date(pickup)
+  fallback.setDate(fallback.getDate() + minGap)
+  return fallback
+}
