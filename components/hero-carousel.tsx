@@ -96,7 +96,7 @@ export default function HeroCarousel({
   const isExternal = currentImage.startsWith("http")
 
   return (
-    <section className="relative w-full overflow-hidden bg-[#0D2240]" style={{ minHeight: "clamp(460px, 70vw, 580px)" }}>
+    <section className="relative w-full overflow-hidden bg-[#0D2240] -mb-px" style={{ minHeight: "clamp(460px, 70vw, 580px)" }}>
       {/* Background image — per slide */}
       <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: transitioning ? 0 : 1 }}>
         {slide.type === "full" && (
@@ -183,12 +183,7 @@ export default function HeroCarousel({
                     </span>
                   </div>
                   <p className="text-white/80 text-sm leading-snug ml-12">{panel.desc}</p>
-                  {i < 2 && (
-                    <div
-                      className="absolute top-0 right-0 bottom-0 w-px opacity-40"
-                      style={{ background: `linear-gradient(to bottom, transparent, ${panel.accentColor}, transparent)` }}
-                    />
-                  )}
+
                 </div>
               ))}
             </div>
