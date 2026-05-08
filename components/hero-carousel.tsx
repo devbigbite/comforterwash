@@ -116,7 +116,10 @@ export default function HeroCarousel({
 
         {/* Full-width text slide */}
         {slide.type === "full" && (
-          <div className={`absolute inset-0 bg-gradient-to-r ${slide.overlay} flex items-center`}>
+          <>
+          {/* Vertical bottom fade directly on the photo — covers lower 40% */}
+          <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-b from-transparent to-[#0D2240] pointer-events-none z-10" />
+          <div className={`absolute inset-0 bg-gradient-to-r ${slide.overlay} flex items-center z-10`}>
             <div className="mx-auto max-w-7xl px-5 sm:px-8 w-full">
               <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.25em] mb-2 sm:mb-3">WashFold Orlando</p>
               <h1 className="text-white font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight max-w-2xl mb-3 sm:mb-4 drop-shadow-lg">
@@ -128,6 +131,7 @@ export default function HeroCarousel({
               </a>
             </div>
           </div>
+          </>
         )}
 
         {/* 3-panel steps slide — panoramic image spans all 3 panels */}
@@ -190,13 +194,8 @@ export default function HeroCarousel({
         )}
       </div>
 
-      {/* Bottom-edge fade — strong vertical cover on photo slides, thin on steps */}
-      {slide.type === "full" && (
-        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-b from-transparent via-[#0D2240]/60 to-[#0D2240] pointer-events-none z-10" />
-      )}
-      {slide.type === "steps" && (
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-[#0D2240] pointer-events-none z-10" />
-      )}
+      {/* Bottom-edge fade */}
+      <div className={"absolute inset-x-0 bottom-0 bg-gradient-to-b from-transparent to-[#0D2240] pointer-events-none z-10 " + (slide.type === "steps" ? "h-16" : "h-32")} />
 
       {/* Dots */}
       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2.5 z-20">
