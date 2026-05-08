@@ -197,7 +197,7 @@ export default function HeroCarousel({
       </div>
 
       {/* Bottom-edge fade — clean transition to next section on all slides */}
-      <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-b from-transparent via-[#0D2240]/60 to-[#0D2240] pointer-events-none z-10" />
+      <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-b from-transparent via-[#0D2240]/60 to-[#0D2240] pointer-events-none z-10 ${slide.type === "steps" ? "h-16" : "h-64"}`} />
 
       {/* Dots */}
       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2.5 z-20">
@@ -225,6 +225,4 @@ export default function HeroCarousel({
         className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
         aria-label="Next"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
-      </button>
-    
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 
