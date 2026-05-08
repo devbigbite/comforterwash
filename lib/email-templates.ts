@@ -76,6 +76,13 @@ function serviceLabel(serviceType: string): string {
   if (serviceType === "wash_only") return "Wash Only"
   return "Comforter Wash"
 }
+// ─── DB OVERRIDE TYPE ────────────────────────────────────────────
+export interface EmailTemplateOverride {
+  subject?: string | null
+  headline?: string | null
+  body?: string | null
+  cta_text?: string | null
+}
 
 // ─── 1. CUSTOMER BOOKING CONFIRMATION ────────────────────────────
 export interface BookingConfirmationData {
@@ -94,7 +101,7 @@ export interface BookingConfirmationData {
   bookingId: string
 }
 
-export function buildBookingConfirmationEmail(d: BookingConfirmationData): { subject: string; html: string } {
+export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
   const isComforter = d.serviceType === "comforter_wash"
   const isWashFold  = d.serviceType === "wash_fold"
@@ -109,8 +116,8 @@ export function buildBookingConfirmationEmail(d: BookingConfirmationData): { sub
   const html = emailShell(`
     <div class="body">
       <div class="hero-badge">✅ Booking Confirmed</div>
-      <h1>You're all set, ${firstName}!</h1>
-      <p class="subtitle">Your laundry pickup is scheduled. We'll send a reminder the morning of pickup — just have everything ready.</p>
+      <h1>${ov.headline ?? `You're all set, ${firstName}!`}</h1>
+      <p class="subtitle">${ov.body ?? "Your laundry pickup is scheduled. We'll send a reminder the morning of pickup — just have everything ready."}</p>
 
       <div class="detail-card">
         ${detailRow("Service", serviceLabel(d.serviceType))}
@@ -136,7 +143,7 @@ export function buildBookingConfirmationEmail(d: BookingConfirmationData): { sub
   `)
 
   return {
-    subject: `✅ Booking confirmed — ${serviceLabel(d.serviceType).replace(/&amp;/g, "&")} pickup ${d.pickupDate}`,
+    subject: ov.subject?.replace(/\{\{service_type\}\}/g, serviceLabel(d.serviceType).replace(/&amp;/g, "&")).replace(/\{\{pickup_date\}\}/g, d.pickupDate) ?? `✅ Booking confirmed — ${serviceLabel(d.serviceType).replace(/&amp;/g, "&")} pickup ${d.pickupDate}`,
     html,
   }
 }
@@ -160,7 +167,7 @@ export interface AdminNewOrderData {
   subscriptionFrequency?: string
 }
 
-export function buildAdminNewOrderEmail(d: AdminNewOrderData): { subject: string; html: string } {
+export function buildAdminNewOrderEmail(d: AdminNewOrderData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
   const isRecurring = d.subscriptionFrequency && d.subscriptionFrequency !== "one_time"
   const freqLabel = d.subscriptionFrequency === "weekly" ? "Weekly" : d.subscriptionFrequency === "biweekly" ? "Bi-weekly" : "One-time"
 
@@ -174,8 +181,8 @@ export function buildAdminNewOrderEmail(d: AdminNewOrderData): { subject: string
   const html = emailShell(`
     <div class="body">
       <div class="hero-badge">🔔 New Order</div>
-      <h1>New booking received!</h1>
-      <p class="subtitle">A customer just completed checkout. Review the details below.</p>
+      <h1>${ov.headline ?? "New booking received!"}</h1>
+      <p class="subtitle">${ov.body ?? "A customer just completed checkout. Review the details below."}</p>
 
       ${isRecurring ? `<div style="background:#dcfce7;border-radius:10px;padding:12px 16px;margin-bottom:20px;"><p style="font-size:14px;color:#16a34a;font-weight:700;">♻️ Recurring subscription — ${freqLabel}</p></div>` : ""}
 
@@ -200,7 +207,7 @@ export function buildAdminNewOrderEmail(d: AdminNewOrderData): { subject: string
   `)
 
   return {
-    subject: `🔔 New ${freqLabel.toLowerCase()} order — ${d.customerName} · ${d.pickupDate}`,
+    subject: ov.subject?.replace(/\{\{customer_name\}\}/g, d.customerName).replace(/\{\{service_type\}\}/g, freqLabel.toLowerCase()).replace(/\{\{pickup_date\}\}/g, d.pickupDate) ?? `🔔 New ${freqLabel.toLowerCase()} order — ${d.customerName} · ${d.pickupDate}`,
     html,
   }
 }
@@ -214,14 +221,14 @@ export interface PickupReminderData {
   serviceType: string
 }
 
-export function buildPickupReminderEmail(d: PickupReminderData): { subject: string; html: string } {
+export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
 
   const html = emailShell(`
     <div class="body">
       <div class="hero-badge">🚗 Pickup Today</div>
-      <h1>We're coming today, ${firstName}!</h1>
-      <p class="subtitle">Just a reminder — your laundry pickup is scheduled for this morning. Please have everything ready to go.</p>
+      <h1>${ov.headline?.replace(/\{\{first_name\}\}/g, firstName) ?? `We're coming today, ${firstName}!`}</h1>
+      <p class="subtitle">${ov.body?.replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow) ?? "Just a reminder — your laundry pickup is scheduled for this morning. Please have everything ready to go."}</p>
 
       <div class="detail-card">
         ${detailRow("Service", serviceLabel(d.serviceType))}
@@ -242,7 +249,7 @@ export function buildPickupReminderEmail(d: PickupReminderData): { subject: stri
   `)
 
   return {
-    subject: `🚗 Pickup today ${d.pickupTimeWindow} — WashFold Orlando`,
+    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow) ?? `🚗 Pickup today ${d.pickupTimeWindow} — WashFold Orlando`,
     html,
   }
 }
@@ -257,7 +264,7 @@ export interface OrderPickedUpData {
   pounds?: number
 }
 
-export function buildOrderPickedUpEmail(d: OrderPickedUpData): { subject: string; html: string } {
+export function buildOrderPickedUpEmail(d: OrderPickedUpData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
   let itemText = "your laundry"
   if (d.serviceType === "comforter_wash") {
@@ -267,8 +274,8 @@ export function buildOrderPickedUpEmail(d: OrderPickedUpData): { subject: string
   const html = emailShell(`
     <div class="body">
       <div class="hero-badge">✅ Picked Up</div>
-      <h1>We've got ${itemText}!</h1>
-      <p class="subtitle">Everything was picked up successfully. We're on it — your items are being professionally cleaned right now.</p>
+      <h1>${ov.headline?.replace(/\{\{first_name\}\}/g, firstName) ?? `We've got ${itemText}!`}</h1>
+      <p class="subtitle">${ov.body?.replace(/\{\{delivery_date\}\}/g, d.deliveryDate).replace(/\{\{delivery_time\}\}/g, d.deliveryTimeWindow) ?? "Everything was picked up successfully. We're on it — your items are being professionally cleaned right now."}</p>
 
       <div class="detail-card">
         ${detailRow("Service", serviceLabel(d.serviceType))}
@@ -284,7 +291,7 @@ export function buildOrderPickedUpEmail(d: OrderPickedUpData): { subject: string
   `)
 
   return {
-    subject: `✅ Picked up! Delivery on ${d.deliveryDate} — WashFold Orlando`,
+    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{delivery_date\}\}/g, d.deliveryDate) ?? `✅ Picked up! Delivery on ${d.deliveryDate} — WashFold Orlando`,
     html,
   }
 }
@@ -299,14 +306,14 @@ export interface OutForDeliveryData {
   finalTotal?: string
 }
 
-export function buildOutForDeliveryEmail(d: OutForDeliveryData): { subject: string; html: string } {
+export function buildOutForDeliveryEmail(d: OutForDeliveryData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
 
   const html = emailShell(`
     <div class="body">
       <div class="hero-badge">🚗 Out for Delivery</div>
-      <h1>Your clean laundry is on the way, ${firstName}!</h1>
-      <p class="subtitle">Fresh and clean — your order is out for delivery. Be home or leave instructions for the driver.</p>
+      <h1>${ov.headline?.replace(/\{\{first_name\}\}/g, firstName) ?? `Your clean laundry is on the way, ${firstName}!`}</h1>
+      <p class="subtitle">${ov.body?.replace(/\{\{delivery_time\}\}/g, d.deliveryTimeWindow) ?? "Fresh and clean — your order is out for delivery. Be home or leave instructions for the driver."}</p>
 
       <div class="detail-card">
         ${detailRow("Delivery window", d.deliveryTimeWindow)}
@@ -326,7 +333,7 @@ export function buildOutForDeliveryEmail(d: OutForDeliveryData): { subject: stri
   `)
 
   return {
-    subject: `🚗 Out for delivery today ${d.deliveryTimeWindow} — WashFold Orlando`,
+    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{delivery_time\}\}/g, d.deliveryTimeWindow) ?? `🚗 Out for delivery today ${d.deliveryTimeWindow} — WashFold Orlando`,
     html,
   }
 }
@@ -339,20 +346,20 @@ export interface DeliveredData {
   bookingId: string
 }
 
-export function buildDeliveredEmail(d: DeliveredData): { subject: string; html: string } {
+export function buildDeliveredEmail(d: DeliveredData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
 
   const html = emailShell(`
     <div class="body">
       <div class="hero-badge">🎉 Delivered!</div>
-      <h1>Enjoy your fresh laundry, ${firstName}!</h1>
-      <p class="subtitle">Your order has been delivered. Everything should be clean, fresh, and ready to use.</p>
+      <h1>${ov.headline?.replace(/\{\{first_name\}\}/g, firstName) ?? `Enjoy your fresh laundry, ${firstName}!`}</h1>
+      <p class="subtitle">${ov.body?.replace(/\{\{first_name\}\}/g, firstName) ?? "Your order has been delivered. Everything should be clean, fresh, and ready to use."}</p>
 
       ${d.finalTotal ? `<div class="detail-card">${detailRow("Final charge", d.finalTotal)}</div>` : ""}
 
       <p style="font-size:14px;color:#374151;margin-bottom:16px;">We'd love to hear how it went! Your feedback helps us keep improving. 🙏</p>
 
-      <a href="https://g.page/r/washfoldorlando/review" class="cta-button">Leave Us a Google Review ⭐</a>
+      <a href="https://g.page/r/washfoldorlando/review" class="cta-button">${ov.cta_text ?? "Leave Us a Google Review ⭐"}</a>
 
       <p style="font-size:13px;color:#9ca3af;margin-top:16px;">Booking #${d.bookingId.slice(0, 8).toUpperCase()} · <a href="https://washfoldorlando.com" style="color:#E8726A;">Book again</a></p>
     </div>
@@ -363,7 +370,7 @@ export function buildDeliveredEmail(d: DeliveredData): { subject: string; html: 
   `)
 
   return {
-    subject: `🎉 Delivered! Thanks for choosing WashFold Orlando`,
+    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName) ?? `🎉 Delivered! Thanks for choosing WashFold Orlando`,
     html,
   }
 }
