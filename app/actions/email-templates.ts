@@ -66,8 +66,3 @@ export async function upsertEmailTemplate(
   }
   return { success: true }
 }
-
-// ── Replace {{variables}} in a string ────────────────────────────
-export function interpolate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`)
-}
