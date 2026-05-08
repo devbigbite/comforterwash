@@ -68,7 +68,7 @@ export default function HeroCarousel({
       headline: (es ? text.slide_1_headline_es : text.slide_1_headline) || tr?.slide1Headline || DEFAULT_TEXT.slide_1_headline,
       subline:  (es ? text.slide_1_subline_es  : text.slide_1_subline)  || tr?.slide1Sub     || DEFAULT_TEXT.slide_1_subline,
       cta:      (es ? text.slide_1_cta_es      : text.slide_1_cta)      || tr?.slide1Cta     || DEFAULT_TEXT.slide_1_cta,
-      overlay: "from-[#1E0B40]/80 via-[#1E0B40]/50 to-transparent",
+      overlay: "from-[#0D2240]/80 via-[#0D2240]/50 to-transparent",
       objectPos: "object-center",
     },
     {
@@ -86,7 +86,7 @@ export default function HeroCarousel({
       headline: (es ? text.slide_3_headline_es : text.slide_3_headline) || tr?.slide3Headline || DEFAULT_TEXT.slide_3_headline,
       subline:  (es ? text.slide_3_subline_es  : text.slide_3_subline)  || tr?.slide3Sub     || DEFAULT_TEXT.slide_3_subline,
       cta:      (es ? text.slide_3_cta_es      : text.slide_3_cta)      || tr?.slide3Cta     || DEFAULT_TEXT.slide_3_cta,
-      overlay: "from-[#F0186E]/70 via-[#1E0B40]/60 to-[#1E0B40]/80",
+      overlay: "from-[#F0186E]/70 via-[#0D2240]/60 to-[#0D2240]/80",
       objectPos: "object-top",
     },
   ]
@@ -138,11 +138,11 @@ export default function HeroCarousel({
               alt="How it works"
               fill
               className="object-contain object-center"
-              style={{ background: "#1E0B40" }}
+              style={{ background: "#0D2240" }}
               unoptimized={isExternal}
             />
             {/* Gradient: dark at bottom for text legibility */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#1E0B40]/90" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0D2240]/90" />
 
             {/* Mobile: centered label above + 3 step badges row */}
             <div className="absolute inset-x-0 bottom-0 pb-12 px-4 flex flex-col items-center gap-4 sm:hidden">
@@ -197,7 +197,7 @@ export default function HeroCarousel({
       </div>
 
       {/* Bottom-edge fade — clean transition to next section on all slides */}
-      <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-b from-transparent to-[#1E0B40] pointer-events-none z-10" />
+      <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-b from-transparent to-[#0D2240] pointer-events-none z-10" />
 
       {/* Dots */}
       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2.5 z-20">

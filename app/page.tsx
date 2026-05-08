@@ -13,7 +13,7 @@ import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
 import { MessageUsModal } from "@/components/message-us-modal"
 import { DEFAULT_TEXT, type SiteText } from "@/lib/site-text-config"
 
-const OFFER_OVERLAYS = ["bg-[#1E0B40]/60", "bg-[#F0186E]/50", "bg-[#2D1460]/60"]
+const OFFER_OVERLAYS = ["bg-[#0D2240]/60", "bg-[#F0186E]/50", "bg-[#1a3a5c]/60"]
 
 export default function Home() {
   const { translations: tr, locale } = useLang()
@@ -39,7 +39,7 @@ export default function Home() {
       />
 
       {/* ── Our Services — immediately after hero ──────────────────────── */}
-      <section id="services" className="bg-[#1E0B40] px-4 py-14">
+      <section id="services" className="bg-[#0D2240] px-4 py-14">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-2xl font-extrabold text-white uppercase tracking-wide text-center mb-2">{tr.services.heading}</h2>
           <div className="w-16 h-0.5 bg-[#F0186E] mx-auto mb-8" />
@@ -96,16 +96,16 @@ export default function Home() {
       {/* ── Why Choose Us ──────────────────────────────────────────────── */}
       <section className="bg-white px-4 py-16">
         <div className="mx-auto max-w-4xl text-center">
-          <h2 className="text-3xl font-extrabold text-[#1E0B40] uppercase tracking-wide mb-3">
+          <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide mb-3">
             {(locale === "es" ? siteText.why_heading_es : siteText.why_heading) || tr.why.heading}
           </h2>
           <p className="text-[#F0186E] font-bold text-sm uppercase tracking-[0.2em] mb-5">
             {(locale === "es" ? siteText.why_subheading_es : siteText.why_subheading) || tr.why.subheading}
           </p>
-          <p className="text-[#1E0B40]/60 text-base leading-relaxed max-w-2xl mx-auto mb-5">
+          <p className="text-[#0D2240]/60 text-base leading-relaxed max-w-2xl mx-auto mb-5">
             {(locale === "es" ? siteText.why_body1_es : siteText.why_body1) || tr.why.body1}
           </p>
-          <p className="text-[#1E0B40]/60 text-base leading-relaxed max-w-2xl mx-auto">
+          <p className="text-[#0D2240]/60 text-base leading-relaxed max-w-2xl mx-auto">
             {(locale === "es" ? siteText.why_body2_es : siteText.why_body2) || tr.why.body2}
           </p>
         </div>
@@ -119,7 +119,7 @@ export default function Home() {
             className="object-cover"
             unoptimized={images.why_us.startsWith("http")}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#1E0B40]/60 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0D2240]/60 via-transparent to-transparent" />
           <div className="absolute inset-0 flex items-center px-10">
             <div className="max-w-sm">
               <p className="text-white/80 text-xs font-bold uppercase tracking-[0.2em] mb-2">
@@ -142,7 +142,7 @@ export default function Home() {
       {/* ── 3 Simple Steps ─────────────────────────────────────────────── */}
       <section id="how" className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-extrabold text-[#1E0B40] uppercase tracking-wide text-center mb-2">
+          <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">
             {tr.steps.heading}
           </h2>
           <p className="text-center text-gray-400 text-sm mb-10">{tr.steps.subheading}</p>
@@ -151,7 +151,7 @@ export default function Home() {
             {[
               {
                 icon: (
-                  <svg className="w-10 h-10 text-[#1E0B40]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <svg className="w-10 h-10 text-[#0D2240]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 ),
@@ -162,7 +162,7 @@ export default function Home() {
               },
               {
                 icon: (
-                  <svg className="w-10 h-10 text-[#1E0B40]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <svg className="w-10 h-10 text-[#0D2240]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                   </svg>
                 ),
@@ -173,7 +173,7 @@ export default function Home() {
               },
               {
                 icon: (
-                  <svg className="w-10 h-10 text-[#1E0B40]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <svg className="w-10 h-10 text-[#0D2240]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 ),
@@ -184,12 +184,12 @@ export default function Home() {
               },
             ].map((s) => (
               <div key={s.title} className="bg-white border border-gray-200 rounded-2xl p-8 flex flex-col items-center text-center gap-4 hover:border-[#F0186E] hover:shadow-md transition-all">
-                <div className="w-16 h-16 rounded-full border-2 border-[#1E0B40]/20 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full border-2 border-[#0D2240]/20 flex items-center justify-center">
                   {s.icon}
                 </div>
-                <h3 className="font-extrabold text-[#1E0B40] text-base uppercase tracking-wide">{s.title}</h3>
+                <h3 className="font-extrabold text-[#0D2240] text-base uppercase tracking-wide">{s.title}</h3>
                 <p className="text-gray-400 text-sm leading-relaxed flex-1">{s.desc}</p>
-                <a href={s.href} className="text-[#1E0B40] font-bold text-xs uppercase tracking-wide hover:text-[#F0186E] transition-colors">
+                <a href={s.href} className="text-[#0D2240] font-bold text-xs uppercase tracking-wide hover:text-[#F0186E] transition-colors">
                   {s.cta}
                 </a>
               </div>
@@ -209,7 +209,7 @@ export default function Home() {
       {/* ── Special Offers ─────────────────────────────────────────────── */}
       <section className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-extrabold text-[#1E0B40] uppercase tracking-wide text-center mb-2">
+          <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">
             {tr.offers.heading}
           </h2>
           <p className="text-center text-gray-400 text-sm mb-10 max-w-xl mx-auto">
@@ -233,7 +233,7 @@ export default function Home() {
                       </div>
                     </div>
                     <div className="p-5">
-                      <h3 className="font-extrabold text-[#1E0B40] uppercase tracking-wide text-sm mb-2">{offer.title}</h3>
+                      <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-sm mb-2">{offer.title}</h3>
                       <p className="text-gray-400 text-sm leading-relaxed">{offer.desc}</p>
                     </div>
                   </div>
@@ -244,7 +244,7 @@ export default function Home() {
       </section>
 
       {/* ── ZIP checker ────────────────────────────────────────────────── */}
-      <section id="areas" className="bg-[#1E0B40] px-4 py-14">
+      <section id="areas" className="bg-[#0D2240] px-4 py-14">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-[#F0186E] font-bold text-xs uppercase tracking-[0.2em] mb-2">{tr.nav.serviceAreas}</p>
           <h2 className="text-2xl font-extrabold text-white uppercase tracking-wide mb-2">{tr.zip.heading}</h2>
@@ -256,48 +256,48 @@ export default function Home() {
       {/* ── Pricing ────────────────────────────────────────────────────── */}
       <section id="pricing" className="bg-white px-4 py-16">
         <div className="mx-auto max-w-3xl">
-          <h2 className="text-3xl font-extrabold text-[#1E0B40] uppercase tracking-wide text-center mb-2">{tr.pricing.heading}</h2>
+          <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.pricing.heading}</h2>
           <div className="w-16 h-0.5 bg-[#F0186E] mx-auto mb-10" />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <div className="border-2 border-gray-100 hover:border-[#F0186E] rounded-3xl p-8 text-center transition-colors">
-              <div className="w-16 h-16 rounded-2xl bg-[#FFF0F7] flex items-center justify-center text-3xl mx-auto mb-4">🛏️</div>
-              <h3 className="font-extrabold text-[#1E0B40] uppercase tracking-wide text-base mb-1">{tr.pricing.comforterTitle}</h3>
+              <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🛏️</div>
+              <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">{tr.pricing.comforterTitle}</h3>
               <p className="text-gray-400 text-sm mb-4">{tr.pricing.comforterDesc}</p>
               <p className="text-5xl font-extrabold text-[#F0186E] mb-1"><span className="text-base font-bold mr-1">{tr.pricing.comforterFrom}</span>{tr.pricing.comforterPrice}</p>
               <p className="text-gray-400 text-xs mb-6">{tr.pricing.comforterUnit}</p>
-              <Link href="/book/comforter-wash" className="block bg-[#1E0B40] hover:bg-[#2D1460] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
+              <Link href="/book/comforter-wash" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {tr.pricing.cta}
               </Link>
             </div>
             <div className="border-2 border-gray-100 hover:border-[#F0186E] rounded-3xl p-8 text-center transition-colors">
-              <div className="w-16 h-16 rounded-2xl bg-[#FFF0F7] flex items-center justify-center text-3xl mx-auto mb-4">👕</div>
-              <h3 className="font-extrabold text-[#1E0B40] uppercase tracking-wide text-base mb-1">{tr.pricing.washFoldTitle}</h3>
+              <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">👕</div>
+              <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">{tr.pricing.washFoldTitle}</h3>
               <p className="text-gray-400 text-sm mb-4">{tr.pricing.washFoldMin}</p>
               <p className="text-5xl font-extrabold text-[#F0186E] mb-1">{tr.pricing.washFoldPrice}<span className="text-2xl">/lb</span></p>
               <p className="text-gray-400 text-xs mb-6">{tr.pricing.washFoldSub}</p>
-              <Link href="/book/wash-fold" className="block bg-[#1E0B40] hover:bg-[#2D1460] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
+              <Link href="/book/wash-fold" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {tr.pricing.cta}
               </Link>
             </div>
             <div className="border-2 border-gray-100 hover:border-[#F0186E] rounded-3xl p-8 text-center transition-colors">
-              <div className="w-16 h-16 rounded-2xl bg-[#FFF0F7] flex items-center justify-center text-3xl mx-auto mb-4">🧺</div>
-              <h3 className="font-extrabold text-[#1E0B40] uppercase tracking-wide text-base mb-1">{tr.pricing.washOnlyTitle}</h3>
+              <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🧺</div>
+              <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">{tr.pricing.washOnlyTitle}</h3>
               <p className="text-gray-400 text-sm mb-4">{tr.pricing.washOnlyMin}</p>
               <p className="text-5xl font-extrabold text-[#F0186E] mb-1">{tr.pricing.washOnlyPrice}<span className="text-2xl">/lb</span></p>
               <p className="text-gray-400 text-xs mb-6">{tr.pricing.washOnlyPerLb}</p>
-              <Link href="/book/wash-only" className="block bg-[#1E0B40] hover:bg-[#2D1460] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
+              <Link href="/book/wash-only" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {tr.pricing.cta}
               </Link>
             </div>
           </div>
-          <p className="text-[#1E0B40]/30 text-center text-xs mt-6 uppercase tracking-wide">{tr.pricing.footerNote}</p>
+          <p className="text-[#0D2240]/30 text-center text-xs mt-6 uppercase tracking-wide">{tr.pricing.footerNote}</p>
         </div>
       </section>
 
       {/* ── Testimonials ───────────────────────────────────────────────── */}
       <section className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-extrabold text-[#1E0B40] uppercase tracking-wide text-center mb-2">{tr.testimonials.heading}</h2>
+          <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.testimonials.heading}</h2>
           <div className="w-16 h-0.5 bg-[#F0186E] mx-auto mb-10" />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[
@@ -313,8 +313,8 @@ export default function Home() {
                     </svg>
                   ))}
                 </div>
-                <p className="text-[#1E0B40]/70 text-sm leading-relaxed mb-4 italic">&ldquo;{r.quote}&rdquo;</p>
-                <p className="text-[#1E0B40] font-bold text-sm">{r.name}</p>
+                <p className="text-[#0D2240]/70 text-sm leading-relaxed mb-4 italic">&ldquo;{r.quote}&rdquo;</p>
+                <p className="text-[#0D2240] font-bold text-sm">{r.name}</p>
                 <p className="text-[#F0186E] text-xs">{r.label}</p>
               </div>
             ))}
@@ -325,7 +325,7 @@ export default function Home() {
       {/* ── FAQ ────────────────────────────────────────────────────────── */}
       <section id="faq" className="bg-white px-4 py-16">
         <div className="mx-auto max-w-2xl">
-          <h2 className="text-3xl font-extrabold text-[#1E0B40] uppercase tracking-wide text-center mb-2">{tr.faq.heading}</h2>
+          <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.faq.heading}</h2>
           <div className="w-16 h-0.5 bg-[#F0186E] mx-auto mb-10" />
           <div className="space-y-3">
             {[
@@ -336,7 +336,7 @@ export default function Home() {
               { q: tr.faq.q5, a: tr.faq.a5 },
             ].map((item) => (
               <details key={item.q} className="group border border-gray-200 rounded-2xl overflow-hidden">
-                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer font-bold text-[#1E0B40] hover:bg-[#FFF0F7] transition-colors list-none text-sm uppercase tracking-wide">
+                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer font-bold text-[#0D2240] hover:bg-[#fdf6f3] transition-colors list-none text-sm uppercase tracking-wide">
                   {item.q}
                   <span className="ml-4 text-[#F0186E] text-lg group-open:rotate-45 transition-transform inline-block shrink-0">+</span>
                 </summary>
@@ -348,7 +348,7 @@ export default function Home() {
       </section>
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
-      <footer id="contact" className="bg-[#1E0B40] px-4 pt-14 pb-8">
+      <footer id="contact" className="bg-[#0D2240] px-4 pt-14 pb-8">
         <div className="mx-auto max-w-4xl">
 
           {/* Contact icons */}
