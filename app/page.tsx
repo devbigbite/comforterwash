@@ -30,7 +30,8 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-white font-sans">
 
-      {/* ── Hero — scrolling carousel ───────────────────────────────────── */}
+      {/* ── Hero + Services share one navy surface — no seam possible ─── */}
+      <div className="bg-[#0D2240]">
       <HeroCarousel
         tr={tr.hero}
         images={{ slide1: images.slide_1, slide2: images.slide_2, slide3: images.slide_3 }}
@@ -39,7 +40,7 @@ export default function Home() {
       />
 
       {/* ── Our Services — immediately after hero ──────────────────────── */}
-      <section id="services" className="bg-[#0D2240] px-4 py-14">
+      <section id="services" className="px-4 py-14">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-2xl font-extrabold text-white uppercase tracking-wide text-center mb-2">{tr.services.heading}</h2>
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-8" />
@@ -92,6 +93,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </div>{/* end navy wrapper */}
 
       {/* ── Why Choose Us ──────────────────────────────────────────────── */}
       <section className="bg-white px-4 py-16">
