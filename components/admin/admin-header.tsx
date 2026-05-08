@@ -20,9 +20,9 @@ const NAV_LINKS = [
   { href: "/admin/service-area",  label: "Area Map" },
   { href: "/admin/templates",     label: "Templates" },
   { href: "/admin/settings",      label: "Settings" },
-  { href: "/staff",                 label: "Staff Clock" },
-  { href: "/driver",                label: "Driver →" },
-  { href: "/operator",              label: "Operator →" },
+  { href: "/staff",               label: "Staff Clock" },
+  { href: "/driver",              label: "Driver \u2192" },
+  { href: "/operator",            label: "Operator \u2192" },
 ]
 
 export function AdminHeader() {
@@ -53,4 +53,9 @@ export function AdminHeader() {
             className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors">
             <LogOut className="h-4 w-4" />
             Sign out
-          </b
+          </button>
+        </form>
+      </div>
+    </header>
+  )
+}
