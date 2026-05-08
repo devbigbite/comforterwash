@@ -275,4 +275,9 @@ export async function getUpcomingDates() {
   }
 
   const allDates = new Set([
-    ...(pickupDates?
+    ...(pickupDates?.map((d) => d.pickup_date) || []),
+    ...(deliveryDates?.map((d) => d.delivery_date) || []),
+  ])
+
+  return Array.from(allDates).sort()
+}
