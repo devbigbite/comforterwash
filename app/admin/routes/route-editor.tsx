@@ -9,12 +9,15 @@ const DAY_ABBR: Record<string, string> = {
   thursday: "Thu", friday: "Fri", saturday: "Sat", sunday: "Sun",
 }
 
+interface Facility { id: string; name: string }
+
 interface Props {
   route: Route & { service_areas?: string[]; notes?: string }
   onSave: (id: string, data: FormData) => Promise<void>
+  facilities?: Facility[]
 }
 
-export function RouteEditor({ route, onSave }: Props) {
+export function RouteEditor({ route, onSave, facilities = [] }: Props) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -27,6 +30,7 @@ export function RouteEditor({ route, onSave }: Props) {
   const [pickupDays, setPickupDays] = useState<string[]>(route.pickup_days ?? [])
   const [deliveryDays, setDeliveryDays] = useState<string[]>(route.delivery_days ?? [])
   const [notes, setNotes] = useState((route as { notes?: string }).notes ?? "")
+  const [facilityId, setFacilityId] = useState((route as { facility_id?: string | null }).facility_id ?? "")
 
   function toggleDay(day: string, type: "pickup" | "delivery") {
     const id = day.toLowerCase()
@@ -48,6 +52,7 @@ export function RouteEditor({ route, onSave }: Props) {
       fd.append("notes", notes)
       pickupDays.forEach(d => fd.append("pickup_days", d))
       deliveryDays.forEach(d => fd.append("delivery_days", d))
+      fd.append("facility_id", facilityId)
       await onSave(route.id, fd)
       setOpen(false)
     })
@@ -147,6 +152,18 @@ export function RouteEditor({ route, onSave }: Props) {
             })}
           </div>
         </div>
+      </div>
+
+      {/* Home Facility */}
+      <div>
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Home Facility / Warehouse</label>
+        <select value={facilityId} onChange={e => setFacilityId(e.target.value)}
+          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#E8726A]">
+          <option value="">— None assigned —</option>
+          {facilities.map(f => (
+            <option key={f.id} value={f.id}>{f.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Notes */}

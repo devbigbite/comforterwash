@@ -13,7 +13,7 @@ export async function getActiveRoutes(): Promise<Route[]> {
 
   const { data: routes, error } = await supabase
     .from("routes")
-    .select("id, name, pickup_days, delivery_days, recurrence, biweekly_start_date, turnaround_days, active")
+    .select("id, name, pickup_days, delivery_days, recurrence, biweekly_start_date, turnaround_days, active, facility_id")
     .eq("active", true)
     .order("created_at", { ascending: true })
 

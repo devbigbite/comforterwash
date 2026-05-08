@@ -34,6 +34,7 @@ export type Route = {
   turnaround_days: number          // minimum days between pickup and delivery
   active: boolean
   time_windows: TimeWindow[]       // windows attached to this route
+  facility_id: string | null       // home facility/warehouse for this route
 }
 
 // ── Internal helpers ─────────────────────────────────────────────────────────
@@ -154,8 +155,9 @@ export function getTimeWindowsForDate(
 /**
  * Returns all non-private time windows across all active routes, deduplicated.
  * Use this for recurring schedule pickers where no specific date is known.
+ * Pass `type` to filter to pickup-only or delivery-only windows; omit for all.
  */
-export function getAllTimeWindows(routes: Route[]): TimeWindow[] {
+export function getAllTimeWindows(routes: Route[], type?: "pickup" | "delivery"): TimeWindow[] {
   const seen = new Set<string>()
   const windows: TimeWindow[] = []
 
@@ -163,7 +165,7 @@ export function getAllTimeWindows(routes: Route[]): TimeWindow[] {
     if (!route.active) continue
     for (const w of (route.time_windows ?? [])) {
       if (w.is_private) continue
-      // Filter by window_type: 'both' always included; type-specific only match their side
+      // Filter by window_type when a type is specified
       const wt = w.window_type ?? 'both'
       if (wt === 'pickup_only'   && type !== 'pickup')   continue
       if (wt === 'delivery_only' && type !== 'delivery') continue
@@ -227,7 +229,4 @@ export function getEarliestRouteDelivery(pickup: Date, routes: Route[]): Date {
   }
 
   // Absolute fallback
-  const fallback = new Date(pickup)
-  fallback.setDate(fallback.getDate() + minGap)
-  return fallback
-}
+  const fallback = new Date(pi
