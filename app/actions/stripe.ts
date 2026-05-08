@@ -107,6 +107,8 @@ export async function handleSuccessfulPayment(sessionId: string) {
         pricePerLbCents: meta.pricePerLbCents ? parseInt(meta.pricePerLbCents) : undefined,
         promoCode:           meta.promoCode ?? undefined,
         promoDiscountCents:  meta.promoDiscountCents ? parseInt(meta.promoDiscountCents) : undefined,
+        tipCents:            meta.tipCents ? parseInt(meta.tipCents) : undefined,
+        deliveryFeeCents:    meta.deliveryFeeCents ? parseInt(meta.deliveryFeeCents) : undefined,
       })
 
       // ── If this is a recurring booking, create Stripe Customer + subscription ──
@@ -169,9 +171,4 @@ export async function handleSuccessfulPayment(sessionId: string) {
       }
     }
 
-    return { success: true }
-  } catch (error) {
-    console.error("[stripe] handleSuccessfulPayment error:", error)
-    return { success: false, error: "Failed to save booking" }
-  }
-}
+    re

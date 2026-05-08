@@ -27,6 +27,8 @@ export interface BookingData {
   comforterSize?: string           // twin | full | queen | king
   promoCode?: string
   promoDiscountCents?: number
+  tipCents?: number
+  deliveryFeeCents?: number
 }
 
 function toDateString(val: string): string {
@@ -77,6 +79,8 @@ export async function createBooking(data: BookingData) {
       comforter_size: data.comforterSize ?? null,
       promo_code: data.promoCode ?? null,
       promo_discount_cents: data.promoDiscountCents ?? 0,
+      tip_cents: data.tipCents ?? 0,
+      delivery_fee_cents: data.deliveryFeeCents ?? 0,
     })
     .select()
     .single()
@@ -271,9 +275,4 @@ export async function getUpcomingDates() {
   }
 
   const allDates = new Set([
-    ...(pickupDates?.map((d) => d.pickup_date) || []),
-    ...(deliveryDates?.map((d) => d.delivery_date) || []),
-  ])
-
-  return Array.from(allDates).sort()
-}
+    ...(pickupDates?
