@@ -86,7 +86,7 @@ export default function HeroCarousel({
       headline: (es ? text.slide_3_headline_es : text.slide_3_headline) || tr?.slide3Headline || DEFAULT_TEXT.slide_3_headline,
       subline:  (es ? text.slide_3_subline_es  : text.slide_3_subline)  || tr?.slide3Sub     || DEFAULT_TEXT.slide_3_subline,
       cta:      (es ? text.slide_3_cta_es      : text.slide_3_cta)      || tr?.slide3Cta     || DEFAULT_TEXT.slide_3_cta,
-      overlay: "from-[#F0186E]/70 via-[#0D2240]/60 to-[#0D2240]/80",
+      overlay: "from-[#E8726A]/70 via-[#0D2240]/60 to-[#0D2240]/80",
       objectPos: "object-top",
     },
   ]
@@ -118,12 +118,12 @@ export default function HeroCarousel({
         {slide.type === "full" && (
           <div className={`absolute inset-0 bg-gradient-to-r ${slide.overlay} flex items-center`}>
             <div className="mx-auto max-w-7xl px-5 sm:px-8 w-full">
-              <p className="text-[#F0186E] font-bold text-xs uppercase tracking-[0.25em] mb-2 sm:mb-3">WashFold Orlando</p>
+              <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.25em] mb-2 sm:mb-3">WashFold Orlando</p>
               <h1 className="text-white font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight max-w-2xl mb-3 sm:mb-4 drop-shadow-lg">
                 {slide.headline}
               </h1>
               <p className="text-white/75 text-sm sm:text-base md:text-lg max-w-xl mb-5 sm:mb-8">{slide.subline}</p>
-              <a href="#services" className="inline-block bg-[#F0186E] hover:bg-[#C8005A] text-white font-bold text-sm px-6 sm:px-8 py-3 sm:py-3.5 rounded-full uppercase tracking-wide transition-colors shadow-lg">
+              <a href="#services" className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-6 sm:px-8 py-3 sm:py-3.5 rounded-full uppercase tracking-wide transition-colors shadow-lg">
                 {slide.cta}
               </a>
             </div>
@@ -207,7 +207,7 @@ export default function HeroCarousel({
             onClick={() => goTo(i)}
             aria-label={`Slide ${i + 1}`}
             className="transition-all duration-300 rounded-full"
-            style={{ width: i === active ? "24px" : "8px", height: "8px", background: i === active ? "#F0186E" : "rgba(255,255,255,0.5)" }}
+            style={{ width: i === active ? "24px" : "8px", height: "8px", background: i === active ? "#E8726A" : "rgba(255,255,255,0.5)" }}
           />
         ))}
       </div>

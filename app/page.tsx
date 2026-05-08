@@ -13,7 +13,7 @@ import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
 import { MessageUsModal } from "@/components/message-us-modal"
 import { DEFAULT_TEXT, type SiteText } from "@/lib/site-text-config"
 
-const OFFER_OVERLAYS = ["bg-[#0D2240]/60", "bg-[#F0186E]/50", "bg-[#1a3a5c]/60"]
+const OFFER_OVERLAYS = ["bg-[#0D2240]/60", "bg-[#E8726A]/50", "bg-[#1a3a5c]/60"]
 
 export default function Home() {
   const { translations: tr, locale } = useLang()
@@ -42,7 +42,7 @@ export default function Home() {
       <section id="services" className="bg-[#0D2240] px-4 py-14">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-2xl font-extrabold text-white uppercase tracking-wide text-center mb-2">{tr.services.heading}</h2>
-          <div className="w-16 h-0.5 bg-[#F0186E] mx-auto mb-8" />
+          <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-8" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
@@ -73,17 +73,17 @@ export default function Home() {
               <Link
                 key={svc.title}
                 href={svc.href}
-                className="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#F0186E] rounded-2xl p-4 sm:p-6 flex gap-3 sm:gap-5 items-start transition-all"
+                className="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#E8726A] rounded-2xl p-4 sm:p-6 flex gap-3 sm:gap-5 items-start transition-all"
               >
                 <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-3xl shrink-0">{svc.icon}</div>
                 <div className="flex-1">
                   <h3 className="font-extrabold text-white uppercase tracking-wide text-sm mb-1">{svc.title}</h3>
                   <p className="text-white/50 text-xs leading-relaxed mb-3">{svc.desc}</p>
                   <div className="mb-3">
-                    <span className="text-[#F0186E] font-extrabold text-xl">{svc.price}</span>
+                    <span className="text-[#E8726A] font-extrabold text-xl">{svc.price}</span>
                     <span className="text-white/40 text-xs ml-1">{svc.unit}</span>
                   </div>
-                  <span className="inline-block bg-[#F0186E] group-hover:bg-[#C8005A] text-white font-bold text-xs px-4 py-2 rounded-full uppercase tracking-wide transition-colors">
+                  <span className="inline-block bg-[#E8726A] group-hover:bg-[#d45f57] text-white font-bold text-xs px-4 py-2 rounded-full uppercase tracking-wide transition-colors">
                     {tr.services.details}
                   </span>
                 </div>
@@ -99,7 +99,7 @@ export default function Home() {
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide mb-3">
             {(locale === "es" ? siteText.why_heading_es : siteText.why_heading) || tr.why.heading}
           </h2>
-          <p className="text-[#F0186E] font-bold text-sm uppercase tracking-[0.2em] mb-5">
+          <p className="text-[#E8726A] font-bold text-sm uppercase tracking-[0.2em] mb-5">
             {(locale === "es" ? siteText.why_subheading_es : siteText.why_subheading) || tr.why.subheading}
           </p>
           <p className="text-[#0D2240]/60 text-base leading-relaxed max-w-2xl mx-auto mb-5">
@@ -131,7 +131,7 @@ export default function Home() {
                     <span key={i}>{line}{i === 0 && <br />}</span>
                   ))}
               </h3>
-              <a href="#services" className="inline-block bg-[#F0186E] hover:bg-[#C8005A] text-white font-bold text-sm px-6 py-3 rounded-full transition-colors uppercase tracking-wide">
+              <a href="#services" className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {(locale === "es" ? siteText.why_photo_cta_es : siteText.why_photo_cta) || tr.why.photoCta}
               </a>
             </div>
@@ -183,13 +183,13 @@ export default function Home() {
                 href: "#services",
               },
             ].map((s) => (
-              <div key={s.title} className="bg-white border border-gray-200 rounded-2xl p-8 flex flex-col items-center text-center gap-4 hover:border-[#F0186E] hover:shadow-md transition-all">
+              <div key={s.title} className="bg-white border border-gray-200 rounded-2xl p-8 flex flex-col items-center text-center gap-4 hover:border-[#E8726A] hover:shadow-md transition-all">
                 <div className="w-16 h-16 rounded-full border-2 border-[#0D2240]/20 flex items-center justify-center">
                   {s.icon}
                 </div>
                 <h3 className="font-extrabold text-[#0D2240] text-base uppercase tracking-wide">{s.title}</h3>
                 <p className="text-gray-400 text-sm leading-relaxed flex-1">{s.desc}</p>
-                <a href={s.href} className="text-[#0D2240] font-bold text-xs uppercase tracking-wide hover:text-[#F0186E] transition-colors">
+                <a href={s.href} className="text-[#0D2240] font-bold text-xs uppercase tracking-wide hover:text-[#E8726A] transition-colors">
                   {s.cta}
                 </a>
               </div>
@@ -199,7 +199,7 @@ export default function Home() {
           {/* Full-width CTA */}
           <a
             href="#services"
-            className="block w-full border-2 border-[#F0186E] text-[#F0186E] hover:bg-[#F0186E] hover:text-white font-extrabold text-base uppercase tracking-widest text-center py-5 rounded-2xl transition-all"
+            className="block w-full border-2 border-[#E8726A] text-[#E8726A] hover:bg-[#E8726A] hover:text-white font-extrabold text-base uppercase tracking-widest text-center py-5 rounded-2xl transition-all"
           >
             {tr.steps.cta}
           </a>
@@ -246,7 +246,7 @@ export default function Home() {
       {/* ── ZIP checker ────────────────────────────────────────────────── */}
       <section id="areas" className="bg-[#0D2240] px-4 py-14">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-[#F0186E] font-bold text-xs uppercase tracking-[0.2em] mb-2">{tr.nav.serviceAreas}</p>
+          <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.2em] mb-2">{tr.nav.serviceAreas}</p>
           <h2 className="text-2xl font-extrabold text-white uppercase tracking-wide mb-2">{tr.zip.heading}</h2>
           <p className="text-white/50 text-sm mb-7">{tr.zip.subheading}</p>
           <ZipChecker />
@@ -257,33 +257,33 @@ export default function Home() {
       <section id="pricing" className="bg-white px-4 py-16">
         <div className="mx-auto max-w-3xl">
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.pricing.heading}</h2>
-          <div className="w-16 h-0.5 bg-[#F0186E] mx-auto mb-10" />
+          <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="border-2 border-gray-100 hover:border-[#F0186E] rounded-3xl p-8 text-center transition-colors">
+            <div className="border-2 border-gray-100 hover:border-[#E8726A] rounded-3xl p-8 text-center transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🛏️</div>
               <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">{tr.pricing.comforterTitle}</h3>
               <p className="text-gray-400 text-sm mb-4">{tr.pricing.comforterDesc}</p>
-              <p className="text-5xl font-extrabold text-[#F0186E] mb-1"><span className="text-base font-bold mr-1">{tr.pricing.comforterFrom}</span>{tr.pricing.comforterPrice}</p>
+              <p className="text-5xl font-extrabold text-[#E8726A] mb-1"><span className="text-base font-bold mr-1">{tr.pricing.comforterFrom}</span>{tr.pricing.comforterPrice}</p>
               <p className="text-gray-400 text-xs mb-6">{tr.pricing.comforterUnit}</p>
               <Link href="/book/comforter-wash" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {tr.pricing.cta}
               </Link>
             </div>
-            <div className="border-2 border-gray-100 hover:border-[#F0186E] rounded-3xl p-8 text-center transition-colors">
+            <div className="border-2 border-gray-100 hover:border-[#E8726A] rounded-3xl p-8 text-center transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">👕</div>
               <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">{tr.pricing.washFoldTitle}</h3>
               <p className="text-gray-400 text-sm mb-4">{tr.pricing.washFoldMin}</p>
-              <p className="text-5xl font-extrabold text-[#F0186E] mb-1">{tr.pricing.washFoldPrice}<span className="text-2xl">/lb</span></p>
+              <p className="text-5xl font-extrabold text-[#E8726A] mb-1">{tr.pricing.washFoldPrice}<span className="text-2xl">/lb</span></p>
               <p className="text-gray-400 text-xs mb-6">{tr.pricing.washFoldSub}</p>
               <Link href="/book/wash-fold" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {tr.pricing.cta}
               </Link>
             </div>
-            <div className="border-2 border-gray-100 hover:border-[#F0186E] rounded-3xl p-8 text-center transition-colors">
+            <div className="border-2 border-gray-100 hover:border-[#E8726A] rounded-3xl p-8 text-center transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🧺</div>
               <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">{tr.pricing.washOnlyTitle}</h3>
               <p className="text-gray-400 text-sm mb-4">{tr.pricing.washOnlyMin}</p>
-              <p className="text-5xl font-extrabold text-[#F0186E] mb-1">{tr.pricing.washOnlyPrice}<span className="text-2xl">/lb</span></p>
+              <p className="text-5xl font-extrabold text-[#E8726A] mb-1">{tr.pricing.washOnlyPrice}<span className="text-2xl">/lb</span></p>
               <p className="text-gray-400 text-xs mb-6">{tr.pricing.washOnlyPerLb}</p>
               <Link href="/book/wash-only" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {tr.pricing.cta}
@@ -298,7 +298,7 @@ export default function Home() {
       <section className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.testimonials.heading}</h2>
-          <div className="w-16 h-0.5 bg-[#F0186E] mx-auto mb-10" />
+          <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[
               { quote: tr.testimonials.r1Quote, name: tr.testimonials.r1Name, label: tr.testimonials.r1Label },
@@ -315,7 +315,7 @@ export default function Home() {
                 </div>
                 <p className="text-[#0D2240]/70 text-sm leading-relaxed mb-4 italic">&ldquo;{r.quote}&rdquo;</p>
                 <p className="text-[#0D2240] font-bold text-sm">{r.name}</p>
-                <p className="text-[#F0186E] text-xs">{r.label}</p>
+                <p className="text-[#E8726A] text-xs">{r.label}</p>
               </div>
             ))}
           </div>
@@ -326,7 +326,7 @@ export default function Home() {
       <section id="faq" className="bg-white px-4 py-16">
         <div className="mx-auto max-w-2xl">
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.faq.heading}</h2>
-          <div className="w-16 h-0.5 bg-[#F0186E] mx-auto mb-10" />
+          <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
           <div className="space-y-3">
             {[
               { q: tr.faq.q1, a: tr.faq.a1 },
@@ -338,7 +338,7 @@ export default function Home() {
               <details key={item.q} className="group border border-gray-200 rounded-2xl overflow-hidden">
                 <summary className="flex items-center justify-between px-5 py-4 cursor-pointer font-bold text-[#0D2240] hover:bg-[#fdf6f3] transition-colors list-none text-sm uppercase tracking-wide">
                   {item.q}
-                  <span className="ml-4 text-[#F0186E] text-lg group-open:rotate-45 transition-transform inline-block shrink-0">+</span>
+                  <span className="ml-4 text-[#E8726A] text-lg group-open:rotate-45 transition-transform inline-block shrink-0">+</span>
                 </summary>
                 <div className="px-5 pb-4 pt-1 text-sm text-gray-500 leading-relaxed border-t border-gray-100">{item.a}</div>
               </details>
@@ -355,31 +355,31 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 mb-12 text-center">
             <div className="flex flex-col items-center gap-3">
               <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
-                <svg className="w-6 h-6 text-[#F0186E]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-[#E8726A]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
                 </svg>
               </div>
               <p className="text-white/50 text-xs uppercase tracking-widest font-semibold">Message Us</p>
               <MessageUsModal
                 label="Send a Message"
-                className="border border-[#F0186E] text-[#F0186E] hover:bg-[#F0186E] hover:text-white font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-full transition-all cursor-pointer"
+                className="border border-[#E8726A] text-[#E8726A] hover:bg-[#E8726A] hover:text-white font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-full transition-all cursor-pointer"
               />
             </div>
 
             <div className="flex flex-col items-center gap-3">
               <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
-                <svg className="w-6 h-6 text-[#F0186E]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-[#E8726A]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
                 </svg>
               </div>
               <p className="text-white/50 text-xs uppercase tracking-widest font-semibold">{tr.footer.social}</p>
               <div className="flex items-center gap-3">
-                <a href="#" className="w-9 h-9 rounded-full bg-white/10 hover:bg-[#F0186E] flex items-center justify-center transition-colors">
+                <a href="#" className="w-9 h-9 rounded-full bg-white/10 hover:bg-[#E8726A] flex items-center justify-center transition-colors">
                   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                   </svg>
                 </a>
-                <a href="#" className="w-9 h-9 rounded-full bg-white/10 hover:bg-[#F0186E] flex items-center justify-center transition-colors">
+                <a href="#" className="w-9 h-9 rounded-full bg-white/10 hover:bg-[#E8726A] flex items-center justify-center transition-colors">
                   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
                   </svg>
@@ -389,12 +389,12 @@ export default function Home() {
 
             <div className="flex flex-col items-center gap-3">
               <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
-                <svg className="w-6 h-6 text-[#F0186E]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-[#E8726A]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                 </svg>
               </div>
               <p className="text-white/50 text-xs uppercase tracking-widest font-semibold">{tr.footer.sendNote}</p>
-              <a href="mailto:hello@washfoldorlando.com" className="border border-[#F0186E] text-[#F0186E] hover:bg-[#F0186E] hover:text-white font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-full transition-all">
+              <a href="mailto:hello@washfoldorlando.com" className="border border-[#E8726A] text-[#E8726A] hover:bg-[#E8726A] hover:text-white font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-full transition-all">
                 {tr.footer.contact}
               </a>
             </div>
@@ -403,14 +403,14 @@ export default function Home() {
           <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
               <Logo size={28} />
-              <span className="text-white font-extrabold">Wash<span className="text-[#F0186E]">Fold</span> <span className="text-white/30 text-sm font-normal">Orlando</span></span>
+              <span className="text-white font-extrabold">Wash<span className="text-[#E8726A]">Fold</span> <span className="text-white/30 text-sm font-normal">Orlando</span></span>
             </div>
             <div className="flex gap-5 text-white/40 text-xs">
-              <Link href="/book/comforter-wash" className="hover:text-[#F0186E] transition-colors">{tr.footer.comforterWash}</Link>
-              <Link href="/book/wash-fold" className="hover:text-[#F0186E] transition-colors">{tr.footer.washFold}</Link>
-              <Link href="/book/wash-only" className="hover:text-[#F0186E] transition-colors">{tr.footer.washOnly}</Link>
-              <Link href="/service-areas" className="hover:text-[#F0186E] transition-colors">{tr.footer.serviceAreas}</Link>
-              <a href="#faq" className="hover:text-[#F0186E] transition-colors">{tr.footer.faq}</a>
+              <Link href="/book/comforter-wash" className="hover:text-[#E8726A] transition-colors">{tr.footer.comforterWash}</Link>
+              <Link href="/book/wash-fold" className="hover:text-[#E8726A] transition-colors">{tr.footer.washFold}</Link>
+              <Link href="/book/wash-only" className="hover:text-[#E8726A] transition-colors">{tr.footer.washOnly}</Link>
+              <Link href="/service-areas" className="hover:text-[#E8726A] transition-colors">{tr.footer.serviceAreas}</Link>
+              <a href="#faq" className="hover:text-[#E8726A] transition-colors">{tr.footer.faq}</a>
             </div>
             <div className="flex items-center gap-4">
               <p className="text-white/25 text-xs">&copy; {new Date().getFullYear()} WashFold Orlando</p>
