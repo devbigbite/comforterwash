@@ -191,8 +191,13 @@ export default function HeroCarousel({
         )}
       </div>
 
-      {/* Bottom-edge fade — clean transition to next section on all slides */}
-      <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-b from-transparent to-[#0D2240] pointer-events-none z-10 ${slide.type === "steps" ? "h-16" : "h-80"}`} />
+      {/* Bottom-edge fade — strong vertical cover on photo slides, thin on steps */}
+      {slide.type === "full" && (
+        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-b from-transparent via-[#0D2240]/60 to-[#0D2240] pointer-events-none z-10" />
+      )}
+      {slide.type === "steps" && (
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-[#0D2240] pointer-events-none z-10" />
+      )}
 
       {/* Dots */}
       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2.5 z-20">
