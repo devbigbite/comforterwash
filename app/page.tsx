@@ -39,7 +39,7 @@ export default function Home() {
       />
 
       {/* ── Our Services — immediately after hero ──────────────────────── */}
-      <section id="services" className="bg-[#0D2240] px-4 py-14 -mt-px">
+      <section id="services" className="bg-[#0D2240] px-4 py-14">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-2xl font-extrabold text-white uppercase tracking-wide text-center mb-2">{tr.services.heading}</h2>
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-8" />
@@ -425,3 +425,4 @@ export default function Home() {
     </main>
   )
 }
+       
