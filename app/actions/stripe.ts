@@ -171,4 +171,9 @@ export async function handleSuccessfulPayment(sessionId: string) {
       }
     }
 
-    re
+    return { success: true }
+  } catch (error) {
+    console.error("[stripe] handleSuccessfulPayment error:", error)
+    return { success: false, error: "Failed to save booking" }
+  }
+}
