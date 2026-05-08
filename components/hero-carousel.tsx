@@ -98,7 +98,7 @@ export default function HeroCarousel({
   return (
     <section className="relative w-full overflow-hidden bg-[#0D2240] -mb-px" style={{ minHeight: "clamp(460px, 70vw, 580px)" }}>
       {/* Background image — per slide */}
-      <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: transitioning ? 0 : 1 }}>
+      <div className={"absolute inset-x-0 top-0 transition-opacity duration-700 " + (slide.type === "full" ? "bottom-16" : "bottom-0")} style={{ opacity: transitioning ? 0 : 1 }}>
         {slide.type === "full" && (
           <Image
             src={currentImage}
