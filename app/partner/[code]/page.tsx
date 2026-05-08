@@ -62,18 +62,13 @@ export default async function PartnerPortalPage({ params }: { params: Promise<{ 
     .in("status", AT_FACILITY_STATUSES)
     .order("delivery_date", { ascending: true })
 
-  // ── Billing history — completed orders at this facility ────────────────────
-  // Last 90 days of delivered orders with confirmed weight
-  const since = new Date()
-  since.setDate(since.getDate() - 90)
-
+  // ── Billing history — all completed orders at this facility ──────────────────
   const { data: historyBookings } = await supabase
     .from("bookings")
     .select("id, service_type, delivery_date, actual_weight_lbs, facility_cost_cents, status, created_at")
     .eq("assigned_facility_id", facility.id)
     .in("status", ["ready_at_warehouse", "out_for_delivery", "delivered"])
     .not("actual_weight_lbs", "is", null)
-    .gte("delivery_date", since.toISOString().slice(0, 10))
     .order("delivery_date", { ascending: false })
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
