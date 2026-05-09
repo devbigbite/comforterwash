@@ -292,7 +292,6 @@ export function BookingForm() {
 
   // ── Step guards ──────────────────────────────────────────────────────────
   const canStep1 = totalCount > 0 && !!formData.pickupDate && !!formData.deliveryDate && !!formData.pickupTimeWindow && !!formData.deliveryTimeWindow
-  const canStep3 = !!formData.name && !!formData.email && !!formData.phone && pickupAddrFull && deliveryAddrFull
   const canStep4 = formData.agreedToTerms && formData.smsConsent && formData.signature.trim().length > 0
 
   // ── Summary line items ───────────────────────────────────────────────────
@@ -321,6 +320,7 @@ export function BookingForm() {
   }
   const pickupAddrFull = !!formData.pickupStreet && !!formData.pickupCity && !!formData.pickupState && !!formData.pickupZip
   const deliveryAddrFull = formData.sameAddress || (!!formData.deliveryStreet && !!formData.deliveryCity && !!formData.deliveryState && !!formData.deliveryZip)
+  const canStep3 = !!formData.name && !!formData.email && !!formData.phone && pickupAddrFull && deliveryAddrFull
 
   // ── Payment screen ────────────────────────────────────────────────────────
   if (step === "payment") {
