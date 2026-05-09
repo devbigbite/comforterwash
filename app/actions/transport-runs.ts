@@ -385,3 +385,6 @@ export async function checkFacilityAccessNow(facilityId: string): Promise<{
   const accessible = isWithinAccessWindow(windows)
   return { accessible, windows }
 }
+s)
+  return { accessible, windows }
+}

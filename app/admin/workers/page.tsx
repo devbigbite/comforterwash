@@ -255,3 +255,30 @@ function StripeConnectButton({ workerId, hasAccount, onboardingComplete }: {
     </form>
   )
 }
+Id: string
+  hasAccount: boolean
+  onboardingComplete: boolean
+}) {
+  return (
+    <form action={async () => {
+      "use server"
+      const { createStripeConnectAccount } = await import("@/app/actions/workers")
+      const result = await createStripeConnectAccount(workerId)
+      if (result.url) {
+        // We can't redirect from a server action embedded in RSC easily,
+        // so we link to the worker detail page which handles this
+      }
+    }}>
+      <Link href={`/admin/workers/${workerId}`}
+        className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors uppercase tracking-wide border ${
+          onboardingComplete
+            ? "border-green-200 text-green-700 bg-green-50"
+            : hasAccount
+            ? "border-amber-200 text-amber-700 bg-amber-50"
+            : "border-[#0D2240] text-[#0D2240] hover:bg-[#0D2240] hover:text-white"
+        }`}>
+        {onboardingComplete ? "✓ Stripe Connected" : hasAccount ? "⏳ Resend Stripe Link" : "⚡ Connect Stripe"}
+      </Link>
+    </form>
+  )
+}

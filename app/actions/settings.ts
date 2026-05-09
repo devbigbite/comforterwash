@@ -293,3 +293,38 @@ export async function verifyStaffPin(role: "driver" | "operator", pin: string): 
     return pin === "1234"
   }
 }
+
+// ── Warehouse ─────────────────────────────────────────────────────────────────
+export interface WarehouseSettings {
+  name: string
+  address: string
+}
+
+export async function getWarehouseSettings(): Promise<WarehouseSettings> {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from("settings")
+      .select("key,value")
+      .in("key", ["warehouse_name", "warehouse_address"])
+    const map: Record<string, string> = {}
+    data?.forEach(({ key, value }: { key: string; value: string }) => { map[key] = value })
+    return {
+      name:    map["warehouse_name"]    ?? "WashFold Warehouse",
+      address: map["warehouse_address"] ?? "",
+    }
+  } catch {
+    return { name: "WashFold Warehouse", address: "" }
+  }
+}
+
+export async function setWarehouseSettings(name: string, address: string): Promise<void> {
+  const supabase = await createClient()
+  await supabase.from("settings").upsert([
+    { key: "warehouse_name",    value: name,    updated_at: new Date().toISOString() },
+    { key: "warehouse_address", value: address, updated_at: new Date().toISOString() },
+  ])
+  revalidatePath("/admin/settings")
+  revalidatePath("/driver")
+  revalidatePath("/operator")
+}

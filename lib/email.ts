@@ -15,6 +15,7 @@ import {
   type OutForDeliveryData,
   type DeliveredData,
 } from "./email-templates"
+import { getEmailTemplate } from "@/app/actions/email-templates"
 
 // ─────────────────────────────────────────────────────────────────
 // Configuration
@@ -45,26 +46,18 @@ async function safeSend(payload: Parameters<typeof resend.emails.send>[0]) {
 // 1. Customer: Booking Confirmation
 // ─────────────────────────────────────────────────────────────────
 export async function sendBookingConfirmationEmail(data: BookingConfirmationData) {
-  const { subject, html } = buildBookingConfirmationEmail(data)
-  return safeSend({
-    from: FROM_CUSTOMER,
-    to: [data.customerEmail],
-    subject,
-    html,
-  })
+  const ov = await getEmailTemplate("customer_booking_confirmation")
+  const { subject, html } = buildBookingConfirmationEmail(data, ov ?? {})
+  return safeSend({ from: FROM_CUSTOMER, to: [data.customerEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
 // 2. Admin: New Order Alert
 // ─────────────────────────────────────────────────────────────────
 export async function sendAdminNewOrderEmail(data: AdminNewOrderData) {
-  const { subject, html } = buildAdminNewOrderEmail(data)
-  return safeSend({
-    from: FROM_ADMIN,
-    to: [ADMIN_EMAIL],
-    subject,
-    html,
-  })
+  const ov = await getEmailTemplate("admin_new_order")
+  const { subject, html } = buildAdminNewOrderEmail(data, ov ?? {})
+  return safeSend({ from: FROM_ADMIN, to: [ADMIN_EMAIL], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -78,50 +71,73 @@ export async function sendPickupReminderEmail(data: PickupReminderData) {
 }
 
 export async function sendPickupReminderToCustomer(toEmail: string, data: PickupReminderData) {
-  const { subject, html } = buildPickupReminderEmail(data)
-  return safeSend({
-    from: FROM_CUSTOMER,
-    to: [toEmail],
-    subject,
-    html,
-  })
+  const ov = await getEmailTemplate("pickup_reminder")
+  const { subject, html } = buildPickupReminderEmail(data, ov ?? {})
+  return safeSend({ from: FROM_CUSTOMER, to: [toEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
 // 4. Customer: Order Picked Up
 // ─────────────────────────────────────────────────────────────────
 export async function sendOrderPickedUpEmail(toEmail: string, data: OrderPickedUpData) {
-  const { subject, html } = buildOrderPickedUpEmail(data)
-  return safeSend({
-    from: FROM_CUSTOMER,
-    to: [toEmail],
-    subject,
-    html,
-  })
+  const ov = await getEmailTemplate("order_picked_up")
+  const { subject, html } = buildOrderPickedUpEmail(data, ov ?? {})
+  return safeSend({ from: FROM_CUSTOMER, to: [toEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
 // 5. Customer: Out for Delivery
 // ─────────────────────────────────────────────────────────────────
 export async function sendOutForDeliveryEmail(toEmail: string, data: OutForDeliveryData) {
-  const { subject, html } = buildOutForDeliveryEmail(data)
-  return safeSend({
-    from: FROM_CUSTOMER,
-    to: [toEmail],
-    subject,
-    html,
-  })
+  const ov = await getEmailTemplate("out_for_delivery")
+  const { subject, html } = buildOutForDeliveryEmail(data, ov ?? {})
+  return safeSend({ from: FROM_CUSTOMER, to: [toEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
 // 6. Customer: Delivered
 // ─────────────────────────────────────────────────────────────────
 export async function sendDeliveredEmail(toEmail: string, data: DeliveredData) {
-  const { subject, html } = buildDeliveredEmail(data)
-  return safeSend({
-    from: FROM_CUSTOMER,
-    to: [toEmail],
-    subject,
-    html,
-  })
+  const ov = await getEmailTemplate("delivered")
+  const { subject, html } = buildDeliveredEmail(data, ov ?? {})
+  return safeSend({ from: FROM_CUSTOMER, to: [toEmail], subject, html })
+}
+
+// ─────────────────────────────────────────────────────────────────
+// 7. Admin: Schedule Anomaly Alert  (Level 3 — enabled via SCHEDULE_ALERT_EMAIL_ENABLED)
+// ─────────────────────────────────────────────────────────────────
+export interface ScheduleAlertData {
+  workerName: string
+  role: string
+  flag: "unscheduled" | "early_in" | "late_in" | "early_out" | "late_out"
+  flagMinutes: number
+  clockTime: string    // formatted local time string
+  scheduledTime: string | null  // null when unscheduled
+}
+
+export async function sendScheduleAlertEmail(to: string, data: ScheduleAlertData) {
+  const flagLabels: Record<string, string> = {
+    unscheduled: "clocked in with no shift scheduled",
+    early_in:    `clocked in ${data.flagMinutes} min early`,
+    late_in:     `clocked in ${data.flagMinutes} min late`,
+    early_out:   `clocked out ${data.flagMinutes} min early`,
+    late_out:    `clocked out ${data.flagMinutes} min late`,
+  }
+  const description = flagLabels[data.flag] ?? data.flag
+  const subject = `⚠️ Schedule alert — ${data.workerName} ${description}`
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:#0D2240;margin-bottom:4px">Schedule Alert</h2>
+      <p style="color:#666;font-size:14px;margin-bottom:24px">WashFold Orlando · Staff Clock</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr><td style="padding:8px 0;color:#888;width:140px">Worker</td><td style="font-weight:600;color:#0D2240">${data.workerName}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Role</td><td style="color:#0D2240">${data.role}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Alert</td><td style="color:#E8726A;font-weight:700;text-transform:capitalize">${description}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Clock time</td><td style="color:#0D2240">${data.clockTime}</td></tr>
+        ${data.scheduledTime ? `<tr><td style="padding:8px 0;color:#888">Scheduled</td><td style="color:#0D2240">${data.scheduledTime}</td></tr>` : ""}
+      </table>
+      <p style="margin-top:24px;font-size:12px;color:#aaa">Review attendance at /admin/schedule</p>
+    </div>
+  `
+  return safeSend({ from: FROM_ADMIN, to: [to], subject, html })
 }

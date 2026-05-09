@@ -923,7 +923,30 @@ export default function AdminSchedulePage() {
 
                     return (
                       <tr key={punch.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-2.5 font-semibold text-[#0D2240]">{punch.worker_name}</td>
+                        <td className="px-4 py-2.5 font-semibold text-[#0D2240]">
+                          {punch.worker_name}
+                          {punch.schedule_flag && (() => {
+                            const flagStyles: Record<string, string> = {
+                              unscheduled: "bg-red-50 text-red-600 border-red-200",
+                              early_in:    "bg-amber-50 text-amber-600 border-amber-200",
+                              late_in:     "bg-amber-50 text-amber-600 border-amber-200",
+                              early_out:   "bg-orange-50 text-orange-600 border-orange-200",
+                              late_out:    "bg-orange-50 text-orange-600 border-orange-200",
+                            }
+                            const flagText: Record<string, string> = {
+                              unscheduled: "Unscheduled",
+                              early_in:    `Early in${punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}`,
+                              late_in:     `Late in${punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}`,
+                              early_out:   `Early out${punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}`,
+                              late_out:    `Late out${punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}`,
+                            }
+                            return (
+                              <span className={`ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase ${flagStyles[punch.schedule_flag] ?? ""}`}>
+                                ⚠ {flagText[punch.schedule_flag] ?? punch.schedule_flag}
+                              </span>
+                            )
+                          })()}
+                        </td>
                         <td className="px-4 py-2.5">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-bold capitalize ${ROLE_COLOR[punch.role]}`}>
                             {punch.role}

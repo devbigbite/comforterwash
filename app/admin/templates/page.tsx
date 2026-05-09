@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { getEmailTemplates, upsertEmailTemplate, type EmailTemplate } from "@/app/actions/email-templates"
 
 const AUDIENCE_LABELS: Record<string, string> = {
@@ -12,14 +12,83 @@ const AUDIENCE_LABELS: Record<string, string> = {
 
 const AUDIENCE_ORDER = ["customer", "admin", "staff", "facility"]
 
+const BASE_STYLES = `
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #f7f8fb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .wrapper { max-width: 560px; margin: 0 auto; padding: 24px 12px; }
+    .card { background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(13,34,64,.08); }
+    .header { background: #0D2240; padding: 24px 32px; text-align: center; }
+    .logo-text { font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .logo-coral { color: #E8726A; }
+    .body { padding: 28px 32px; }
+    .hero-badge { display: inline-block; background: #f7f8fb; border-radius: 999px; padding: 5px 14px; font-size: 12px; font-weight: 600; color: #0D2240; margin-bottom: 16px; }
+    h1 { font-size: 22px; font-weight: 800; color: #0D2240; margin-bottom: 8px; line-height: 1.2; }
+    .subtitle { font-size: 14px; color: #6b7280; margin-bottom: 24px; line-height: 1.5; }
+    .cta-button { display: block; background: #E8726A; color: #ffffff !important; text-decoration: none; text-align: center; padding: 13px 24px; border-radius: 10px; font-size: 14px; font-weight: 700; margin: 20px 0; }
+    .footer { padding: 18px 32px; text-align: center; background: #f7f8fb; border-top: 1px solid #e5e7eb; }
+    .footer p { font-size: 12px; color: #9ca3af; line-height: 1.6; }
+    .footer a { color: #E8726A; text-decoration: none; }
+  </style>
+`
+
+function buildPreviewHtml(
+  form: { subject: string; headline: string; body: string; cta_text: string; footer_note: string },
+  audience: string
+): string {
+  const footerBrand =
+    audience === "customer"
+      ? `<p>WashFold Orlando &middot; Pickup &amp; Delivery Laundry Service<br/><a href="https://washfoldorlando.com">washfoldorlando.com</a></p>`
+      : `<p>This is an internal communication for WashFold Orlando staff.</p>`
+
+  const footerNote = form.footer_note
+    ? `<p style="margin-top:10px;font-size:11px;color:#b0b8c4;">${form.footer_note}</p>`
+    : ""
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  ${BASE_STYLES}
+</head>
+<body>
+  <div class="wrapper">
+    <div style="text-align:center;margin-bottom:10px;">
+      <p style="font-size:11px;color:#6b7280;"><strong>Subject:</strong> ${form.subject || "<em>—</em>"}</p>
+    </div>
+    <div class="card">
+      <div class="header">
+        <div class="logo-text">Wash<span class="logo-coral">Fold</span> Orlando</div>
+      </div>
+      <div class="body">
+        <div class="hero-badge">&#128247; Preview</div>
+        <h1>${form.headline || "<em style='color:#ccc;font-weight:400;font-size:16px;'>No headline yet…</em>"}</h1>
+        <p class="subtitle">${form.body || "<em style='color:#ccc;'>No body text yet…</em>"}</p>
+        ${form.cta_text ? `<a href="#" class="cta-button">${form.cta_text}</a>` : ""}
+      </div>
+      <div class="footer">
+        ${footerBrand}
+        ${footerNote}
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:16px;">
+      <p style="font-size:11px;color:#9ca3af;">&copy; 2025 WashFold Orlando &middot; <a href="https://washfoldorlando.com" style="color:#E8726A;">washfoldorlando.com</a></p>
+    </div>
+  </div>
+</body>
+</html>`
+}
+
 export default function EmailTemplatesPage() {
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<EmailTemplate | null>(null)
-  const [form, setForm] = useState({ subject: "", headline: "", body: "", cta_text: "" })
+  const [form, setForm] = useState({ subject: "", headline: "", body: "", cta_text: "", footer_note: "" })
   const [saving, setSaving] = useState(false)
   const [savedKey, setSavedKey] = useState<string | null>(null)
   const [activeAudience, setActiveAudience] = useState("customer")
+  const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
     getEmailTemplates().then((data) => {
@@ -29,6 +98,12 @@ export default function EmailTemplatesPage() {
     })
   }, [])
 
+  // Update iframe whenever form or selected template changes
+  useEffect(() => {
+    if (!iframeRef.current || !selected) return
+    iframeRef.current.srcdoc = buildPreviewHtml(form, selected.audience)
+  }, [form, selected])
+
   function selectTemplate(t: EmailTemplate) {
     setSelected(t)
     setForm({
@@ -36,6 +111,7 @@ export default function EmailTemplatesPage() {
       headline: t.headline,
       body: t.body,
       cta_text: t.cta_text ?? "",
+      footer_note: t.footer_note ?? "",
     })
     setSavedKey(null)
   }
@@ -48,6 +124,7 @@ export default function EmailTemplatesPage() {
       headline: form.headline,
       body: form.body,
       cta_text: form.cta_text || null,
+      footer_note: form.footer_note || null,
     })
     setSaving(false)
     if (res.success) {
@@ -55,7 +132,14 @@ export default function EmailTemplatesPage() {
       setTemplates((prev) =>
         prev.map((t) =>
           t.key === selected.key
-            ? { ...t, subject: form.subject, headline: form.headline, body: form.body, cta_text: form.cta_text || null }
+            ? {
+                ...t,
+                subject: form.subject,
+                headline: form.headline,
+                body: form.body,
+                cta_text: form.cta_text || null,
+                footer_note: form.footer_note || null,
+              }
             : t
         )
       )
@@ -72,11 +156,13 @@ export default function EmailTemplatesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-extrabold text-[#0D2240]">Communication Templates</h1>
-          <p className="text-gray-500 text-sm mt-1">Edit the subject, headline, and body of each automated email.</p>
+          <p className="text-gray-500 text-sm mt-1">
+            Edit every word of each automated email — subject, headline, body, CTA, and footer note.
+          </p>
         </div>
 
         {loading ? (
@@ -84,10 +170,9 @@ export default function EmailTemplatesPage() {
             <div className="w-8 h-8 border-2 border-[#E8726A] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="flex gap-6">
+          <div className="flex gap-5">
             {/* Left panel — template list */}
-            <div className="w-72 shrink-0">
-              {/* Audience tabs */}
+            <div className="w-60 shrink-0">
               <div className="flex gap-1 mb-3 flex-wrap">
                 {visibleAudiences.map((aud) => (
                   <button
@@ -107,7 +192,6 @@ export default function EmailTemplatesPage() {
                 ))}
               </div>
 
-              {/* Template list */}
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 {(grouped[activeAudience] ?? []).map((t, i) => (
                   <button
@@ -131,135 +215,145 @@ export default function EmailTemplatesPage() {
               </div>
             </div>
 
-            {/* Right panel — editor */}
+            {/* Center — editor */}
             {selected ? (
-              <div className="flex-1 min-w-0">
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  {/* Editor header */}
-                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                    <div>
-                      <h2 className="text-base font-bold text-[#0D2240]">{selected.name}</h2>
-                      <span className="inline-block mt-1 px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full uppercase tracking-wide">
-                        {AUDIENCE_LABELS[selected.audience]}
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className={`px-5 py-2 rounded-full text-sm font-bold transition-colors ${
-                        savedKey === selected.key
-                          ? "bg-green-500 text-white"
-                          : "bg-[#E8726A] hover:bg-[#d45f57] text-white"
-                      } disabled:opacity-60`}
-                    >
-                      {saving ? "Saving…" : savedKey === selected.key ? "✓ Saved" : "Save Changes"}
-                    </button>
-                  </div>
-
-                  {/* Fields */}
-                  <div className="px-6 py-5 space-y-5">
-                    {/* Subject */}
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                        Subject Line
-                      </label>
-                      <input
-                        value={form.subject}
-                        onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 focus:border-[#E8726A]"
-                        placeholder="Email subject…"
-                      />
-                    </div>
-
-                    {/* Headline */}
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                        Email Headline
-                      </label>
-                      <input
-                        value={form.headline}
-                        onChange={(e) => setForm((f) => ({ ...f, headline: e.target.value }))}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 focus:border-[#E8726A]"
-                        placeholder="Main heading shown in the email…"
-                      />
-                    </div>
-
-                    {/* Body */}
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                        Body Text
-                      </label>
-                      <textarea
-                        value={form.body}
-                        onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-                        rows={5}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 focus:border-[#E8726A] resize-y"
-                        placeholder="Main body paragraph…"
-                      />
-                    </div>
-
-                    {/* CTA (optional) */}
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                        CTA Button Text <span className="font-normal normal-case text-gray-400">(optional)</span>
-                      </label>
-                      <input
-                        value={form.cta_text}
-                        onChange={(e) => setForm((f) => ({ ...f, cta_text: e.target.value }))}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 focus:border-[#E8726A]"
-                        placeholder="e.g. Book Your Next Pickup"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Variables reference */}
-                  {selected.variables.length > 0 && (
-                    <div className="px-6 pb-6">
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
-                        Available Variables
-                      </p>
-                      <div className="bg-gray-50 rounded-xl p-4 grid grid-cols-2 gap-2">
-                        {selected.variables.map((v) => (
-                          <div key={v.key} className="flex items-start gap-2">
-                            <code
-                              className="text-xs bg-[#0D2240]/10 text-[#0D2240] px-1.5 py-0.5 rounded font-mono cursor-pointer select-all shrink-0"
-                              title="Click to copy"
-                              onClick={() => navigator.clipboard.writeText(`{{${v.key}}}`)}
-                            >
-                              {`{{${v.key}}}`}
-                            </code>
-                            <span className="text-xs text-gray-500">{v.label}</span>
-                          </div>
-                        ))}
+              <>
+                <div className="flex-1 min-w-0">
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    {/* Editor header */}
+                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                      <div>
+                        <h2 className="text-base font-bold text-[#0D2240]">{selected.name}</h2>
+                        <span className="inline-block mt-1 px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full uppercase tracking-wide">
+                          {AUDIENCE_LABELS[selected.audience]}
+                        </span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-2">Click a variable to copy it. Paste it anywhere in the fields above.</p>
+                      <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className={`px-5 py-2 rounded-full text-sm font-bold transition-colors ${
+                          savedKey === selected.key
+                            ? "bg-green-500 text-white"
+                            : "bg-[#E8726A] hover:bg-[#d45f57] text-white"
+                        } disabled:opacity-60`}
+                      >
+                        {saving ? "Saving…" : savedKey === selected.key ? "✓ Saved" : "Save Changes"}
+                      </button>
                     </div>
-                  )}
-                </div>
 
-                {/* Preview box */}
-                <div className="mt-4 bg-white rounded-xl border border-gray-200 p-5">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Preview</p>
-                  <div className="bg-[#f7f8fb] rounded-lg p-4 border border-gray-100">
-                    <p className="text-xs text-gray-400 mb-1">Subject</p>
-                    <p className="text-sm font-semibold text-[#0D2240] mb-4">{form.subject || "—"}</p>
-                    <div className="bg-white rounded-lg p-4 shadow-sm">
-                      <div className="bg-[#0D2240] rounded-t-lg py-3 text-center -mx-4 -mt-4 mb-4">
-                        <span className="text-white font-extrabold text-sm">Wash<span className="text-[#E8726A]">Fold</span> Orlando</span>
+                    {/* Fields */}
+                    <div className="px-6 py-5 space-y-5">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                          Subject Line
+                        </label>
+                        <input
+                          value={form.subject}
+                          onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 focus:border-[#E8726A]"
+                          placeholder="Email subject…"
+                        />
                       </div>
-                      <h3 className="text-base font-extrabold text-[#0D2240] mb-2">{form.headline || "—"}</h3>
-                      <p className="text-sm text-gray-500 leading-relaxed">{form.body || "—"}</p>
-                      {form.cta_text && (
-                        <div className="mt-4">
-                          <span className="inline-block bg-[#E8726A] text-white text-xs font-bold px-4 py-2 rounded-lg">
-                            {form.cta_text}
-                          </span>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                          Email Headline
+                        </label>
+                        <input
+                          value={form.headline}
+                          onChange={(e) => setForm((f) => ({ ...f, headline: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 focus:border-[#E8726A]"
+                          placeholder="Main heading shown in the email…"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                          Body Text
+                        </label>
+                        <textarea
+                          value={form.body}
+                          onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
+                          rows={4}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 focus:border-[#E8726A] resize-y"
+                          placeholder="Main body paragraph…"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                          CTA Button Text{" "}
+                          <span className="font-normal normal-case text-gray-400">(optional)</span>
+                        </label>
+                        <input
+                          value={form.cta_text}
+                          onChange={(e) => setForm((f) => ({ ...f, cta_text: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 focus:border-[#E8726A]"
+                          placeholder="e.g. Book Your Next Pickup"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                          Footer Note{" "}
+                          <span className="font-normal normal-case text-gray-400">(optional — small text at the bottom of the email)</span>
+                        </label>
+                        <textarea
+                          value={form.footer_note}
+                          onChange={(e) => setForm((f) => ({ ...f, footer_note: e.target.value }))}
+                          rows={2}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 focus:border-[#E8726A] resize-y"
+                          placeholder="e.g. ¿Deseas recibir estas comunicaciones en español?…"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Variables reference */}
+                    {selected.variables.length > 0 && (
+                      <div className="px-6 pb-6">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+                          Available Variables
+                        </p>
+                        <div className="bg-gray-50 rounded-xl p-4 grid grid-cols-2 gap-2">
+                          {selected.variables.map((v) => (
+                            <div key={v.key} className="flex items-start gap-2">
+                              <code
+                                className="text-xs bg-[#0D2240]/10 text-[#0D2240] px-1.5 py-0.5 rounded font-mono cursor-pointer select-all shrink-0"
+                                title="Click to copy"
+                                onClick={() => navigator.clipboard.writeText(`{{${v.key}}}`)}
+                              >
+                                {`{{${v.key}}}`}
+                              </code>
+                              <span className="text-xs text-gray-500">{v.label}</span>
+                            </div>
+                          ))}
                         </div>
-                      )}
-                    </div>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Click a variable to copy it. Paste it anywhere in the fields above.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
+
+                {/* Right — live preview iframe */}
+                <div className="w-[360px] shrink-0">
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden sticky top-4">
+                    <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#E8726A]" />
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Live Preview</p>
+                      <span className="ml-auto text-xs text-gray-400">Updates as you type</span>
+                    </div>
+                    <iframe
+                      ref={iframeRef}
+                      className="w-full border-0"
+                      style={{ height: "660px" }}
+                      title="Email preview"
+                      sandbox="allow-same-origin"
+                    />
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
                 Select a template to edit
