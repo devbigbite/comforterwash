@@ -54,12 +54,14 @@ export function RouteCalendar({ upcomingDates }: RouteCalendarProps) {
     }
   }
 
+  const isMorning = (w: string) => /^9/i.test(w) || w === "9am-1pm"
+  const isAfternoon = (w: string) => /^3/i.test(w) || w === "3pm-7pm"
   const groupByTimeWindow = (bookings: Booking[], type: "pickup" | "delivery") => {
     const morning = bookings.filter((b) =>
-      type === "pickup" ? b.pickup_time_window === "9am-1pm" : b.delivery_time_window === "9am-1pm",
+      isMorning(type === "pickup" ? (b.pickup_time_window ?? "") : (b.delivery_time_window ?? "")),
     )
     const afternoon = bookings.filter((b) =>
-      type === "pickup" ? b.pickup_time_window === "3pm-7pm" : b.delivery_time_window === "3pm-7pm",
+      isAfternoon(type === "pickup" ? (b.pickup_time_window ?? "") : (b.delivery_time_window ?? "")),
     )
     return { morning, afternoon }
   }

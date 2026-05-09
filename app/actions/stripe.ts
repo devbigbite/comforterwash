@@ -103,6 +103,7 @@ export async function handleSuccessfulPayment(sessionId: string) {
         pounds:          meta.pounds ? parseFloat(meta.pounds) : undefined,
         numBags:         meta.numBags ? parseInt(meta.numBags) : undefined,
         preAuthCents,
+        isManualCapture: isManual,
         subscriptionFrequency: frequency,
         pricePerLbCents: meta.pricePerLbCents ? parseInt(meta.pricePerLbCents) : undefined,
         promoCode:           meta.promoCode ?? undefined,

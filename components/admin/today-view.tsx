@@ -93,10 +93,12 @@ function TimeBlock({
 }
 
 export function TodayView({ pickups, deliveries }: TodayViewProps) {
-  const pickupsMorning = pickups.filter((b) => b.pickup_time_window === "9am-1pm")
-  const pickupsAfternoon = pickups.filter((b) => b.pickup_time_window === "3pm-7pm")
-  const deliveriesMorning = deliveries.filter((b) => b.delivery_time_window === "9am-1pm")
-  const deliveriesAfternoon = deliveries.filter((b) => b.delivery_time_window === "3pm-7pm")
+  const isMorning = (w: string) => /^9/i.test(w) || w === "9am-1pm"
+  const isAfternoon = (w: string) => /^3/i.test(w) || w === "3pm-7pm"
+  const pickupsMorning = pickups.filter((b) => isMorning(b.pickup_time_window ?? ""))
+  const pickupsAfternoon = pickups.filter((b) => isAfternoon(b.pickup_time_window ?? ""))
+  const deliveriesMorning = deliveries.filter((b) => isMorning(b.delivery_time_window ?? ""))
+  const deliveriesAfternoon = deliveries.filter((b) => isAfternoon(b.delivery_time_window ?? ""))
 
   const today = format(new Date(), "EEEE, MMMM d")
 

@@ -29,6 +29,7 @@ export interface BookingData {
   promoDiscountCents?: number
   tipCents?: number
   deliveryFeeCents?: number
+  isManualCapture?: boolean
 }
 
 function toDateString(val: string): string {
@@ -66,14 +67,13 @@ export async function createBooking(data: BookingData) {
       num_comforters: data.numComforters,
       total_amount: data.totalAmount,
       stripe_payment_intent_id: data.stripePaymentIntentId,
-      payment_status: "paid",
       status: "confirmed",
       service_type: data.serviceType ?? "comforter_wash",
       pounds: data.pounds ?? null,
       num_bags: data.numBags ?? data.numComforters ?? 1,
       user_id: userId,
       pre_auth_cents: data.preAuthCents ?? null,
-      payment_status: data.preAuthCents ? "pre_authorized" : "paid",
+      payment_status: data.isManualCapture ? "pre_authorized" : "paid",
       subscription_frequency: data.subscriptionFrequency ?? "one_time",
       price_per_lb_cents: data.pricePerLbCents ?? null,
       comforter_size: data.comforterSize ?? null,
