@@ -30,6 +30,10 @@ export interface BookingData {
   tipCents?: number
   deliveryFeeCents?: number
   isManualCapture?: boolean
+  deliveryAddress?: string
+  detergent?: string
+  extras?: string
+  comforterSizes?: string   // e.g. "Queen:1,King:2"
 }
 
 function toDateString(val: string): string {
@@ -81,6 +85,10 @@ export async function createBooking(data: BookingData) {
       promo_discount_cents: data.promoDiscountCents ?? 0,
       tip_cents: data.tipCents ?? 0,
       delivery_fee_cents: data.deliveryFeeCents ?? 0,
+      delivery_address: data.deliveryAddress ?? null,
+      detergent: data.detergent ?? null,
+      extras: data.extras ?? null,
+      comforter_sizes: data.comforterSizes ?? null,
     })
     .select()
     .single()

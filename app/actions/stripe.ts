@@ -96,7 +96,6 @@ export async function handleSuccessfulPayment(sessionId: string) {
         deliveryDate:    meta.deliveryDate,
         deliveryTimeWindow: meta.deliveryTimeWindow,
         numComforters:   parseInt(meta.numComforters ?? meta.quantity ?? "1"),
-        comforterSize:   meta.comforterSize ?? undefined,
         totalAmount:     preAuthCents,
         stripePaymentIntentId: paymentIntent,
         serviceType:     (meta.serviceType as "comforter_wash" | "wash_fold" | "wash_only") ?? "comforter_wash",
@@ -110,6 +109,10 @@ export async function handleSuccessfulPayment(sessionId: string) {
         promoDiscountCents:  meta.promoDiscountCents ? parseInt(meta.promoDiscountCents) : undefined,
         tipCents:            meta.tipCents ? parseInt(meta.tipCents) : undefined,
         deliveryFeeCents:    meta.deliveryFeeCents ? parseInt(meta.deliveryFeeCents) : undefined,
+        deliveryAddress:     meta.deliveryAddress ?? undefined,
+        detergent:           meta.detergent ?? undefined,
+        extras:              meta.extras ?? undefined,
+        comforterSizes:      meta.comforterSizes ?? undefined,
       })
 
       // ── If this is a recurring booking, create Stripe Customer + subscription ──
@@ -149,7 +152,7 @@ export async function handleSuccessfulPayment(sessionId: string) {
           deliveryTimeWindow: meta.deliveryTimeWindow ?? "",
           pickupAddress:   meta.address ?? "",
           numComforters:   meta.numComforters ? parseInt(meta.numComforters) : meta.quantity ? parseInt(meta.quantity) : 1,
-          comforterSize:   meta.comforterSize ?? undefined,
+          comforterSizes:  meta.comforterSizes ?? undefined,
           pounds:          meta.pounds ? parseFloat(meta.pounds) : undefined,
           estimatedTotal,
           bookingId:       booking?.id ?? "",
