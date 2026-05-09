@@ -281,9 +281,3 @@ export async function getUpcomingDates() {
 
   return Array.from(allDates).sort()
 }
-.map((d) => d.pickup_date) || []),
-    ...(deliveryDates?.map((d) => d.delivery_date) || []),
-  ])
-
-  return Array.from(allDates).sort()
-}
