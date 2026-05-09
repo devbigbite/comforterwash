@@ -172,10 +172,10 @@ export async function completeTransportRun(formData: FormData) {
     // Orders: at_warehouse → at_facility
     // Also sets assigned_facility_id and calculates facility cost
 
-    // Get facility config for cost calc
+    // Get facility config for cost calc + arrival notification
     const { data: facility } = await supabase
       .from("facilities")
-      .select("rate_per_lb, minimum_lbs, supports_own_operator")
+      .select("rate_per_lb, minimum_lbs, supports_own_operator, contact_email, name")
       .eq("id", run.facility_id)
       .single()
 
@@ -223,6 +223,38 @@ export async function completeTransportRun(formData: FormData) {
       created_by:  completedBy,
     }))
     await supabase.from("order_events").insert(events)
+
+    // ── Send arrival notification to partner facility ──────────────
+    if (facilityProcessingMode === "partner_attendant" && facility?.contact_email) {
+      const { data: orderDetails } = await supabase
+        .from("bookings")
+        .select("short_code, customer_name, service_type, num_bags")
+        .in("id", orderIds)
+
+      if (orderDetails?.length) {
+        const SERVICE_LABEL: Record<string, string> = {
+          wash_fold:      "Wash & Fold",
+          wash_only:      "Wash Only",
+          comforter_wash: "Comforter",
+        }
+        const arrivedAt = new Date().toLocaleTimeString("en-US", {
+          hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York",
+        })
+        import("@/lib/email").then(({ sendFacilityArrivalEmail }) =>
+          sendFacilityArrivalEmail(facility.contact_email!, {
+            facilityName: facility.name ?? run.facility_name ?? "Facility",
+            driverName:   completedBy,
+            arrivedAt,
+            orders: orderDetails.map(o => ({
+              shortCode:    o.short_code,
+              customerName: o.customer_name,
+              serviceType:  SERVICE_LABEL[o.service_type] ?? o.service_type,
+              bags:         o.num_bags ?? 1,
+            })),
+          }).catch(err => console.error("[transport-runs] Facility arrival email failed:", err))
+        )
+      }
+    }
 
   } else {
     // ── Facility → Warehouse ───────────────────────────────────────

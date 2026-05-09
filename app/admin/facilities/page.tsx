@@ -27,6 +27,7 @@ async function addFacility(formData: FormData) {
     name,
     address:                  (formData.get("address") as string)?.trim() || null,
     phone:                    (formData.get("phone") as string)?.trim() || null,
+    contact_email:            (formData.get("contact_email") as string)?.trim() || null,
     manager:                  (formData.get("manager") as string)?.trim() || null,
     owner:                    (formData.get("owner") as string)?.trim() || null,
     hours_open:               (formData.get("hours_open") as string)?.trim() || null,
@@ -56,6 +57,7 @@ async function editFacility(formData: FormData) {
     name,
     address:                  (formData.get("address") as string)?.trim() || null,
     phone:                    (formData.get("phone") as string)?.trim() || null,
+    contact_email:            (formData.get("contact_email") as string)?.trim() || null,
     manager:                  (formData.get("manager") as string)?.trim() || null,
     owner:                    (formData.get("owner") as string)?.trim() || null,
     hours_open:               (formData.get("hours_open") as string)?.trim() || null,
@@ -89,8 +91,8 @@ function FacilityFields({ f }: { f?: Record<string, unknown> }) {
 
   return (
     <>
-      {/* Row 1: Name, Phone, Address */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Row 1: Name, Phone, Email, Address */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Facility Name *</label>
           <input name="name" type="text" required placeholder="Sunshine Laundry"
@@ -100,6 +102,14 @@ function FacilityFields({ f }: { f?: Record<string, unknown> }) {
           <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Phone</label>
           <input name="phone" type="tel" placeholder="(407) 555-0100"
             defaultValue={val("phone")} className={inp} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            Contact Email
+            <span className="ml-1 text-gray-300 normal-case font-normal">(arrival alerts)</span>
+          </label>
+          <input name="contact_email" type="email" placeholder="manager@facility.com"
+            defaultValue={val("contact_email")} className={inp} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Address</label>
@@ -311,6 +321,12 @@ export default async function FacilitiesPage() {
                     <p className="text-sm text-gray-500 flex items-center gap-1.5">
                       <span className="text-gray-300">📞</span>
                       <a href={`tel:${f.phone}`} className="hover:text-[#0D2240]">{f.phone}</a>
+                    </p>
+                  )}
+                  {f.contact_email && (
+                    <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                      <span className="text-gray-300">✉️</span>
+                      <a href={`mailto:${f.contact_email}`} className="hover:text-[#0D2240]">{f.contact_email}</a>
                     </p>
                   )}
                   {(f.owner || f.manager) && (

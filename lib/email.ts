@@ -155,3 +155,58 @@ export async function sendAccountReadyEmail(
   const { subject, html } = buildAccountReadyEmail({ customerName, magicLink, isRecurring })
   return safeSend({ from: FROM_CUSTOMER, to: [toEmail], subject, html })
 }
+
+// ─────────────────────────────────────────────────────────────────
+// 9. Facility: Orders Arrived  (sent when driver completes to_facility run)
+// ─────────────────────────────────────────────────────────────────
+export interface FacilityArrivalData {
+  facilityName: string
+  driverName: string
+  arrivedAt: string
+  orders: Array<{
+    shortCode: string
+    customerName: string
+    serviceType: string
+    bags: number
+  }>
+}
+
+export async function sendFacilityArrivalEmail(toEmail: string, data: FacilityArrivalData) {
+  const count = data.orders.length
+  const subject = `📦 ${count} order${count !== 1 ? "s" : ""} arrived — ${data.facilityName}`
+  const rows = data.orders.map(o => `
+    <tr style="border-bottom:1px solid #f3f4f6">
+      <td style="padding:8px 0;font-weight:700;color:#0D2240;font-family:monospace">#${o.shortCode}</td>
+      <td style="padding:8px 4px;color:#0D2240">${o.customerName}</td>
+      <td style="padding:8px 0;color:#666">${o.serviceType}</td>
+      <td style="padding:8px 0;color:#0D2240;text-align:right">${o.bags}</td>
+    </tr>`).join("")
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
+      <h2 style="color:#0D2240;margin-bottom:4px">Orders Arrived</h2>
+      <p style="color:#666;font-size:14px;margin-bottom:20px">${data.facilityName}</p>
+      <div style="background:#fdf6f5;border-radius:12px;padding:14px 16px;margin-bottom:20px">
+        <p style="margin:0;font-size:14px;color:#0D2240">
+          <strong>${count} order${count !== 1 ? "s" : ""}</strong> delivered by
+          <strong>${data.driverName}</strong> at ${data.arrivedAt}
+        </p>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead>
+          <tr style="border-bottom:2px solid #e5e7eb">
+            <th style="text-align:left;padding:8px 0;color:#888;font-weight:600">Order</th>
+            <th style="text-align:left;padding:8px 4px;color:#888;font-weight:600">Customer</th>
+            <th style="text-align:left;padding:8px 0;color:#888;font-weight:600">Service</th>
+            <th style="text-align:right;padding:8px 0;color:#888;font-weight:600">Bags</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin-top:24px;font-size:12px;color:#aaa">
+        Mark orders as ready via your partner portal when washing is complete.
+      </p>
+    </div>`
+
+  return safeSend({ from: FROM_ADMIN, to: [toEmail], subject, html })
+}

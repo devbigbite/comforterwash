@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { href: "/admin/images",        label: "Images" },
   { href: "/admin/tips",          label: "Tips" },
   { href: "/admin/runs",          label: "Runs" },
+  { href: "/admin/routing",       label: "Routing" },
   { href: "/admin/schedule",      label: "Schedule" },
   { href: "/admin/facilities",    label: "Facilities" },
   { href: "/admin/zip-codes",     label: "Areas" },
