@@ -168,6 +168,18 @@ export async function handleSuccessfulPayment(sessionId: string) {
         }).catch(err =>
           console.error("[stripe] Admin alert email failed:", err)
         )
+
+        // Auto-create account for new recurring subscribers
+        const isRecurring = frequency === "weekly" || frequency === "biweekly"
+        if (isRecurring && meta.customerEmail && meta.customerName) {
+          import("@/app/actions/customer-auth").then(({ createAccountForSubscriber }) =>
+            createAccountForSubscriber(
+              meta.customerEmail!,
+              meta.customerName!,
+              meta.customerPhone ?? "",
+            ).catch(err => console.error("[stripe] createAccountForSubscriber failed:", err))
+          )
+        }
       }
     }
 

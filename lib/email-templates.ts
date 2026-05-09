@@ -380,3 +380,38 @@ export function buildDeliveredEmail(d: DeliveredData, ov: EmailTemplateOverride 
     html,
   }
 }
+
+// ─── 7. ACCOUNT READY (new customer account created) ──────────────
+export interface AccountReadyData {
+  customerName: string
+  magicLink: string
+  isRecurring: boolean
+}
+
+export function buildAccountReadyEmail(d: AccountReadyData): { subject: string; html: string } {
+  const firstName = d.customerName.split(" ")[0]
+
+  const html = emailShell(`
+    <div class="body">
+      <div class="hero-badge">🔑 Account Ready</div>
+      <h1>Your WashFold account is set up, ${firstName}!</h1>
+      <p class="subtitle">${
+        d.isRecurring
+          ? "Your recurring service is active. Access your account to view upcoming pickups, pause, or make changes anytime."
+          : "Your account is ready. Sign in anytime to view your order history and rebook with one tap."
+      }</p>
+
+      <a href="${d.magicLink}" class="cta-button">Access My Account →</a>
+
+      <p style="font-size:13px;color:#6b7280;margin-top:8px;">This link is valid for 24 hours. After that, visit <a href="https://washfoldorlando.com/login" style="color:#E8726A;">washfoldorlando.com/login</a> to sign in.</p>
+    </div>
+    <div class="footer">
+      <p>WashFold Orlando · <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+    </div>
+  `)
+
+  return {
+    subject: `🔑 Access your WashFold Orlando account`,
+    html,
+  }
+}

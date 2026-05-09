@@ -1,6 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
+import { getAuthenticatedProfile, createOptionalAccount } from "@/app/actions/customer-auth"
+import { CheckCircle2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -128,6 +131,61 @@ export function WashOnlyForm() {
   const [detergentOptions, setDetergentOptions] = useState<ServiceOption[]>([])
   const [extraOptions, setExtraOptions] = useState<ServiceOption[]>([])
 
+  // ── Auth gate state ───────────────────────────────────────────────────────
+  const [emailCheckState, setEmailCheckState] = useState<"idle" | "otp_sent" | "verified">("idle")
+  const [otpCode, setOtpCode] = useState("")
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpError, setOtpError] = useState("")
+  const [showAccountPrompt, setShowAccountPrompt] = useState(false)
+  const [accountCreating, setAccountCreating] = useState(false)
+  const [accountCreated, setAccountCreated] = useState(false)
+
+  async function handleEmailBlur() {
+    const email = formData.email.trim()
+    if (!email || emailCheckState !== "idle") return
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    })
+    if (!error) setEmailCheckState("otp_sent")
+  }
+
+  async function verifyOtp() {
+    setOtpLoading(true)
+    setOtpError("")
+    const supabase = createClient()
+    const { error } = await supabase.auth.verifyOtp({
+      email: formData.email.trim(),
+      token: otpCode,
+      type: "email",
+    })
+    if (error) {
+      setOtpError("Invalid or expired code. Try again.")
+      setOtpLoading(false)
+      return
+    }
+    const profile = await getAuthenticatedProfile()
+    if (profile) {
+      setFormData(p => ({
+        ...p,
+        name:  profile.fullName  || p.name,
+        phone: profile.phone     || p.phone,
+        pickupStreet: profile.savedAddress ? profile.savedAddress.split(",")[0]?.trim() || p.pickupStreet : p.pickupStreet,
+      }))
+    }
+    setEmailCheckState("verified")
+    setOtpCode("")
+    setOtpLoading(false)
+  }
+
+  async function handleCreateAccount() {
+    setAccountCreating(true)
+    await createOptionalAccount(formData.email, formData.name, formData.phone)
+    setAccountCreating(false)
+    setAccountCreated(true)
+  }
+
   useEffect(() => {
     getExcludedDates().then(dates => setExcludedDates(new Set(dates)))
     getActiveRoutes().then(setActiveRoutes)
@@ -250,6 +308,7 @@ export function WashOnlyForm() {
             amountCents={preAuthCents}
             label={`Wash Only — ~${formData.pounds} lbs`}
             manualCapture={true}
+            onSuccess={() => { if (emailCheckState !== "verified") setShowAccountPrompt(true) }}
             metadata={{
               customerName: formData.name,
               customerEmail: formData.email,
@@ -280,6 +339,35 @@ export function WashOnlyForm() {
               tipCents: String(tipCents),
             }}
           />
+
+          {/* Post-payment: invite new customer to create an account */}
+          {showAccountPrompt && !accountCreated && (
+            <div className="rounded-2xl border-2 border-[#0D2240]/15 bg-[#fdf6f5] p-5 space-y-3">
+              <div>
+                <p className="font-bold text-[#0D2240] text-sm">Save your info for next time?</p>
+                <p className="text-xs text-gray-500 mt-1">We&apos;ll create a free account so you can re-order without re-entering everything.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 h-10 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
+                  disabled={accountCreating}
+                  onClick={handleCreateAccount}
+                >
+                  {accountCreating ? "Creating…" : "Yes, create my account"}
+                </Button>
+                <Button variant="outline" className="h-10 text-sm text-gray-400" onClick={() => setShowAccountPrompt(false)}>
+                  No thanks
+                </Button>
+              </div>
+            </div>
+          )}
+          {accountCreated && (
+            <div className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-100 px-3 py-3">
+              <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+              <p className="text-sm text-green-700 font-semibold">Account created! Check your email for a sign-in link.</p>
+            </div>
+          )}
+
           <button className="w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors" onClick={() => setStep(4)}>
             {tf.backToReview}
           </button>
@@ -471,7 +559,43 @@ export function WashOnlyForm() {
                   <Input type={type} placeholder={placeholder}
                     value={(formData as Record<string, unknown>)[key] as string}
                     onChange={(e) => setFormData(p => ({ ...p, [key]: e.target.value }))}
+                    onBlur={key === "email" ? handleEmailBlur : undefined}
                     className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
+                  {key === "email" && emailCheckState === "otp_sent" && (
+                    <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 space-y-3 mt-1">
+                      <p className="text-sm font-semibold text-[#0D2240]">
+                        👋 Welcome back! Enter the 6-digit code we sent to <span className="text-[#E8726A]">{formData.email}</span>
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          value={otpCode}
+                          onChange={e => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          placeholder="000000"
+                          inputMode="numeric"
+                          maxLength={6}
+                          className="font-mono text-center text-lg tracking-widest h-11 border-blue-200 focus:border-[#E8726A] w-36"
+                        />
+                        <button
+                          type="button"
+                          onClick={verifyOtp}
+                          disabled={otpCode.length < 6 || otpLoading}
+                          className="flex-1 bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white text-sm font-bold rounded-lg transition-colors px-4"
+                        >
+                          {otpLoading ? "Verifying…" : "Sign in →"}
+                        </button>
+                      </div>
+                      {otpError && <p className="text-xs text-red-500">{otpError}</p>}
+                      <button type="button" onClick={() => setEmailCheckState("idle")} className="text-xs text-gray-400 underline">
+                        Continue without signing in
+                      </button>
+                    </div>
+                  )}
+                  {key === "email" && emailCheckState === "verified" && (
+                    <div className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-100 px-3 py-2 mt-1">
+                      <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                      <p className="text-sm text-green-700 font-semibold">Signed in — your info was pre-filled.</p>
+                    </div>
+                  )}
                 </div>
               ))}
 

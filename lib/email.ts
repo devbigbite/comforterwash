@@ -8,6 +8,7 @@ import {
   buildOrderPickedUpEmail,
   buildOutForDeliveryEmail,
   buildDeliveredEmail,
+  buildAccountReadyEmail,
   type BookingConfirmationData,
   type AdminNewOrderData,
   type PickupReminderData,
@@ -140,4 +141,17 @@ export async function sendScheduleAlertEmail(to: string, data: ScheduleAlertData
     </div>
   `
   return safeSend({ from: FROM_ADMIN, to: [to], subject, html })
+}
+
+// ─────────────────────────────────────────────────────────────────
+// 8. Customer: Account Ready (new account created post-booking)
+// ─────────────────────────────────────────────────────────────────
+export async function sendAccountReadyEmail(
+  toEmail: string,
+  customerName: string,
+  magicLink: string,
+  isRecurring: boolean,
+) {
+  const { subject, html } = buildAccountReadyEmail({ customerName, magicLink, isRecurring })
+  return safeSend({ from: FROM_CUSTOMER, to: [toEmail], subject, html })
 }
