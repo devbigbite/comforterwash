@@ -115,11 +115,11 @@ export default function Home() {
         {/* Van / lifestyle photo */}
         <div className="mx-auto max-w-4xl mt-10 rounded-3xl overflow-hidden shadow-lg relative" style={{ height: "320px" }}>
           <Image
-            src={images.why_us}
+            src={images?.why_us ?? "/img-why-us.jpg"}
             alt="WashFold Orlando pickup and delivery"
             fill
             className="object-cover"
-            unoptimized={images.why_us.startsWith("http")}
+            unoptimized={!!(images?.why_us?.startsWith("http"))}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0D2240]/60 via-transparent to-transparent" />
           <div className="absolute inset-0 flex items-center px-10">
@@ -224,7 +224,7 @@ export default function Home() {
               .filter(({ offer }) => offer.enabled)
               .map(({ offer, originalIdx }, visibleIdx) => {
                 const imgKey = `offer_${originalIdx + 1}` as keyof SiteImages
-                const imgSrc = images[imgKey]
+                const imgSrc = (images ?? DEFAULT_IMAGES)[imgKey]
                 return (
                   <div key={offer.title} className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
                     <div className="relative h-44 overflow-hidden">
