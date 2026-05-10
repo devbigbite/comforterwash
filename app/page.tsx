@@ -417,6 +417,7 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <p className="text-white/25 text-xs">&copy; {new Date().getFullYear()} WashFold Orlando</p>
               <span className="text-white/10 text-xs">·</span>
+              <Link href="/faq" className="text-white/40 hover:text-[#E8726A] text-xs transition-colors">FAQ</Link>
               <Link href="/terms" className="text-white/40 hover:text-[#E8726A] text-xs transition-colors">Terms</Link>
               <Link href="/privacy" className="text-white/40 hover:text-[#E8726A] text-xs transition-colors">Privacy</Link>
               <span className="text-white/10 text-xs">·</span>
