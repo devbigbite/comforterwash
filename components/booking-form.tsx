@@ -161,17 +161,65 @@ export function BookingForm() {
   const [accountCreating, setAccountCreating] = useState(false)
   const [accountCreated, setAccountCreated] = useState(false)
 
+  // Auth method picker
+  const [authMethod, setAuthMethod] = useState<"" | "email" | "phone">("") // "" = panel shown, not chosen
+  const [authPanelDismissed, setAuthPanelDismissed] = useState(false)
+  const [phoneForAuth, setPhoneForAuth] = useState("")
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false)
+  const [phoneOtpCode, setPhoneOtpCode] = useState("")
+  const [phoneOtpLoading, setPhoneOtpLoading] = useState(false)
+  const [phoneOtpError, setPhoneOtpError] = useState("")
+
+  async function handleGoogleAuth() {
+    const supabase = createClient()
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/book/comforter-wash` },
+    })
+  }
+
+  async function sendPhoneOtp() {
+    const phone = phoneForAuth.replace(/\D/g, "")
+    if (phone.length < 10) { setPhoneOtpError("Enter a valid US phone number."); return }
+    setPhoneOtpLoading(true); setPhoneOtpError("")
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithOtp({ phone: `+1${phone}`, options: { shouldCreateUser: false } })
+    if (error) { setPhoneOtpError("Phone not found. Try a different method."); setPhoneOtpLoading(false); return }
+    setPhoneOtpSent(true); setPhoneOtpLoading(false)
+  }
+
+  async function verifyPhoneOtp() {
+    const phone = phoneForAuth.replace(/\D/g, "")
+    setPhoneOtpLoading(true); setPhoneOtpError("")
+    const supabase = createClient()
+    const { error } = await supabase.auth.verifyOtp({ phone: `+1${phone}`, token: phoneOtpCode, type: "sms" })
+    if (error) { setPhoneOtpError("Invalid or expired code."); setPhoneOtpLoading(false); return }
+    const profile = await getAuthenticatedProfile()
+    if (profile) {
+      setFormData(p => ({
+        ...p,
+        name:  profile.fullName  || p.name,
+        email: profile.fullName ? p.email : p.email,
+        phone: profile.phone     || p.phone,
+        pickupStreet: profile.savedAddress ? profile.savedAddress.split(",")[0]?.trim() || p.pickupStreet : p.pickupStreet,
+      }))
+    }
+    setEmailCheckState("verified"); setPhoneOtpLoading(false)
+  }
+
+  async function sendEmailOtp() {
+    const email = formData.email.trim()
+    if (!email) return
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
+    if (!error) setEmailCheckState("otp_sent")
+    else setOtpError("No account found for that email. Continue as guest.")
+  }
+
   async function handleEmailBlur() {
     const email = formData.email.trim()
-    if (!email || emailCheckState !== "idle") return
-    const supabase = createClient()
-    // signInWithOtp with shouldCreateUser:false — succeeds only if email exists
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false },
-    })
-    if (!error) setEmailCheckState("otp_sent")
-    // If error (user not found), stay idle — new customer fills form normally
+    if (!email || emailCheckState !== "idle" || authMethod !== "email") return
+    sendEmailOtp()
   }
 
   async function verifyOtp() {
@@ -310,8 +358,8 @@ export function BookingForm() {
     .join(",")
 
   const CONTACT_FIELDS = [
-    { label: tf.fullName, key: "name",  placeholder: "Jane Smith",       type: "text" },
     { label: tf.email,    key: "email", placeholder: "jane@example.com", type: "email" },
+    { label: tf.fullName, key: "name",  placeholder: "Jane Smith",       type: "text" },
     { label: tf.phone,    key: "phone", placeholder: "(407) 555-0100",   type: "tel" },
   ]
 
@@ -722,6 +770,134 @@ export function BookingForm() {
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.whereToGo}</h3>
               <p className="text-sm text-gray-400">{tf.contactInfoSubtitle}</p>
             </div>
+
+            {/* ── Auth panel ── */}
+            {emailCheckState !== "verified" && !authPanelDismissed && (
+              <div className="rounded-2xl border-2 border-[#0D2240]/10 bg-[#f8fafc] p-5 space-y-4">
+                <div>
+                  <p className="font-extrabold text-[#0D2240] text-base">Have an account? Sign in to save time</p>
+                  <p className="text-xs text-gray-400 mt-0.5">We&apos;ll pre-fill your info automatically.</p>
+                </div>
+
+                {/* Method not yet chosen */}
+                {authMethod === "" && (
+                  <div className="space-y-2">
+                    <button type="button" onClick={handleGoogleAuth}
+                      className="w-full flex items-center justify-center gap-2.5 h-11 rounded-xl border-2 border-gray-200 bg-white hover:border-[#0D2240] transition-colors text-sm font-semibold text-[#0D2240]">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                      Continue with Google
+                    </button>
+                    <button type="button" onClick={() => setAuthMethod("phone")}
+                      className="w-full flex items-center justify-center gap-2.5 h-11 rounded-xl border-2 border-gray-200 bg-white hover:border-[#0D2240] transition-colors text-sm font-semibold text-[#0D2240]">
+                      📱 Continue with Phone
+                    </button>
+                    <button type="button" onClick={() => setAuthMethod("email")}
+                      className="w-full flex items-center justify-center gap-2.5 h-11 rounded-xl border-2 border-gray-200 bg-white hover:border-[#0D2240] transition-colors text-sm font-semibold text-[#0D2240]">
+                      ✉️ Continue with Email
+                    </button>
+                    <button type="button" onClick={() => setAuthPanelDismissed(true)}
+                      className="w-full text-xs text-gray-400 hover:text-gray-600 pt-1 transition-colors">
+                      Continue as guest
+                    </button>
+                  </div>
+                )}
+
+                {/* Phone OTP flow */}
+                {authMethod === "phone" && !phoneOtpSent && (
+                  <div className="space-y-2">
+                    <Input
+                      type="tel" placeholder="(407) 555-0100"
+                      value={phoneForAuth}
+                      onChange={e => setPhoneForAuth(e.target.value)}
+                      className="h-11 border-gray-200 focus:border-[#E8726A] text-sm"
+                    />
+                    {phoneOtpError && <p className="text-xs text-red-500">{phoneOtpError}</p>}
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setAuthMethod("")}
+                        className="flex-1 h-11 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-500 hover:border-gray-400 transition-colors">
+                        Back
+                      </button>
+                      <button type="button" onClick={sendPhoneOtp} disabled={phoneOtpLoading}
+                        className="flex-[2] h-11 rounded-xl bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white text-sm font-bold transition-colors">
+                        {phoneOtpLoading ? "Sending…" : "Send code →"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {authMethod === "phone" && phoneOtpSent && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-[#0D2240]">Enter the 6-digit code sent to <strong>{phoneForAuth}</strong></p>
+                    <div className="flex gap-2">
+                      <Input value={phoneOtpCode}
+                        onChange={e => setPhoneOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="000000" inputMode="numeric" maxLength={6}
+                        className="font-mono text-center text-lg tracking-widest h-11 border-gray-200 focus:border-[#E8726A] w-36" />
+                      <button type="button" onClick={verifyPhoneOtp}
+                        disabled={phoneOtpCode.length < 6 || phoneOtpLoading}
+                        className="flex-1 bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white text-sm font-bold rounded-xl transition-colors">
+                        {phoneOtpLoading ? "Verifying…" : "Sign in →"}
+                      </button>
+                    </div>
+                    {phoneOtpError && <p className="text-xs text-red-500">{phoneOtpError}</p>}
+                    <button type="button" onClick={() => setAuthPanelDismissed(true)} className="text-xs text-gray-400 underline">
+                      Continue as guest
+                    </button>
+                  </div>
+                )}
+
+                {/* Email OTP flow */}
+                {authMethod === "email" && emailCheckState === "idle" && (
+                  <div className="space-y-2">
+                    <Input type="email" placeholder="jane@example.com"
+                      value={formData.email}
+                      onChange={e => setFormData(p => ({ ...p, email: e.target.value }))}
+                      className="h-11 border-gray-200 focus:border-[#E8726A] text-sm" />
+                    {otpError && <p className="text-xs text-red-500">{otpError}</p>}
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => { setAuthMethod(""); setOtpError("") }}
+                        className="flex-1 h-11 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-500 hover:border-gray-400 transition-colors">
+                        Back
+                      </button>
+                      <button type="button" onClick={sendEmailOtp} disabled={!formData.email.includes("@")}
+                        className="flex-[2] h-11 rounded-xl bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white text-sm font-bold transition-colors">
+                        Send code →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {authMethod === "email" && emailCheckState === "otp_sent" && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-[#0D2240]">Enter the 6-digit code sent to <strong>{formData.email}</strong></p>
+                    <div className="flex gap-2">
+                      <Input value={otpCode}
+                        onChange={e => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="000000" inputMode="numeric" maxLength={6}
+                        className="font-mono text-center text-lg tracking-widest h-11 border-gray-200 focus:border-[#E8726A] w-36" />
+                      <button type="button" onClick={verifyOtp}
+                        disabled={otpCode.length < 6 || otpLoading}
+                        className="flex-1 bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white text-sm font-bold rounded-xl transition-colors">
+                        {otpLoading ? "Verifying…" : "Sign in →"}
+                      </button>
+                    </div>
+                    {otpError && <p className="text-xs text-red-500">{otpError}</p>}
+                    <button type="button" onClick={() => setAuthPanelDismissed(true)} className="text-xs text-gray-400 underline">
+                      Continue as guest
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Verified badge */}
+            {emailCheckState === "verified" && (
+              <div className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-100 px-4 py-3">
+                <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                <p className="text-sm text-green-700 font-semibold">Signed in — your info was pre-filled.</p>
+              </div>
+            )}
+
             <div className="space-y-4">
               {CONTACT_FIELDS.map(({ label, key, placeholder, type }) => (
                 <div key={key} className="space-y-1.5">
@@ -731,42 +907,6 @@ export function BookingForm() {
                     onChange={e => setFormData(p => ({ ...p, [key]: e.target.value }))}
                     onBlur={key === "email" ? handleEmailBlur : undefined}
                     className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
-                  {/* OTP banner — shown after email recognized */}
-                  {key === "email" && emailCheckState === "otp_sent" && (
-                    <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 space-y-3 mt-1">
-                      <p className="text-sm font-semibold text-[#0D2240]">
-                        👋 Welcome back! Enter the 6-digit code we sent to <span className="text-[#E8726A]">{formData.email}</span>
-                      </p>
-                      <div className="flex gap-2">
-                        <Input
-                          value={otpCode}
-                          onChange={e => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                          placeholder="000000"
-                          inputMode="numeric"
-                          maxLength={6}
-                          className="font-mono text-center text-lg tracking-widest h-11 border-blue-200 focus:border-[#E8726A] w-36"
-                        />
-                        <button
-                          type="button"
-                          onClick={verifyOtp}
-                          disabled={otpCode.length < 6 || otpLoading}
-                          className="flex-1 bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white text-sm font-bold rounded-lg transition-colors px-4"
-                        >
-                          {otpLoading ? "Verifying…" : "Sign in →"}
-                        </button>
-                      </div>
-                      {otpError && <p className="text-xs text-red-500">{otpError}</p>}
-                      <button type="button" onClick={() => setEmailCheckState("idle")} className="text-xs text-gray-400 underline">
-                        Continue without signing in
-                      </button>
-                    </div>
-                  )}
-                  {key === "email" && emailCheckState === "verified" && (
-                    <div className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-100 px-3 py-2 mt-1">
-                      <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-                      <p className="text-sm text-green-700 font-semibold">Signed in — your info was pre-filled.</p>
-                    </div>
-                  )}
                 </div>
               ))}
 
