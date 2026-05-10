@@ -781,8 +781,8 @@ export function BookingForm() {
                     onBlur={key === "email" ? handleEmailBlur : undefined}
                     className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
 
-                  {/* ── Auth section — shown below email field ── */}
-                  {key === "email" && emailCheckState !== "verified" && (
+                  {/* ── Auth section — shown only for recognized (returning) customers ── */}
+                  {key === "email" && emailCheckState === "otp_sent" && (
 
                     <div className="rounded-xl bg-[#f8fafc] border border-gray-100 p-4 space-y-3 mt-1">
 
