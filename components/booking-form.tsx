@@ -218,7 +218,7 @@ export function BookingForm() {
 
   async function handleEmailBlur() {
     const email = formData.email.trim()
-    if (!email || emailCheckState !== "idle" || authMethod !== "email") return
+    if (!email || emailCheckState !== "idle") return
     sendEmailOtp()
   }
 
