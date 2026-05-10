@@ -19,7 +19,7 @@ export default function Home() {
   const { translations: tr, locale } = useLang()
   // null until loaded — prevents flash of disabled offers on first render
   const [offers, setOffers] = useState<LandingOffer[] | null>(null)
-  const [images, setImages] = useState<SiteImages>(DEFAULT_IMAGES)
+  const [images, setImages] = useState<SiteImages | null>(null)
   const [siteText, setSiteText] = useState<SiteText>(DEFAULT_TEXT)
   useEffect(() => {
     getLandingOffers().then(setOffers)
@@ -34,7 +34,7 @@ export default function Home() {
       <div className="bg-[#0D2240]">
       <HeroCarousel
         tr={tr.hero}
-        images={{ slide1: images.slide_1, slide2: images.slide_2, slide3: images.slide_3 }}
+        images={images ? { slide1: images.slide_1, slide2: images.slide_2, slide3: images.slide_3 } : undefined}
         text={siteText}
         lang={locale}
       />

@@ -23,12 +23,12 @@ const DEFAULT_CAROUSEL_IMAGES: CarouselImages = {
 
 export default function HeroCarousel({
   tr,
-  images = DEFAULT_CAROUSEL_IMAGES,
+  images,
   text = DEFAULT_TEXT,
   lang = "en",
 }: {
   tr?: HeroTr
-  images?: CarouselImages
+  images?: CarouselImages | undefined
   text?: SiteText
   lang?: "en" | "es"
 }) {
@@ -56,8 +56,10 @@ export default function HeroCarousel({
     return () => clearInterval(timer)
   }, [next])
 
-  // Per-slide image lookup
-  const slideImages = [images.slide1, images.slide2, images.slide3]
+  // Per-slide image lookup — undefined until images load from DB
+  const slideImages = images
+    ? [images.slide1, images.slide2, images.slide3]
+    : [undefined, undefined, undefined]
 
   const es = lang === "es"
 
@@ -93,13 +95,13 @@ export default function HeroCarousel({
 
   const slide = slides[active]
   const currentImage = slideImages[active]
-  const isExternal = currentImage.startsWith("http")
+  const isExternal = !!currentImage && currentImage.startsWith("http")
 
   return (
     <section className="relative w-full overflow-hidden bg-[#0D2240] -mb-px" style={{ minHeight: "clamp(460px, 70vw, 580px)" }}>
       {/* Background image — per slide */}
       <div className={"absolute inset-x-0 top-0 transition-opacity duration-700 " + (slide.type === "full" ? "bottom-16" : "bottom-0")} style={{ opacity: transitioning ? 0 : 1 }}>
-        {slide.type === "full" && (
+        {slide.type === "full" && currentImage && (
           <Image
             src={currentImage}
             alt="WashFold Orlando"
@@ -133,13 +135,15 @@ export default function HeroCarousel({
         {/* 3-panel steps slide — panoramic image spans all 3 panels */}
         {slide.type === "steps" && (
           <div className="absolute inset-0">
-            <Image
-              src={currentImage}
-              alt="How it works"
-              fill
-              className="object-contain sm:object-cover object-center"
-              unoptimized={isExternal}
-            />
+            {currentImage && (
+              <Image
+                src={currentImage}
+                alt="How it works"
+                fill
+                className="object-contain sm:object-cover object-center"
+                unoptimized={isExternal}
+              />
+            )}
             {/* Gradient: dark at bottom for text legibility */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0D2240]/90" />
 
