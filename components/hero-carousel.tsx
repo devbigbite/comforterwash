@@ -70,7 +70,7 @@ export default function HeroCarousel({
       headline: (es ? text.slide_1_headline_es : text.slide_1_headline) || tr?.slide1Headline || DEFAULT_TEXT.slide_1_headline,
       subline:  (es ? text.slide_1_subline_es  : text.slide_1_subline)  || tr?.slide1Sub     || DEFAULT_TEXT.slide_1_subline,
       cta:      (es ? text.slide_1_cta_es      : text.slide_1_cta)      || tr?.slide1Cta     || DEFAULT_TEXT.slide_1_cta,
-      overlay: "from-[#0D2240]/80 via-[#0D2240]/50 to-transparent",
+      overlay: "",
       objectPos: "object-center",
     },
     {
@@ -88,7 +88,7 @@ export default function HeroCarousel({
       headline: (es ? text.slide_3_headline_es : text.slide_3_headline) || tr?.slide3Headline || DEFAULT_TEXT.slide_3_headline,
       subline:  (es ? text.slide_3_subline_es  : text.slide_3_subline)  || tr?.slide3Sub     || DEFAULT_TEXT.slide_3_subline,
       cta:      (es ? text.slide_3_cta_es      : text.slide_3_cta)      || tr?.slide3Cta     || DEFAULT_TEXT.slide_3_cta,
-      overlay: "from-[#E8726A]/70 via-[#0D2240]/60 to-[#0D2240]/80",
+      overlay: "",
       objectPos: "object-top",
     },
   ]
@@ -118,7 +118,7 @@ export default function HeroCarousel({
 
         {/* Full-width text slide */}
         {slide.type === "full" && (
-          <div className={`absolute inset-0 bg-gradient-to-r ${slide.overlay} flex items-center`}>
+          <div className="absolute inset-0 flex items-center">
             <div className="mx-auto max-w-7xl px-5 sm:px-8 w-full">
               <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.25em] mb-2 sm:mb-3">WashFold Orlando</p>
               <h1 className="text-white font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight max-w-2xl mb-3 sm:mb-4 drop-shadow-lg">
