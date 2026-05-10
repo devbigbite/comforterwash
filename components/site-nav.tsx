@@ -42,7 +42,7 @@ export function SiteNav() {
     { label: tr.nav.howItWorks,     href: href("#how") },
     { label: tr.nav.pricing,        href: href("#pricing") },
     { label: tr.nav.serviceAreas,   href: "/service-areas" },
-    { label: tr.nav.faq,            href: href("#faq") },
+    { label: tr.nav.faq,            href: "/faq" },
   ]
 
   return (

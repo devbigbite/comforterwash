@@ -412,7 +412,7 @@ export default function Home() {
               <Link href="/book/wash-fold" className="hover:text-[#E8726A] transition-colors">{tr.footer.washFold}</Link>
               <Link href="/book/wash-only" className="hover:text-[#E8726A] transition-colors">{tr.footer.washOnly}</Link>
               <Link href="/service-areas" className="hover:text-[#E8726A] transition-colors">{tr.footer.serviceAreas}</Link>
-              <a href="#faq" className="hover:text-[#E8726A] transition-colors">{tr.footer.faq}</a>
+              <Link href="/faq" className="hover:text-[#E8726A] transition-colors">{tr.footer.faq}</Link>
             </div>
             <div className="flex items-center gap-4">
               <p className="text-white/25 text-xs">&copy; {new Date().getFullYear()} WashFold Orlando</p>
