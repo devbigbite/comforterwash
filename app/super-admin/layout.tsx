@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 import Link from "next/link"
 
 export const metadata = { title: "Super Admin — WashFold Platform" }
@@ -9,16 +9,11 @@ export default async function SuperAdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const cookieStore = await cookies()
+  const adminAuth = cookieStore.get("admin_auth")
 
-  const allowedEmails = (process.env.SUPER_ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean)
-
-  if (!user?.email || !allowedEmails.includes(user.email.toLowerCase())) {
-    redirect("/")
+  if (adminAuth?.value !== "authenticated") {
+    redirect("/admin/login")
   }
 
   return (
@@ -34,7 +29,7 @@ export default async function SuperAdminLayout({
               WashFold Platform
             </Link>
           </div>
-          <span className="text-sm text-slate-500">{user.email}</span>
+          <span className="text-sm text-slate-500">Super Admin</span>
         </div>
       </header>
 
