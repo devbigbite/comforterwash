@@ -84,7 +84,7 @@ export default function EmailTemplatesPage() {
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<EmailTemplate | null>(null)
-  const [form, setForm] = useState({ subject: "", headline: "", body: "", cta_text: "", footer_note: "" })
+  const [form, setForm] = useState({ subject: "", headline: "", body: "", cta_text: "", footer_note: "", alert_box: "" })
   const [saving, setSaving] = useState(false)
   const [savedKey, setSavedKey] = useState<string | null>(null)
   const [activeAudience, setActiveAudience] = useState("customer")
@@ -112,6 +112,7 @@ export default function EmailTemplatesPage() {
       body: t.body,
       cta_text: t.cta_text ?? "",
       footer_note: t.footer_note ?? "",
+      alert_box: t.alert_box ?? "",
     })
     setSavedKey(null)
   }
@@ -125,6 +126,7 @@ export default function EmailTemplatesPage() {
       body: form.body,
       cta_text: form.cta_text || null,
       footer_note: form.footer_note || null,
+      alert_box: form.alert_box || null,
     })
     setSaving(false)
     if (res.success) {
@@ -139,6 +141,7 @@ export default function EmailTemplatesPage() {
                 body: form.body,
                 cta_text: form.cta_text || null,
                 footer_note: form.footer_note || null,
+                alert_box: form.alert_box || null,
               }
             : t
         )
@@ -306,6 +309,22 @@ export default function EmailTemplatesPage() {
                           placeholder="e.g. ¿Deseas recibir estas comunicaciones en español?…"
                         />
                       </div>
+
+                      {selected.key === "pickup_reminder" && (
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                            Alert Box{" "}
+                            <span className="font-normal normal-case text-gray-400">(amber callout in the pickup reminder — supports HTML)</span>
+                          </label>
+                          <textarea
+                            value={form.alert_box}
+                            onChange={(e) => setForm((f) => ({ ...f, alert_box: e.target.value }))}
+                            rows={2}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 focus:border-[#E8726A] resize-y"
+                            placeholder="e.g. 📦 <strong>Getting ready?</strong> Please have your laundry in bags near the front door."
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Variables reference */}

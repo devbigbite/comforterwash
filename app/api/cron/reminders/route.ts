@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   // Fetch all pickups for today that are not yet picked up or cancelled
   const { data: pickups, error } = await supabase
     .from("bookings")
-    .select("id, customer_name, customer_phone, customer_email, pickup_time_window, service_type")
+    .select("id, customer_name, customer_phone, customer_email, pickup_time_window, service_type, customer_address")
     .eq("pickup_date", today)
     .not("status", "in", '("picked_up","in_progress","out_for_delivery","delivered","cancelled")')
 
@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
           customerName:    booking.customer_name ?? "Valued Customer",
           pickupDate:      today,
           pickupTimeWindow: timeWindow,
+          pickupAddress:   booking.customer_address ?? "",
           serviceType:     booking.service_type ?? "laundry",
         })
         emailSent++

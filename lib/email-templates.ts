@@ -83,6 +83,7 @@ export interface EmailTemplateOverride {
   body?: string | null
   cta_text?: string | null
   footer_note?: string | null
+  alert_box?: string | null
 }
 
 // ─── 1. CUSTOMER BOOKING CONFIRMATION ────────────────────────────
@@ -249,7 +250,7 @@ export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplat
       </div>
 
       <div class="alert-box">
-        <p>📦 <strong>Getting ready?</strong> Please have your laundry in bags near the front door. Our driver will knock/ring and wait a couple minutes.</p>
+        <p>${ov.alert_box ?? "📦 <strong>Getting ready?</strong> Please have your laundry in bags near the front door. Our driver will knock/ring and wait a couple minutes."}</p>
       </div>
 
       <p style="font-size:14px;color:#374151;">Need to reschedule or have questions? Text or call us ASAP.</p>
