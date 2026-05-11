@@ -112,8 +112,8 @@ export default function EmailTemplatesPage() {
       body: t.body,
       cta_text: t.cta_text ?? "",
       footer_note: t.footer_note ?? "",
-      alert_box: t.alert_box ?? "",
-      contact_note: t.contact_note ?? "",
+      alert_box: t.alert_box ?? (t.key === "pickup_reminder" ? "📦 <strong>Getting ready?</strong> Please have your laundry in bags near the front door. Our driver will knock/ring and wait a couple minutes." : ""),
+      contact_note: t.contact_note ?? (t.key === "pickup_reminder" ? "Need to reschedule or have questions? Text or call us ASAP.\n<strong>📞 (407) 123-4567</strong>" : ""),
     })
     setSavedKey(null)
   }
