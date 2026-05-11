@@ -21,7 +21,7 @@ export default function Home() {
   const [offers, setOffers] = useState<LandingOffer[] | null>(null)
   const [images, setImages] = useState<SiteImages | null>(null)
   const [siteText, setSiteText] = useState<SiteText>(DEFAULT_TEXT)
-  const [services, setServices] = useState<ServicesConfig>({ comforter_wash: true, wash_fold: true, wash_only: true })
+  const [services, setServices] = useState<ServicesConfig | null>(null)
   useEffect(() => {
     getLandingOffers().then(setOffers)
     getSiteImages().then(setImages)
@@ -75,7 +75,7 @@ export default function Home() {
                 price: "$1.99",
                 unit: tr.services.washOnlyUnit,
               },
-            ].filter(svc => services[svc.key])
+            ].filter(svc => services !== null && services[svc.key])
             const gridClass =
               activeServices.length === 1
                 ? "grid grid-cols-1 gap-4 max-w-sm mx-auto"
