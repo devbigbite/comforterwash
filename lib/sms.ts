@@ -1,82 +1,115 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
-// SMS notification templates
+// ── SMS templates ────────────────────────────────────────────────────────────
+
 const SMS_TEMPLATES = {
   booking_confirmed: (name: string, pickupDate: string, pickupTime: string) =>
     `Hi ${name}! Your WashFold Orlando booking is confirmed. Pickup scheduled for ${pickupDate} between ${pickupTime}. We'll text you updates!`,
 
   pickup_reminder: (name: string, pickupTime: string) =>
-    `Hi ${name}! Reminder: We'll be picking up your comforters today between ${pickupTime}. Please have them ready. Thanks!`,
+    `Hi ${name}! Reminder: We'll be picking up your laundry today between ${pickupTime}. Please have it ready. Questions? Reply or call us!`,
 
   picked_up: (name: string, deliveryDate: string) =>
-    `Hi ${name}! We've picked up your comforters. They're being cleaned and will be delivered on ${deliveryDate}. Track your order at washfoldorlando.com`,
+    `Hi ${name}! We've picked up your laundry. It's being cleaned and will be delivered on ${deliveryDate}. Track at comforterwash.vercel.app`,
 
   in_progress: (name: string) =>
-    `Hi ${name}! Your comforters are being professionally cleaned. We'll notify you when they're ready for delivery!`,
+    `Hi ${name}! Your laundry is being professionally cleaned. We'll notify you when it's ready for delivery!`,
 
   out_for_delivery: (name: string, deliveryTime: string) =>
-    `Hi ${name}! Your fresh, clean comforters are out for delivery! Expect them between ${deliveryTime} today.`,
+    `Hi ${name}! Your fresh, clean laundry is out for delivery! Expect it between ${deliveryTime} today.`,
 
   delivered: (name: string) =>
-    `Hi ${name}! Your comforters have been delivered. Enjoy your fresh, clean bedding! Thanks for choosing WashFold Orlando!`,
+    `Hi ${name}! Your laundry has been delivered. Enjoy! Thanks for choosing WashFold Orlando 🧺`,
 }
 
-export async function sendSMS(phoneNumber: string, message: string) {
-  // In production, integrate with Twilio or similar SMS service
-  // For now, we'll log the SMS and store it in the database
-  console.log(`[v0] SMS to ${phoneNumber}: ${message}`)
+// ── Core send function — Twilio REST API via fetch ───────────────────────────
 
-  // Simulate SMS sending
-  // In production, use:
-  // const twilio = require('twilio')(accountSid, authToken);
-  // await twilio.messages.create({
-  //   body: message,
-  //   from: process.env.TWILIO_PHONE_NUMBER,
-  //   to: phoneNumber
-  // });
+export async function sendSMS(phoneNumber: string, message: string): Promise<{ success: boolean; error?: string }> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID
+  const authToken  = process.env.TWILIO_AUTH_TOKEN
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER
 
-  return { success: true, message: "SMS sent successfully" }
+  if (!accountSid || !authToken || !fromNumber) {
+    console.error("[SMS] Missing Twilio env vars (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER)")
+    return { success: false, error: "Twilio not configured" }
+  }
+
+  // Normalize phone — ensure E.164 format (+1XXXXXXXXXX)
+  const to = phoneNumber.replace(/\D/g, "")
+  const toE164 = to.startsWith("1") ? `+${to}` : `+1${to}`
+  const fromE164 = fromNumber.replace(/\D/g, "")
+  const fromFormatted = fromE164.startsWith("1") ? `+${fromE164}` : `+1${fromE164}`
+
+  const body = new URLSearchParams({
+    To:   toE164,
+    From: fromFormatted,
+    Body: message,
+  })
+
+  try {
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+      {
+        method:  "POST",
+        headers: {
+          Authorization: "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: body.toString(),
+      }
+    )
+
+    const json = await res.json() as { sid?: string; status?: string; error_message?: string; message?: string }
+
+    if (!res.ok) {
+      console.error("[SMS] Twilio error:", json.error_message ?? json.message)
+      return { success: false, error: json.error_message ?? json.message ?? "Twilio error" }
+    }
+
+    console.log(`[SMS] Sent to ${toE164} — SID: ${json.sid} status: ${json.status}`)
+    return { success: true }
+  } catch (err) {
+    console.error("[SMS] Network error:", err)
+    return { success: false, error: String(err) }
+  }
 }
+
+// ── Higher-level helper used by server actions ───────────────────────────────
 
 export async function sendBookingNotification(
   bookingId: string,
   notificationType: keyof typeof SMS_TEMPLATES,
   ...templateArgs: string[]
 ) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
-  // Get booking details
-  const { data: booking, error } = await supabase.from("bookings").select("*").eq("id", bookingId).single()
+  const { data: booking, error } = await supabase
+    .from("bookings")
+    .select("*")
+    .eq("id", bookingId)
+    .single()
 
   if (error || !booking) {
-    console.error("[v0] Error fetching booking:", error)
+    console.error("[SMS] Booking not found:", bookingId)
     throw new Error("Booking not found")
   }
 
-  // Generate message from template
   const message = SMS_TEMPLATES[notificationType](...(templateArgs as [string, ...string[]]))
+  const result  = await sendSMS(booking.customer_phone, message)
 
-  // Send SMS
-  await sendSMS(booking.customer_phone, message)
-
-  // Update booking with SMS notification record
-  const smsRecord = {
-    type: notificationType,
-    message,
-    sent_at: new Date().toISOString(),
+  if (result.success) {
+    const smsRecord = { type: notificationType, message, sent_at: new Date().toISOString() }
+    const existing  = (booking.sms_notifications_sent as Array<unknown>) || []
+    await supabase
+      .from("bookings")
+      .update({
+        last_sms_sent_at: new Date().toISOString(),
+        sms_notifications_sent: [...existing, smsRecord],
+      })
+      .eq("id", bookingId)
   }
 
-  const existingNotifications = (booking.sms_notifications_sent as Array<unknown>) || []
-
-  await supabase
-    .from("bookings")
-    .update({
-      last_sms_sent_at: new Date().toISOString(),
-      sms_notifications_sent: [...existingNotifications, smsRecord],
-    })
-    .eq("id", bookingId)
-
-  return { success: true }
+  return result
 }
