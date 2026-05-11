@@ -84,6 +84,7 @@ export interface EmailTemplateOverride {
   cta_text?: string | null
   footer_note?: string | null
   alert_box?: string | null
+  contact_note?: string | null
 }
 
 // ─── 1. CUSTOMER BOOKING CONFIRMATION ────────────────────────────
@@ -253,8 +254,11 @@ export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplat
         <p>${ov.alert_box ?? "📦 <strong>Getting ready?</strong> Please have your laundry in bags near the front door. Our driver will knock/ring and wait a couple minutes."}</p>
       </div>
 
-      <p style="font-size:14px;color:#374151;">Need to reschedule or have questions? Text or call us ASAP.</p>
-      <p style="font-size:14px;color:#374151;margin-top:8px;"><strong>📞 (407) 123-4567</strong></p>
+      ${ov.contact_note != null
+        ? `<p style="font-size:14px;color:#374151;">${ov.contact_note}</p>`
+        : `<p style="font-size:14px;color:#374151;">Need to reschedule or have questions? Text or call us ASAP.</p>
+      <p style="font-size:14px;color:#374151;margin-top:8px;"><strong>📞 (407) 123-4567</strong></p>`
+      }
     </div>
     <div class="footer">
       <p>WashFold Orlando · <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>

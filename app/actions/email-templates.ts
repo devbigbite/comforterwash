@@ -18,6 +18,7 @@ export interface EmailTemplate {
   cta_text: string | null
   footer_note: string | null
   alert_box: string | null
+  contact_note: string | null
   variables: EmailTemplateVariable[]
   updated_at: string
 }
@@ -54,7 +55,7 @@ export async function getEmailTemplate(key: string): Promise<EmailTemplate | nul
 // ── Save (upsert) a template ──────────────────────────────────────
 export async function upsertEmailTemplate(
   key: string,
-  updates: { subject: string; headline: string; body: string; cta_text?: string | null; footer_note?: string | null; alert_box?: string | null }
+  updates: { subject: string; headline: string; body: string; cta_text?: string | null; footer_note?: string | null; alert_box?: string | null; contact_note?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient()
   const { error } = await supabase
