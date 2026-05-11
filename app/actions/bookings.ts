@@ -212,9 +212,6 @@ export async function updateBookingStatus(bookingId: string, status: string, not
       case "picked_up":
         await sendBookingNotification(bookingId, "picked_up", customerName, deliveryDate)
         break
-      case "in_progress":
-        await sendBookingNotification(bookingId, "in_progress", customerName)
-        break
       case "out_for_delivery":
         await sendBookingNotification(bookingId, "out_for_delivery", customerName, deliveryTime)
         break
