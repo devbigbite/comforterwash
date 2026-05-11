@@ -294,6 +294,44 @@ export async function verifyStaffPin(role: "driver" | "operator", pin: string): 
   }
 }
 
+// ── Services Enabled ──────────────────────────────────────────────────────────
+
+export interface ServicesConfig {
+  comforter_wash: boolean
+  wash_fold:      boolean
+  wash_only:      boolean
+}
+
+export async function getServicesConfig(): Promise<ServicesConfig> {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from("settings")
+      .select("key,value")
+      .in("key", ["service_comforter_wash", "service_wash_fold", "service_wash_only"])
+    const map: Record<string, string> = {}
+    data?.forEach(({ key, value }: { key: string; value: string }) => { map[key] = value })
+    return {
+      comforter_wash: map["service_comforter_wash"] !== "false",
+      wash_fold:      map["service_wash_fold"]      !== "false",
+      wash_only:      map["service_wash_only"]      !== "false",
+    }
+  } catch {
+    return { comforter_wash: true, wash_fold: true, wash_only: true }
+  }
+}
+
+export async function setServicesConfig(config: ServicesConfig): Promise<void> {
+  const supabase = await createClient()
+  await supabase.from("settings").upsert([
+    { key: "service_comforter_wash", value: config.comforter_wash ? "true" : "false", updated_at: new Date().toISOString() },
+    { key: "service_wash_fold",      value: config.wash_fold      ? "true" : "false", updated_at: new Date().toISOString() },
+    { key: "service_wash_only",      value: config.wash_only      ? "true" : "false", updated_at: new Date().toISOString() },
+  ])
+  revalidatePath("/")
+  revalidatePath("/admin/pricing")
+}
+
 // ── Warehouse ─────────────────────────────────────────────────────────────────
 export interface WarehouseSettings {
   name: string

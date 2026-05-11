@@ -2,13 +2,17 @@ import { BookingForm } from "@/components/booking-form"
 import { LangToggle } from "@/components/lang-toggle"
 import { BookingPageTitle } from "@/components/booking-page-title"
 import Link from "next/link"
+import { redirect } from "next/navigation"
+import { getServicesConfig } from "@/app/actions/settings"
 
 export const metadata = {
   title: "Book Comforter Wash — WashFold Orlando",
   description: "Schedule pickup and delivery for your comforter. Fully water washed, from $35.",
 }
 
-export default function ComforterWashPage() {
+export default async function ComforterWashPage() {
+  const services = await getServicesConfig()
+  if (!services.comforter_wash) redirect("/")
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
       {/* Header */}

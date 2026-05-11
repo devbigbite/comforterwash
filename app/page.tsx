@@ -7,7 +7,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useLang } from "@/components/lang-provider"
 import { useState, useEffect } from "react"
-import { getLandingOffers, getSiteImages, getSiteText } from "@/app/actions/settings"
+import { getLandingOffers, getSiteImages, getSiteText, getServicesConfig, type ServicesConfig } from "@/app/actions/settings"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
 import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
 import { MessageUsModal } from "@/components/message-us-modal"
@@ -21,10 +21,12 @@ export default function Home() {
   const [offers, setOffers] = useState<LandingOffer[] | null>(null)
   const [images, setImages] = useState<SiteImages | null>(null)
   const [siteText, setSiteText] = useState<SiteText>(DEFAULT_TEXT)
+  const [services, setServices] = useState<ServicesConfig>({ comforter_wash: true, wash_fold: true, wash_only: true })
   useEffect(() => {
     getLandingOffers().then(setOffers)
     getSiteImages().then(setImages)
     getSiteText().then(setSiteText)
+    getServicesConfig().then(setServices)
   }, [])
   const visibleOffers = (offers ?? []).filter(o => o.enabled)
   return (
@@ -47,6 +49,7 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
+                key: "comforter_wash" as keyof ServicesConfig,
                 href: "/book/comforter-wash",
                 icon: "🛏️",
                 title: tr.services.comforterTitle,
@@ -55,6 +58,7 @@ export default function Home() {
                 unit: tr.services.perComforter,
               },
               {
+                key: "wash_fold" as keyof ServicesConfig,
                 href: "/book/wash-fold",
                 icon: "👕",
                 title: tr.services.washFoldTitle,
@@ -63,6 +67,7 @@ export default function Home() {
                 unit: tr.services.washFoldUnit,
               },
               {
+                key: "wash_only" as keyof ServicesConfig,
                 href: "/book/wash-only",
                 icon: "🧺",
                 title: tr.services.washOnlyTitle,
@@ -70,7 +75,7 @@ export default function Home() {
                 price: "$1.99",
                 unit: tr.services.washOnlyUnit,
               },
-            ].map((svc) => (
+            ].filter(svc => services[svc.key]).map((svc) => (
               <Link
                 key={svc.title}
                 href={svc.href}

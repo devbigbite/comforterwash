@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { getPricingConfig, setPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, type ServiceOption } from "@/app/actions/service-options"
-import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getStaffPins, setStaffPin } from "@/app/actions/settings"
+import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getStaffPins, setStaffPin, getServicesConfig, setServicesConfig, type ServicesConfig } from "@/app/actions/settings"
 import Link from "next/link"
 
 function cents(val: number) { return `$${(val / 100).toFixed(2)}` }
@@ -152,14 +152,18 @@ export default function PricingPage() {
   const [operatorPin, setOperatorPin] = useState("")
   const [savingPin, setSavingPin] = useState<"driver" | "operator" | null>(null)
   const [savedPin, setSavedPin] = useState<"driver" | "operator" | null>(null)
+  const [svcs, setSvcs] = useState<ServicesConfig>({ comforter_wash: true, wash_fold: true, wash_only: true })
+  const [savingSvcs, setSavingSvcs] = useState(false)
+  const [savedSvcs, setSavedSvcs] = useState(false)
 
   async function loadAll() {
-    const [cfg, dets, exts, fee, pins] = await Promise.all([
+    const [cfg, dets, exts, fee, pins, svcsCfg] = await Promise.all([
       getPricingConfig(),
       getAllServiceOptions("detergent"),
       getAllServiceOptions("extra"),
       getDeliveryFeeSettings(),
       getStaffPins(),
+      getServicesConfig(),
     ])
     setConfig(cfg)
     setDetergents(dets)
@@ -167,6 +171,15 @@ export default function PricingPage() {
     setDeliveryFee(fee)
     setDriverPin(pins.driverPin)
     setOperatorPin(pins.operatorPin)
+    setSvcs(svcsCfg)
+  }
+
+  async function handleSaveSvcs() {
+    setSavingSvcs(true)
+    await setServicesConfig(svcs)
+    setSavingSvcs(false)
+    setSavedSvcs(true)
+    setTimeout(() => setSavedSvcs(false), 3000)
   }
 
   async function handleSavePin(role: "driver" | "operator") {
@@ -226,6 +239,48 @@ export default function PricingPage() {
         <div className="mb-2">
           <h1 className="text-2xl font-extrabold text-[#0D2240]">Pricing</h1>
           <p className="text-sm text-gray-400 mt-1">Changes take effect immediately for all new bookings.</p>
+        </div>
+
+        {/* ── Active Services ─────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-sm font-extrabold text-[#0D2240] uppercase tracking-wide">Active Services</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Toggle which services appear on the homepage and accept bookings.</p>
+            </div>
+            <button
+              onClick={handleSaveSvcs}
+              disabled={savingSvcs}
+              className="shrink-0 bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors"
+            >
+              {savingSvcs ? "Saving…" : savedSvcs ? "Saved ✓" : "Save"}
+            </button>
+          </div>
+          <div className="space-y-3">
+            {([
+              { key: "comforter_wash" as keyof ServicesConfig, icon: "🛏️", label: "Comforter Wash", desc: "Per-piece comforter cleaning" },
+              { key: "wash_fold"      as keyof ServicesConfig, icon: "👕", label: "Wash & Fold",    desc: "Priced by weight ($/lb)" },
+              { key: "wash_only"      as keyof ServicesConfig, icon: "🧺", label: "Wash Only",      desc: "Wash without folding" },
+            ] as const).map(({ key, icon, label, desc }) => (
+              <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-[#f7f8fb] border border-gray-100">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{icon}</span>
+                  <div>
+                    <p className="font-bold text-sm text-[#0D2240]">{label}</p>
+                    <p className="text-xs text-gray-400">{desc}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSvcs(s => ({ ...s, [key]: !s[key] }))}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${svcs[key] ? "bg-[#0D2240]" : "bg-gray-200"}`}
+                  role="switch"
+                  aria-checked={svcs[key]}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${svcs[key] ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

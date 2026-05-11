@@ -2,13 +2,17 @@ import { WashOnlyForm } from "@/components/wash-only-form"
 import { LangToggle } from "@/components/lang-toggle"
 import { BookingPageTitle } from "@/components/booking-page-title"
 import Link from "next/link"
+import { redirect } from "next/navigation"
+import { getServicesConfig } from "@/app/actions/settings"
 
 export const metadata = {
   title: "Book Wash Only — WashFold Orlando",
   description: "Clothes washed and returned clean in a bag. $1.99/lb, 20 lb minimum.",
 }
 
-export default function WashOnlyPage() {
+export default async function WashOnlyPage() {
+  const services = await getServicesConfig()
+  if (!services.wash_only) redirect("/")
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
       <header className="bg-white border-b border-gray-100 shadow-sm">

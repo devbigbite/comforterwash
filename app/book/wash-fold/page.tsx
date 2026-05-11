@@ -2,13 +2,17 @@ import { WashFoldForm } from "@/components/wash-fold-form"
 import { LangToggle } from "@/components/lang-toggle"
 import { BookingPageTitle } from "@/components/booking-page-title"
 import Link from "next/link"
+import { redirect } from "next/navigation"
+import { getServicesConfig } from "@/app/actions/settings"
 
 export const metadata = {
   title: "Book Wash & Fold — WashFold Orlando",
   description: "Clothes washed, dried, and folded with free pickup & delivery. $2.40/lb, $20 minimum.",
 }
 
-export default function WashFoldPage() {
+export default async function WashFoldPage() {
+  const services = await getServicesConfig()
+  if (!services.wash_fold) redirect("/")
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
       {/* Header */}
