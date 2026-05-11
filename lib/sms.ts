@@ -9,10 +9,10 @@ const SMS_TEMPLATES = {
     `Hi ${name}! Your WashFold Orlando booking is confirmed. Pickup scheduled for ${pickupDate} between ${pickupTime}. We'll text you updates!`,
 
   pickup_reminder: (name: string, pickupTime: string) =>
-    `Hi ${name}! Reminder: We'll be picking up your laundry today between ${pickupTime}. Please have it ready. Questions? Reply or call us!`,
+    `Hi ${name}! Reminder: We'll be picking up your laundry today between ${pickupTime}. Just leave it by your door. See you soon!`,
 
   picked_up: (name: string, deliveryDate: string) =>
-    `Hi ${name}! We've picked up your laundry. It's being cleaned and will be delivered on ${deliveryDate}. Track at comforterwash.vercel.app`,
+    `Hi ${name}! We've picked up your laundry. We will keep you updated during processing. Estimated delivery is set for ${deliveryDate}. - WashFold Orlando`,
 
   in_progress: (name: string) =>
     `Hi ${name}! Your laundry is being professionally cleaned. We'll notify you when it's ready for delivery!`,
@@ -21,7 +21,7 @@ const SMS_TEMPLATES = {
     `Hi ${name}! Your fresh, clean laundry is out for delivery! Expect it between ${deliveryTime} today.`,
 
   delivered: (name: string) =>
-    `Hi ${name}! Your laundry has been delivered. Enjoy! Thanks for choosing WashFold Orlando 🧺`,
+    `Hi ${name}! Your laundry has been delivered! Thanks for choosing WashFold Orlando 🧺`,
 }
 
 // ── Core send function — Twilio REST API via fetch ───────────────────────────
