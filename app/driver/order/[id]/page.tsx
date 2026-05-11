@@ -37,15 +37,60 @@ const ALL_STATUSES = ["pending","picked_up","at_warehouse","at_facility","in_was
 // ── Batch: confirm pickup of all pending bags ─────────────────────────────────
 async function confirmPickup(formData: FormData) {
   "use server"
-  const bookingId = formData.get("bookingId") as string
-  const driverName = (formData.get("driverName") as string) || "driver"
-  const supabase = createAdminClient()
+  const bookingId      = formData.get("bookingId") as string
+  const driverName     = (formData.get("driverName") as string) || "driver"
+  const actualBagCount = parseInt(formData.get("actualBagCount") as string, 10)
+  const supabase       = createAdminClient()
+
+  // Fetch existing bags so we can reconcile the count
+  const { data: existingBags } = await supabase
+    .from("order_bags")
+    .select("id, bag_number")
+    .eq("booking_id", bookingId)
+    .order("bag_number")
+
+  const bookedCount = existingBags?.length ?? 0
+
+  if (!isNaN(actualBagCount) && actualBagCount !== bookedCount) {
+    if (actualBagCount > bookedCount) {
+      // Driver found more bags than booked — insert extra rows
+      const newBags = []
+      for (let i = bookedCount + 1; i <= actualBagCount; i++) {
+        const orderCode = bookingId.slice(0, 6).toUpperCase()
+        newBags.push({
+          booking_id:  bookingId,
+          bag_number:  i,
+          label_code:  `${orderCode}-B${i}`,
+          status:      "pending",
+        })
+      }
+      await supabase.from("order_bags").insert(newBags)
+    } else {
+      // Driver found fewer bags — delete extra rows from the end
+      const toDelete = existingBags!.slice(actualBagCount).map(b => b.id)
+      await supabase.from("order_bags").delete().in("id", toDelete)
+    }
+  }
+
+  // Mark all pending bags as picked_up and update booking
   await supabase.from("order_bags").update({ status: "picked_up" }).eq("booking_id", bookingId).eq("status", "pending")
+
+  const reconNote = !isNaN(actualBagCount) && actualBagCount !== bookedCount
+    ? ` (booked ${bookedCount}, actual ${actualBagCount})`
+    : ""
+
   await supabase.from("order_events").insert({
-    booking_id: bookingId, event_type: "pickup_confirmed",
-    notes: "All bags picked up from customer", created_by: driverName,
+    booking_id: bookingId,
+    event_type: "pickup_confirmed",
+    notes:      `All bags picked up from customer${reconNote}`,
+    created_by: driverName,
   })
-  await supabase.from("bookings").update({ status: "picked_up" }).eq("id", bookingId)
+
+  await supabase.from("bookings").update({
+    status:   "picked_up",
+    num_bags: isNaN(actualBagCount) ? bookedCount : actualBagCount,
+  }).eq("id", bookingId)
+
   revalidatePath(`/driver/order/${bookingId}`)
 }
 

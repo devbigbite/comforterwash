@@ -49,9 +49,10 @@ export default function DriverOrderClient({
   const isPickupDay   = pickupDate  === today
   const isDeliveryDay = deliveryDate === today
 
-  const [driverName, setDriverName] = useState("")
-  const [nameError, setNameError]   = useState(false)
-  const [submitting, setSubmitting] = useState<string | null>(null)
+  const [driverName, setDriverName]       = useState("")
+  const [nameError, setNameError]         = useState(false)
+  const [submitting, setSubmitting]       = useState<string | null>(null)
+  const [actualBagCount, setActualBagCount] = useState(bags.length)
 
   // Per-bag weights for dropoff
   const [bagWeights, setBagWeights]   = useState<string[]>(() => bags.map(() => ""))
@@ -96,8 +97,9 @@ export default function DriverOrderClient({
     if (!valid) return
     setSubmitting("pickup")
     const fd = new FormData()
-    fd.append("bookingId", bookingId)
-    fd.append("driverName", driverName.trim())
+    fd.append("bookingId",      bookingId)
+    fd.append("driverName",     driverName.trim())
+    fd.append("actualBagCount", String(actualBagCount))
     await confirmPickup(fd)
     setSubmitting(null)
   }
@@ -214,9 +216,39 @@ export default function DriverOrderClient({
                     onPhotoUploaded={() => { setHasCustomerPickupPhoto(true); setCustomerPickupPhotoErr(false) }} />
                   <PhotoRequired taken={hasCustomerPickupPhoto} error={customerPickupPhotoErr} />
                 </div>
+
+                {/* Bag count confirmation */}
+                <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
+                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-3">
+                    Actual Bag Count <span className="text-[#E8726A]">*</span>
+                  </p>
+                  <div className="flex items-center justify-between gap-4">
+                    <button type="button"
+                      onClick={() => setActualBagCount(c => Math.max(1, c - 1))}
+                      className="w-12 h-12 rounded-xl bg-white border-2 border-gray-200 hover:border-[#E8726A] text-[#0D2240] font-extrabold text-2xl flex items-center justify-center transition-colors">
+                      −
+                    </button>
+                    <div className="flex-1 text-center">
+                      <p className="text-4xl font-black text-[#0D2240] font-mono leading-none">{actualBagCount}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {actualBagCount === bags.length
+                          ? "matches booking"
+                          : actualBagCount > bags.length
+                            ? <span className="text-amber-600 font-semibold">+{actualBagCount - bags.length} extra vs booking</span>
+                            : <span className="text-red-500 font-semibold">{bags.length - actualBagCount} fewer than booked</span>}
+                      </p>
+                    </div>
+                    <button type="button"
+                      onClick={() => setActualBagCount(c => c + 1)}
+                      className="w-12 h-12 rounded-xl bg-white border-2 border-gray-200 hover:border-[#E8726A] text-[#0D2240] font-extrabold text-2xl flex items-center justify-center transition-colors">
+                      +
+                    </button>
+                  </div>
+                </div>
+
                 <button onClick={handlePickup} disabled={submitting === "pickup"}
                   className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-50 text-white font-extrabold py-4 rounded-2xl text-base transition-colors">
-                  {submitting === "pickup" ? "Confirming…" : `📦 Confirm Pickup of All ${bags.length} Bags`}
+                  {submitting === "pickup" ? "Confirming…" : `📦 Confirm Pickup of ${actualBagCount} Bag${actualBagCount !== 1 ? "s" : ""}`}
                 </button>
               </div>
             )}
