@@ -101,6 +101,29 @@ export async function verifyWorkerPin(workerName: string, pin: string): Promise<
   return { valid: data.clock_pin === pin, noPinSet: false }
 }
 
+/**
+ * Verify a PIN against a specific role's worker roster.
+ * Used by the driver/operator station PIN gate.
+ * Returns the matched worker's id and name, or null if no match.
+ */
+export async function verifyWorkerPinForRole(
+  role: "driver" | "operator",
+  pin: string
+): Promise<{ id: string; name: string } | null> {
+  if (!/^\d{4}$/.test(pin)) return null
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase
+    .from("workers")
+    .select("id, name, clock_pin")
+    .eq("location_id", locationId)
+    .eq("role", role)
+    .eq("status", "active")
+  if (!data) return null
+  const match = data.find((w: { clock_pin: string | null }) => w.clock_pin === pin)
+  if (!match) return null
+  return { id: match.id, name: match.name }
+}
+
 // ── Schedule checking ─────────────────────────────────────────────────────────
 
 function fmtTime(t: string): string {

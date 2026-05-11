@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { getPricingConfig, setPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, type ServiceOption } from "@/app/actions/service-options"
-import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getStaffPins, setStaffPin, getServicesConfig, setServicesConfig, type ServicesConfig } from "@/app/actions/settings"
+import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig } from "@/app/actions/settings"
 import Link from "next/link"
 
 function cents(val: number) { return `$${(val / 100).toFixed(2)}` }
@@ -148,29 +148,22 @@ export default function PricingPage() {
   const [deliveryFee, setDeliveryFee] = useState<DeliveryFeeSettings>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
   const [savingFee, setSavingFee] = useState(false)
   const [savedFee, setSavedFee] = useState(false)
-  const [driverPin, setDriverPin] = useState("")
-  const [operatorPin, setOperatorPin] = useState("")
-  const [savingPin, setSavingPin] = useState<"driver" | "operator" | null>(null)
-  const [savedPin, setSavedPin] = useState<"driver" | "operator" | null>(null)
   const [svcs, setSvcs] = useState<ServicesConfig>({ comforter_wash: true, wash_fold: true, wash_only: true })
   const [savingSvcs, setSavingSvcs] = useState(false)
   const [savedSvcs, setSavedSvcs] = useState(false)
 
   async function loadAll() {
-    const [cfg, dets, exts, fee, pins, svcsCfg] = await Promise.all([
+    const [cfg, dets, exts, fee, svcsCfg] = await Promise.all([
       getPricingConfig(),
       getAllServiceOptions("detergent"),
       getAllServiceOptions("extra"),
       getDeliveryFeeSettings(),
-      getStaffPins(),
       getServicesConfig(),
     ])
     setConfig(cfg)
     setDetergents(dets)
     setExtras(exts)
     setDeliveryFee(fee)
-    setDriverPin(pins.driverPin)
-    setOperatorPin(pins.operatorPin)
     setSvcs(svcsCfg)
   }
 
@@ -180,16 +173,6 @@ export default function PricingPage() {
     setSavingSvcs(false)
     setSavedSvcs(true)
     setTimeout(() => setSavedSvcs(false), 3000)
-  }
-
-  async function handleSavePin(role: "driver" | "operator") {
-    const pin = role === "driver" ? driverPin : operatorPin
-    if (pin.length !== 4 || !/^\d{4}$/.test(pin)) return
-    setSavingPin(role)
-    await setStaffPin(role, pin)
-    setSavingPin(null)
-    setSavedPin(role)
-    setTimeout(() => setSavedPin(null), 2000)
   }
 
   async function handleSaveFee() {
@@ -442,46 +425,6 @@ export default function PricingPage() {
               {savingFee ? "Saving…" : "Save Delivery Fees"}
             </button>
             {savedFee && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
-          </div>
-        </div>
-
-        {/* ── Staff PINs ──────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <span className="text-xl">🔐</span>
-            <div>
-              <h2 className="font-extrabold text-[#0D2240] text-base">Staff PINs</h2>
-              <p className="text-xs text-gray-400 mt-0.5">4-digit PIN required to access Driver and Operator stations</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {(["driver", "operator"] as const).map(role => (
-              <div key={role} className="border border-gray-100 rounded-xl p-4">
-                <p className="text-sm font-bold text-[#0D2240] mb-3 capitalize">{role === "driver" ? "🚐 Driver PIN" : "🏭 Operator PIN"}</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={4}
-                    value={role === "driver" ? driverPin : operatorPin}
-                    onChange={e => {
-                      const v = e.target.value.replace(/\D/g, "").slice(0, 4)
-                      role === "driver" ? setDriverPin(v) : setOperatorPin(v)
-                    }}
-                    placeholder="1234"
-                    className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-center text-lg font-bold tracking-widest focus:outline-none focus:border-[#E8726A]"
-                  />
-                  <button
-                    onClick={() => handleSavePin(role)}
-                    disabled={savingPin === role || (role === "driver" ? driverPin : operatorPin).length !== 4}
-                    className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
-                  >
-                    {savingPin === role ? "Saving…" : "Save"}
-                  </button>
-                  {savedPin === role && <span className="text-green-600 text-sm font-semibold self-center">✓ Saved</span>}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 

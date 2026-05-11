@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { approveWorker, rejectWorker, updatePayRates, createStripeConnectAccount } from "@/app/actions/workers"
+import { WorkerPinManager } from "./worker-pin-manager"
 import Link from "next/link"
 
 const STATUS_BADGE: Record<string, string> = {
@@ -30,7 +31,7 @@ export default async function WorkersPage({
 
   const { data: workers = [] } = await supabase
     .from("workers")
-    .select("*")
+    .select("*, clock_pin")
     .in("status", statusFilter)
     .order("created_at", { ascending: false })
 
@@ -215,6 +216,9 @@ export default async function WorkersPage({
                         💸 Issue Payout
                       </Link>
                     )}
+
+                    {/* Per-worker PIN management */}
+                    <WorkerPinManager workerName={w.name} hasPin={!!w.clock_pin} />
                   </>
                 )}
               </div>

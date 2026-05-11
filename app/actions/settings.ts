@@ -262,49 +262,6 @@ export async function setDeliveryFeeSettings(settings: DeliveryFeeSettings): Pro
   revalidatePath("/admin/pricing")
 }
 
-// ── Staff PINs ────────────────────────────────────────────────────────────────
-
-export async function getStaffPins(): Promise<{ driverPin: string; operatorPin: string }> {
-  try {
-    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
-    const { data } = await supabase
-      .from("settings")
-      .select("key,value")
-      .eq("location_id", locationId)
-      .in("key", ["driver_pin", "operator_pin"])
-    const map: Record<string, string> = {}
-    data?.forEach(({ key, value }: { key: string; value: string }) => { map[key] = value })
-    return {
-      driverPin:   map["driver_pin"]   ?? "1234",
-      operatorPin: map["operator_pin"] ?? "1234",
-    }
-  } catch {
-    return { driverPin: "1234", operatorPin: "1234" }
-  }
-}
-
-export async function setStaffPin(role: "driver" | "operator", pin: string): Promise<void> {
-  const locationId = await getLocationId()
-  await upsertSetting(`${role}_pin`, pin, locationId)
-  revalidatePath("/admin/pricing")
-}
-
-export async function verifyStaffPin(role: "driver" | "operator", pin: string): Promise<boolean> {
-  try {
-    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
-    const { data } = await supabase
-      .from("settings")
-      .select("value")
-      .eq("location_id", locationId)
-      .eq("key", `${role}_pin`)
-      .single()
-    const stored = data?.value ?? "1234"
-    return pin === stored
-  } catch {
-    return pin === "1234"
-  }
-}
-
 // ── Services Enabled ──────────────────────────────────────────────────────────
 
 export interface ServicesConfig {

@@ -1,32 +1,64 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { verifyStaffPin } from "@/app/actions/settings"
+import { useState, useEffect, useRef, createContext, useContext } from "react"
+import { verifyWorkerPinForRole } from "@/app/actions/staff"
 
+// ── Worker session context — so child pages can read who is logged in ─────────
+interface WorkerSession {
+  workerId: string
+  workerName: string
+}
+
+const WorkerCtx = createContext<WorkerSession | null>(null)
+
+/** Returns the currently logged-in worker for this station session, or null. */
+export function useWorkerSession(): WorkerSession | null {
+  return useContext(WorkerCtx)
+}
+
+// ── Storage helpers ───────────────────────────────────────────────────────────
+const SESSION_KEY = (role: string) => `washfold_${role}_worker`
+
+function loadSession(role: string): WorkerSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY(role))
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function saveSession(role: string, session: WorkerSession) {
+  localStorage.setItem(SESSION_KEY(role), JSON.stringify(session))
+}
+
+function clearSession(role: string) {
+  localStorage.removeItem(SESSION_KEY(role))
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 interface PinGateProps {
   role: "driver" | "operator"
   children: React.ReactNode
 }
 
-const STORAGE_KEY = (role: string) => `washfold_${role}_unlocked`
-const LOCK_ICON = { driver: "🚐", operator: "🏭" }
+const LOCK_ICON  = { driver: "🚐", operator: "🏭" }
 const ROLE_LABEL = { driver: "Driver Station", operator: "Operator Station" }
 
 export function PinGate({ role, children }: PinGateProps) {
-  const [unlocked, setUnlocked] = useState(false)
-  const [checked, setChecked] = useState(false)
-  const [pin, setPin] = useState(["", "", "", ""])
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [shake, setShake] = useState(false)
+  const [session, setSession] = useState<WorkerSession | null>(null)
+  const [checked, setChecked]   = useState(false)
+  const [pin, setPin]           = useState(["", "", "", ""])
+  const [error, setError]       = useState("")
+  const [loading, setLoading]   = useState(false)
+  const [shake, setShake]       = useState(false)
+  const [welcome, setWelcome]   = useState(false)
   const inputs = useRef<(HTMLInputElement | null)[]>([])
 
-  // Check localStorage on mount
+  // Restore session from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY(role))
-    if (stored === "true") {
-      setUnlocked(true)
-    }
+    const stored = loadSession(role)
+    if (stored) setSession(stored)
     setChecked(true)
   }, [role])
 
@@ -35,13 +67,18 @@ export function PinGate({ role, children }: PinGateProps) {
     if (entered.length < 4) return
     setLoading(true)
     setError("")
-    const ok = await verifyStaffPin(role, entered)
+    const worker = await verifyWorkerPinForRole(role, entered)
     setLoading(false)
-    if (ok) {
-      localStorage.setItem(STORAGE_KEY(role), "true")
-      setUnlocked(true)
+    if (worker) {
+      const s = { workerId: worker.id, workerName: worker.name }
+      saveSession(role, s)
+      setWelcome(true)
+      setTimeout(() => {
+        setSession(s)
+        setWelcome(false)
+      }, 1200)
     } else {
-      setError("Incorrect PIN")
+      setError("PIN not recognised — check with your manager")
       setShake(true)
       setTimeout(() => setShake(false), 600)
       setPin(["", "", "", ""])
@@ -55,44 +92,78 @@ export function PinGate({ role, children }: PinGateProps) {
     next[i] = digit
     setPin(next)
     setError("")
-    if (digit && i < 3) {
-      inputs.current[i + 1]?.focus()
-    }
+    if (digit && i < 3) inputs.current[i + 1]?.focus()
     if (digit && i === 3) {
-      // Auto-submit when last digit entered
-      const full = [...next].join("")
+      const full = next.join("")
       if (full.length === 4) {
-        setTimeout(() => {
-          const el = document.getElementById("pin-submit")
-          el?.click()
-        }, 80)
+        setTimeout(() => document.getElementById("pin-submit")?.click(), 80)
       }
     }
   }
 
   function handleKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && !pin[i] && i > 0) {
-      inputs.current[i - 1]?.focus()
-    }
+    if (e.key === "Backspace" && !pin[i] && i > 0) inputs.current[i - 1]?.focus()
     if (e.key === "Enter") handleSubmit()
   }
 
-  if (!checked) return null
-  if (unlocked) return <>{children}</>
+  function switchWorker() {
+    clearSession(role)
+    setSession(null)
+    setPin(["", "", "", ""])
+    setError("")
+    setTimeout(() => inputs.current[0]?.focus(), 100)
+  }
 
+  if (!checked) return null
+
+  // ── Unlocked: render children with session context + switch button ────────
+  if (session) {
+    return (
+      <WorkerCtx.Provider value={session}>
+        <div className="relative">
+          {/* Switch worker pill — always visible in top-right */}
+          <div className="fixed top-3 right-3 z-50">
+            <button
+              onClick={switchWorker}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur transition-colors"
+            >
+              <span className="w-5 h-5 rounded-full bg-[#E8726A] flex items-center justify-center text-[10px] font-extrabold shrink-0">
+                {session.workerName.charAt(0).toUpperCase()}
+              </span>
+              {session.workerName}
+              <span className="text-white/40 font-normal">· switch</span>
+            </button>
+          </div>
+          {children}
+        </div>
+      </WorkerCtx.Provider>
+    )
+  }
+
+  // ── Welcome flash ─────────────────────────────────────────────────────────
+  if (welcome) {
+    return (
+      <div className="min-h-screen bg-[#0D2240] flex flex-col items-center justify-center px-4">
+        <div className="w-24 h-24 rounded-3xl bg-[#E8726A] flex items-center justify-center text-5xl mx-auto mb-6 animate-bounce">
+          👋
+        </div>
+        <h1 className="text-white font-extrabold text-3xl text-center">Welcome!</h1>
+        <p className="text-white/60 text-lg text-center mt-2">Loading station…</p>
+      </div>
+    )
+  }
+
+  // ── PIN entry screen ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#0D2240] flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-xs">
-        {/* Icon */}
         <div className="w-20 h-20 rounded-3xl bg-[#E8726A] flex items-center justify-center text-4xl mx-auto mb-6">
           {LOCK_ICON[role]}
         </div>
 
-        {/* Title */}
         <h1 className="text-white font-extrabold text-2xl text-center mb-1">{ROLE_LABEL[role]}</h1>
-        <p className="text-white/40 text-sm text-center mb-10">Enter your 4-digit PIN to continue</p>
+        <p className="text-white/40 text-sm text-center mb-10">Enter your personal 4-digit PIN</p>
 
-        {/* PIN boxes */}
         <div className={`flex justify-center gap-4 mb-6 transition-all ${shake ? "animate-shake" : ""}`}>
           {pin.map((digit, i) => (
             <input
@@ -112,20 +183,22 @@ export function PinGate({ role, children }: PinGateProps) {
           ))}
         </div>
 
-        {/* Error */}
         {error && (
           <p className="text-[#E8726A] text-sm text-center font-semibold mb-4">{error}</p>
         )}
 
-        {/* Submit button (hidden, triggered programmatically on last digit) */}
         <button
           id="pin-submit"
           onClick={handleSubmit}
           disabled={loading || pin.join("").length < 4}
           className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors"
         >
-          {loading ? "Checking…" : "Unlock"}
+          {loading ? "Checking…" : "Enter Station"}
         </button>
+
+        <p className="text-white/20 text-xs text-center mt-6">
+          PIN not working? Ask your manager to check it in the admin workers page.
+        </p>
       </div>
 
       <style>{`
