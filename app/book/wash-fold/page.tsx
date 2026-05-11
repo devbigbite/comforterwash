@@ -41,7 +41,7 @@ export default function WashFoldPage() {
         <p className="text-white/60 text-sm">$2.40/lb one-time · $2.15/lb with subscription · 20 lb minimum</p>
       </div>
 
-      <div className="mx-auto max-w-2xl px-4 py-10">
+      <div className="mx-auto max-w-2xl px-4 py-10 overflow-hidden">
         <WashFoldForm />
       </div>
     </main>
