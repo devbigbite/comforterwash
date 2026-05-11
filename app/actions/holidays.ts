@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { todayET } from "@/lib/date-et"
 
 /**
  * Returns a flat array of excluded date strings "YYYY-MM-DD".
@@ -13,7 +14,7 @@ export async function getExcludedDates(): Promise<string[]> {
   const { data } = await supabase
     .from("holiday_exclusions")
     .select("date, date_to")
-    .gte("date", new Date().toISOString().split("T")[0])
+    .gte("date", todayET())
 
   if (!data) return []
 

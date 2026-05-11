@@ -52,7 +52,8 @@ export default async function DispatchPage({
   searchParams: Promise<{ date?: string }>
 }) {
   const { date: dateParam } = await searchParams
-  const today = new Date().toISOString().split("T")[0]
+  // Use Eastern Time so "today" matches Orlando's date, not UTC
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
   const selectedDate = dateParam ?? today
 
   const supabase = createAdminClient()

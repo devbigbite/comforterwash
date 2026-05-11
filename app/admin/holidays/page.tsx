@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { PlatformHoursEditor } from "@/components/admin/platform-hours-editor"
 import { createClient } from "@/lib/supabase/server"
+import { todayET } from "@/lib/date-et"
 
 async function addHoliday(formData: FormData) {
   "use server"
@@ -71,7 +72,7 @@ export default async function HolidaysPage() {
   try { savedHours = hoursSetting?.value ? JSON.parse(hoursSetting.value) : null } catch { /* ignore */ }
 
   const existingDates = new Set(exclusions.map(e => e.date))
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayET()
   const upcoming = exclusions.filter(e => e.date >= today)
   const past = exclusions.filter(e => e.date < today)
 

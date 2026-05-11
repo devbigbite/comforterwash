@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { createShipdayRunOrder } from "@/lib/shipday"
+import { todayET } from "@/lib/date-et"
 import { getAllFacilityWindows } from "@/app/actions/facility-windows"
 import { isWithinAccessWindow } from "@/lib/facility-utils"
 
@@ -107,7 +108,7 @@ export async function createTransportRun(formData: FormData) {
 
     const orderSummary = `${orderIds.length} order${orderIds.length !== 1 ? "s" : ""} · assigned to ${assignedTo}`
 
-    const today = new Date().toISOString().split("T")[0]
+    const today = todayET()
 
     const shipdayOrderId = await createShipdayRunOrder({
       runId:        run.id,

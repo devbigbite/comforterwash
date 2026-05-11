@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { sendBookingNotification } from "@/lib/sms"
 import { createShipdayOrder } from "@/lib/shipday"
 import { format } from "date-fns"
+import { todayET } from "@/lib/date-et"
 
 export interface BookingData {
   customerName: string
@@ -261,7 +262,7 @@ export async function getBookingsByDate(date: string) {
 export async function getUpcomingDates() {
   const supabase = createAdminClient()
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayET()
 
   const { data: pickupDates, error: pickupError } = await supabase
     .from("bookings")
