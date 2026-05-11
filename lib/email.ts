@@ -23,8 +23,8 @@ import { getEmailTemplate } from "@/app/actions/email-templates"
 // ─────────────────────────────────────────────────────────────────
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing_configure_in_vercel")
 
-const FROM_CUSTOMER = "WashFold Orlando <hello@washfoldorlando.com>"
-const FROM_ADMIN    = "WashFold Orlando <bookings@washfoldorlando.com>"
+const FROM_CUSTOMER = "WashFold Orlando <clean@washfoldorlando.com>"
+const FROM_ADMIN    = "WashFold Orlando <clean@washfoldorlando.com>"
 const ADMIN_EMAIL   = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
 
 // ─────────────────────────────────────────────────────────────────
