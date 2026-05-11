@@ -46,8 +46,8 @@ export default function Home() {
         <div className="mx-auto max-w-4xl">
           <h2 className="text-2xl font-extrabold text-white uppercase tracking-wide text-center mb-2">{tr.services.heading}</h2>
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-8" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[
+          {(() => {
+            const activeServices = [
               {
                 key: "comforter_wash" as keyof ServicesConfig,
                 href: "/book/comforter-wash",
@@ -75,8 +75,17 @@ export default function Home() {
                 price: "$1.99",
                 unit: tr.services.washOnlyUnit,
               },
-            ].filter(svc => services[svc.key]).map((svc) => (
-              <Link
+            ].filter(svc => services[svc.key])
+            const gridClass =
+              activeServices.length === 1
+                ? "grid grid-cols-1 gap-4 max-w-sm mx-auto"
+                : activeServices.length === 2
+                ? "grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-2xl mx-auto"
+                : "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            return (
+          <div className={gridClass}>
+            {activeServices.map((svc) => (
+              <a
                 key={svc.title}
                 href={svc.href}
                 className="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#E8726A] rounded-2xl p-4 sm:p-6 flex gap-3 sm:gap-5 items-start transition-all"
@@ -93,9 +102,11 @@ export default function Home() {
                     {tr.services.details}
                   </span>
                 </div>
-              </Link>
+              </a>
             ))}
           </div>
+            )
+          })()}
         </div>
       </section>
       </div>{/* end navy wrapper */}
