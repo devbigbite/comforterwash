@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 const SMS_TEMPLATES = {
   booking_confirmed: (name: string, pickupDate: string, pickupTime: string) =>
-    `Hi ${name}! Your WashFold Orlando booking is confirmed. Pickup scheduled for ${pickupDate} between ${pickupTime}. We'll text you updates!`,
+    `Hi ${name}! Your WashFold Orlando booking is confirmed. Pickup scheduled for ${pickupDate} between ${pickupTime}.`,
 
   pickup_reminder: (name: string, pickupTime: string) =>
     `Hi ${name}! Reminder: We'll be picking up your laundry today between ${pickupTime}. Just leave it by your door. See you soon!`,
@@ -14,8 +14,9 @@ const SMS_TEMPLATES = {
   picked_up: (name: string, deliveryDate: string) =>
     `Hi ${name}! We've picked up your laundry. Estimated delivery: ${deliveryDate}. - WashFold Orlando`,
 
+  // Not used in the current flow — kept for manual use if needed
   in_progress: (name: string) =>
-    `Hi ${name}! Your laundry is being professionally cleaned. We'll notify you when it's ready for delivery!`,
+    `Hi ${name}! Your laundry is being processed. We'll notify you when it's ready for delivery!`,
 
   out_for_delivery: (name: string, deliveryTime: string) =>
     `Hi ${name}! Your fresh, clean laundry is out for delivery! Expect it between ${deliveryTime} today.`,
