@@ -6,6 +6,7 @@ import { createShipdayRunOrder } from "@/lib/shipday"
 import { todayET } from "@/lib/date-et"
 import { getAllFacilityWindows } from "@/app/actions/facility-windows"
 import { isWithinAccessWindow } from "@/lib/facility-utils"
+import { getLocationId } from "@/lib/location"
 
 export interface TransportRun {
   id: string
@@ -37,7 +38,7 @@ export interface RunOrder {
 
 // ── Create a transport run (admin) ────────────────────────────────────────────
 export async function createTransportRun(formData: FormData) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const runType     = formData.get("runType")    as "to_facility" | "to_warehouse"
   const facilityId  = formData.get("facilityId") as string
@@ -65,6 +66,7 @@ export async function createTransportRun(formData: FormData) {
   const { data: run, error } = await supabase
     .from("transport_runs")
     .insert({
+      location_id:   locationId,
       run_type:      runType,
       facility_id:   facilityId,
       facility_name: facility?.name ?? null,
@@ -89,6 +91,7 @@ export async function createTransportRun(formData: FormData) {
     const { data: warehouseSetting } = await supabase
       .from("settings")
       .select("value")
+      .eq("location_id", locationId)
       .eq("key", "warehouse_address")
       .single()
     const warehouseAddress = warehouseSetting?.value ?? process.env.BUSINESS_ADDRESS ?? "Orlando, FL"
@@ -301,10 +304,11 @@ export async function completeTransportRun(formData: FormData) {
 
 // ── Fetch runs for admin ──────────────────────────────────────────────────────
 export async function getTransportRuns(statusFilter: string[] = ["pending", "completed"]) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("transport_runs")
     .select("*")
+    .eq("location_id", locationId)
     .in("status", statusFilter)
     .order("created_at", { ascending: false })
   return (data ?? []) as TransportRun[]
@@ -312,10 +316,11 @@ export async function getTransportRuns(statusFilter: string[] = ["pending", "com
 
 // ── Fetch pending runs for a role (driver/operator home pages) ────────────────
 export async function getPendingRunsForRole(role: "driver" | "operator") {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("transport_runs")
     .select("*")
+    .eq("location_id", locationId)
     .eq("status", "pending")
     .eq("assigned_role", role)
     .order("created_at", { ascending: true })
@@ -350,10 +355,11 @@ export async function getTransportRunWithOrders(runId: string) {
 
 // ── Facilities list for the admin runs page ───────────────────────────────────
 export async function getActiveFacilities() {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("facilities")
     .select("id, name, address, supports_own_operator, supports_partner_attendant")
+    .eq("location_id", locationId)
     .eq("active", true)
     .order("name")
   return (data ?? []) as { id: string; name: string; address: string | null; supports_own_operator: boolean; supports_partner_attendant: boolean }[]
@@ -361,13 +367,14 @@ export async function getActiveFacilities() {
 
 // ── Orders eligible to be added to a new run ──────────────────────────────────
 export async function getEligibleOrdersForRun(runType: "to_facility" | "to_warehouse", facilityId?: string) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   if (runType === "to_facility") {
     // Orders sitting at warehouse, not yet in any pending run
     const { data: pendingRuns } = await supabase
       .from("transport_runs")
       .select("order_ids")
+      .eq("location_id", locationId)
       .eq("status", "pending")
       .eq("run_type", "to_facility")
 
@@ -378,6 +385,7 @@ export async function getEligibleOrdersForRun(runType: "to_facility" | "to_wareh
     const { data } = await supabase
       .from("bookings")
       .select("id, short_code, customer_name, customer_address, num_bags, service_type, status, actual_weight_lbs")
+      .eq("location_id", locationId)
       .eq("status", "at_warehouse")
       .order("created_at")
 
@@ -387,6 +395,7 @@ export async function getEligibleOrdersForRun(runType: "to_facility" | "to_wareh
     const { data: pendingRuns } = await supabase
       .from("transport_runs")
       .select("order_ids")
+      .eq("location_id", locationId)
       .eq("status", "pending")
       .eq("run_type", "to_warehouse")
 
@@ -397,6 +406,7 @@ export async function getEligibleOrdersForRun(runType: "to_facility" | "to_wareh
     let query = supabase
       .from("bookings")
       .select("id, short_code, customer_name, customer_address, num_bags, service_type, status, actual_weight_lbs, assigned_facility_id")
+      .eq("location_id", locationId)
       .eq("status", "ready")
 
     if (facilityId) {

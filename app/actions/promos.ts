@@ -2,15 +2,17 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { getLocationId } from "@/lib/location"
 
 export async function createPromoCode(formData: FormData) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const discountType = formData.get("discount_type") as string
   const discountValue = parseFloat(formData.get("discount_value") as string)
   const maxUses = formData.get("max_uses") ? parseInt(formData.get("max_uses") as string) : null
   const expiresAt = formData.get("expires_at") ? new Date(formData.get("expires_at") as string).toISOString() : null
 
   const { error } = await supabase.from("promo_codes").insert({
+    location_id:    locationId,
     code:           (formData.get("code") as string).toUpperCase().trim(),
     description:    formData.get("description") as string,
     discount_type:  discountType,
@@ -40,10 +42,11 @@ export async function deletePromoCode(id: string) {
 
 // ── Called from booking forms to validate + calculate discount ────────────────
 export async function validatePromoCode(code: string, serviceType: string, subtotalCents: number) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data: promo } = await supabase
     .from("promo_codes")
     .select("*")
+    .eq("location_id", locationId)
     .eq("code", code.toUpperCase().trim())
     .eq("active", true)
     .single()

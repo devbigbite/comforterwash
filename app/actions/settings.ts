@@ -2,16 +2,29 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { getLocationId } from "@/lib/location"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
 import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
 import { DEFAULT_TEXT, type SiteText } from "@/lib/site-text-config"
 
+// ── Internal helper: upsert a setting key for the current location ────────────
+async function upsertSetting(key: string, value: string, locationId: string) {
+  const supabase = await createClient()
+  await supabase.from("settings").upsert(
+    { key, value, location_id: locationId, updated_at: new Date().toISOString() },
+    { onConflict: "location_id,key" }
+  )
+}
+
+// ── Comforter Promo ───────────────────────────────────────────────────────────
+
 export async function getComforterPromo(): Promise<boolean> {
   try {
-    const supabase = await createClient()
+    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
     const { data } = await supabase
       .from("settings")
       .select("value")
+      .eq("location_id", locationId)
       .eq("key", "comforter_flat_rate_promo")
       .single()
     return data?.value === "true"
@@ -21,22 +34,21 @@ export async function getComforterPromo(): Promise<boolean> {
 }
 
 export async function setComforterPromo(active: boolean): Promise<void> {
-  const supabase = await createClient()
-  await supabase.from("settings").upsert({
-    key: "comforter_flat_rate_promo",
-    value: active ? "true" : "false",
-    updated_at: new Date().toISOString(),
-  })
+  const locationId = await getLocationId()
+  await upsertSetting("comforter_flat_rate_promo", active ? "true" : "false", locationId)
   revalidatePath("/admin/promos")
   revalidatePath("/admin/settings")
 }
 
+// ── Landing Offers ────────────────────────────────────────────────────────────
+
 export async function getLandingOffers(): Promise<LandingOffer[]> {
   try {
-    const supabase = await createClient()
+    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
     const { data } = await supabase
       .from("settings")
       .select("key,value")
+      .eq("location_id", locationId)
       .like("key", "landing_offer_%")
     const offers: LandingOffer[] = DEFAULT_OFFERS.map(o => ({ ...o }))
     if (data) {
@@ -59,26 +71,31 @@ export async function getLandingOffers(): Promise<LandingOffer[]> {
 }
 
 export async function setLandingOffer(index: number, offer: LandingOffer): Promise<void> {
-  const supabase = await createClient()
+  const locationId = await getLocationId()
   const n = index + 1
-  await supabase.from("settings").upsert([
-    { key: `landing_offer_${n}_enabled`, value: offer.enabled ? "true" : "false" },
-    { key: `landing_offer_${n}_badge`, value: offer.badge },
-    { key: `landing_offer_${n}_title`, value: offer.title },
-    { key: `landing_offer_${n}_desc`, value: offer.desc },
-  ])
+  const supabase = await createClient()
+  await supabase.from("settings").upsert(
+    [
+      { key: `landing_offer_${n}_enabled`, value: offer.enabled ? "true" : "false", location_id: locationId },
+      { key: `landing_offer_${n}_badge`,   value: offer.badge,   location_id: locationId },
+      { key: `landing_offer_${n}_title`,   value: offer.title,   location_id: locationId },
+      { key: `landing_offer_${n}_desc`,    value: offer.desc,    location_id: locationId },
+    ],
+    { onConflict: "location_id,key" }
+  )
   revalidatePath("/")
   revalidatePath("/admin/promos")
 }
 
-// ── Site Images ──────────────────────────────────────────────────────────────
+// ── Site Images ───────────────────────────────────────────────────────────────
 
 export async function getSiteImages(): Promise<SiteImages> {
   try {
-    const supabase = await createClient()
+    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
     const { data } = await supabase
       .from("settings")
       .select("key,value")
+      .eq("location_id", locationId)
       .like("key", "img_%")
     const images: SiteImages = { ...DEFAULT_IMAGES }
     if (data) {
@@ -94,58 +111,49 @@ export async function getSiteImages(): Promise<SiteImages> {
 }
 
 export async function uploadSiteImage(key: string, formData: FormData): Promise<string> {
-  const supabase = await createClient()
+  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
   const file = formData.get("file") as File
   if (!file || file.size === 0) throw new Error("No file provided")
 
   const ext = file.name.split(".").pop() ?? "jpg"
-  const filename = `${key}.${ext}?t=${Date.now()}`
   const storagePath = `${key}.${ext}`
 
   const arrayBuffer = await file.arrayBuffer()
   const { error: uploadError } = await supabase.storage
     .from("site-images")
-    .upload(storagePath, arrayBuffer, {
-      contentType: file.type,
-      upsert: true,
-    })
+    .upload(storagePath, arrayBuffer, { contentType: file.type, upsert: true })
 
   if (uploadError) throw uploadError
 
-  const { data: urlData } = supabase.storage
-    .from("site-images")
-    .getPublicUrl(storagePath)
-
-  // Bust CDN cache with a timestamp query param
+  const { data: urlData } = supabase.storage.from("site-images").getPublicUrl(storagePath)
   const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
-  await supabase.from("settings").upsert({
-    key: `img_${key}`,
-    value: publicUrl,
-    updated_at: new Date().toISOString(),
-  })
+  await supabase.from("settings").upsert(
+    { key: `img_${key}`, value: publicUrl, location_id: locationId, updated_at: new Date().toISOString() },
+    { onConflict: "location_id,key" }
+  )
 
   revalidatePath("/")
   revalidatePath("/admin/images")
-  void filename // silence unused var
   return publicUrl
 }
 
 export async function resetSiteImage(key: string): Promise<void> {
-  const supabase = await createClient()
-  await supabase.from("settings").delete().eq("key", `img_${key}`)
+  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+  await supabase.from("settings").delete().eq("location_id", locationId).eq("key", `img_${key}`)
   revalidatePath("/")
   revalidatePath("/admin/images")
 }
 
-// ── Site Text ────────────────────────────────────────────────────────────────
+// ── Site Text ─────────────────────────────────────────────────────────────────
 
 export async function getSiteText(): Promise<SiteText> {
   try {
-    const supabase = await createClient()
+    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
     const { data } = await supabase
       .from("settings")
       .select("key,value")
+      .eq("location_id", locationId)
       .like("key", "txt_%")
     const text: SiteText = { ...DEFAULT_TEXT }
     if (data) {
@@ -161,19 +169,15 @@ export async function getSiteText(): Promise<SiteText> {
 }
 
 export async function setSiteTextValue(key: keyof SiteText, value: string): Promise<void> {
-  const supabase = await createClient()
-  await supabase.from("settings").upsert({
-    key: `txt_${key}`,
-    value,
-    updated_at: new Date().toISOString(),
-  })
+  const locationId = await getLocationId()
+  await upsertSetting(`txt_${key}`, value, locationId)
   revalidatePath("/")
   revalidatePath("/admin/images")
 }
 
 export async function resetSiteText(key: keyof SiteText): Promise<void> {
-  const supabase = await createClient()
-  await supabase.from("settings").delete().eq("key", `txt_${key}`)
+  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+  await supabase.from("settings").delete().eq("location_id", locationId).eq("key", `txt_${key}`)
   revalidatePath("/")
   revalidatePath("/admin/images")
 }
@@ -182,10 +186,11 @@ export async function resetSiteText(key: keyof SiteText): Promise<void> {
 
 export async function getServiceAreaPolygon(): Promise<object | null> {
   try {
-    const supabase = await createClient()
+    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
     const { data } = await supabase
       .from("settings")
       .select("value")
+      .eq("location_id", locationId)
       .eq("key", "service_area_polygon")
       .single()
     if (!data?.value) return null
@@ -196,37 +201,34 @@ export async function getServiceAreaPolygon(): Promise<object | null> {
 }
 
 export async function setServiceAreaPolygon(geojson: object): Promise<void> {
-  const supabase = await createClient()
-  await supabase.from("settings").upsert({
-    key: "service_area_polygon",
-    value: JSON.stringify(geojson),
-    updated_at: new Date().toISOString(),
-  })
+  const locationId = await getLocationId()
+  await upsertSetting("service_area_polygon", JSON.stringify(geojson), locationId)
   revalidatePath("/service-areas")
   revalidatePath("/admin/service-area")
 }
 
 export async function deleteServiceAreaPolygon(): Promise<void> {
-  const supabase = await createClient()
-  await supabase.from("settings").delete().eq("key", "service_area_polygon")
+  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+  await supabase.from("settings").delete().eq("location_id", locationId).eq("key", "service_area_polygon")
   revalidatePath("/service-areas")
   revalidatePath("/admin/service-area")
 }
 
-// ── Delivery Fee ─────────────────────────────────────────────────────────────
+// ── Delivery Fee ──────────────────────────────────────────────────────────────
 
 export interface DeliveryFeeSettings {
   enabled: boolean
-  feeCents: number      // flat fee amount
-  waiverCents: number   // free above this order subtotal (0 = always charge)
+  feeCents: number
+  waiverCents: number
 }
 
 export async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
   try {
-    const supabase = await createClient()
+    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
     const { data } = await supabase
       .from("settings")
       .select("key,value")
+      .eq("location_id", locationId)
       .in("key", ["delivery_fee_enabled", "delivery_fee_cents", "delivery_fee_waiver_cents"])
     const map: Record<string, string> = {}
     data?.forEach(({ key, value }: { key: string; value: string }) => { map[key] = value })
@@ -241,22 +243,28 @@ export async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
 }
 
 export async function setDeliveryFeeSettings(settings: DeliveryFeeSettings): Promise<void> {
+  const locationId = await getLocationId()
   const supabase = await createClient()
-  await supabase.from("settings").upsert([
-    { key: "delivery_fee_enabled", value: settings.enabled ? "true" : "false", updated_at: new Date().toISOString() },
-    { key: "delivery_fee_cents", value: String(settings.feeCents), updated_at: new Date().toISOString() },
-    { key: "delivery_fee_waiver_cents", value: String(settings.waiverCents), updated_at: new Date().toISOString() },
-  ])
+  await supabase.from("settings").upsert(
+    [
+      { key: "delivery_fee_enabled",       value: settings.enabled ? "true" : "false", location_id: locationId, updated_at: new Date().toISOString() },
+      { key: "delivery_fee_cents",         value: String(settings.feeCents),            location_id: locationId, updated_at: new Date().toISOString() },
+      { key: "delivery_fee_waiver_cents",  value: String(settings.waiverCents),         location_id: locationId, updated_at: new Date().toISOString() },
+    ],
+    { onConflict: "location_id,key" }
+  )
   revalidatePath("/admin/pricing")
 }
 
 // ── Staff PINs ────────────────────────────────────────────────────────────────
+
 export async function getStaffPins(): Promise<{ driverPin: string; operatorPin: string }> {
   try {
-    const supabase = await createClient()
+    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
     const { data } = await supabase
       .from("settings")
       .select("key,value")
+      .eq("location_id", locationId)
       .in("key", ["driver_pin", "operator_pin"])
     const map: Record<string, string> = {}
     data?.forEach(({ key, value }: { key: string; value: string }) => { map[key] = value })
@@ -270,21 +278,18 @@ export async function getStaffPins(): Promise<{ driverPin: string; operatorPin: 
 }
 
 export async function setStaffPin(role: "driver" | "operator", pin: string): Promise<void> {
-  const supabase = await createClient()
-  await supabase.from("settings").upsert({
-    key: `${role}_pin`,
-    value: pin,
-    updated_at: new Date().toISOString(),
-  })
+  const locationId = await getLocationId()
+  await upsertSetting(`${role}_pin`, pin, locationId)
   revalidatePath("/admin/pricing")
 }
 
 export async function verifyStaffPin(role: "driver" | "operator", pin: string): Promise<boolean> {
   try {
-    const supabase = await createClient()
+    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
     const { data } = await supabase
       .from("settings")
       .select("value")
+      .eq("location_id", locationId)
       .eq("key", `${role}_pin`)
       .single()
     const stored = data?.value ?? "1234"
@@ -304,10 +309,11 @@ export interface ServicesConfig {
 
 export async function getServicesConfig(): Promise<ServicesConfig> {
   try {
-    const supabase = await createClient()
+    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
     const { data } = await supabase
       .from("settings")
       .select("key,value")
+      .eq("location_id", locationId)
       .in("key", ["service_comforter_wash", "service_wash_fold", "service_wash_only"])
     const map: Record<string, string> = {}
     data?.forEach(({ key, value }: { key: string; value: string }) => { map[key] = value })
@@ -322,17 +328,22 @@ export async function getServicesConfig(): Promise<ServicesConfig> {
 }
 
 export async function setServicesConfig(config: ServicesConfig): Promise<void> {
+  const locationId = await getLocationId()
   const supabase = await createClient()
-  await supabase.from("settings").upsert([
-    { key: "service_comforter_wash", value: config.comforter_wash ? "true" : "false", updated_at: new Date().toISOString() },
-    { key: "service_wash_fold",      value: config.wash_fold      ? "true" : "false", updated_at: new Date().toISOString() },
-    { key: "service_wash_only",      value: config.wash_only      ? "true" : "false", updated_at: new Date().toISOString() },
-  ])
+  await supabase.from("settings").upsert(
+    [
+      { key: "service_comforter_wash", value: config.comforter_wash ? "true" : "false", location_id: locationId, updated_at: new Date().toISOString() },
+      { key: "service_wash_fold",      value: config.wash_fold      ? "true" : "false", location_id: locationId, updated_at: new Date().toISOString() },
+      { key: "service_wash_only",      value: config.wash_only      ? "true" : "false", location_id: locationId, updated_at: new Date().toISOString() },
+    ],
+    { onConflict: "location_id,key" }
+  )
   revalidatePath("/")
   revalidatePath("/admin/pricing")
 }
 
 // ── Warehouse ─────────────────────────────────────────────────────────────────
+
 export interface WarehouseSettings {
   name: string
   address: string
@@ -340,10 +351,11 @@ export interface WarehouseSettings {
 
 export async function getWarehouseSettings(): Promise<WarehouseSettings> {
   try {
-    const supabase = await createClient()
+    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
     const { data } = await supabase
       .from("settings")
       .select("key,value")
+      .eq("location_id", locationId)
       .in("key", ["warehouse_name", "warehouse_address"])
     const map: Record<string, string> = {}
     data?.forEach(({ key, value }: { key: string; value: string }) => { map[key] = value })
@@ -357,11 +369,15 @@ export async function getWarehouseSettings(): Promise<WarehouseSettings> {
 }
 
 export async function setWarehouseSettings(name: string, address: string): Promise<void> {
+  const locationId = await getLocationId()
   const supabase = await createClient()
-  await supabase.from("settings").upsert([
-    { key: "warehouse_name",    value: name,    updated_at: new Date().toISOString() },
-    { key: "warehouse_address", value: address, updated_at: new Date().toISOString() },
-  ])
+  await supabase.from("settings").upsert(
+    [
+      { key: "warehouse_name",    value: name,    location_id: locationId, updated_at: new Date().toISOString() },
+      { key: "warehouse_address", value: address, location_id: locationId, updated_at: new Date().toISOString() },
+    ],
+    { onConflict: "location_id,key" }
+  )
   revalidatePath("/admin/settings")
   revalidatePath("/driver")
   revalidatePath("/operator")

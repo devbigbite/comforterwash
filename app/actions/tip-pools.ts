@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { getLocationId } from "@/lib/location"
 
 /** Returns the Monday of the week containing `date` (UTC) */
 function weekStart(date: Date): Date {
@@ -53,7 +54,7 @@ export interface ApprovedWorker {
 
 /** Current week Mon-Sun tip totals from the bookings table */
 export async function getCurrentWeekSummary(): Promise<WeekSummary> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const now = new Date()
   const start = weekStart(now)
   const end = weekEnd(start)
@@ -61,6 +62,7 @@ export async function getCurrentWeekSummary(): Promise<WeekSummary> {
   const { data, error } = await supabase
     .from("bookings")
     .select("tip_cents")
+    .eq("location_id", locationId)
     .gte("created_at", start.toISOString())
     .lte("created_at", end.toISOString())
     .gt("tip_cents", 0)
@@ -78,10 +80,11 @@ export async function getCurrentWeekSummary(): Promise<WeekSummary> {
 
 /** Approved workers who can be included in a tip pool */
 export async function getApprovedWorkers(): Promise<ApprovedWorker[]> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data, error } = await supabase
     .from("workers")
     .select("id, name, roles")
+    .eq("location_id", locationId)
     .eq("status", "approved")
     .order("name")
   if (error) throw new Error(error.message)
@@ -90,10 +93,11 @@ export async function getApprovedWorkers(): Promise<ApprovedWorker[]> {
 
 /** All tip pools, most-recent first */
 export async function getTipPoolHistory(): Promise<TipPool[]> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data, error } = await supabase
     .from("tip_pools")
     .select("*")
+    .eq("location_id", locationId)
     .order("week_start", { ascending: false })
   if (error) throw new Error(error.message)
   return (data ?? []) as TipPool[]
@@ -109,7 +113,7 @@ export async function closeTipPool(
   notes?: string,
 ): Promise<{ error?: string }> {
   if (workerIds.length === 0) return { error: "Select at least one worker." }
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const perWorkerCents = Math.floor(totalCents / workerIds.length)
 
@@ -117,6 +121,7 @@ export async function closeTipPool(
     .from("tip_pools")
     .upsert(
       {
+        location_id: locationId,
         week_start: weekStartStr,
         week_end: weekEndStr,
         total_cents: totalCents,
@@ -128,7 +133,7 @@ export async function closeTipPool(
         paid_at: new Date().toISOString(),
         notes: notes ?? null,
       },
-      { onConflict: "week_start" },
+      { onConflict: "location_id,week_start" },
     )
 
   if (error) return { error: error.message }

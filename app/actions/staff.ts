@@ -8,6 +8,7 @@ import {
   SCHEDULE_ALERT_RECIPIENT,
 } from "@/lib/staff-config"
 import { sendScheduleAlertEmail } from "@/lib/email"
+import { getLocationId } from "@/lib/location"
 
 export interface TimePunch {
   id: string
@@ -52,10 +53,11 @@ export interface ActiveWorker {
 // ── Workers ───────────────────────────────────────────────────────────────────
 
 export async function getActiveWorkers(): Promise<ActiveWorker[]> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("workers")
     .select("id, name, roles, hourly_wage_cents")
+    .eq("location_id", locationId)
     .eq("status", "active")
     .order("name")
   return (data ?? []) as ActiveWorker[]
@@ -66,10 +68,11 @@ export async function getActiveWorkers(): Promise<ActiveWorker[]> {
 /** Set or update a worker's 4-digit clock PIN (admin only). */
 export async function setWorkerPin(workerName: string, pin: string) {
   if (!/^\d{4}$/.test(pin)) return { error: "PIN must be exactly 4 digits" }
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { error } = await supabase
     .from("workers")
     .update({ clock_pin: pin })
+    .eq("location_id", locationId)
     .eq("name", workerName)
   if (error) return { error: "Failed to set PIN" }
   revalidatePath("/admin/workers")
@@ -78,18 +81,19 @@ export async function setWorkerPin(workerName: string, pin: string) {
 
 /** Clear a worker's PIN (admin reset). */
 export async function clearWorkerPin(workerName: string) {
-  const supabase = createAdminClient()
-  await supabase.from("workers").update({ clock_pin: null }).eq("name", workerName)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("workers").update({ clock_pin: null }).eq("location_id", locationId).eq("name", workerName)
   revalidatePath("/admin/workers")
   return { success: true }
 }
 
 /** Verify a worker's PIN. Returns true if correct or if no PIN is set yet. */
 export async function verifyWorkerPin(workerName: string, pin: string): Promise<{ valid: boolean; noPinSet: boolean }> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("workers")
     .select("clock_pin")
+    .eq("location_id", locationId)
     .eq("name", workerName)
     .single()
   if (!data) return { valid: false, noPinSet: false }
@@ -135,7 +139,8 @@ function toMinutes(timeStr: string): number {
 async function checkSchedule(
   workerName: string,
   role: string,
-  direction: "in" | "out"
+  direction: "in" | "out",
+  locationId: string
 ): Promise<{ warning: ScheduleWarning | null; scheduledShift: ScheduledShift | null }> {
   const supabase  = createAdminClient()
   const todayET   = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" })
@@ -145,6 +150,7 @@ async function checkSchedule(
   const { data: shifts } = await supabase
     .from("staff_scheduled_shifts")
     .select("*")
+    .eq("location_id", locationId)
     .eq("worker_name", workerName)
     .eq("role", role)
     .eq("shift_date", todayET)
@@ -189,10 +195,11 @@ async function checkSchedule(
 
 /** Returns the open punch for a worker if they're currently clocked in */
 export async function getOpenPunch(workerName: string): Promise<TimePunch | null> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("staff_time_punches")
     .select("*")
+    .eq("location_id", locationId)
     .eq("worker_name", workerName)
     .is("clocked_out_at", null)
     .order("clocked_in_at", { ascending: false })
@@ -202,7 +209,7 @@ export async function getOpenPunch(workerName: string): Promise<TimePunch | null
 }
 
 export async function clockIn(formData: FormData) {
-  const supabase    = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const workerName  = formData.get("workerName")     as string
   const role        = formData.get("role")            as string
   const notes       = (formData.get("notes") as string) || null
@@ -216,7 +223,7 @@ export async function clockIn(formData: FormData) {
   if (existing) return { error: "Already clocked in" }
 
   // Schedule check
-  const { warning, scheduledShift: _ } = await checkSchedule(workerName, role, "in")
+  const { warning, scheduledShift: _ } = await checkSchedule(workerName, role, "in", locationId)
 
   // Level 2: return warning to client before committing — unless already confirmed
   if (warning && !confirmed) {
@@ -226,6 +233,7 @@ export async function clockIn(formData: FormData) {
   const { data, error } = await supabase
     .from("staff_time_punches")
     .insert({
+      location_id:    locationId,
       worker_name:    workerName,
       role,
       notes,
@@ -258,7 +266,7 @@ export async function clockIn(formData: FormData) {
 }
 
 export async function clockOut(formData: FormData) {
-  const supabase      = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const punchId       = formData.get("punchId")      as string
   const breakMinutes  = parseInt(formData.get("breakMinutes") as string || "0", 10)
   const notes         = (formData.get("notes") as string) || null
@@ -267,8 +275,7 @@ export async function clockOut(formData: FormData) {
   if (!punchId) return { error: "Missing punch ID" }
 
   // Get the open punch to know worker + role for schedule check
-  const supabase2 = createAdminClient()
-  const { data: punchData } = await supabase2
+  const { data: punchData } = await supabase
     .from("staff_time_punches")
     .select("worker_name, role")
     .eq("id", punchId)
@@ -278,7 +285,7 @@ export async function clockOut(formData: FormData) {
   let outFlagMinutes = 0
 
   if (punchData) {
-    const { warning } = await checkSchedule(punchData.worker_name, punchData.role, "out")
+    const { warning } = await checkSchedule(punchData.worker_name, punchData.role, "out", locationId)
     if (warning && !confirmed) return { scheduleWarning: warning }
     outFlag        = warning?.flag ?? null
     outFlagMinutes = warning?.flagMinutes ?? 0
@@ -322,10 +329,11 @@ export async function clockOut(formData: FormData) {
 
 /** All workers currently clocked in (open punches) */
 export async function getCurrentPunches(): Promise<TimePunch[]> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("staff_time_punches")
     .select("*")
+    .eq("location_id", locationId)
     .is("clocked_out_at", null)
     .order("clocked_in_at", { ascending: true })
   return (data ?? []) as TimePunch[]
@@ -338,10 +346,11 @@ export async function getTimeSheet(
   dateFrom: string,
   dateTo: string
 ): Promise<TimePunch[]> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("staff_time_punches")
     .select("*")
+    .eq("location_id", locationId)
     .gte("clocked_in_at", `${dateFrom}T00:00:00`)
     .lte("clocked_in_at", `${dateTo}T23:59:59`)
     .order("clocked_in_at", { ascending: false })
@@ -351,7 +360,7 @@ export async function getTimeSheet(
 // ── Scheduled shifts ──────────────────────────────────────────────────────────
 
 export async function getShiftsForWeek(weekStart: string): Promise<ScheduledShift[]> {
-  const supabase  = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   // weekStart is YYYY-MM-DD (Monday); weekEnd is 6 days later (Sunday)
   const start     = new Date(weekStart)
   const end       = new Date(weekStart)
@@ -361,6 +370,7 @@ export async function getShiftsForWeek(weekStart: string): Promise<ScheduledShif
   const { data } = await supabase
     .from("staff_scheduled_shifts")
     .select("*")
+    .eq("location_id", locationId)
     .gte("shift_date", weekStart)
     .lte("shift_date", weekEnd)
     .order("shift_date")
@@ -369,7 +379,7 @@ export async function getShiftsForWeek(weekStart: string): Promise<ScheduledShif
 }
 
 export async function createShift(formData: FormData) {
-  const supabase    = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const workerName  = formData.get("workerName")  as string
   const role        = formData.get("role")         as string
   const shiftDate   = formData.get("shiftDate")    as string
@@ -383,7 +393,7 @@ export async function createShift(formData: FormData) {
 
   const { data, error } = await supabase
     .from("staff_scheduled_shifts")
-    .insert({ worker_name: workerName, role, shift_date: shiftDate, start_time: startTime, end_time: endTime, notes })
+    .insert({ location_id: locationId, worker_name: workerName, role, shift_date: shiftDate, start_time: startTime, end_time: endTime, notes })
     .select()
     .single()
 
@@ -423,7 +433,7 @@ export async function updatePunch(formData: FormData) {
 }
 
 export async function createPunch(formData: FormData) {
-  const supabase      = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const workerName    = formData.get("workerName")    as string
   const role          = formData.get("role")          as string
   const date          = formData.get("date")          as string   // YYYY-MM-DD
@@ -439,6 +449,7 @@ export async function createPunch(formData: FormData) {
   const { error } = await supabase
     .from("staff_time_punches")
     .insert({
+      location_id:    locationId,
       worker_name:    workerName,
       role,
       clocked_in_at:  clockedInAt,

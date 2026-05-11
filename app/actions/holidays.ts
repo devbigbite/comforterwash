@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
 import { todayET } from "@/lib/date-et"
 
 /**
@@ -10,10 +11,11 @@ import { todayET } from "@/lib/date-et"
  * Called once per booking form load.
  */
 export async function getExcludedDates(): Promise<string[]> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("holiday_exclusions")
     .select("date, date_to")
+    .eq("location_id", locationId)
     .gte("date", todayET())
 
   if (!data) return []

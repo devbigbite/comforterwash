@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { getLocationId } from "@/lib/location"
 
 export interface EmailTemplateVariable {
   key: string
@@ -23,12 +24,13 @@ export interface EmailTemplate {
   updated_at: string
 }
 
-// ── Fetch all templates (optionally filtered by audience) ─────────
+// ── Fetch all templates for this location ─────────────────────────────────────
 export async function getEmailTemplates(audience?: string): Promise<EmailTemplate[]> {
-  const supabase = await createClient()
+  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
   let query = supabase
     .from("email_templates")
     .select("*")
+    .eq("location_id", locationId)
     .order("audience")
     .order("name")
 
@@ -39,12 +41,13 @@ export async function getEmailTemplates(audience?: string): Promise<EmailTemplat
   return (data ?? []) as EmailTemplate[]
 }
 
-// ── Fetch a single template by key ───────────────────────────────
+// ── Fetch a single template by key for this location ─────────────────────────
 export async function getEmailTemplate(key: string): Promise<EmailTemplate | null> {
-  const supabase = await createClient()
+  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
   const { data, error } = await supabase
     .from("email_templates")
     .select("*")
+    .eq("location_id", locationId)
     .eq("key", key)
     .single()
 
@@ -52,15 +55,16 @@ export async function getEmailTemplate(key: string): Promise<EmailTemplate | nul
   return data as EmailTemplate
 }
 
-// ── Save (upsert) a template ──────────────────────────────────────
+// ── Save (update) a template ──────────────────────────────────────────────────
 export async function upsertEmailTemplate(
   key: string,
   updates: { subject: string; headline: string; body: string; cta_text?: string | null; footer_note?: string | null; alert_box?: string | null; contact_note?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient()
+  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
   const { error } = await supabase
     .from("email_templates")
     .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq("location_id", locationId)
     .eq("key", key)
 
   if (error) {

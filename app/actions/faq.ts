@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
 
 export type FaqCategory = "general" | "comforter_wash" | "wash_fold"
 
@@ -167,10 +168,11 @@ const DEFAULTS: FaqItem[] = [
 
 export async function getFaqItems(): Promise<FaqItem[]> {
   try {
-    const supabase = createAdminClient()
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
     const { data, error } = await supabase
       .from("faq_items")
       .select("*")
+      .eq("location_id", locationId)
       .order("category")
       .order("sort_order")
     if (!error && data && data.length > 0) return data as FaqItem[]
@@ -181,10 +183,10 @@ export async function getFaqItems(): Promise<FaqItem[]> {
 }
 
 export async function upsertFaqItems(category: FaqCategory, items: Omit<FaqItem, "created_at">[]) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   // Delete existing items for this category
-  await supabase.from("faq_items").delete().eq("category", category)
+  await supabase.from("faq_items").delete().eq("location_id", locationId).eq("category", category)
 
   if (items.length === 0) return { success: true }
 
@@ -193,6 +195,7 @@ export async function upsertFaqItems(category: FaqCategory, items: Omit<FaqItem,
     id: item.id.startsWith("gen-") || item.id.startsWith("cw-") || item.id.startsWith("wf-")
       ? undefined  // let DB generate UUID for default items being persisted for first time
       : item.id,
+    location_id: locationId,
     category: item.category,
     question: item.question,
     answer: item.answer,

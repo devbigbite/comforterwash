@@ -2,6 +2,7 @@
 
 import Stripe from "stripe"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-04-10" })
 
@@ -61,7 +62,7 @@ export async function createSubscription(params: {
   firstDeliveryDateStr:  string   // ISO string of first delivery date
 }): Promise<{ ok: boolean; error?: string }> {
   try {
-    const supabase = createAdminClient()
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
     // ── 1. Retrieve PaymentIntent to get payment method ──────────────────────
     const pi = await stripe.paymentIntents.retrieve(params.stripePaymentIntentId, {
@@ -97,6 +98,7 @@ export async function createSubscription(params: {
 
     // ── 5. Insert subscription record ────────────────────────────────────────
     const { error } = await supabase.from("subscriptions").insert({
+      location_id:             locationId,
       customer_name:           params.customerName,
       customer_email:          params.customerEmail,
       customer_phone:          params.customerPhone,

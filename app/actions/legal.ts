@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
 
 export type LegalSection = {
   id: string
@@ -142,10 +143,11 @@ const PRIVACY_DEFAULTS: LegalSection[] = [
 
 export async function getLegalPage(key: "terms" | "privacy"): Promise<LegalSection[]> {
   try {
-    const supabase = createAdminClient()
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
     const { data } = await supabase
       .from("legal_pages")
       .select("sections")
+      .eq("location_id", locationId)
       .eq("key", key)
       .single()
     if (data?.sections && Array.isArray(data.sections) && data.sections.length > 0) {
@@ -158,10 +160,10 @@ export async function getLegalPage(key: "terms" | "privacy"): Promise<LegalSecti
 }
 
 export async function saveLegalPage(key: "terms" | "privacy", sections: LegalSection[]) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { error } = await supabase
     .from("legal_pages")
-    .upsert({ key, sections, updated_at: new Date().toISOString() }, { onConflict: "key" })
+    .upsert({ location_id: locationId, key, sections, updated_at: new Date().toISOString() }, { onConflict: "location_id,key" })
   if (error) throw error
   return { success: true }
 }

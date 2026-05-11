@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { getLocationId } from "@/lib/location"
 import { sendBookingNotification } from "@/lib/sms"
 import { createShipdayOrder } from "@/lib/shipday"
 import { format } from "date-fns"
@@ -47,7 +48,7 @@ function generateShortCode(): string {
 }
 
 export async function createBooking(data: BookingData) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   // Attach user_id if the customer is logged in
   let userId: string | null = null
@@ -60,6 +61,7 @@ export async function createBooking(data: BookingData) {
   const { data: booking, error } = await supabase
     .from("bookings")
     .insert({
+      location_id: locationId,
       short_code: generateShortCode(),
       customer_name: data.customerName,
       customer_email: data.customerEmail,
@@ -168,11 +170,12 @@ export async function createBooking(data: BookingData) {
 }
 
 export async function getBookings() {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const { data: bookings, error } = await supabase
     .from("bookings")
     .select("*")
+    .eq("location_id", locationId)
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -227,11 +230,12 @@ export async function updateBookingStatus(bookingId: string, status: string, not
 }
 
 export async function getBookingsByDate(date: string) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const { data: pickups, error: pickupError } = await supabase
     .from("bookings")
     .select("*")
+    .eq("location_id", locationId)
     .eq("pickup_date", date)
     .in("status", ["confirmed", "pending"])
     .order("pickup_time_window", { ascending: true })
@@ -244,6 +248,7 @@ export async function getBookingsByDate(date: string) {
   const { data: deliveries, error: deliveryError } = await supabase
     .from("bookings")
     .select("*")
+    .eq("location_id", locationId)
     .eq("delivery_date", date)
     .in("status", ["in_progress", "out_for_delivery"])
     .order("delivery_time_window", { ascending: true })
@@ -257,13 +262,14 @@ export async function getBookingsByDate(date: string) {
 }
 
 export async function getUpcomingDates() {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const today = todayET()
 
   const { data: pickupDates, error: pickupError } = await supabase
     .from("bookings")
     .select("pickup_date")
+    .eq("location_id", locationId)
     .gte("pickup_date", today)
     .in("status", ["confirmed", "pending"])
     .order("pickup_date", { ascending: true })
@@ -271,6 +277,7 @@ export async function getUpcomingDates() {
   const { data: deliveryDates, error: deliveryError } = await supabase
     .from("bookings")
     .select("delivery_date")
+    .eq("location_id", locationId)
     .gte("delivery_date", today)
     .in("status", ["in_progress", "out_for_delivery"])
     .order("delivery_date", { ascending: true })

@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { getLocationId } from "@/lib/location"
 import type { Route, TimeWindow } from "@/lib/route-availability"
 
 /**
@@ -9,11 +10,12 @@ import type { Route, TimeWindow } from "@/lib/route-availability"
  * Called on mount in booking forms to drive calendar + time slot availability.
  */
 export async function getActiveRoutes(): Promise<Route[]> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const { data: routes, error } = await supabase
     .from("routes")
     .select("id, name, pickup_days, delivery_days, recurrence, biweekly_start_date, turnaround_days, active, facility_id")
+    .eq("location_id", locationId)
     .eq("active", true)
     .order("created_at", { ascending: true })
 
@@ -50,11 +52,12 @@ export async function getActiveRoutes(): Promise<Route[]> {
  * Used by the admin routes page.
  */
 export async function getAllRoutesWithWindows(): Promise<Route[]> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const { data: routes, error } = await supabase
     .from("routes")
     .select("*")
+    .eq("location_id", locationId)
     .order("created_at", { ascending: true })
 
   if (error || !routes) return []

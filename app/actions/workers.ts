@@ -3,16 +3,18 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { stripe } from "@/lib/stripe"
 import { revalidatePath } from "next/cache"
+import { getLocationId } from "@/lib/location"
 
 // ── Submit application (public) ───────────────────────────────────────────────
 export async function submitApplication(formData: FormData) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const roles: string[] = []
   if (formData.get("role_driver") === "on") roles.push("driver")
   if (formData.get("role_operator") === "on") roles.push("operator")
 
   const { error } = await supabase.from("workers").insert({
+    location_id: locationId,
     name:        formData.get("name") as string,
     email:       formData.get("email") as string,
     phone:       formData.get("phone") as string,
