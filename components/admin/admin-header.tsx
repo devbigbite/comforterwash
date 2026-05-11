@@ -23,7 +23,6 @@ const NAV_ITEMS: NavItem[] = [
     type: "dropdown",
     label: "Customers",
     items: [
-      { href: "/admin/workers",       label: "Workers" },
       { href: "/admin/subscriptions", label: "Subscriptions" },
     ],
   },
@@ -68,6 +67,7 @@ const NAV_ITEMS: NavItem[] = [
     type: "dropdown",
     label: "Staff",
     items: [
+      { href: "/admin/workers",  label: "Workers" },
       { href: "/admin/schedule", label: "Schedule" },
       { href: "/staff",          label: "Staff Clock" },
       { href: "/driver",         label: "Driver App →", external: true },
