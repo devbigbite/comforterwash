@@ -86,10 +86,12 @@ export default async function DispatchPage({
   const allPickups = (pickups ?? []) as Booking[]
   const allDeliveries = (deliveries ?? []) as Booking[]
 
-  const pickupAM = allPickups.filter(b => b.pickup_time_window === "9am-1pm")
-  const pickupPM = allPickups.filter(b => b.pickup_time_window === "3pm-7pm")
-  const deliveryAM = allDeliveries.filter(b => b.delivery_time_window === "9am-1pm")
-  const deliveryPM = allDeliveries.filter(b => b.delivery_time_window === "3pm-7pm")
+  const pickupAM    = allPickups.filter(b => b.pickup_time_window === "9am-1pm")
+  const pickupPM    = allPickups.filter(b => b.pickup_time_window === "3pm-7pm")
+  const pickupOther = allPickups.filter(b => b.pickup_time_window !== "9am-1pm" && b.pickup_time_window !== "3pm-7pm")
+  const deliveryAM    = allDeliveries.filter(b => b.delivery_time_window === "9am-1pm")
+  const deliveryPM    = allDeliveries.filter(b => b.delivery_time_window === "3pm-7pm")
+  const deliveryOther = allDeliveries.filter(b => b.delivery_time_window !== "9am-1pm" && b.delivery_time_window !== "3pm-7pm")
 
   const totalSynced = [...allPickups, ...allDeliveries].filter(
     b => b.shipday_pickup_order_id || b.shipday_delivery_order_id
@@ -181,6 +183,21 @@ export default async function DispatchPage({
                 </div>
               </div>
             )}
+            {pickupOther.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                  {pickupOther[0].pickup_time_window || "Unscheduled"}
+                </p>
+                <div className="space-y-3">
+                  {pickupOther.map(b => (
+                    <DispatchOrderCard key={b.id} booking={b} type="pickup" date={selectedDate}
+                      assignDriverAction={assignDriverAction}
+                      rescheduleAction={rescheduleAction}
+                      cancelAction={cancelAction} />
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
 
           <section>
@@ -212,6 +229,21 @@ export default async function DispatchPage({
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">3PM - 7PM</p>
                 <div className="space-y-3">
                   {deliveryPM.map(b => (
+                    <DispatchOrderCard key={b.id} booking={b} type="delivery" date={selectedDate}
+                      assignDriverAction={assignDriverAction}
+                      rescheduleAction={rescheduleAction}
+                      cancelAction={cancelAction} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {deliveryOther.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                  {deliveryOther[0].delivery_time_window || "Unscheduled"}
+                </p>
+                <div className="space-y-3">
+                  {deliveryOther.map(b => (
                     <DispatchOrderCard key={b.id} booking={b} type="delivery" date={selectedDate}
                       assignDriverAction={assignDriverAction}
                       rescheduleAction={rescheduleAction}
