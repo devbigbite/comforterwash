@@ -100,6 +100,7 @@ export interface BookingConfirmationData {
   pounds?: number
   estimatedTotal: string   // e.g. "$48.00"
   bookingId: string
+  shortCode?: string       // 6-digit track code, e.g. "523847"
 }
 
 export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
@@ -127,8 +128,17 @@ export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: Em
         ${detailRow("Delivery", `${d.deliveryDate} · ${d.deliveryTimeWindow}`)}
         ${detailRow("Pickup address", d.pickupAddress)}
         ${detailRow("Est. total", d.estimatedTotal)}
-        ${detailRow("Booking #", `<span style="font-family:monospace;font-size:12px;">${d.bookingId.slice(0, 8).toUpperCase()}</span>`)}
+        ${detailRow("Order code", `<span style="font-family:monospace;font-weight:800;font-size:15px;letter-spacing:2px;color:#0D2240;">${d.shortCode ?? d.bookingId.slice(0, 6).toUpperCase()}</span>`)}
       </div>
+
+      ${d.shortCode ? `
+      <a href="https://washfoldorlando.com/track/${d.shortCode}" class="cta-button">
+        🗺️ Track Your Order
+      </a>
+      <p style="font-size:12px;color:#9ca3af;text-align:center;margin-top:-16px;margin-bottom:24px;">
+        Live updates as your order moves through every step
+      </p>
+      ` : ""}
 
       <div class="alert-box">
         <p>💡 <strong>Heads up:</strong> Your card is pre-authorized. For Wash &amp; Fold and Wash Only orders, the final charge is based on actual weight — so you only pay for what you send.</p>

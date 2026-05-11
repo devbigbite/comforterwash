@@ -12,7 +12,7 @@ const SMS_TEMPLATES = {
     `Hi ${name}! Reminder: We'll be picking up your laundry today between ${pickupTime}. Just leave it by your door. See you soon!`,
 
   picked_up: (name: string, deliveryDate: string) =>
-    `Hi ${name}! We've picked up your laundry. We will keep you updated during processing. Estimated delivery is set for ${deliveryDate}. - WashFold Orlando`,
+    `Hi ${name}! We've picked up your laundry. Estimated delivery: ${deliveryDate}. - WashFold Orlando`,
 
   in_progress: (name: string) =>
     `Hi ${name}! Your laundry is being professionally cleaned. We'll notify you when it's ready for delivery!`,

@@ -156,6 +156,7 @@ export async function handleSuccessfulPayment(sessionId: string) {
           pounds:          meta.pounds ? parseFloat(meta.pounds) : undefined,
           estimatedTotal,
           bookingId:       booking?.id ?? "",
+          shortCode:       booking?.short_code ?? undefined,
         }
 
         // Customer confirmation (don't await — keeps payment flow fast)
