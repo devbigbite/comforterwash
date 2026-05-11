@@ -26,7 +26,7 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "gen-2", category: "general", sort_order: 2, active: true,
     question: "What areas do you serve?",
-    answer: "We serve the greater Orlando area. Enter your zip code at the start of the booking to confirm availability in your neighborhood. If you're outside our current service area, email us at hello@comforterwash.com and we'll add you to the waitlist.",
+    answer: "We serve the greater Orlando area. Enter your zip code at the start of the booking to confirm availability in your neighborhood. If you're outside our current service area, email us at clean@washfoldorlando.com and we'll add you to the waitlist.",
   },
   {
     id: "gen-3", category: "general", sort_order: 3, active: true,
@@ -46,7 +46,7 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "gen-6", category: "general", sort_order: 6, active: true,
     question: "Can I leave special instructions?",
-    answer: "Yes. You can add a note in the booking form for one-time instructions. For permanent preferences on recurring orders — detergent type, fabric softener, special care items — email us at hello@comforterwash.com and we'll add it to your account.",
+    answer: "Yes. You can add a note in the booking form for one-time instructions. For permanent preferences on recurring orders — detergent type, fabric softener, special care items — email us at clean@washfoldorlando.com and we'll add it to your account.",
   },
   {
     id: "gen-7", category: "general", sort_order: 7, active: true,
@@ -56,17 +56,17 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "gen-8", category: "general", sort_order: 8, active: true,
     question: "How do I cancel or reschedule?",
-    answer: "You can cancel or reschedule at no charge up to 2 hours before your pickup window. After that, a $10 cancellation fee may apply to cover driver dispatch costs. Email us at hello@comforterwash.com or log into your account to make changes.",
+    answer: "You can cancel or reschedule at no charge up to 2 hours before your pickup window. After that, a $10 cancellation fee may apply to cover driver dispatch costs. Email us at clean@washfoldorlando.com or log into your account to make changes.",
   },
   {
     id: "gen-9", category: "general", sort_order: 9, active: true,
     question: "What if I forget to set out my laundry?",
-    answer: "It happens! A $10 missed pickup fee applies to compensate your driver's time. Contact us at hello@comforterwash.com and we'll reschedule your pickup for the next available route day.",
+    answer: "It happens! A $10 missed pickup fee applies to compensate your driver's time. Contact us at clean@washfoldorlando.com and we'll reschedule your pickup for the next available route day.",
   },
   {
     id: "gen-10", category: "general", sort_order: 10, active: true,
     question: "How do I contact you?",
-    answer: "Email us at hello@comforterwash.com. We respond within a few hours during business hours. For urgent issues related to an active order, you can also reach us through your order confirmation message.",
+    answer: "Email us at clean@washfoldorlando.com. We respond within a few hours during business hours. For urgent issues related to an active order, you can also reach us through your order confirmation message.",
   },
 
   // ── Comforter Washing ─────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "cw-4", category: "comforter_wash", sort_order: 4, active: true,
     question: "Do you wash duvets, quilts, or blankets?",
-    answer: "We specialize in comforters. If you have a duvet insert, thick blanket, or other large bedding item, email us at hello@comforterwash.com before booking to confirm we can accommodate it.",
+    answer: "We specialize in comforters. If you have a duvet insert, thick blanket, or other large bedding item, email us at clean@washfoldorlando.com before booking to confirm we can accommodate it.",
   },
   {
     id: "cw-5", category: "comforter_wash", sort_order: 5, active: true,

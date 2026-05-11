@@ -26,7 +26,7 @@ function renderBlocks(content: string, isWarning: boolean) {
         </ul>
       )
     }
-    const parts = block.split("hello@comforterwash.com")
+    const parts = block.split("clean@washfoldorlando.com")
     if (parts.length > 1) {
       return (
         <p key={i} className={textClass}>
@@ -34,8 +34,8 @@ function renderBlocks(content: string, isWarning: boolean) {
             <span key={j}>
               {part}
               {j < parts.length - 1 && (
-                <a href="mailto:hello@comforterwash.com" className="text-[#E8726A] underline">
-                  hello@comforterwash.com
+                <a href="mailto:clean@washfoldorlando.com" className="text-[#E8726A] underline">
+                  clean@washfoldorlando.com
                 </a>
               )}
             </span>

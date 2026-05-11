@@ -412,7 +412,7 @@ export default function Home() {
                 </svg>
               </div>
               <p className="text-white/50 text-xs uppercase tracking-widest font-semibold">{tr.footer.sendNote}</p>
-              <a href="mailto:hello@washfoldorlando.com" className="border border-[#E8726A] text-[#E8726A] hover:bg-[#E8726A] hover:text-white font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-full transition-all">
+              <a href="mailto:clean@washfoldorlando.com" className="border border-[#E8726A] text-[#E8726A] hover:bg-[#E8726A] hover:text-white font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-full transition-all">
                 {tr.footer.contact}
               </a>
             </div>

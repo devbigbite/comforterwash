@@ -4,7 +4,7 @@ import { Resend } from "resend"
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing")
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
-const FROM = "WashFold Orlando <hello@washfoldorlando.com>"
+const FROM = "WashFold Orlando <clean@washfoldorlando.com>"
 
 export async function sendContactMessage(formData: FormData) {
   const name    = (formData.get("name")    as string ?? "").trim()

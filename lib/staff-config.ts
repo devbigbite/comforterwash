@@ -15,4 +15,4 @@ export const SCHEDULE_GRACE_MINUTES = 15
 export const SCHEDULE_ALERT_EMAIL_ENABLED = false   // Level 3 — flip to true to activate
 
 /** Email address that receives Level 3 schedule anomaly alerts. */
-export const SCHEDULE_ALERT_RECIPIENT = "admin@washfoldorlando.com"
+export const SCHEDULE_ALERT_RECIPIENT = "clean@washfoldorlando.com"

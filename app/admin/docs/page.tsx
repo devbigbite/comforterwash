@@ -25,7 +25,7 @@ function esc(s: string) {
 }
 function linkify(s: string) {
   return esc(s).replace(/hello@comforterwash\.com/g,
-    '<a href="mailto:hello@comforterwash.com" style="color:#E8726A;">hello@comforterwash.com</a>')
+    '<a href="mailto:clean@washfoldorlando.com" style="color:#E8726A;">clean@washfoldorlando.com</a>')
 }
 function renderLegalBlocks(content: string, isWarning: boolean): string {
   const c = isWarning ? "#b45309" : "#6b7280"

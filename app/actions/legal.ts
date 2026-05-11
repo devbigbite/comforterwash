@@ -62,12 +62,12 @@ const TERMS_DEFAULTS: LegalSection[] = [
   {
     id: "lost-items",
     title: "10. Lost Items",
-    content: "If you believe an item is missing from your returned order, you must notify us within 5 business days of delivery. Claims submitted after that window cannot be accepted. All valid claims must be submitted within 30 days of your delivery date. Our liability for any lost item is limited to 3× the cleaning charge for that item, up to a maximum of $75 per item.\n\nTo report a missing item, email us at hello@comforterwash.com with your order number and a description of the item.",
+    content: "If you believe an item is missing from your returned order, you must notify us within 5 business days of delivery. Claims submitted after that window cannot be accepted. All valid claims must be submitted within 30 days of your delivery date. Our liability for any lost item is limited to 3× the cleaning charge for that item, up to a maximum of $75 per item.\n\nTo report a missing item, email us at clean@washfoldorlando.com with your order number and a description of the item.",
   },
   {
     id: "cancellations",
     title: "11. Cancellations",
-    content: "You may cancel or reschedule your order at no charge up to 2 hours before your scheduled pickup window. Cancellations made after that point may be subject to a $10 cancellation fee to cover driver dispatch costs. Contact us at hello@comforterwash.com to cancel or reschedule.",
+    content: "You may cancel or reschedule your order at no charge up to 2 hours before your scheduled pickup window. Cancellations made after that point may be subject to a $10 cancellation fee to cover driver dispatch costs. Contact us at clean@washfoldorlando.com to cancel or reschedule.",
   },
   {
     id: "subscriptions",
@@ -82,7 +82,7 @@ const TERMS_DEFAULTS: LegalSection[] = [
   {
     id: "contact",
     title: "14. Contact",
-    content: "Questions about these terms? Reach us at hello@comforterwash.com.",
+    content: "Questions about these terms? Reach us at clean@washfoldorlando.com.",
   },
 ]
 
@@ -100,7 +100,7 @@ const PRIVACY_DEFAULTS: LegalSection[] = [
   {
     id: "sms-communications",
     title: "3. SMS Communications",
-    content: "By providing your mobile phone number at booking, you consent to receive transactional SMS messages from ComforterWash Orlando. These messages are related to your order only — pickup confirmation, driver en route, and delivery confirmation.\n\n- Message frequency: Varies per order, typically 2–4 messages per pickup/delivery cycle.\n- To opt out: Reply STOP to any message at any time. You will receive one confirmation, then no further messages.\n- For help: Reply HELP or email us at hello@comforterwash.com.\n- Carrier rates: Standard message and data rates may apply depending on your carrier plan.\n- Data sharing: We do not share your phone number with third parties for marketing or promotional purposes.\n\nSMS messaging is handled through Twilio. Your number is used only to send the messages described above and is not sold or shared with advertisers.",
+    content: "By providing your mobile phone number at booking, you consent to receive transactional SMS messages from ComforterWash Orlando. These messages are related to your order only — pickup confirmation, driver en route, and delivery confirmation.\n\n- Message frequency: Varies per order, typically 2–4 messages per pickup/delivery cycle.\n- To opt out: Reply STOP to any message at any time. You will receive one confirmation, then no further messages.\n- For help: Reply HELP or email us at clean@washfoldorlando.com.\n- Carrier rates: Standard message and data rates may apply depending on your carrier plan.\n- Data sharing: We do not share your phone number with third parties for marketing or promotional purposes.\n\nSMS messaging is handled through Twilio. Your number is used only to send the messages described above and is not sold or shared with advertisers.",
   },
   {
     id: "email-communications",
@@ -120,7 +120,7 @@ const PRIVACY_DEFAULTS: LegalSection[] = [
   {
     id: "your-rights",
     title: "7. Your Rights",
-    content: "You can request access to, correction of, or deletion of your personal data at any time by contacting us at hello@comforterwash.com. We will respond within 30 days.",
+    content: "You can request access to, correction of, or deletion of your personal data at any time by contacting us at clean@washfoldorlando.com. We will respond within 30 days.",
   },
   {
     id: "data-retention",
@@ -135,7 +135,7 @@ const PRIVACY_DEFAULTS: LegalSection[] = [
   {
     id: "contact",
     title: "10. Contact",
-    content: "Questions about this policy? Email us at hello@comforterwash.com.",
+    content: "Questions about this policy? Email us at clean@washfoldorlando.com.",
   },
 ]
 

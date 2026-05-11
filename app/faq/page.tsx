@@ -37,7 +37,7 @@ function renderAnswer(answer: string) {
       )
     }
     // linkify email
-    const parts = block.split("hello@comforterwash.com")
+    const parts = block.split("clean@washfoldorlando.com")
     if (parts.length > 1) {
       return (
         <p key={i} className="text-gray-600 text-sm leading-relaxed mt-2">
@@ -45,8 +45,8 @@ function renderAnswer(answer: string) {
             <span key={j}>
               {part}
               {j < parts.length - 1 && (
-                <a href="mailto:hello@comforterwash.com" className="text-[#E8726A] underline">
-                  hello@comforterwash.com
+                <a href="mailto:clean@washfoldorlando.com" className="text-[#E8726A] underline">
+                  clean@washfoldorlando.com
                 </a>
               )}
             </span>
@@ -145,7 +145,7 @@ export default async function FaqPage() {
             We&apos;re happy to help. Reach out and we&apos;ll get back to you quickly.
           </p>
           <a
-            href="mailto:hello@comforterwash.com"
+            href="mailto:clean@washfoldorlando.com"
             className="inline-block bg-[#E8726A] text-white font-bold text-sm px-6 py-3 rounded-full hover:bg-[#d45f57] transition-colors"
           >
             Email Us →
