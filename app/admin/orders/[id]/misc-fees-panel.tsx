@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { chargeMiscFee, waiveMiscFee, markFeePaid, FEE_PRESETS, type MiscFee } from "@/app/actions/fees"
+import { chargeMiscFee, waiveMiscFee, markFeePaid, type MiscFee } from "@/app/actions/fees"
+import { FEE_PRESETS } from "@/lib/fee-presets"
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700 border border-amber-200",
