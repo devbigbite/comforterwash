@@ -214,13 +214,19 @@ export async function deleteServiceAreaPolygon(): Promise<void> {
   revalidatePath("/admin/service-area")
 }
 
-// ── Delivery Fee ──────────────────────────────────────────────────────────────
+// ── Delivery Fee (per service) ────────────────────────────────────────────────
 
 export interface DeliveryFeeSettings {
-  enabled: boolean
-  feeCents: number
-  waiverCents: number
+  comforterCents: number   // flat fee for comforter wash (0 = no fee)
+  washFoldCents:  number   // flat fee for wash & fold   (0 = no fee)
+  washOnlyCents:  number   // flat fee for wash only     (0 = no fee)
 }
+
+const DELIVERY_FEE_KEYS = [
+  "delivery_fee_comforter_cents",
+  "delivery_fee_washfold_cents",
+  "delivery_fee_washonly_cents",
+] as const
 
 export async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
   try {
@@ -229,16 +235,16 @@ export async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
       .from("settings")
       .select("key,value")
       .eq("location_id", locationId)
-      .in("key", ["delivery_fee_enabled", "delivery_fee_cents", "delivery_fee_waiver_cents"])
+      .in("key", [...DELIVERY_FEE_KEYS])
     const map: Record<string, string> = {}
     data?.forEach(({ key, value }: { key: string; value: string }) => { map[key] = value })
     return {
-      enabled: map["delivery_fee_enabled"] === "true",
-      feeCents: parseInt(map["delivery_fee_cents"] ?? "499"),
-      waiverCents: parseInt(map["delivery_fee_waiver_cents"] ?? "0"),
+      comforterCents: parseInt(map["delivery_fee_comforter_cents"] ?? "0"),
+      washFoldCents:  parseInt(map["delivery_fee_washfold_cents"]  ?? "0"),
+      washOnlyCents:  parseInt(map["delivery_fee_washonly_cents"]   ?? "0"),
     }
   } catch {
-    return { enabled: false, feeCents: 499, waiverCents: 0 }
+    return { comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 }
   }
 }
 
@@ -247,9 +253,9 @@ export async function setDeliveryFeeSettings(settings: DeliveryFeeSettings): Pro
   const supabase = await createClient()
   await supabase.from("settings").upsert(
     [
-      { key: "delivery_fee_enabled",       value: settings.enabled ? "true" : "false", location_id: locationId, updated_at: new Date().toISOString() },
-      { key: "delivery_fee_cents",         value: String(settings.feeCents),            location_id: locationId, updated_at: new Date().toISOString() },
-      { key: "delivery_fee_waiver_cents",  value: String(settings.waiverCents),         location_id: locationId, updated_at: new Date().toISOString() },
+      { key: "delivery_fee_comforter_cents", value: String(settings.comforterCents), location_id: locationId, updated_at: new Date().toISOString() },
+      { key: "delivery_fee_washfold_cents",  value: String(settings.washFoldCents),  location_id: locationId, updated_at: new Date().toISOString() },
+      { key: "delivery_fee_washonly_cents",  value: String(settings.washOnlyCents),  location_id: locationId, updated_at: new Date().toISOString() },
     ],
     { onConflict: "location_id,key" }
   )

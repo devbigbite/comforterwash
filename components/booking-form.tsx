@@ -18,7 +18,7 @@ import { useLang } from "@/components/lang-provider"
 import { getComforterPromo, getDeliveryFeeSettings } from "@/app/actions/settings"
 import { getPricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
-import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type FeeSettings } from "@/lib/checkout-fees"
+import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
 import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, type Route, type TimeWindow } from "@/lib/route-availability"
 import { getActiveRoutes } from "@/app/actions/routes"
@@ -261,7 +261,7 @@ export function BookingForm() {
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
   const [tipOption, setTipOption] = useState<TipOption>("none")
   const [customTipCents, setCustomTipCents] = useState(0)
-  const [feeSettings, setFeeSettings] = useState<FeeSettings>({ deliveryEnabled: false, deliveryFeeCents: 499, waiverCents: 0 })
+  const [feeConfig, setFeeConfig] = useState<DeliveryFeeConfig>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
   const [comforterSizes, setComforterSizes] = useState(buildSizes())
   const [promoPriceCents, setPromoPriceCents] = useState(PROMO_PRICE_CENTS)
   const [detergentOptions, setDetergentOptions] = useState<ServiceOption[]>([])
@@ -271,7 +271,7 @@ export function BookingForm() {
     import("@/app/actions/holidays").then(m => m.getExcludedDates()).then(dates => setExcludedDates(new Set(dates)))
     getActiveRoutes().then(setActiveRoutes)
     getComforterPromo().then(setPromoActive)
-    getDeliveryFeeSettings().then(s => setFeeSettings({ deliveryEnabled: s.enabled, deliveryFeeCents: s.feeCents, waiverCents: s.waiverCents }))
+    getDeliveryFeeSettings().then(s => setFeeConfig(s))
     getPricingConfig().then(cfg => {
       PROMO_PRICE_CENTS = cfg.comforterPromoCents
       SIZE_CENTS = { twin: cfg.comforterTwinCents, full: cfg.comforterFullCents, queen: cfg.comforterQueenCents, king: cfg.comforterKingCents }
@@ -299,7 +299,7 @@ export function BookingForm() {
 
   const discountCents      = promo ? Math.min(promo.discountCents, subtotalCents) : 0
   const afterDiscountCents = Math.max(0, subtotalCents - discountCents)
-  const deliveryFeeCents   = calcDeliveryFee(feeSettings, afterDiscountCents)
+  const deliveryFeeCents   = calcDeliveryFee(feeConfig, "comforter_wash")
   const tipCents           = calcTip(tipOption, customTipCents, afterDiscountCents)
   const totalCents         = afterDiscountCents + deliveryFeeCents + tipCents
   const totalDisplay       = (totalCents / 100).toFixed(2)
@@ -414,12 +414,6 @@ export function BookingForm() {
               <div className="flex justify-between gap-4 text-gray-600 text-sm">
                 <span>Delivery fee</span>
                 <span className="font-semibold">${(deliveryFeeCents / 100).toFixed(2)}</span>
-              </div>
-            )}
-            {feeSettings.deliveryEnabled && deliveryFeeCents === 0 && feeSettings.waiverCents > 0 && (
-              <div className="flex justify-between gap-4 text-green-700 text-sm">
-                <span>Delivery fee</span>
-                <span className="font-semibold">Free 🎉</span>
               </div>
             )}
             {tipCents > 0 && (

@@ -9,6 +9,8 @@ import {
   assignDriver,
   cancelShipdayOrders,
 } from "@/app/actions/shipday"
+import { getMiscFees } from "@/app/actions/fees"
+import { MiscFeesPanel } from "./misc-fees-panel"
 
 const STATUS_COLORS: Record<string, string> = {
   pending:          "bg-gray-100 text-gray-500",
@@ -44,6 +46,9 @@ const EVENT_ICONS: Record<string, string> = {
   dispatch_rescheduled:    "📅",
   driver_assigned:         "👤",
   shipday_cancelled:       "❌",
+  misc_fee_added:          "💳",
+  misc_fee_paid:           "✅",
+  misc_fee_waived:         "🙏",
 }
 
 // Statuses that indicate bags have physically arrived at / passed through facility
@@ -181,6 +186,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     .select("id, name, processing_mode, rate_per_lb, minimum_lbs")
     .eq("active", true)
     .order("name")
+
+  const miscFees = await getMiscFees(id)
 
   const orderCode = booking.id.slice(0, 8).toUpperCase()
 
@@ -631,6 +638,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
           </div>
         </div>
+
+        {/* Misc Fees */}
+        <MiscFeesPanel bookingId={id} initialFees={miscFees} />
 
         {/* Event timeline */}
         <div className="mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">

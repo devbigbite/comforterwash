@@ -17,7 +17,7 @@ import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getDeliveryFeeSettings } from "@/app/actions/settings"
-import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type FeeSettings } from "@/lib/checkout-fees"
+import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
 import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, type Route, type TimeWindow } from "@/lib/route-availability"
 import { getActiveRoutes } from "@/app/actions/routes"
@@ -125,7 +125,7 @@ export function WashOnlyForm() {
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
   const [tipOption, setTipOption] = useState<TipOption>("none")
   const [customTipCents, setCustomTipCents] = useState(0)
-  const [feeSettings, setFeeSettings] = useState<FeeSettings>({ deliveryEnabled: false, deliveryFeeCents: 499, waiverCents: 0 })
+  const [feeConfig, setFeeConfig] = useState<DeliveryFeeConfig>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
   const [priceCents, setPriceCents] = useState(PRICE_PER_LB)
   const [minLbs, setMinLbs] = useState(MIN_POUNDS)
   const [detergentOptions, setDetergentOptions] = useState<ServiceOption[]>([])
@@ -189,7 +189,7 @@ export function WashOnlyForm() {
   useEffect(() => {
     getExcludedDates().then(dates => setExcludedDates(new Set(dates)))
     getActiveRoutes().then(setActiveRoutes)
-    getDeliveryFeeSettings().then(s => setFeeSettings({ deliveryEnabled: s.enabled, deliveryFeeCents: s.feeCents, waiverCents: s.waiverCents }))
+    getDeliveryFeeSettings().then(s => setFeeConfig(s))
     getPricingConfig().then(cfg => {
       PRICE_PER_LB = cfg.washOnlyCents
       MIN_POUNDS = cfg.washOnlyMinLbs
@@ -238,7 +238,7 @@ export function WashOnlyForm() {
   const subtotalCents      = baseCents + extrasCents
   const discountCents      = promo ? Math.min(promo.discountCents, subtotalCents) : 0
   const afterDiscountCents = subtotalCents - discountCents
-  const deliveryFeeCents   = calcDeliveryFee(feeSettings, afterDiscountCents)
+  const deliveryFeeCents   = calcDeliveryFee(feeConfig, "wash_only")
   const tipCents           = calcTip(tipOption, customTipCents, afterDiscountCents)
   const totalCents         = afterDiscountCents + deliveryFeeCents + tipCents
   const preAuthCents       = Math.ceil((afterDiscountCents + deliveryFeeCents) * 1.25) + tipCents
@@ -284,12 +284,6 @@ export function WashOnlyForm() {
               <div className="flex justify-between gap-4 text-gray-600">
                 <span className="shrink-0">Delivery fee</span>
                 <span className="font-semibold">${(deliveryFeeCents / 100).toFixed(2)}</span>
-              </div>
-            )}
-            {feeSettings.deliveryEnabled && deliveryFeeCents === 0 && feeSettings.waiverCents > 0 && (
-              <div className="flex justify-between gap-4 text-green-700">
-                <span className="shrink-0">Delivery fee</span>
-                <span className="font-semibold">Free 🎉</span>
               </div>
             )}
             {tipCents > 0 && (
