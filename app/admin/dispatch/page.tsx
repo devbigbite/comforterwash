@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { reschedulePickup, rescheduleDelivery, assignDriver, cancelShipdayOrders } from "@/app/actions/shipday"
 import { DispatchOrderCard } from "@/components/admin/DispatchOrderCard"
 import type { DispatchBooking as Booking } from "@/components/admin/DispatchOrderCard"
+import { DispatchDateNav } from "@/components/admin/DispatchDateNav"
 
 async function assignDriverAction(formData: FormData) {
   "use server"
@@ -111,24 +112,7 @@ export default async function DispatchPage({
             <h1 className="text-2xl font-extrabold text-[#0D2240]">Dispatch</h1>
             <p className="text-sm text-gray-400 mt-0.5">{displayDate}</p>
           </div>
-          <form method="GET" className="flex items-center gap-2">
-            <input
-              type="date"
-              name="date"
-              defaultValue={selectedDate}
-              className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
-            />
-            <button type="submit"
-              className="rounded-xl bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-4 py-2 transition-colors">
-              Go
-            </button>
-            {selectedDate !== today && (
-              <a href="/admin/dispatch"
-                className="rounded-xl border border-gray-200 text-gray-500 hover:text-[#0D2240] font-semibold text-sm px-4 py-2 transition-colors">
-                Today
-              </a>
-            )}
-          </form>
+          <DispatchDateNav selectedDate={selectedDate} today={today} />
         </div>
 
         <div className="grid grid-cols-4 gap-3 mb-8">
