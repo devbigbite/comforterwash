@@ -119,12 +119,14 @@ export default function HeroCarousel({
         {/* Full-width text slide */}
         {slide.type === "full" && (
           <div className="absolute inset-0 flex items-center">
-            <div className="mx-auto max-w-7xl px-5 sm:px-8 w-full">
+            {/* Subtle left-side scrim — keeps text legible without flooding the photo */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent pointer-events-none" />
+            <div className="relative mx-auto max-w-7xl px-5 sm:px-8 w-full">
               <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.25em] mb-2 sm:mb-3">WashFold Orlando</p>
-              <h1 className="text-white font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight max-w-2xl mb-3 sm:mb-4 drop-shadow-lg">
+              <h1 className="text-white font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight max-w-2xl mb-3 sm:mb-4" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.65)" }}>
                 {slide.headline}
               </h1>
-              <p className="text-white/75 text-sm sm:text-base md:text-lg max-w-xl mb-5 sm:mb-8">{slide.subline}</p>
+              <p className="text-white/90 text-sm sm:text-base md:text-lg max-w-xl mb-5 sm:mb-8" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}>{slide.subline}</p>
               <a href="#services" className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-6 sm:px-8 py-3 sm:py-3.5 rounded-full uppercase tracking-wide transition-colors shadow-lg">
                 {slide.cta}
               </a>
