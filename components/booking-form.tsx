@@ -899,16 +899,16 @@ export function BookingForm() {
                 <Input placeholder="Street address" value={formData.pickupStreet}
                   onChange={e => setFormData(p => ({ ...p, pickupStreet: e.target.value }))}
                   className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid gap-2 min-w-0" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
                   <Input placeholder="City" value={formData.pickupCity}
                     onChange={e => setFormData(p => ({ ...p, pickupCity: e.target.value }))}
-                    className="col-span-2 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                    className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
                   <Input placeholder="ST" maxLength={2} value={formData.pickupState}
                     onChange={e => setFormData(p => ({ ...p, pickupState: e.target.value.toUpperCase() }))}
-                    className="col-span-1 h-10 border-gray-200 focus:border-[#E8726A] text-sm text-center uppercase" />
+                    className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm text-center uppercase" />
                   <Input placeholder="Zip" value={formData.pickupZip}
                     onChange={e => setFormData(p => ({ ...p, pickupZip: e.target.value }))}
-                    className="col-span-2 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                    className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
                 </div>
               </div>
 
@@ -925,16 +925,16 @@ export function BookingForm() {
                   <Input placeholder="Street address" value={formData.deliveryStreet}
                     onChange={e => setFormData(p => ({ ...p, deliveryStreet: e.target.value }))}
                     className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid gap-2 min-w-0" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
                     <Input placeholder="City" value={formData.deliveryCity}
                       onChange={e => setFormData(p => ({ ...p, deliveryCity: e.target.value }))}
-                      className="col-span-2 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                      className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
                     <Input placeholder="ST" maxLength={2} value={formData.deliveryState}
                       onChange={e => setFormData(p => ({ ...p, deliveryState: e.target.value.toUpperCase() }))}
-                      className="col-span-1 h-10 border-gray-200 focus:border-[#E8726A] text-sm text-center uppercase" />
+                      className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm text-center uppercase" />
                     <Input placeholder="Zip" value={formData.deliveryZip}
                       onChange={e => setFormData(p => ({ ...p, deliveryZip: e.target.value }))}
-                      className="col-span-2 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                      className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
                   </div>
                 </div>
               )}
