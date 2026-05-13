@@ -53,11 +53,10 @@ export interface ActiveWorker {
 // ── Workers ───────────────────────────────────────────────────────────────────
 
 export async function getActiveWorkers(): Promise<ActiveWorker[]> {
-  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const supabase = createAdminClient()
   const { data } = await supabase
     .from("workers")
     .select("id, name, roles, hourly_wage_cents")
-    .eq("location_id", locationId)
     .eq("status", "active")
     .order("name")
   return (data ?? []) as ActiveWorker[]
@@ -68,11 +67,10 @@ export async function getActiveWorkers(): Promise<ActiveWorker[]> {
 /** Set or update a worker's 4-digit clock PIN (admin only). */
 export async function setWorkerPin(workerName: string, pin: string) {
   if (!/^\d{4}$/.test(pin)) return { error: "PIN must be exactly 4 digits" }
-  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from("workers")
     .update({ clock_pin: pin })
-    .eq("location_id", locationId)
     .eq("name", workerName)
   if (error) return { error: "Failed to set PIN" }
   revalidatePath("/admin/workers")
@@ -81,19 +79,18 @@ export async function setWorkerPin(workerName: string, pin: string) {
 
 /** Clear a worker's PIN (admin reset). */
 export async function clearWorkerPin(workerName: string) {
-  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
-  await supabase.from("workers").update({ clock_pin: null }).eq("location_id", locationId).eq("name", workerName)
+  const supabase = createAdminClient()
+  await supabase.from("workers").update({ clock_pin: null }).eq("name", workerName)
   revalidatePath("/admin/workers")
   return { success: true }
 }
 
 /** Verify a worker's PIN. Returns true if correct or if no PIN is set yet. */
 export async function verifyWorkerPin(workerName: string, pin: string): Promise<{ valid: boolean; noPinSet: boolean }> {
-  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const supabase = createAdminClient()
   const { data } = await supabase
     .from("workers")
     .select("clock_pin")
-    .eq("location_id", locationId)
     .eq("name", workerName)
     .single()
   if (!data) return { valid: false, noPinSet: false }
@@ -111,12 +108,10 @@ export async function verifyWorkerPinForRole(
   pin: string
 ): Promise<{ id: string; name: string } | null> {
   if (!/^\d{4}$/.test(pin)) return null
-  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const supabase = createAdminClient()
   const { data } = await supabase
     .from("workers")
     .select("id, name, clock_pin")
-    .eq("location_id", locationId)
-    .eq("role", role)
     .eq("status", "active")
   if (!data) return null
   const match = data.find((w: { clock_pin: string | null }) => w.clock_pin === pin)
