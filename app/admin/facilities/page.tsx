@@ -493,8 +493,32 @@ export default async function FacilitiesPage() {
                               className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
                           </div>
                           <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Phone</label>
+                            <input name="phone" defaultValue={s.phone ?? ""} placeholder="(407) 555-0100"
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Manager / Contact</label>
+                            <input name="manager" defaultValue={s.manager ?? ""} placeholder="Carlos Vega"
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Office Hours</label>
+                            <input name="office_hours" defaultValue={s.office_hours ?? ""} placeholder="Mon–Fri 9am–5pm"
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Available Entry Hours</label>
+                            <input name="entry_hours" defaultValue={s.entry_hours ?? ""} placeholder="6am–10pm daily"
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                          <div>
                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes</label>
-                            <input name="notes" defaultValue={s.notes ?? ""} placeholder="Gate code, hours…"
+                            <input name="notes" defaultValue={s.notes ?? ""} placeholder="Gate code, access info…"
                               className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
                           </div>
                         </div>
@@ -506,6 +530,7 @@ export default async function FacilitiesPage() {
                           <form action={toggleStorageSpaceActive}>
                             <input type="hidden" name="id" value={s.id} />
                             <input type="hidden" name="facility_id" value={f.id} />
+                            <input type="hidden" name="active" value={String(s.active)} />
                             <button type="submit"
                               className="text-xs font-bold text-gray-500 border border-gray-200 bg-white px-3 py-1.5 rounded-xl hover:bg-gray-50 transition-colors uppercase tracking-wide">
                               {s.active ? "Deactivate" : "Activate"}
@@ -574,8 +599,32 @@ export default async function FacilitiesPage() {
                             className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
                         </div>
                         <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Phone</label>
+                          <input name="phone" placeholder="(407) 555-0100"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Manager / Contact</label>
+                          <input name="manager" placeholder="Carlos Vega"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Office Hours</label>
+                          <input name="office_hours" placeholder="Mon–Fri 9am–5pm"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Available Entry Hours</label>
+                          <input name="entry_hours" placeholder="6am–10pm daily"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                        <div>
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes</label>
-                          <input name="notes" placeholder="Gate code, hours…"
+                          <input name="notes" placeholder="Gate code, access info…"
                             className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
                         </div>
                       </div>
