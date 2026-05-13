@@ -343,27 +343,18 @@ export default function RunsPage() {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   Assign To *
                 </label>
-                {workers.length > 0 ? (
-                  <select
-                    value={assignedTo}
-                    onChange={e => setAssignedTo(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
-                  >
-                    <option value="">— select worker —</option>
-                    {workers.map(w => (
-                      <option key={w.id} value={w.name}>
-                        {w.name}{w.roles?.length ? ` · ${w.roles.join(", ")}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    value={assignedTo}
-                    onChange={e => setAssignedTo(e.target.value)}
-                    placeholder="Worker name"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
-                  />
-                )}
+                <select
+                  value={assignedTo}
+                  onChange={e => setAssignedTo(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                >
+                  <option value="">— select worker —</option>
+                  {workers.map(w => (
+                    <option key={w.id} value={w.name}>
+                      {w.name}{w.roles?.length ? ` · ${w.roles.join(", ")}` : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
@@ -578,4 +569,15 @@ export default function RunsPage() {
                   {run.status === "pending" && (
                     <button
                       onClick={() => handleCancel(run.id)}
-                      className="shrink-0 t
+                      className="shrink-0 text-xs text-red-400 hover:text-red-600 font-semibold px-3 py-1.5 border border-red-200 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+
+                {/* Order IDs list (compact) */}
+                <div className="mt-3 pt-3 border-t border-gray-50 flex flex-wrap gap-1.5">
+                  {run.order_ids.map(oid => (
+                    <Link
+           
