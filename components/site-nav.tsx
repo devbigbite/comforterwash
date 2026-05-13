@@ -19,9 +19,9 @@ export function Logo({ size = 40 }: { size?: number }) {
 
 // Pages that have their own nav / should not show the site nav
 const EXCLUDED_PREFIXES = [
-  "/admin",
   "/super-admin",
   "/staff",
+  "/admin",
   "/operator",
   "/driver",
   "/partner",
@@ -97,3 +97,7 @@ export function SiteNav() {
             {tr.common.schedulePickup}
           </a>
         </div>
+      </header>
+    </>
+  )
+}
