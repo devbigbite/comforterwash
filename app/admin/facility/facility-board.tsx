@@ -272,4 +272,244 @@ export function FacilityBoard({ initialGrouped, facilities, selectedFacilityId, 
     // Find the order and its current phase
     let order: BoardOrder | undefined
     let fromPhase = ""
-    for (const [ph, or
+    for (const [ph, orders] of Object.entries(grouped)) {
+      const found = orders.find(o => o.id === orderId)
+      if (found) { order = found; fromPhase = ph; break }
+    }
+    if (!order || fromPhase === toPhase) return
+
+    setMoving(orderId)
+
+    // Optimistic update
+    setGrouped(prev => {
+      const next = { ...prev }
+      next[fromPhase] = prev[fromPhase].filter(o => o.id !== orderId)
+      next[toPhase]   = [{ ...order!, phase: toPhase, phase_updated_at: new Date().toISOString() }, ...prev[toPhase]]
+      return next
+    })
+
+    const result = await moveOrderPhase(
+      orderId, toPhase,
+      worker?.workerId ?? null,
+      worker?.workerName ?? null
+    )
+
+    if (result.error) {
+      setGrouped(prev => {
+        const next = { ...prev }
+        next[toPhase]   = prev[toPhase].filter(o => o.id !== orderId)
+        next[fromPhase] = [order!, ...prev[fromPhase]]
+        return next
+      })
+    }
+    setMoving(null)
+  }, [grouped, worker])
+
+  // ── Drag and drop ─────────────────────────────────────────────────────────
+  function onDragStart(order: BoardOrder, fromPhase: string) {
+    isDraggingRef.current = true
+    setDragging({ order, fromPhase })
+  }
+
+  function onDragOver(e: React.DragEvent, toPhase: string) {
+    e.preventDefault()
+    setDragOver(toPhase)
+  }
+
+  function onDragLeave() { setDragOver(null) }
+
+  async function onDrop(e: React.DragEvent, toPhase: string) {
+    e.preventDefault()
+    setDragOver(null)
+    if (!dragging || dragging.fromPhase === toPhase) { setDragging(null); return }
+    const { order, fromPhase } = dragging
+    setDragging(null)
+    await handlePhaseMove(order.id, toPhase)
+    // small delay before re-enabling click
+    setTimeout(() => { isDraggingRef.current = false }, 100)
+  }
+
+  function onDragEnd() {
+    setDragging(null)
+    setTimeout(() => { isDraggingRef.current = false }, 100)
+  }
+
+  // ── Bubble click — open drawer ────────────────────────────────────────────
+  function handleBubbleClick(order: BoardOrder) {
+    if (isDraggingRef.current) return
+    setSelectedOrder(order)
+  }
+
+  // ── Refresh ───────────────────────────────────────────────────────────────
+  const refresh = useCallback(async () => {
+    const fresh = await getFacilityBoardOrders(selectedFacilityId ?? undefined)
+    setGrouped(fresh)
+  }, [selectedFacilityId])
+
+  // ── Facility filter ───────────────────────────────────────────────────────
+  function selectFacility(id: string | null) {
+    router.push(id ? `/admin/facility?facility=${id}` : "/admin/facility")
+  }
+
+  const totalOrders = Object.values(grouped).reduce((s, arr) => s + arr.length, 0)
+
+  return (
+    <div className="min-h-screen bg-[#0D2240] flex flex-col">
+
+      {/* ── Top bar ── */}
+      <div className="bg-[#0D2240] border-b border-white/10 px-4 py-3 flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 mr-2">
+          <span className="text-white font-extrabold text-base">🏭 Facility Board</span>
+          <span className="text-white/40 text-xs font-semibold">{totalOrders} orders</span>
+        </div>
+
+        {facilities.length > 1 && (
+          <select
+            value={selectedFacilityId ?? ""}
+            onChange={e => selectFacility(e.target.value || null)}
+            className="bg-white/10 text-white text-xs font-bold border border-white/20 rounded-lg px-3 py-1.5 focus:outline-none"
+          >
+            <option value="">All Facilities</option>
+            {facilities.map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+        )}
+
+        <div className="relative flex-1 max-w-xs">
+          <input
+            ref={searchRef}
+            type="text"
+            value={search}
+            onChange={e => handleSearch(e.target.value)}
+            placeholder="Search order or customer…"
+            className="w-full bg-white/10 text-white placeholder:text-white/30 text-xs border border-white/20 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#E8726A]/60"
+          />
+          {search && (
+            <button onClick={() => handleSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white text-sm">×</button>
+          )}
+        </div>
+
+        <button
+          onClick={refresh}
+          className="text-white/40 hover:text-white text-xs font-bold transition-colors ml-auto"
+        >
+          ↻ Refresh
+        </button>
+      </div>
+
+      {/* ── Kanban columns ── */}
+      <div className="flex-1 overflow-x-auto">
+        <div className="flex gap-3 p-4 min-w-max h-full">
+          {phases.map(phase => {
+            const orders    = grouped[phase.key] ?? []
+            const isOver    = dragOver === phase.key
+            const isDragSrc = dragging?.fromPhase === phase.key
+
+            return (
+              <div
+                key={phase.key}
+                onDragOver={e => onDragOver(e, phase.key)}
+                onDragLeave={onDragLeave}
+                onDrop={e => onDrop(e, phase.key)}
+                className={`flex flex-col w-52 rounded-2xl transition-all duration-150 ${
+                  isOver ? "ring-2 ring-[#E8726A] bg-white/10" : "bg-white/5"
+                }`}
+              >
+                {/* Column header */}
+                <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/10">
+                  <span className="text-base">{phase.icon}</span>
+                  <span className="text-white font-bold text-xs uppercase tracking-wide flex-1">{phase.label}</span>
+                  <span
+                    className="text-[10px] font-extrabold px-2 py-0.5 rounded-full text-white"
+                    style={{ backgroundColor: phase.color + "66" }}
+                  >
+                    {orders.length}
+                  </span>
+                </div>
+
+                {/* Bubbles */}
+                <div className="flex-1 overflow-y-auto p-2 space-y-2 max-h-[calc(100vh-10rem)]">
+                  {orders.length === 0 && (
+                    <div className={`text-center text-white/20 text-xs py-6 rounded-xl border-2 border-dashed transition-colors ${isOver ? "border-[#E8726A]/40" : "border-white/10"}`}>
+                      Drop here
+                    </div>
+                  )}
+                  {orders.map(order => {
+                    const isMatch  = highlighted === order.id
+                    const isMoving = moving === order.id
+                    const dim      = highlighted && !isMatch
+
+                    return (
+                      <div
+                        key={order.id}
+                        draggable
+                        onDragStart={() => onDragStart(order, phase.key)}
+                        onDragEnd={onDragEnd}
+                        onClick={() => handleBubbleClick(order)}
+                        className={`
+                          relative rounded-xl p-3 cursor-pointer select-none
+                          border transition-all duration-200
+                          ${isMoving ? "opacity-40 scale-95" : ""}
+                          ${dim ? "opacity-20" : ""}
+                          ${isMatch ? "ring-2 ring-[#E8726A] shadow-lg shadow-[#E8726A]/20 scale-105" : ""}
+                          ${isDragSrc && dragging?.order.id === order.id ? "opacity-50" : ""}
+                          bg-white/10 border-white/10 hover:border-white/30 hover:bg-white/15 hover:scale-[1.02]
+                        `}
+                      >
+                        {/* Service + code */}
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-sm">{SERVICE_ICON[order.service_type] ?? "📦"}</span>
+                          <span className="text-white font-extrabold text-xs tracking-wider flex-1">
+                            {order.short_code?.toUpperCase() ?? order.id.slice(0, 6).toUpperCase()}
+                          </span>
+                          {/* Unweighed warning dot */}
+                          {!order.actual_weight_lbs && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Not weighed" />
+                          )}
+                        </div>
+
+                        {/* Customer name */}
+                        <p className="text-white/70 text-[11px] leading-tight truncate">{order.customer_name}</p>
+
+                        {/* Bags + weight + time */}
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-white/50 text-[10px]">
+                            {order.num_bags} bag{order.num_bags !== 1 ? "s" : ""}
+                          </span>
+                          {order.actual_weight_lbs ? (
+                            <span className="text-white/50 text-[10px]">· {order.actual_weight_lbs} lbs</span>
+                          ) : (
+                            <span className="text-amber-400/70 text-[10px]">· no weight</span>
+                          )}
+                          <span className={`text-[10px] ml-auto font-semibold ${phaseAgeColor(order.phase_updated_at)}`}>
+                            {timeSince(order.phase_updated_at)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Order detail drawer ── */}
+      {selectedOrder && (
+        <OrderDrawer
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          onPhaseMove={async (id, phase) => {
+            await handlePhaseMove(id, phase)
+            // Update the selected order's phase so drawer reflects the move
+            setSelectedOrder(prev => prev ? { ...prev, phase, phase_updated_at: new Date().toISOString() } : null)
+          }}
+        />
+      )}
+
+      <style>{`[draggable] { -webkit-user-drag: element; }`}</style>
+    </div>
+  )
+}
