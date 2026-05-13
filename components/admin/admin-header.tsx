@@ -30,10 +30,10 @@ const NAV_ITEMS: NavItem[] = [
     type: "dropdown",
     label: "Logistics",
     items: [
-      { href: "/admin/routes",       label: "Routes" },
-      { href: "/admin/routing",      label: "Routing" },
+      { href: "/admin/facility",      label: "🏭 Facility Board" },
       { href: "/admin/runs",         label: "Facility Transfers" },
-      { href: "/facility",           label: "🏭 Facility Board" },
+      { href: "/admin/routes",       label: "Delivery Routes" },
+      { href: "/admin/routing",      label: "Route Optimizer" },
       { href: "/admin/facilities",   label: "Facilities" },
       { href: "/admin/zip-codes",    label: "Zip Codes" },
       { href: "/admin/service-area", label: "Area Map" },

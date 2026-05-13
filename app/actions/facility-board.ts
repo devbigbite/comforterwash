@@ -108,7 +108,7 @@ export async function moveOrderPhase(
     created_by:  workerName ?? "facility board",
   })
 
-  revalidatePath("/facility")
+  revalidatePath("/admin/facility")
   revalidatePath(`/admin/orders/${bookingId}`)
   return {}
 }

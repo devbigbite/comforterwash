@@ -221,7 +221,7 @@ export async function startTrip(
     .eq("id", sessionId)
 
   revalidatePath("/driver")
-  revalidatePath("/facility")
+  revalidatePath("/admin/facility")
   return { trip: trip as TransferTrip }
 }
 
@@ -387,7 +387,7 @@ export async function certifyTripUnloaded(input: {
   await supabase.from("order_events").insert(eventRows)
 
   revalidatePath("/driver")
-  revalidatePath("/facility")
+  revalidatePath("/admin/facility")
   return { flagged: !!flagged }
 }
 
