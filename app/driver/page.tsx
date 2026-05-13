@@ -248,6 +248,23 @@ export default function DriverHome() {
           </div>
         )}
 
+        {/* ── Internal Transfer ────────────────────────────────── */}
+        <div>
+          <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">🔄 Internal Transfer</p>
+          <button
+            onClick={() => router.push("/driver/transfer")}
+            className="w-full bg-[#1a3a5c] hover:bg-[#224a70] border border-white/10 rounded-2xl p-4 text-left transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white font-extrabold text-sm">Storage ↔ Facility</p>
+                <p className="text-white/40 text-xs mt-0.5">Move orders between storage and the processing facility</p>
+              </div>
+              <span className="text-white/40 font-bold text-sm shrink-0">START →</span>
+            </div>
+          </button>
+        </div>
+
         {/* Manual lookup */}
         <div className="bg-white rounded-3xl p-5 shadow-2xl">
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
