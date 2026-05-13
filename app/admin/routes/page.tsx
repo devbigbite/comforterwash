@@ -297,4 +297,46 @@ export default async function RoutesPage() {
               {/* Actions */}
               <div className="flex flex-col gap-2 shrink-0">
                 <form action={toggleRoute.bind(null, r.id, false)}>
-                  <button className="w-full text-[10px] font-bold text-am
+                  <button className="w-full text-[10px] font-bold text-amber-600 border border-amber-200 bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors uppercase">
+                    Deactivate
+                  </button>
+                </form>
+                <form action={deleteRoute.bind(null, r.id)}>
+                  <button className="w-full text-[10px] font-bold text-red-500 border border-red-200 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors uppercase">
+                    Delete
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Inactive routes */}
+      {inactive.length > 0 && (
+        <>
+          <h2 className="font-extrabold text-gray-400 text-sm uppercase tracking-wide mb-3">Inactive Routes ({inactive.length})</h2>
+          <div className="space-y-3">
+            {inactive.map((r) => (
+              <div key={r.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 opacity-60">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-bold text-gray-500">{r.name}</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {(r.pickup_days as string[] ?? []).map(d => DAY_ABBR[d] ?? d).join(", ") || "no pickup days"}
+                    </p>
+                  </div>
+                  <form action={toggleRoute.bind(null, r.id, true)}>
+                    <button className="text-[10px] font-bold text-green-600 border border-green-200 bg-green-50 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors uppercase">
+                      Activate
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
