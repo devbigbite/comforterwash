@@ -20,8 +20,9 @@ import { getActiveFacilities, type FacilitySummary } from "@/app/actions/facilit
 
 // ── Direction config ──────────────────────────────────────────────────────────
 const DIRECTIONS = [
-  { key: "storage_to_facility",  label: "Storage → Facility",  icon: "📦➡️🏭", desc: "Bring unprocessed orders to the facility for overnight processing" },
+  { key: "storage_to_facility",  label: "Storage → Facility",  icon: "📦➡️🏭", desc: "Bring unprocessed orders from storage to the facility" },
   { key: "facility_to_storage",  label: "Facility → Storage",  icon: "🏭➡️📦", desc: "Move completed orders back to storage for delivery routes" },
+  { key: "customer_to_facility", label: "Customer → Facility", icon: "🏠➡️🏭", desc: "Just picked up from customer — dropping directly at facility, skipping storage" },
 ] as const
 
 type Direction = typeof DIRECTIONS[number]["key"]

@@ -7,6 +7,7 @@ export const PHASES = [
   { key: "drying",           label: "Drying",           icon: "💨", color: "#06b6d4" },
   { key: "folding",          label: "Folding",          icon: "👕", color: "#10b981" },
   { key: "ready",            label: "Ready",            icon: "✅", color: "#22c55e" },
+  { key: "staged",           label: "Staged",           icon: "🏷️",  color: "#6366f1" },
   { key: "out_for_delivery", label: "Out for Delivery", icon: "🚗", color: "#f97316" },
 ] as const
 

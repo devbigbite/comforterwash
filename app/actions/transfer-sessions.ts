@@ -203,11 +203,17 @@ export async function startTrip(
     })
     .in("id", orderIds)
 
-  // Log phase transitions
+  // Log phase transitions — from_phase depends on the direction
+  const sourcePhaseMap: Record<string, string> = {
+    customer_to_storage:  "picked_up",
+    customer_to_facility: "picked_up",
+    storage_to_facility:  "at_storage",
+    facility_to_storage:  "ready",
+  }
   const transitionRows = orderIds.map(id => ({
     booking_id:  id,
     location_id: locationId,
-    from_phase:  "at_storage",
+    from_phase:  sourcePhaseMap[direction] ?? "at_storage",
     to_phase:    "in_transit",
     source:      "driver_app",
     trip_id:     trip.id,
@@ -321,11 +327,13 @@ export async function certifyTripUnloaded(input: {
   }
 
   // Determine destination phase
+  // "at_storage" = fresh pickup, never processed — waiting for facility transfer
+  // "staged"     = processed, returned to storage — waiting for delivery route
   const destPhase: Record<string, string> = {
     customer_to_storage:  "at_storage",
     customer_to_facility: "intake",
     storage_to_facility:  "intake",
-    facility_to_storage:  "at_storage",
+    facility_to_storage:  "staged",
   }
   const newPhase = destPhase[direction] ?? "at_storage"
 

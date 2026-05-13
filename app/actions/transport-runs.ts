@@ -277,7 +277,9 @@ export async function completeTransportRun(formData: FormData) {
 
   } else {
     // ── Facility → Storage ─────────────────────────────────────────
-    // Orders: ready → ready_at_warehouse (status), ready → at_storage (phase)
+    // Orders: ready → ready_at_warehouse (status), ready → staged (phase)
+    // "staged" = back at storage, awaiting delivery route — distinct from
+    // "at_storage" which means fresh pickup waiting for facility transfer.
 
     await supabase
       .from("order_bags")
@@ -289,7 +291,7 @@ export async function completeTransportRun(formData: FormData) {
       .from("bookings")
       .update({
         status:           "ready_at_warehouse",
-        phase:            "at_storage",
+        phase:            "staged",
         phase_updated_at: now,
         phase_updated_by: null,
       })
@@ -300,7 +302,7 @@ export async function completeTransportRun(formData: FormData) {
       booking_id:   bookingId,
       location_id:  run.location_id,
       from_phase:   "ready",
-      to_phase:     "at_storage",
+      to_phase:     "staged",
       worker_name:  completedBy,
       source:       "facility_transfer",
     }))
