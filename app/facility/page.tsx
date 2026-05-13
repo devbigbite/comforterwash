@@ -1,4 +1,5 @@
-import { getFacilityBoardOrders, getActiveFacilities, PHASES } from "@/app/actions/facility-board"
+import { getFacilityBoardOrders, getActiveFacilities } from "@/app/actions/facility-board"
+import { PHASES } from "@/lib/facility-phases"
 import { FacilityBoard } from "./facility-board"
 
 export default async function FacilityPage({
