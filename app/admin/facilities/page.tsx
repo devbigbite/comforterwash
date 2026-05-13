@@ -7,6 +7,7 @@ import {
   toggleStorageSpaceActive, deleteStorageSpace,
   type StorageSpace,
 } from "@/app/actions/storage-spaces"
+import { StorageEntryWindowsEditor, type StorageEntryWindow } from "@/components/admin/StorageEntryWindowsEditor"
 import { PartnerLinkCopy } from "@/components/admin/PartnerLinkCopy"
 
 // ── shared field CSS ─────────────────────────────────────────────────────────
@@ -226,10 +227,11 @@ const STORAGE_LABEL: Record<number, { label: string; color: string }> = {
 
 export default async function FacilitiesPage() {
   const supabase = createAdminClient()
-  const [{ data: facilities }, { data: allWindows }, { data: allStorageSpaces }] = await Promise.all([
+  const [{ data: facilities }, { data: allWindows }, { data: allStorageSpaces }, { data: allEntryWindows }] = await Promise.all([
     supabase.from("facilities").select("*, machine_groups(count)").order("name"),
     supabase.from("facility_access_windows").select("*").eq("active", true).order("start_time"),
     supabase.from("storage_spaces").select("*").order("active", { ascending: false }).order("name"),
+    supabase.from("storage_entry_windows").select("*").eq("active", true).order("start_time"),
   ])
   const storageByFacility = (allStorageSpaces ?? []).reduce<Record<string, StorageSpace[]>>((acc, s) => {
     if (!acc[s.facility_id]) acc[s.facility_id] = []
@@ -239,6 +241,12 @@ export default async function FacilitiesPage() {
   const windowsByFacility = (allWindows ?? []).reduce<Record<string, AccessWindow[]>>((acc, w) => {
     if (!acc[w.facility_id]) acc[w.facility_id] = []
     acc[w.facility_id].push(w as AccessWindow)
+    return acc
+  }, {})
+  const entryWindowsBySpace = (allEntryWindows ?? []).reduce<Record<string, StorageEntryWindow[]>>((acc, w) => {
+    const ew = w as StorageEntryWindow
+    if (!acc[ew.storage_space_id]) acc[ew.storage_space_id] = []
+    acc[ew.storage_space_id].push(ew)
     return acc
   }, {})
 
@@ -510,17 +518,10 @@ export default async function FacilitiesPage() {
                               className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Available Entry Hours</label>
-                            <input name="entry_hours" defaultValue={s.entry_hours ?? ""} placeholder="6am–10pm daily"
-                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes</label>
-                            <input name="notes" defaultValue={s.notes ?? ""} placeholder="Gate code, access info…"
-                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                          </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes</label>
+                          <input name="notes" defaultValue={s.notes ?? ""} placeholder="Gate code, access info…"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
                         </div>
                         <div className="flex gap-2 pt-1">
                           <button type="submit"
@@ -546,6 +547,11 @@ export default async function FacilitiesPage() {
                           </form>
                         </div>
                       </form>
+                    <StorageEntryWindowsEditor
+                      storageSpaceId={s.id}
+                      facilityId={f.id}
+                      initial={entryWindowsBySpace[s.id] ?? []}
+                    />
                     </div>
                   </details>
                 ))}
@@ -616,17 +622,10 @@ export default async function FacilitiesPage() {
                             className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Available Entry Hours</label>
-                          <input name="entry_hours" placeholder="6am–10pm daily"
-                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes</label>
-                          <input name="notes" placeholder="Gate code, access info…"
-                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                        </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes</label>
+                        <input name="notes" placeholder="Gate code, access info…"
+                          className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
                       </div>
                       <button type="submit"
                         className="w-full text-xs font-bold text-white bg-[#E8726A] hover:bg-[#d45f57] px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
