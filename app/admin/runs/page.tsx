@@ -80,7 +80,6 @@ export default function RunsPage() {
     checkFacilityAccessNow(facilityId).then(setAccessStatus)
     getStorageSpacesForFacility(facilityId).then(spaces => {
       setStorageSpaces(spaces)
-      // Auto-select if only one option
       if (spaces.length === 1) setStorageSpaceId(spaces[0].id)
     })
   }, [facilityId])
@@ -525,8 +524,8 @@ export default function RunsPage() {
                     </div>
                     <p className="text-sm text-gray-600">
                       <strong>{run.facility_name ?? "Facility"}</strong>
-                      {run.storage_space_name && (
-                        <span className="text-gray-400"> ↔ <span className="text-indigo-600 font-semibold">📦 {run.storage_space_name}</span></span>
+                      {(run as TransportRun & { storage_space_name?: string }).storage_space_name && (
+                        <span className="text-gray-400"> ↔ <span className="text-indigo-600 font-semibold">📦 {(run as TransportRun & { storage_space_name?: string }).storage_space_name}</span></span>
                       )}
                       {" · "}
                       {run.order_ids.length} order{run.order_ids.length !== 1 ? "s" : ""}
@@ -542,4 +541,49 @@ export default function RunsPage() {
                       </p>
                     )}
                     <p className="text-xs text-gray-400 mt-1 flex items-center gap-2 flex-wrap">
-                      <span>Created {new Date(run.cre
+                      <span>Created {new Date(run.created_at).toLocaleString()}</span>
+                      <span className="text-gray-300">·</span>
+                      <span className="font-mono">{run.id.slice(0,8).toUpperCase()}</span>
+                      {run.shipday_order_id ? (
+                        <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 border border-blue-200 text-xs font-bold px-2 py-0.5 rounded-full">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H19a1 1 0 001-1v-5a1 1 0 00-.293-.707l-3-3A1 1 0 0016 5h-3V4a1 1 0 00-1-1H3z"/></svg>
+                          Shipday #{run.shipday_order_id}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-600 border border-amber-200 text-xs font-semibold px-2 py-0.5 rounded-full">
+                          ⚠ Not in Shipday
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  {run.status === "pending" && (
+                    <button
+                      onClick={() => handleCancel(run.id)}
+                      className="shrink-0 text-xs text-red-400 hover:text-red-600 font-semibold px-3 py-1.5 border border-red-200 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+
+                {/* Order IDs list (compact) */}
+                <div className="mt-3 pt-3 border-t border-gray-50 flex flex-wrap gap-1.5">
+                  {run.order_ids.map(oid => (
+                    <Link
+                      key={oid}
+                      href={`/admin/orders/${oid}`}
+                      className="text-xs font-mono bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded-lg transition-colors"
+                    >
+                      {oid.slice(0,8).toUpperCase()}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
