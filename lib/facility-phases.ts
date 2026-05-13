@@ -8,7 +8,4 @@ export const PHASES = [
   { key: "folding",          label: "Folding",          icon: "👕", color: "#10b981" },
   { key: "ready",            label: "Ready",            icon: "✅", color: "#22c55e" },
   { key: "staged",           label: "Staged",           icon: "🏷️",  color: "#6366f1" },
-  { key: "out_for_delivery", label: "Out for Delivery", icon: "🚗", color: "#f97316" },
-] as const
-
-export type Phase = typeof PHASES[number]["key"]
+  { key: "out_for_delivery", label: "Out for Delivery", i

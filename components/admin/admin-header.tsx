@@ -162,6 +162,4 @@ export function AdminHeader() {
           </button>
         </form>
       </div>
-    </header>
-  )
-}
+  

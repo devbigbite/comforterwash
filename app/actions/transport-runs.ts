@@ -457,7 +457,4 @@ export async function checkFacilityAccessNow(facilityId: string): Promise<{
   windows: { label: string | null; days_of_week: number[]; start_time: string; end_time: string; overnight: boolean }[]
 }> {
   const allWindows = await getAllFacilityWindows()
-  const windows = allWindows.filter(w => w.facility_id === facilityId)
-  const accessible = isWithinAccessWindow(windows)
-  return { accessible, windows }
-}
+  const windows 
