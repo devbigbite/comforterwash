@@ -14,8 +14,6 @@ export interface TransportRun {
   run_type: "to_facility" | "to_warehouse"
   facility_id: string | null
   facility_name: string | null
-  storage_space_id: string | null
-  storage_space_name: string | null
   assigned_to: string
   assigned_role: "driver" | "operator"
   order_ids: string[]
@@ -27,25 +25,8 @@ export interface TransportRun {
   completed_by: string | null
   shipday_order_id: number | null
   processing_mode: 'own_operator' | 'partner_attendant' | null
-}
-
-export interface StorageSpaceOption {
-  id: string
-  name: string
-  address: string | null
-  unit: string | null
-  city: string | null
-}
-
-export async function getStorageSpacesForFacility(facilityId: string): Promise<StorageSpaceOption[]> {
-  const supabase = createAdminClient()
-  const { data } = await supabase
-    .from("storage_spaces")
-    .select("id, name, address, unit, city")
-    .eq("facility_id", facilityId)
-    .eq("active", true)
-    .order("name")
-  return (data ?? []) as StorageSpaceOption[]
+  storage_space_id: string | null
+  storage_space_name: string | null
 }
 
 export interface RunOrder {
@@ -56,6 +37,27 @@ export interface RunOrder {
   num_bags: number | null
   service_type: string
   status: string
+}
+
+export interface StorageSpaceOption {
+  id: string
+  name: string
+  address: string | null
+  unit: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
+}
+
+export async function getStorageSpacesForFacility(facilityId: string): Promise<StorageSpaceOption[]> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from("storage_spaces")
+    .select("id, name, address, unit, city, state, zip")
+    .eq("facility_id", facilityId)
+    .eq("active", true)
+    .order("name")
+  return (data ?? []) as StorageSpaceOption[]
 }
 
 // ── Create a transport run (admin) ────────────────────────────────────────────
@@ -69,8 +71,7 @@ export async function createTransportRun(formData: FormData) {
   const notes       = (formData.get("notes") as string) || null
   const orderIdsRaw      = formData.get("orderIds")        as string  // comma-separated UUIDs
   const processingMode   = (formData.get("processingMode") as string) || null
-
-  const storageSpaceId = (formData.get("storageSpaceId") as string) || null
+  const storageSpaceId   = (formData.get("storageSpaceId") as string) || null
 
   const orderIds = orderIdsRaw
     ? orderIdsRaw.split(",").map(s => s.trim()).filter(Boolean)
@@ -80,17 +81,23 @@ export async function createTransportRun(formData: FormData) {
     return { error: "Missing required fields" }
   }
 
-  // Get facility + storage space names for denormalisation
-  const [{ data: facility }, { data: storageSpace }] = await Promise.all([
-    supabase.from("facilities").select("name, address").eq("id", facilityId).single(),
-    storageSpaceId
-      ? supabase.from("storage_spaces").select("name, address, unit, city, state, zip").eq("id", storageSpaceId).single()
-      : Promise.resolve({ data: null }),
-  ])
+  // Get facility name for denormalisation
+  const { data: facility } = await supabase
+    .from("facilities")
+    .select("name")
+    .eq("id", facilityId)
+    .single()
 
-  const storageSpaceName = storageSpace
-    ? [storageSpace.name, storageSpace.unit, storageSpace.address].filter(Boolean).join(", ")
-    : null
+  // Get storage space info (denormalized for display)
+  let storageName: string | null = null
+  if (storageSpaceId) {
+    const { data: ss } = await supabase
+      .from("storage_spaces")
+      .select("name")
+      .eq("id", storageSpaceId)
+      .single()
+    storageName = ss?.name ?? null
+  }
 
   const { data: run, error } = await supabase
     .from("transport_runs")
@@ -99,14 +106,14 @@ export async function createTransportRun(formData: FormData) {
       run_type:           runType,
       facility_id:        facilityId,
       facility_name:      facility?.name ?? null,
-      storage_space_id:   storageSpaceId,
-      storage_space_name: storageSpaceName,
       assigned_to:        assignedTo,
       assigned_role:      assignedRole,
       order_ids:          orderIds,
       notes,
       status:             "pending",
       processing_mode:    processingMode,
+      storage_space_id:   storageSpaceId,
+      storage_space_name: storageName,
     })
     .select()
     .single()
@@ -118,28 +125,48 @@ export async function createTransportRun(formData: FormData) {
 
   // ── Push to Shipday so driver sees it in their app ─────────────────────────
   try {
-    // Build storage space address (fall back to global warehouse setting)
-    let storageAddress: string
-    if (storageSpace) {
-      storageAddress = [
-        storageSpace.unit ? `${storageSpace.unit}, ` : "",
-        storageSpace.address ?? "",
-        storageSpace.city ? `, ${storageSpace.city}` : "",
-        storageSpace.state ? ` ${storageSpace.state}` : "",
-        storageSpace.zip  ? ` ${storageSpace.zip}`   : "",
-      ].join("").trim() || storageSpaceName || "Storage"
+    // Resolve warehouse/storage address
+    let warehouseAddress: string
+    if (storageSpaceId) {
+      const { data: ss } = await supabase
+        .from("storage_spaces")
+        .select("address, unit, city, state, zip")
+        .eq("id", storageSpaceId)
+        .single()
+      if (ss?.address) {
+        const parts = [ss.unit, ss.address, ss.city, ss.state, ss.zip].filter(Boolean)
+        warehouseAddress = parts.join(", ")
+      } else {
+        const { data: warehouseSetting } = await supabase
+          .from("settings")
+          .select("value")
+          .eq("location_id", locationId)
+          .eq("key", "warehouse_address")
+          .single()
+        warehouseAddress = warehouseSetting?.value ?? process.env.BUSINESS_ADDRESS ?? "Orlando, FL"
+      }
     } else {
       const { data: warehouseSetting } = await supabase
-        .from("settings").select("value")
-        .eq("location_id", locationId).eq("key", "warehouse_address").single()
-      storageAddress = warehouseSetting?.value ?? process.env.BUSINESS_ADDRESS ?? "Orlando, FL"
+        .from("settings")
+        .select("value")
+        .eq("location_id", locationId)
+        .eq("key", "warehouse_address")
+        .single()
+      warehouseAddress = warehouseSetting?.value ?? process.env.BUSINESS_ADDRESS ?? "Orlando, FL"
     }
 
-    const facilityAddress = facility?.address ?? run.facility_name ?? "Facility"
-    const facilityName    = facility?.name    ?? run.facility_name ?? "Facility"
+    // Fetch facility address
+    const { data: facilityData } = await supabase
+      .from("facilities")
+      .select("name, address")
+      .eq("id", facilityId)
+      .single()
 
-    const fromAddress = runType === "to_facility" ? storageAddress : facilityAddress
-    const toAddress   = runType === "to_facility" ? facilityAddress  : storageAddress
+    const facilityAddress = facilityData?.address ?? run.facility_name ?? "Facility"
+    const facilityName    = facilityData?.name    ?? run.facility_name ?? "Facility"
+
+    const fromAddress = runType === "to_facility" ? warehouseAddress : facilityAddress
+    const toAddress   = runType === "to_facility" ? facilityAddress  : warehouseAddress
 
     const orderSummary = `${orderIds.length} order${orderIds.length !== 1 ? "s" : ""} · assigned to ${assignedTo}`
 
@@ -455,4 +482,40 @@ export async function getEligibleOrdersForRun(runType: "to_facility" | "to_wareh
 
     return (data ?? []).filter((b: { id: string }) => !alreadyInRun.has(b.id))
   } else {
-   
+    // Orders ready at a specific facility
+    const { data: pendingRuns } = await supabase
+      .from("transport_runs")
+      .select("order_ids")
+      .eq("location_id", locationId)
+      .eq("status", "pending")
+      .eq("run_type", "to_warehouse")
+
+    const alreadyInRun = new Set<string>(
+      (pendingRuns ?? []).flatMap((r: { order_ids: string[] }) => r.order_ids)
+    )
+
+    let query = supabase
+      .from("bookings")
+      .select("id, short_code, customer_name, customer_address, num_bags, service_type, status, actual_weight_lbs, assigned_facility_id")
+      .eq("location_id", locationId)
+      .eq("status", "ready")
+
+    if (facilityId) {
+      query = query.eq("assigned_facility_id", facilityId)
+    }
+
+    const { data } = await query.order("created_at")
+    return (data ?? []).filter((b: { id: string }) => !alreadyInRun.has(b.id))
+  }
+}
+
+// ── Check if a facility is currently within its access windows ────────────────
+export async function checkFacilityAccessNow(facilityId: string): Promise<{
+  accessible: boolean
+  windows: { label: string | null; days_of_week: number[]; start_time: string; end_time: string; overnight: boolean }[]
+}> {
+  const allWindows = await getAllFacilityWindows()
+  const windows = allWindows.filter(w => w.facility_id === facilityId)
+  const accessible = isWithinAccessWindow(windows)
+  return { accessible, windows }
+}

@@ -163,6 +163,7 @@ export function RouteEditor({ route, onSave, facilities = [], storageSpaces = []
         </div>
       </div>
 
+
       {/* Home Facility + Default Storage */}
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -181,4 +182,35 @@ export function RouteEditor({ route, onSave, facilities = [], storageSpaces = []
             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#E8726A]"
             disabled={filteredStorage.length === 0}>
             <option value="">— None —</option>
-  
+            {filteredStorage.map(s => (
+              <option key={s.id} value={s.id}>{s.name}{s.unit ? ` (${s.unit})` : ""}</option>
+            ))}
+          </select>
+          {facilityId && filteredStorage.length === 0 && (
+            <p className="text-[10px] text-gray-400 mt-1">No storage spaces for this facility yet — add them in Facilities</p>
+          )}
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes (optional)</label>
+        <input value={notes} onChange={e => setNotes(e.target.value)}
+          placeholder="e.g. high-density area, priority route"
+          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#E8726A]" />
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={() => setOpen(false)}
+          className="flex-1 text-xs font-bold text-gray-500 border border-gray-200 bg-white px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors uppercase tracking-wide">
+          Cancel
+        </button>
+        <button type="button" onClick={handleSave} disabled={isPending || !name.trim()}
+          className="flex-[2] text-xs font-bold text-white bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
+          {isPending ? "Saving…" : "Save Changes"}
+        </button>
+      </div>
+    </div>
+  )
+}
