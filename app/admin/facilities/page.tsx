@@ -2,6 +2,11 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import Link from "next/link"
 import { FacilityAccessWindowsEditor, type AccessWindow } from "@/components/admin/FacilityAccessWindowsEditor"
+import {
+  addStorageSpace, updateStorageSpace,
+  toggleStorageSpaceActive, deleteStorageSpace,
+  type StorageSpace,
+} from "@/app/actions/storage-spaces"
 import { PartnerLinkCopy } from "@/components/admin/PartnerLinkCopy"
 
 // ── shared field CSS ─────────────────────────────────────────────────────────
@@ -221,10 +226,16 @@ const STORAGE_LABEL: Record<number, { label: string; color: string }> = {
 
 export default async function FacilitiesPage() {
   const supabase = createAdminClient()
-  const [{ data: facilities }, { data: allWindows }] = await Promise.all([
+  const [{ data: facilities }, { data: allWindows }, { data: allStorageSpaces }] = await Promise.all([
     supabase.from("facilities").select("*, machine_groups(count)").order("name"),
     supabase.from("facility_access_windows").select("*").eq("active", true).order("start_time"),
+    supabase.from("storage_spaces").select("*").order("active", { ascending: false }).order("name"),
   ])
+  const storageByFacility = (allStorageSpaces ?? []).reduce<Record<string, StorageSpace[]>>((acc, s) => {
+    if (!acc[s.facility_id]) acc[s.facility_id] = []
+    acc[s.facility_id].push(s as StorageSpace)
+    return acc
+  }, {})
   const windowsByFacility = (allWindows ?? []).reduce<Record<string, AccessWindow[]>>((acc, w) => {
     if (!acc[w.facility_id]) acc[w.facility_id] = []
     acc[w.facility_id].push(w as AccessWindow)
@@ -372,6 +383,15 @@ export default async function FacilitiesPage() {
                       Partner Portal ↗
                     </a>
                   )}
+                  {(storageByFacility[f.id] ?? []).length > 0 ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      📦 {(storageByFacility[f.id] ?? []).filter(s => s.active).length} storage space{(storageByFacility[f.id] ?? []).filter(s => s.active).length !== 1 ? "s" : ""}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-50 text-gray-400 border border-gray-200">
+                      No storage spaces
+                    </span>
+                  )}
                   {(windowsByFacility[f.id] ?? []).length > 0 ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
                       🕐 {(windowsByFacility[f.id] ?? []).length} access window{(windowsByFacility[f.id] ?? []).length !== 1 ? "s" : ""}
@@ -387,7 +407,7 @@ export default async function FacilitiesPage() {
               <div className="flex items-center gap-3 shrink-0">
                 <Link href={`/admin/facilities/${f.id}`}
                   className="rounded-xl bg-[#0D2240] text-white font-bold text-xs px-4 py-2 hover:bg-[#1a3a5c] transition-colors">
-                  Machines
+                  ⚙️ Machines
                 </Link>
                 <form action={toggleFacility}>
                   <input type="hidden" name="id" value={f.id} />
@@ -398,6 +418,176 @@ export default async function FacilitiesPage() {
                 </form>
               </div>
             </div>
+
+
+            {/* Storage spaces accordion */}
+            <details className="group border-t border-gray-100">
+              <summary className="cursor-pointer px-5 py-2.5 text-xs font-semibold text-gray-400 hover:text-[#0D2240] transition-colors list-none flex items-center gap-1.5 select-none">
+                <span className="group-open:hidden">📦 Storage Spaces ({(storageByFacility[f.id] ?? []).length})</span>
+                <span className="hidden group-open:inline">📦 Close storage spaces</span>
+              </summary>
+              <div className="px-5 pb-5 pt-4 bg-[#f7f8fb] border-t border-gray-100 space-y-3">
+
+                {/* Existing spaces */}
+                {(storageByFacility[f.id] ?? []).map(s => (
+                  <details key={s.id} className={`rounded-xl border-2 bg-white ${s.active ? "border-gray-200" : "border-gray-100 opacity-60"}`}>
+                    <summary className="flex items-center gap-3 px-4 py-2.5 cursor-pointer list-none">
+                      <span className="text-sm">📦</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-bold text-[#0D2240] text-sm">{s.name}</span>
+                        {(s.address || s.unit) && (
+                          <span className="text-xs text-gray-400 ml-2">
+                            {[s.unit, s.address, s.city].filter(Boolean).join(", ")}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                          {s.active ? "Active" : "Inactive"}
+                        </span>
+                        <span className="text-gray-300 text-xs">▾</span>
+                      </div>
+                    </summary>
+                    <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+                      <form action={updateStorageSpace} className="space-y-2">
+                        <input type="hidden" name="id" value={s.id} />
+                        <input type="hidden" name="facility_id" value={f.id} />
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Name *</label>
+                            <input name="name" defaultValue={s.name} required
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Unit / Suite</label>
+                            <input name="unit" defaultValue={s.unit ?? ""} placeholder="Unit 113"
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Street Address</label>
+                          <input name="address" defaultValue={s.address ?? ""} placeholder="500 Curry Ford Rd"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">City</label>
+                            <input name="city" defaultValue={s.city ?? ""} placeholder="Orlando"
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">State</label>
+                            <input name="state" defaultValue={s.state ?? "FL"}
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Zip</label>
+                            <input name="zip" defaultValue={s.zip ?? ""}
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Capacity (bags)</label>
+                            <input name="capacity_bags" type="number" defaultValue={s.capacity_bags ?? ""} placeholder="e.g. 200"
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes</label>
+                            <input name="notes" defaultValue={s.notes ?? ""} placeholder="Gate code, hours…"
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button type="submit"
+                            className="flex-1 text-xs font-bold text-white bg-[#0D2240] hover:bg-[#1a3a5c] px-3 py-1.5 rounded-xl transition-colors uppercase tracking-wide">
+                            Save
+                          </button>
+                          <form action={toggleStorageSpaceActive}>
+                            <input type="hidden" name="id" value={s.id} />
+                            <input type="hidden" name="facility_id" value={f.id} />
+                            <button type="submit"
+                              className="text-xs font-bold text-gray-500 border border-gray-200 bg-white px-3 py-1.5 rounded-xl hover:bg-gray-50 transition-colors uppercase tracking-wide">
+                              {s.active ? "Deactivate" : "Activate"}
+                            </button>
+                          </form>
+                          <form action={deleteStorageSpace}>
+                            <input type="hidden" name="id" value={s.id} />
+                            <input type="hidden" name="facility_id" value={f.id} />
+                            <button type="submit"
+                              className="text-xs font-bold text-red-400 border border-red-200 bg-white px-3 py-1.5 rounded-xl hover:bg-red-50 transition-colors uppercase tracking-wide">
+                              Delete
+                            </button>
+                          </form>
+                        </div>
+                      </form>
+                    </div>
+                  </details>
+                ))}
+
+                {/* Add new */}
+                <details className="rounded-xl border-2 border-dashed border-gray-300">
+                  <summary className="flex items-center gap-2 px-4 py-2.5 cursor-pointer list-none text-gray-500 hover:text-[#0D2240] transition-colors">
+                    <span className="text-sm font-bold">+ Add Storage Space</span>
+                  </summary>
+                  <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+                    <form action={addStorageSpace} className="space-y-2">
+                      <input type="hidden" name="facility_id" value={f.id} />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Name *</label>
+                          <input name="name" required placeholder="Unit 113 Storage"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Unit / Suite</label>
+                          <input name="unit" placeholder="Unit 113"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Street Address</label>
+                        <input name="address" placeholder="500 Curry Ford Rd"
+                          className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">City</label>
+                          <input name="city" placeholder="Orlando"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">State</label>
+                          <input name="state" defaultValue="FL"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Zip</label>
+                          <input name="zip"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Capacity (bags)</label>
+                          <input name="capacity_bags" type="number" placeholder="e.g. 200"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes</label>
+                          <input name="notes" placeholder="Gate code, hours…"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                      </div>
+                      <button type="submit"
+                        className="w-full text-xs font-bold text-white bg-[#E8726A] hover:bg-[#d45f57] px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
+                        Add Storage Space
+                      </button>
+                    </form>
+                  </div>
+                </details>
+              </div>
+            </details>
 
             {/* Edit accordion */}
             <details className="group border-t border-gray-100">
