@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react"
 import { createTransportRun, cancelTransportRun, getTransportRuns, getEligibleOrdersForRun, getActiveFacilities, checkFacilityAccessNow, getStorageSpacesForFacility, type TransportRun, type StorageSpaceOption } from "@/app/actions/transport-runs"
+import { getActiveWorkers, type ActiveWorker } from "@/app/actions/staff"
 import Link from "next/link"
 
 // ─── This page needs server-fetched data — use a thin server wrapper ──────────
@@ -56,6 +57,7 @@ export default function RunsPage() {
   const [accessStatus, setAccessStatus] = useState<{ accessible: boolean; windows: { label: string | null; days_of_week: number[]; start_time: string; end_time: string; overnight: boolean }[] } | null>(null)
   const [storageSpaces, setStorageSpaces] = useState<StorageSpaceOption[]>([])
   const [storageSpaceId, setStorageSpaceId] = useState("")
+  const [workers, setWorkers] = useState<ActiveWorker[]>([])
 
   async function loadData() {
     setLoading(true)
@@ -69,6 +71,7 @@ export default function RunsPage() {
   useEffect(() => {
     loadData()
     getActiveFacilities().then(setFacilities)
+    getActiveWorkers().then(setWorkers)
   }, [])
 
   // Check facility access window + load storage spaces when facilityId changes
@@ -340,12 +343,27 @@ export default function RunsPage() {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                   Assign To *
                 </label>
-                <input
-                  value={assignedTo}
-                  onChange={e => setAssignedTo(e.target.value)}
-                  placeholder="Worker name"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
-                />
+                {workers.length > 0 ? (
+                  <select
+                    value={assignedTo}
+                    onChange={e => setAssignedTo(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                  >
+                    <option value="">— select worker —</option>
+                    {workers.map(w => (
+                      <option key={w.id} value={w.name}>
+                        {w.name}{w.roles?.length ? ` · ${w.roles.join(", ")}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={assignedTo}
+                    onChange={e => setAssignedTo(e.target.value)}
+                    placeholder="Worker name"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
@@ -560,30 +578,4 @@ export default function RunsPage() {
                   {run.status === "pending" && (
                     <button
                       onClick={() => handleCancel(run.id)}
-                      className="shrink-0 text-xs text-red-400 hover:text-red-600 font-semibold px-3 py-1.5 border border-red-200 rounded-lg transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-
-                {/* Order IDs list (compact) */}
-                <div className="mt-3 pt-3 border-t border-gray-50 flex flex-wrap gap-1.5">
-                  {run.order_ids.map(oid => (
-                    <Link
-                      key={oid}
-                      href={`/admin/orders/${oid}`}
-                      className="text-xs font-mono bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded-lg transition-colors"
-                    >
-                      {oid.slice(0,8).toUpperCase()}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
+                      className="shrink-0 t
