@@ -607,4 +607,13 @@ export default function TransferPage() {
         <p className="text-white/40 text-sm mb-10">All orders have been moved and certified.</p>
         <button
           onClick={() => router.push("/driver")}
-          className="bg-[#E8726A] hover:bg-[#d45
+          className="bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold px-10 py-4 rounded-2xl transition-colors"
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    )
+  }
+
+  return null
+}
