@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useTransition } from "react"
-import { createTransportRun, cancelTransportRun, getTransportRuns, getEligibleOrdersForRun, getActiveFacilities, checkFacilityAccessNow, type TransportRun } from "@/app/actions/transport-runs"
+import { createTransportRun, cancelTransportRun, getTransportRuns, getEligibleOrdersForRun, getActiveFacilities, checkFacilityAccessNow, getStorageSpacesForFacility, type TransportRun, type StorageSpaceOption } from "@/app/actions/transport-runs"
 import Link from "next/link"
 
 // ─── This page needs server-fetched data — use a thin server wrapper ──────────
@@ -54,6 +54,8 @@ export default function RunsPage() {
   const [eligibleLoading, setEligibleLoading] = useState(false)
   const [tabFilter, setTabFilter]     = useState<"pending" | "completed">("pending")
   const [accessStatus, setAccessStatus] = useState<{ accessible: boolean; windows: { label: string | null; days_of_week: number[]; start_time: string; end_time: string; overnight: boolean }[] } | null>(null)
+  const [storageSpaces, setStorageSpaces] = useState<StorageSpaceOption[]>([])
+  const [storageSpaceId, setStorageSpaceId] = useState("")
 
   async function loadData() {
     setLoading(true)
@@ -69,11 +71,18 @@ export default function RunsPage() {
     getActiveFacilities().then(setFacilities)
   }, [])
 
-  // Check facility access window when facilityId changes
+  // Check facility access window + load storage spaces when facilityId changes
   useEffect(() => {
     setAccessStatus(null)
+    setStorageSpaces([])
+    setStorageSpaceId("")
     if (!facilityId) return
     checkFacilityAccessNow(facilityId).then(setAccessStatus)
+    getStorageSpacesForFacility(facilityId).then(spaces => {
+      setStorageSpaces(spaces)
+      // Auto-select if only one option
+      if (spaces.length === 1) setStorageSpaceId(spaces[0].id)
+    })
   }, [facilityId])
 
   // Re-fetch eligible orders when runType or facilityId changes
@@ -108,13 +117,14 @@ export default function RunsPage() {
     const isHybrid = selFacility?.supports_own_operator && selFacility?.supports_partner_attendant
     if (isHybrid && !processingMode) return
     const fd = new FormData()
-    fd.append("runType",      runType)
-    fd.append("facilityId",   facilityId)
-    fd.append("assignedTo",   assignedTo.trim())
-    fd.append("assignedRole", assignedRole)
-    fd.append("notes",        notes)
-    fd.append("orderIds",     [...selectedOrderIds].join(","))
-    if (processingMode) fd.append("processingMode", processingMode)
+    fd.append("runType",        runType)
+    fd.append("facilityId",     facilityId)
+    fd.append("assignedTo",     assignedTo.trim())
+    fd.append("assignedRole",   assignedRole)
+    fd.append("notes",          notes)
+    fd.append("orderIds",       [...selectedOrderIds].join(","))
+    if (processingMode)  fd.append("processingMode",  processingMode)
+    if (storageSpaceId)  fd.append("storageSpaceId",  storageSpaceId)
 
     startTransition(async () => {
       const result = await createTransportRun(fd)
@@ -215,6 +225,35 @@ export default function RunsPage() {
                 />
               )}
             </div>
+
+            {/* Storage Space */}
+            {facilityId && (
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Storage Space
+                  {storageSpaces.length === 0 && <span className="ml-2 font-normal text-amber-600">(none configured — add in Facilities)</span>}
+                </label>
+                {storageSpaces.length > 0 ? (
+                  <select
+                    value={storageSpaceId}
+                    onChange={e => setStorageSpaceId(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                  >
+                    <option value="">— no specific storage space —</option>
+                    {storageSpaces.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}{s.unit ? ` · ${s.unit}` : ""}{s.address ? ` · ${s.address}` : ""}{s.city ? `, ${s.city}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs text-gray-400 bg-gray-50 rounded-xl px-3 py-2.5">
+                    No storage spaces set up for this facility.{" "}
+                    <a href="/admin/facilities" className="text-[#E8726A] hover:underline">Add one in Facilities →</a>
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Access window warning */}
             {facilityId && accessStatus && (
@@ -486,6 +525,9 @@ export default function RunsPage() {
                     </div>
                     <p className="text-sm text-gray-600">
                       <strong>{run.facility_name ?? "Facility"}</strong>
+                      {run.storage_space_name && (
+                        <span className="text-gray-400"> ↔ <span className="text-indigo-600 font-semibold">📦 {run.storage_space_name}</span></span>
+                      )}
                       {" · "}
                       {run.order_ids.length} order{run.order_ids.length !== 1 ? "s" : ""}
                       {" · Assigned to "}
@@ -500,49 +542,4 @@ export default function RunsPage() {
                       </p>
                     )}
                     <p className="text-xs text-gray-400 mt-1 flex items-center gap-2 flex-wrap">
-                      <span>Created {new Date(run.created_at).toLocaleString()}</span>
-                      <span className="text-gray-300">·</span>
-                      <span className="font-mono">{run.id.slice(0,8).toUpperCase()}</span>
-                      {run.shipday_order_id ? (
-                        <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 border border-blue-200 text-xs font-bold px-2 py-0.5 rounded-full">
-                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H19a1 1 0 001-1v-5a1 1 0 00-.293-.707l-3-3A1 1 0 0016 5h-3V4a1 1 0 00-1-1H3z"/></svg>
-                          Shipday #{run.shipday_order_id}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-600 border border-amber-200 text-xs font-semibold px-2 py-0.5 rounded-full">
-                          ⚠ Not in Shipday
-                        </span>
-                      )}
-                    </p>
-                  </div>
-
-                  {run.status === "pending" && (
-                    <button
-                      onClick={() => handleCancel(run.id)}
-                      className="shrink-0 text-xs text-red-400 hover:text-red-600 font-semibold px-3 py-1.5 border border-red-200 rounded-lg transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-
-                {/* Order IDs list (compact) */}
-                <div className="mt-3 pt-3 border-t border-gray-50 flex flex-wrap gap-1.5">
-                  {run.order_ids.map(oid => (
-                    <Link
-                      key={oid}
-                      href={`/admin/orders/${oid}`}
-                      className="text-xs font-mono bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded-lg transition-colors"
-                    >
-                      {oid.slice(0,8).toUpperCase()}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
+                      <span>Created {new Date(run.cre

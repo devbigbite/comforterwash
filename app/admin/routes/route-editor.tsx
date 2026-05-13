@@ -10,14 +10,16 @@ const DAY_ABBR: Record<string, string> = {
 }
 
 interface Facility { id: string; name: string }
+interface StorageSpace { id: string; name: string; facility_id: string; address: string | null; unit: string | null }
 
 interface Props {
   route: Route & { service_areas?: string[]; notes?: string }
   onSave: (id: string, data: FormData) => Promise<void>
   facilities?: Facility[]
+  storageSpaces?: StorageSpace[]
 }
 
-export function RouteEditor({ route, onSave, facilities = [] }: Props) {
+export function RouteEditor({ route, onSave, facilities = [], storageSpaces = [] }: Props) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -31,6 +33,12 @@ export function RouteEditor({ route, onSave, facilities = [] }: Props) {
   const [deliveryDays, setDeliveryDays] = useState<string[]>(route.delivery_days ?? [])
   const [notes, setNotes] = useState((route as { notes?: string }).notes ?? "")
   const [facilityId, setFacilityId] = useState((route as { facility_id?: string | null }).facility_id ?? "")
+  const [defaultStorageId, setDefaultStorageId] = useState((route as { default_storage_space_id?: string | null }).default_storage_space_id ?? "")
+
+  // Storage spaces filtered to the selected facility
+  const filteredStorage = facilityId
+    ? storageSpaces.filter(s => s.facility_id === facilityId)
+    : storageSpaces
 
   function toggleDay(day: string, type: "pickup" | "delivery") {
     const id = day.toLowerCase()
@@ -53,6 +61,7 @@ export function RouteEditor({ route, onSave, facilities = [] }: Props) {
       pickupDays.forEach(d => fd.append("pickup_days", d))
       deliveryDays.forEach(d => fd.append("delivery_days", d))
       fd.append("facility_id", facilityId)
+      fd.append("default_storage_space_id", defaultStorageId)
       await onSave(route.id, fd)
       setOpen(false)
     })
@@ -154,37 +163,22 @@ export function RouteEditor({ route, onSave, facilities = [] }: Props) {
         </div>
       </div>
 
-      {/* Home Facility */}
-      <div>
-        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Home Facility / Warehouse</label>
-        <select value={facilityId} onChange={e => setFacilityId(e.target.value)}
-          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#E8726A]">
-          <option value="">— None assigned —</option>
-          {facilities.map(f => (
-            <option key={f.id} value={f.id}>{f.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Notes */}
-      <div>
-        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes (optional)</label>
-        <input value={notes} onChange={e => setNotes(e.target.value)}
-          placeholder="e.g. high-density area, priority route"
-          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#E8726A]" />
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 pt-1">
-        <button type="button" onClick={() => setOpen(false)}
-          className="flex-1 text-xs font-bold text-gray-500 border border-gray-200 bg-white px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors uppercase tracking-wide">
-          Cancel
-        </button>
-        <button type="button" onClick={handleSave} disabled={isPending || !name.trim()}
-          className="flex-[2] text-xs font-bold text-white bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
-          {isPending ? "Saving…" : "Save Changes"}
-        </button>
-      </div>
-    </div>
-  )
-}
+      {/* Home Facility + Default Storage */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Home Facility</label>
+          <select value={facilityId} onChange={e => { setFacilityId(e.target.value); setDefaultStorageId("") }}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#E8726A]">
+            <option value="">— None assigned —</option>
+            {facilities.map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Default Storage Space</label>
+          <select value={defaultStorageId} onChange={e => setDefaultStorageId(e.target.value)}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#E8726A]"
+            disabled={filteredStorage.length === 0}>
+            <option value="">— None —</option>
+  

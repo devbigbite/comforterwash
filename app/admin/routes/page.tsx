@@ -5,6 +5,7 @@ import { RouteEditor } from "./route-editor"
 import type { Route } from "@/lib/route-availability"
 
 interface Facility { id: string; name: string }
+interface StorageSpace { id: string; name: string; facility_id: string; address: string | null; unit: string | null }
 
 async function createRoute(formData: FormData) {
   "use server"
@@ -26,7 +27,8 @@ async function createRoute(formData: FormData) {
     notes:               formData.get("notes") as string || null,
     turnaround_days:     turnaround,
     biweekly_start_date: biweeklyStart || null,
-    facility_id:         formData.get("facility_id") as string || null,
+    facility_id:                formData.get("facility_id") as string || null,
+    default_storage_space_id:   formData.get("default_storage_space_id") as string || null,
     active:              true,
   })
   revalidatePath("/admin/routes")
@@ -64,7 +66,8 @@ async function updateRoute(id: string, formData: FormData) {
     pickup_days:         pickupDays,
     delivery_days:       deliveryDays,
     notes:               formData.get("notes") as string || null,
-    facility_id:         formData.get("facility_id") as string || null,
+    facility_id:                formData.get("facility_id") as string || null,
+    default_storage_space_id:   formData.get("default_storage_space_id") as string || null,
   }).eq("id", id)
   revalidatePath("/admin/routes")
 }
@@ -78,10 +81,12 @@ const DAY_ABBR: Record<string, string> = {
 export default async function RoutesPage() {
   const supabase = createAdminClient()
 
-  const [{ data: routesRaw = [] }, { data: facilitiesRaw = [] }] = await Promise.all([
+  const [{ data: routesRaw = [] }, { data: facilitiesRaw = [] }, { data: storageSpacesRaw = [] }] = await Promise.all([
     supabase.from("routes").select("*").order("created_at", { ascending: true }),
     supabase.from("facilities").select("id, name").eq("active", true).order("name"),
+    supabase.from("storage_spaces").select("id, name, facility_id, address, unit").eq("active", true).order("name"),
   ])
+  const storageSpaces: StorageSpace[] = (storageSpacesRaw ?? []) as StorageSpace[]
 
   const facilities: Facility[] = (facilitiesRaw ?? []) as Facility[]
 
@@ -181,15 +186,29 @@ export default async function RoutesPage() {
             </div>
           </div>
 
-          <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Home Facility / Warehouse</label>
-            <select name="facility_id"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#E8726A]">
-              <option value="">— None assigned —</option>
-              {facilities.map(f => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Home Facility</label>
+              <select name="facility_id"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#E8726A]">
+                <option value="">— None assigned —</option>
+                {facilities.map(f => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Default Storage Space</label>
+              <select name="default_storage_space_id"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#E8726A]">
+                <option value="">— None —</option>
+                {storageSpaces.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}{s.address ? ` · ${s.unit ? s.unit + ", " : ""}${s.address}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -236,6 +255,14 @@ export default async function RoutesPage() {
                       </span>
                     ) : null
                   })()}
+                  {(r as { default_storage_space_id?: string }).default_storage_space_id && (() => {
+                    const sp = storageSpaces.find(s => s.id === (r as { default_storage_space_id?: string }).default_storage_space_id)
+                    return sp ? (
+                      <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                        📦 {sp.name}
+                      </span>
+                    ) : null
+                  })()}
                 </div>
 
                 {/* Service areas */}
@@ -261,7 +288,7 @@ export default async function RoutesPage() {
                 {r.notes && <p className="text-xs text-gray-400 italic">{r.notes}</p>}
 
                 {/* Inline route editor */}
-                <RouteEditor route={r as Route & { service_areas?: string[]; notes?: string }} onSave={updateRoute} facilities={facilities} />
+                <RouteEditor route={r as Route & { service_areas?: string[]; notes?: string }} onSave={updateRoute} facilities={facilities} storageSpaces={storageSpaces} />
 
                 {/* Time windows editor */}
                 <RouteTimeWindowEditor routeId={r.id} initialWindows={r.time_windows ?? []} />
@@ -270,46 +297,4 @@ export default async function RoutesPage() {
               {/* Actions */}
               <div className="flex flex-col gap-2 shrink-0">
                 <form action={toggleRoute.bind(null, r.id, false)}>
-                  <button className="w-full text-[10px] font-bold text-amber-600 border border-amber-200 bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors uppercase">
-                    Deactivate
-                  </button>
-                </form>
-                <form action={deleteRoute.bind(null, r.id)}>
-                  <button className="w-full text-[10px] font-bold text-red-500 border border-red-200 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors uppercase">
-                    Delete
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Inactive routes */}
-      {inactive.length > 0 && (
-        <>
-          <h2 className="font-extrabold text-gray-400 text-sm uppercase tracking-wide mb-3">Inactive Routes ({inactive.length})</h2>
-          <div className="space-y-3">
-            {inactive.map((r) => (
-              <div key={r.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 opacity-60">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-bold text-gray-500">{r.name}</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {(r.pickup_days as string[] ?? []).map(d => DAY_ABBR[d] ?? d).join(", ") || "no pickup days"}
-                    </p>
-                  </div>
-                  <form action={toggleRoute.bind(null, r.id, true)}>
-                    <button className="text-[10px] font-bold text-green-600 border border-green-200 bg-green-50 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors uppercase">
-                      Activate
-                    </button>
-                  </form>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
+                  <button className="w-full text-[10px] font-bold text-am
