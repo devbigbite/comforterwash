@@ -32,7 +32,7 @@ const NAV_ITEMS: NavItem[] = [
     items: [
       { href: "/admin/routes",       label: "Routes" },
       { href: "/admin/routing",      label: "Routing" },
-      { href: "/admin/runs",         label: "Transport Runs" },
+      { href: "/admin/runs",         label: "Facility Transfers" },
       { href: "/facility",           label: "🏭 Facility Board" },
       { href: "/admin/facilities",   label: "Facilities" },
       { href: "/admin/zip-codes",    label: "Zip Codes" },

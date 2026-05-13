@@ -16,8 +16,8 @@ interface EligibleOrder {
 }
 
 const RUN_TYPE_LABEL: Record<string, string> = {
-  to_facility:  "Warehouse → Facility",
-  to_warehouse: "Facility → Warehouse",
+  to_facility:  "Storage → Facility",
+  to_warehouse: "Facility → Storage",
 }
 const RUN_TYPE_ICON: Record<string, string> = {
   to_facility:  "🏭",
@@ -150,8 +150,8 @@ export default function RunsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-extrabold text-[#0D2240]">Transport Runs</h1>
-            <p className="text-sm text-gray-400 mt-0.5">Batch warehouse ↔ facility transport jobs</p>
+            <h1 className="text-2xl font-extrabold text-[#0D2240]">Facility Transfers</h1>
+            <p className="text-sm text-gray-400 mt-0.5">Internal batch transfers between storage and processing facilities</p>
           </div>
           <button
             onClick={() => setShowCreate(s => !s)}
@@ -164,7 +164,7 @@ export default function RunsPage() {
         {/* ── Create Run Panel ──────────────────────────────────────── */}
         {showCreate && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8 space-y-5">
-            <h2 className="font-extrabold text-[#0D2240] text-lg">Create Transport Run</h2>
+            <h2 className="font-extrabold text-[#0D2240] text-lg">Create Facility Transfer</h2>
 
             {/* Run type */}
             <div className="grid grid-cols-2 gap-3">
@@ -183,8 +183,8 @@ export default function RunsPage() {
                   <p className="font-bold text-[#0D2240] text-sm">{RUN_TYPE_LABEL[type]}</p>
                   <p className="text-gray-400 text-xs mt-0.5">
                     {type === "to_facility"
-                      ? "Pick up at_warehouse orders → drop at laundromat"
-                      : "Pick up ready orders at laundromat → return to warehouse"}
+                      ? "Pick up orders from storage → drop at processing facility"
+                      : "Pick up ready orders from facility → return to storage"}
                   </p>
                 </button>
               ))}
@@ -356,8 +356,8 @@ export default function RunsPage() {
                   <p className="text-gray-400 text-sm font-semibold">No eligible orders</p>
                   <p className="text-gray-400 text-xs mt-1">
                     {runType === "to_facility"
-                      ? "No orders are currently at_warehouse waiting for transport."
-                      : "No orders are ready at this facility for return transport."}
+                      ? "No orders are currently at storage waiting for transfer."
+                      : "No orders are ready at this facility for return to storage."}
                   </p>
                 </div>
               )}
@@ -421,7 +421,7 @@ export default function RunsPage() {
                 : `Create Run · ${selectedOrderIds.size} order${selectedOrderIds.size !== 1 ? "s" : ""} · ${
                     runType === "to_facility"
                       ? `→ ${facilities.find(f => f.id === facilityId)?.name ?? "facility"}`
-                      : `→ Warehouse`
+                      : `→ Storage`
                   }`
               }
             </button>

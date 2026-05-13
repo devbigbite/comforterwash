@@ -10,6 +10,7 @@ import { getLocationId } from "@/lib/location"
 
 export interface TransportRun {
   id: string
+  location_id: string | null
   run_type: "to_facility" | "to_warehouse"
   facility_id: string | null
   facility_name: string | null
@@ -148,8 +149,8 @@ export async function cancelTransportRun(runId: string) {
   revalidatePath("/admin/runs")
 }
 
-// ── Execute a transport run (driver or operator) ──────────────────────────────
-// Advances ALL orders in the run to the next status and assigns facility where needed.
+// ── Execute a facility transfer run (driver or operator) ─────────────────────
+// Advances ALL orders in the run to their next status/phase and assigns facility where needed.
 export async function completeTransportRun(formData: FormData) {
   const supabase    = createAdminClient()
   const runId       = formData.get("runId")      as string
@@ -172,8 +173,8 @@ export async function completeTransportRun(formData: FormData) {
   const now = new Date().toISOString()
 
   if (run.run_type === "to_facility") {
-    // ── Warehouse → Facility ───────────────────────────────────────
-    // Orders: at_warehouse → at_facility
+    // ── Storage → Facility ─────────────────────────────────────────
+    // Orders: at_warehouse → at_facility (status), at_storage → intake (phase)
     // Also sets assigned_facility_id and calculates facility cost
 
     // Get facility config for cost calc + arrival notification
@@ -211,6 +212,9 @@ export async function completeTransportRun(formData: FormData) {
         .from("bookings")
         .update({
           status:                    "at_facility",
+          phase:                     "intake",
+          phase_updated_at:          now,
+          phase_updated_by:          null,
           assigned_facility_id:      run.facility_id,
           facility_processing_mode:  facilityProcessingMode,
           facility_cost_cents:       facilityCostCents,
@@ -218,11 +222,22 @@ export async function completeTransportRun(formData: FormData) {
         .eq("id", bk.id)
     }
 
+    // Log phase transitions
+    const phaseTransitions = orderIds.map(bookingId => ({
+      booking_id:   bookingId,
+      location_id:  run.location_id,
+      from_phase:   "at_storage",
+      to_phase:     "intake",
+      worker_name:  completedBy,
+      source:       "facility_transfer",
+    }))
+    await supabase.from("phase_transitions").insert(phaseTransitions)
+
     // Log event on each order
     const events = orderIds.map(bookingId => ({
       booking_id:  bookingId,
-      event_type:  "transported_to_facility",
-      notes:       `Transport run #${run.id.slice(0,8).toUpperCase()} · ${run.facility_name ?? run.facility_id} · by ${completedBy}`,
+      event_type:  "transferred_to_facility",
+      notes:       `Facility transfer #${run.id.slice(0,8).toUpperCase()} · storage → ${run.facility_name ?? run.facility_id} · by ${completedBy}`,
       photo_url:   photoUrl,
       created_by:  completedBy,
     }))
@@ -261,8 +276,8 @@ export async function completeTransportRun(formData: FormData) {
     }
 
   } else {
-    // ── Facility → Warehouse ───────────────────────────────────────
-    // Orders: ready → ready_at_warehouse
+    // ── Facility → Storage ─────────────────────────────────────────
+    // Orders: ready → ready_at_warehouse (status), ready → at_storage (phase)
 
     await supabase
       .from("order_bags")
@@ -272,13 +287,29 @@ export async function completeTransportRun(formData: FormData) {
 
     await supabase
       .from("bookings")
-      .update({ status: "ready_at_warehouse" })
+      .update({
+        status:           "ready_at_warehouse",
+        phase:            "at_storage",
+        phase_updated_at: now,
+        phase_updated_by: null,
+      })
       .in("id", orderIds)
+
+    // Log phase transitions
+    const phaseTransitions = orderIds.map(bookingId => ({
+      booking_id:   bookingId,
+      location_id:  run.location_id,
+      from_phase:   "ready",
+      to_phase:     "at_storage",
+      worker_name:  completedBy,
+      source:       "facility_transfer",
+    }))
+    await supabase.from("phase_transitions").insert(phaseTransitions)
 
     const events = orderIds.map(bookingId => ({
       booking_id:  bookingId,
-      event_type:  "returned_to_warehouse",
-      notes:       `Return run #${run.id.slice(0,8).toUpperCase()} · ${run.facility_name ?? ""} → warehouse · by ${completedBy}`,
+      event_type:  "returned_to_storage",
+      notes:       `Return transfer #${run.id.slice(0,8).toUpperCase()} · ${run.facility_name ?? ""} → storage · by ${completedBy}`,
       photo_url:   photoUrl,
       created_by:  completedBy,
     }))
@@ -384,9 +415,9 @@ export async function getEligibleOrdersForRun(runType: "to_facility" | "to_wareh
 
     const { data } = await supabase
       .from("bookings")
-      .select("id, short_code, customer_name, customer_address, num_bags, service_type, status, actual_weight_lbs")
+      .select("id, short_code, customer_name, customer_address, num_bags, service_type, status, phase, actual_weight_lbs")
       .eq("location_id", locationId)
-      .eq("status", "at_warehouse")
+      .or("status.eq.at_warehouse,phase.eq.at_storage")
       .order("created_at")
 
     return (data ?? []).filter((b: { id: string }) => !alreadyInRun.has(b.id))

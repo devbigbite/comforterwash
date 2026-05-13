@@ -27,11 +27,11 @@ export default function RunExecuteClient({ run, orders, role }: Props) {
   const isToFacility = run.run_type === "to_facility"
   const homePath = role === "driver" ? "/driver" : "/operator"
 
-  const runLabel      = isToFacility ? "Warehouse → Facility" : "Facility → Warehouse"
-  const runIcon       = isToFacility ? "🏭" : "🏪"
+  const runLabel      = isToFacility ? "Storage → Facility" : "Facility → Storage"
+  const runIcon       = isToFacility ? "🏭" : "📦"
   const accentColor   = isToFacility ? "bg-purple-500/20 border-purple-500/30 text-purple-300" : "bg-amber-500/20 border-amber-500/30 text-amber-300"
   const buttonColor   = isToFacility ? "bg-purple-500 hover:bg-purple-400" : "bg-amber-500 hover:bg-amber-400"
-  const actionLabel   = isToFacility ? "Confirm Delivery to Facility" : "Confirm Return to Warehouse"
+  const actionLabel   = isToFacility ? "Confirm Arrival at Facility" : "Confirm Return to Storage"
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -146,7 +146,7 @@ export default function RunExecuteClient({ run, orders, role }: Props) {
             {runIcon}
           </div>
           <div>
-            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Transport Run</p>
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Facility Transfer</p>
             <h1 className="text-white font-extrabold text-lg leading-tight">{runLabel}</h1>
           </div>
         </div>
@@ -290,8 +290,9 @@ export default function RunExecuteClient({ run, orders, role }: Props) {
         </button>
 
         <p className="text-white/25 text-xs text-center leading-relaxed">
-          This will advance all {orders.length} order{orders.length !== 1 ? "s" : ""} to their next status<br />
-          and mark this run as complete.
+          This will move all {orders.length} order{orders.length !== 1 ? "s" : ""} to{" "}
+          {isToFacility ? "Intake at the facility" : "At Storage"}<br />
+          and mark this transfer complete.
         </p>
       </div>
     </div>
