@@ -72,17 +72,56 @@ export async function capturePayment(bookingId: string) {
     .eq("id", bookingId)
 
   // ── Charge the overage if actual weight blew past the pre-auth buffer ──
-  if (overageCents > 0 && booking.stripe_payment_method_id) {
+  if (overageCents > 0) {
+    // Every order goes through Stripe checkout, so a card is always on file.
+    // Use stored PM if available; otherwise retrieve it from the original PI.
+    let pmId = booking.stripe_payment_method_id
+    let customerId = booking.stripe_customer_id
+
+    if (!pmId) {
+      const originalPI = await stripe.paymentIntents.retrieve(
+        booking.stripe_payment_intent_id,
+        { expand: ["payment_method"] }
+      )
+      pmId = typeof originalPI.payment_method === "string"
+        ? originalPI.payment_method
+        : (originalPI.payment_method as { id: string } | null)?.id ?? null
+
+      // If we still have no customer, create one and attach the card now
+      if (pmId && !customerId) {
+        const { data: bkMeta } = await supabase
+          .from("bookings")
+          .select("customer_name, customer_email")
+          .eq("id", bookingId)
+          .single()
+        const cust = await stripe.customers.create({
+          name:           bkMeta?.customer_name ?? undefined,
+          email:          bkMeta?.customer_email ?? undefined,
+          payment_method: pmId,
+        })
+        customerId = cust.id
+        await supabase.from("bookings").update({
+          stripe_customer_id:       customerId,
+          stripe_payment_method_id: pmId,
+        }).eq("id", bookingId)
+      }
+    }
+
+    if (!pmId) {
+      // Should never happen — every booking has a Stripe PaymentIntent with a card
+      throw new Error(`[stripe] No payment method found for booking ${bookingId} — cannot charge overage`)
+    }
+
     try {
       const overagePI = await stripe.paymentIntents.create({
-        amount:               overageCents,
-        currency:             "usd",
-        customer:             booking.stripe_customer_id ?? undefined,
-        payment_method:       booking.stripe_payment_method_id,
-        confirm:              true,
-        off_session:          true,
-        description:          `Weight overage charge — booking ${bookingId}`,
-        metadata:             { bookingId, type: "weight_overage" },
+        amount:         overageCents,
+        currency:       "usd",
+        customer:       customerId ?? undefined,
+        payment_method: pmId,
+        confirm:        true,
+        off_session:    true,
+        description:    `Weight overage charge — booking ${bookingId}`,
+        metadata:       { bookingId, type: "weight_overage" },
       })
 
       await supabase.from("bookings").update({
@@ -99,13 +138,6 @@ export async function capturePayment(bookingId: string) {
         overage_status: "failed",
       }).eq("id", bookingId)
     }
-  } else if (overageCents > 0) {
-    // No saved payment method — flag for manual follow-up
-    await supabase.from("bookings").update({
-      overage_cents:  overageCents,
-      overage_status: "needs_card",
-    }).eq("id", bookingId)
-    console.warn(`[stripe] $${(overageCents / 100).toFixed(2)} overage — no saved payment method on booking ${bookingId}`)
   }
 
   return { captured: captureAmt, overageCents }
@@ -174,24 +206,4 @@ export async function handleSuccessfulPayment(sessionId: string) {
         promoCode:           meta.promoCode ?? undefined,
         promoDiscountCents:  meta.promoDiscountCents ? parseInt(meta.promoDiscountCents) : undefined,
         tipCents:            meta.tipCents ? parseInt(meta.tipCents) : undefined,
-        deliveryFeeCents:    meta.deliveryFeeCents ? parseInt(meta.deliveryFeeCents) : undefined,
-        deliveryAddress:     meta.deliveryAddress ?? undefined,
-        detergent:           meta.detergent ?? undefined,
-        extras:              meta.extras ?? undefined,
-        comforterSizes:      meta.comforterSizes ?? undefined,
-      })
-
-      // ── Save payment method for future overage charges ──────────────────────
-      if (booking?.id) {
-        saveBookingPaymentMethod(booking.id, paymentIntent, meta.customerName ?? "", meta.customerEmail).catch(
-          err => console.error("[stripe] saveBookingPaymentMethod failed:", err)
-        )
-      }
-
-      // ── If this is a recurring booking, create Stripe Customer + subscription ──
-      if (frequency !== "one_time" && meta.recurringPickupDay && booking?.id) {
-        await createSubscription({
-          bookingId:             booking.id,
-          customerName:          meta.customerName,
-          customerEmail:         meta.customerEmail,
-          customerPhone:         meta.customerPhone
+        deliveryFeeCents:    meta.deliveryFeeCents ? parseInt(meta.deliveryFeeCent
