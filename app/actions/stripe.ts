@@ -206,4 +206,96 @@ export async function handleSuccessfulPayment(sessionId: string) {
         promoCode:           meta.promoCode ?? undefined,
         promoDiscountCents:  meta.promoDiscountCents ? parseInt(meta.promoDiscountCents) : undefined,
         tipCents:            meta.tipCents ? parseInt(meta.tipCents) : undefined,
-        deliveryFeeCents:    meta.deliveryFeeCents ? parseInt(meta.deliveryFeeCent
+        deliveryFeeCents:    meta.deliveryFeeCents ? parseInt(meta.deliveryFeeCents) : undefined,
+        deliveryAddress:     meta.deliveryAddress ?? undefined,
+        detergent:           meta.detergent ?? undefined,
+        extras:              meta.extras ?? undefined,
+        comforterSizes:      meta.comforterSizes ?? undefined,
+      })
+
+      // ── Save payment method for future overage charges ──────────────────────
+      if (booking?.id) {
+        saveBookingPaymentMethod(booking.id, paymentIntent, meta.customerName ?? "", meta.customerEmail).catch(
+          err => console.error("[stripe] saveBookingPaymentMethod failed:", err)
+        )
+      }
+
+      // ── If this is a recurring booking, create Stripe Customer + subscription ──
+      if (frequency !== "one_time" && meta.recurringPickupDay && booking?.id) {
+        await createSubscription({
+          bookingId:             booking.id,
+          customerName:          meta.customerName,
+          customerEmail:         meta.customerEmail,
+          customerPhone:         meta.customerPhone,
+          customerAddress:       meta.address,
+          frequency:             frequency as "weekly" | "biweekly",
+          pickupDayOfWeek:       meta.recurringPickupDay,
+          pickupTimeWindow:      meta.recurringPickupTime ?? meta.pickupTimeWindow,
+          deliveryDayOfWeek:     meta.recurringDeliveryDay,
+          deliveryTimeWindow:    meta.recurringDeliveryTime ?? meta.deliveryTimeWindow,
+          pricePerLbCents:       meta.pricePerLbCents ? parseInt(meta.pricePerLbCents) : 225,
+          detergent:             meta.detergent ?? "standard",
+          fabricSoftener:        meta.fabricSoftener === "true",
+          oxiClean:              meta.oxiClean === "true",
+          colorSafeBleach:       meta.colorSafeBleach === "true",
+          stripePaymentIntentId: paymentIntent,
+          firstPickupDateStr:    meta.pickupDate,
+          firstDeliveryDateStr:  meta.deliveryDate,
+        }).catch(err => console.error("[stripe] createSubscription failed:", err))
+      }
+
+      // ── Send confirmation emails (fire-and-forget, don't block payment) ──
+      if (meta.customerEmail) {
+        const estimatedTotal = `$${(preAuthCents / 100).toFixed(2)}`
+        const emailData = {
+          customerName:    meta.customerName ?? "Customer",
+          customerEmail:   meta.customerEmail,
+          serviceType:     meta.serviceType ?? "comforter_wash",
+          pickupDate:      meta.pickupDate ?? "",
+          pickupTimeWindow: meta.pickupTimeWindow ?? "",
+          deliveryDate:    meta.deliveryDate ?? "",
+          deliveryTimeWindow: meta.deliveryTimeWindow ?? "",
+          pickupAddress:   meta.address ?? "",
+          numComforters:   meta.numComforters ? parseInt(meta.numComforters) : meta.quantity ? parseInt(meta.quantity) : 1,
+          comforterSizes:  meta.comforterSizes ?? undefined,
+          pounds:          meta.pounds ? parseFloat(meta.pounds) : undefined,
+          estimatedTotal,
+          bookingId:       booking?.id ?? "",
+          shortCode:       booking?.short_code ?? undefined,
+        }
+
+        // Customer confirmation (don't await — keeps payment flow fast)
+        sendBookingConfirmationEmail(emailData).catch(err =>
+          console.error("[stripe] Customer confirmation email failed:", err)
+        )
+
+        // Admin new-order alert
+        sendAdminNewOrderEmail({
+          ...emailData,
+          customerPhone:      meta.customerPhone ?? "",
+          preAuthTotal:       estimatedTotal,
+          subscriptionFrequency: frequency,
+        }).catch(err =>
+          console.error("[stripe] Admin alert email failed:", err)
+        )
+
+        // Auto-create account for new recurring subscribers
+        const isRecurring = frequency === "weekly" || frequency === "biweekly"
+        if (isRecurring && meta.customerEmail && meta.customerName) {
+          import("@/app/actions/customer-auth").then(({ createAccountForSubscriber }) =>
+            createAccountForSubscriber(
+              meta.customerEmail!,
+              meta.customerName!,
+              meta.customerPhone ?? "",
+            ).catch(err => console.error("[stripe] createAccountForSubscriber failed:", err))
+          )
+        }
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("[stripe] handleSuccessfulPayment error:", error)
+    return { success: false, error: "Failed to save booking" }
+  }
+}

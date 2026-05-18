@@ -210,4 +210,38 @@ export function PinGate({ role, children }: PinGateProps) {
           id="pin-submit"
           onClick={handleSubmit}
           disabled={loading || pin.join("").length < 4}
-          className="w-full b
+          className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors"
+        >
+          {loading ? "Checking…" : "Enter Station"}
+        </button>
+
+        <p className="text-white/20 text-xs text-center mt-6">
+          PIN not working? Ask your manager to check it in the admin workers page.
+        </p>
+
+        {isAdmin && (
+          <div className="mt-8 border-t border-white/10 pt-6">
+            <button
+              onClick={enterAsOwner}
+              className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white font-bold text-sm py-3 rounded-2xl transition-colors"
+            >
+              <span>👑</span> Enter as Owner
+            </button>
+            <p className="text-white/20 text-[10px] text-center mt-2">Admin bypass — only visible to you</p>
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20%       { transform: translateX(-8px); }
+          40%       { transform: translateX(8px); }
+          60%       { transform: translateX(-6px); }
+          80%       { transform: translateX(6px); }
+        }
+        .animate-shake { animation: shake 0.5s ease-in-out; }
+      `}</style>
+    </div>
+  )
+}
