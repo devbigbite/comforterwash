@@ -465,3 +465,16 @@ export async function getActiveTrip(sessionId: string): Promise<(TransferTrip & 
 
   return { ...(trip as TransferTrip), orders }
 }
+ing,
+    load_certified_at:   o.load_certified_at,
+    unload_certified_at: o.unload_certified_at,
+    flag_type:           o.flag_type,
+    flag_note:           o.flag_note,
+    customer_name:       o.bookings?.customer_name,
+    short_code:          o.bookings?.short_code,
+    service_type:        o.bookings?.service_type,
+    actual_weight_lbs:   o.bookings?.actual_weight_lbs,
+  }))
+
+  return { ...(trip as TransferTrip), orders }
+}

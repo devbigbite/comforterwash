@@ -580,4 +580,19 @@ export default function RunsPage() {
                 <div className="mt-3 pt-3 border-t border-gray-50 flex flex-wrap gap-1.5">
                   {run.order_ids.map(oid => (
                     <Link
-           
+                      key={oid}
+                      href={`/admin/orders/${oid}`}
+                      className="text-xs font-mono bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded-lg transition-colors"
+                    >
+                      {oid.slice(0,8).toUpperCase()}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
