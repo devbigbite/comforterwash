@@ -29,9 +29,10 @@ export async function startCheckoutSession(
       },
     ],
     mode: "payment",
-    ...(manualCapture && {
-      payment_intent_data: { capture_method: "manual" },
-    }),
+    payment_intent_data: {
+      ...(manualCapture ? { capture_method: "manual" } : {}),
+      setup_future_usage: "off_session",
+    },
     metadata: metadata ?? {},
   })
 
@@ -39,11 +40,13 @@ export async function startCheckoutSession(
 }
 
 // ── Capture actual payment after weight is confirmed ──────────────────────────
+// If actual amount exceeds the pre-auth ceiling, the overage is charged
+// immediately to the saved payment method as a second PaymentIntent.
 export async function capturePayment(bookingId: string) {
   const supabase = createAdminClient()
   const { data: booking } = await supabase
     .from("bookings")
-    .select("stripe_payment_intent_id, customer_final_cents, pre_auth_cents")
+    .select("stripe_payment_intent_id, customer_final_cents, pre_auth_cents, stripe_customer_id, stripe_payment_method_id")
     .eq("id", bookingId)
     .single()
 
@@ -51,18 +54,16 @@ export async function capturePayment(bookingId: string) {
     throw new Error("No payment intent found for booking")
   }
 
-  const captureAmount = booking.customer_final_cents
-  if (!captureAmount) throw new Error("No final amount set — enter weight first")
+  const finalCents   = booking.customer_final_cents
+  if (!finalCents) throw new Error("No final amount set — enter weight first")
 
-  // Cannot capture more than what was pre-authorized
-  if (captureAmount > (booking.pre_auth_cents ?? 0)) {
-    console.warn(`[stripe] Capture amount ($${captureAmount / 100}) exceeds pre-auth ($${(booking.pre_auth_cents ?? 0) / 100}) — capping at pre-auth`)
-  }
+  const preAuth      = booking.pre_auth_cents ?? finalCents
+  const captureAmt   = Math.min(finalCents, preAuth)
+  const overageCents = Math.max(0, finalCents - preAuth)
 
-  const amountToCapture = Math.min(captureAmount, booking.pre_auth_cents ?? captureAmount)
-
+  // Capture the pre-authorized amount (or the full amount if within ceiling)
   await stripe.paymentIntents.capture(booking.stripe_payment_intent_id, {
-    amount_to_capture: amountToCapture,
+    amount_to_capture: captureAmt,
   })
 
   await supabase
@@ -70,7 +71,72 @@ export async function capturePayment(bookingId: string) {
     .update({ payment_status: "captured" })
     .eq("id", bookingId)
 
-  return { captured: amountToCapture }
+  // ── Charge the overage if actual weight blew past the pre-auth buffer ──
+  if (overageCents > 0 && booking.stripe_payment_method_id) {
+    try {
+      const overagePI = await stripe.paymentIntents.create({
+        amount:               overageCents,
+        currency:             "usd",
+        customer:             booking.stripe_customer_id ?? undefined,
+        payment_method:       booking.stripe_payment_method_id,
+        confirm:              true,
+        off_session:          true,
+        description:          `Weight overage charge — booking ${bookingId}`,
+        metadata:             { bookingId, type: "weight_overage" },
+      })
+
+      await supabase.from("bookings").update({
+        overage_cents:             overageCents,
+        overage_payment_intent_id: overagePI.id,
+        overage_status:            overagePI.status === "succeeded" ? "charged" : "pending",
+      }).eq("id", bookingId)
+
+      console.log(`[stripe] Overage $${(overageCents / 100).toFixed(2)} charged — PI ${overagePI.id}`)
+    } catch (err) {
+      console.error("[stripe] Overage charge failed:", err)
+      await supabase.from("bookings").update({
+        overage_cents:  overageCents,
+        overage_status: "failed",
+      }).eq("id", bookingId)
+    }
+  } else if (overageCents > 0) {
+    // No saved payment method — flag for manual follow-up
+    await supabase.from("bookings").update({
+      overage_cents:  overageCents,
+      overage_status: "needs_card",
+    }).eq("id", bookingId)
+    console.warn(`[stripe] $${(overageCents / 100).toFixed(2)} overage — no saved payment method on booking ${bookingId}`)
+  }
+
+  return { captured: captureAmt, overageCents }
+}
+
+// ── Save payment method after checkout completes ──────────────────────────────
+// Called inside handleSuccessfulPayment to persist the card for future charges.
+async function saveBookingPaymentMethod(bookingId: string, paymentIntentId: string, customerName: string, customerEmail?: string) {
+  try {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ["payment_method"],
+    })
+    const pmId = typeof pi.payment_method === "string" ? pi.payment_method : pi.payment_method?.id
+    if (!pmId) return
+
+    // Create or reuse a Stripe Customer so the card can be charged off-session
+    const customer = await stripe.customers.create({
+      name:           customerName,
+      email:          customerEmail ?? undefined,
+      payment_method: pmId,
+    })
+    await stripe.paymentMethods.attach(pmId, { customer: customer.id }).catch(() => {/* already attached */})
+
+    const supabase = createAdminClient()
+    await supabase.from("bookings").update({
+      stripe_customer_id:       customer.id,
+      stripe_payment_method_id: pmId,
+    }).eq("id", bookingId)
+  } catch (err) {
+    console.error("[stripe] saveBookingPaymentMethod failed:", err)
+  }
 }
 
 // ── Handle completed Stripe checkout ─────────────────────────────────────────
@@ -115,82 +181,17 @@ export async function handleSuccessfulPayment(sessionId: string) {
         comforterSizes:      meta.comforterSizes ?? undefined,
       })
 
+      // ── Save payment method for future overage charges ──────────────────────
+      if (booking?.id) {
+        saveBookingPaymentMethod(booking.id, paymentIntent, meta.customerName ?? "", meta.customerEmail).catch(
+          err => console.error("[stripe] saveBookingPaymentMethod failed:", err)
+        )
+      }
+
       // ── If this is a recurring booking, create Stripe Customer + subscription ──
       if (frequency !== "one_time" && meta.recurringPickupDay && booking?.id) {
         await createSubscription({
           bookingId:             booking.id,
           customerName:          meta.customerName,
           customerEmail:         meta.customerEmail,
-          customerPhone:         meta.customerPhone,
-          customerAddress:       meta.address,
-          frequency:             frequency as "weekly" | "biweekly",
-          pickupDayOfWeek:       meta.recurringPickupDay,
-          pickupTimeWindow:      meta.recurringPickupTime ?? meta.pickupTimeWindow,
-          deliveryDayOfWeek:     meta.recurringDeliveryDay,
-          deliveryTimeWindow:    meta.recurringDeliveryTime ?? meta.deliveryTimeWindow,
-          pricePerLbCents:       meta.pricePerLbCents ? parseInt(meta.pricePerLbCents) : 225,
-          detergent:             meta.detergent ?? "standard",
-          fabricSoftener:        meta.fabricSoftener === "true",
-          oxiClean:              meta.oxiClean === "true",
-          colorSafeBleach:       meta.colorSafeBleach === "true",
-          stripePaymentIntentId: paymentIntent,
-          firstPickupDateStr:    meta.pickupDate,
-          firstDeliveryDateStr:  meta.deliveryDate,
-        }).catch(err => console.error("[stripe] createSubscription failed:", err))
-      }
-
-      // ── Send confirmation emails (fire-and-forget, don't block payment) ──
-      if (meta.customerEmail) {
-        const estimatedTotal = `$${(preAuthCents / 100).toFixed(2)}`
-        const emailData = {
-          customerName:    meta.customerName ?? "Customer",
-          customerEmail:   meta.customerEmail,
-          serviceType:     meta.serviceType ?? "comforter_wash",
-          pickupDate:      meta.pickupDate ?? "",
-          pickupTimeWindow: meta.pickupTimeWindow ?? "",
-          deliveryDate:    meta.deliveryDate ?? "",
-          deliveryTimeWindow: meta.deliveryTimeWindow ?? "",
-          pickupAddress:   meta.address ?? "",
-          numComforters:   meta.numComforters ? parseInt(meta.numComforters) : meta.quantity ? parseInt(meta.quantity) : 1,
-          comforterSizes:  meta.comforterSizes ?? undefined,
-          pounds:          meta.pounds ? parseFloat(meta.pounds) : undefined,
-          estimatedTotal,
-          bookingId:       booking?.id ?? "",
-          shortCode:       booking?.short_code ?? undefined,
-        }
-
-        // Customer confirmation (don't await — keeps payment flow fast)
-        sendBookingConfirmationEmail(emailData).catch(err =>
-          console.error("[stripe] Customer confirmation email failed:", err)
-        )
-
-        // Admin new-order alert
-        sendAdminNewOrderEmail({
-          ...emailData,
-          customerPhone:      meta.customerPhone ?? "",
-          preAuthTotal:       estimatedTotal,
-          subscriptionFrequency: frequency,
-        }).catch(err =>
-          console.error("[stripe] Admin alert email failed:", err)
-        )
-
-        // Auto-create account for new recurring subscribers
-        const isRecurring = frequency === "weekly" || frequency === "biweekly"
-        if (isRecurring && meta.customerEmail && meta.customerName) {
-          import("@/app/actions/customer-auth").then(({ createAccountForSubscriber }) =>
-            createAccountForSubscriber(
-              meta.customerEmail!,
-              meta.customerName!,
-              meta.customerPhone ?? "",
-            ).catch(err => console.error("[stripe] createAccountForSubscriber failed:", err))
-          )
-        }
-      }
-    }
-
-    return { success: true }
-  } catch (error) {
-    console.error("[stripe] handleSuccessfulPayment error:", error)
-    return { success: false, error: "Failed to save booking" }
-  }
-}
+          customerPhone:         meta.customerPhone

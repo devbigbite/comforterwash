@@ -101,14 +101,11 @@ async function advanceBag(formData: FormData) {
           weight_entered_at: new Date().toISOString(),
         }).eq("id", bookingId)
 
-        // Capture Stripe payment now that we have the actual amount
+        // Capture Stripe payment — handles overages automatically
         if (booking.stripe_payment_intent_id && customerFinalCents) {
           try {
-            const captureAmount = Math.min(customerFinalCents, booking.pre_auth_cents ?? customerFinalCents)
-            await stripe.paymentIntents.capture(booking.stripe_payment_intent_id, {
-              amount_to_capture: captureAmount,
-            })
-            await supabase.from("bookings").update({ payment_status: "captured" }).eq("id", bookingId)
+            const { capturePayment } = await import("@/app/actions/stripe")
+            await capturePayment(bookingId)
           } catch (e) {
             console.error("[operator] Stripe capture failed:", e)
           }
@@ -476,3 +473,4 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
     </div>
   )
 }
+                                                                                                                                                                                                                                               
