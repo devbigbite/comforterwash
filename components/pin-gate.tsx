@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, createContext, useContext } from "react"
 import { verifyWorkerPinForRole } from "@/app/actions/staff"
+import { checkIsAdmin } from "@/app/admin/login/actions"
 
 // ── Worker session context — so child pages can read who is logged in ─────────
 interface WorkerSession {
@@ -53,14 +54,21 @@ export function PinGate({ role, children }: PinGateProps) {
   const [loading, setLoading]   = useState(false)
   const [shake, setShake]       = useState(false)
   const [welcome, setWelcome]   = useState(false)
+  const [isAdmin, setIsAdmin]   = useState(false)
   const inputs = useRef<(HTMLInputElement | null)[]>([])
 
-  // Restore session from localStorage on mount
+  // Restore session from localStorage on mount; also check if viewer is admin
   useEffect(() => {
     const stored = loadSession(role)
     if (stored) setSession(stored)
     setChecked(true)
+    checkIsAdmin().then(setIsAdmin)
   }, [role])
+
+  function enterAsOwner() {
+    const s: WorkerSession = { workerId: "owner", workerName: "Owner" }
+    setSession(s)
+  }
 
   async function handleSubmit() {
     const entered = pin.join("")
@@ -121,18 +129,29 @@ export function PinGate({ role, children }: PinGateProps) {
     return (
       <WorkerCtx.Provider value={session}>
         <div className="relative">
-          {/* Switch worker pill — always visible in top-right */}
-          <div className="fixed top-3 right-3 z-50">
-            <button
-              onClick={switchWorker}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur transition-colors"
-            >
-              <span className="w-5 h-5 rounded-full bg-[#E8726A] flex items-center justify-center text-[10px] font-extrabold shrink-0">
-                {session.workerName.charAt(0).toUpperCase()}
-              </span>
-              {session.workerName}
-              <span className="text-white/40 font-normal">· switch</span>
-            </button>
+          {/* Session pill — top-right */}
+          <div className="fixed top-3 right-3 z-50 flex items-center gap-2">
+            {session.workerId === "owner" ? (
+              <a
+                href="/admin"
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur transition-colors"
+              >
+                <span>👑</span>
+                Owner view
+                <span className="text-white/40 font-normal">· ← admin</span>
+              </a>
+            ) : (
+              <button
+                onClick={switchWorker}
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur transition-colors"
+              >
+                <span className="w-5 h-5 rounded-full bg-[#E8726A] flex items-center justify-center text-[10px] font-extrabold shrink-0">
+                  {session.workerName.charAt(0).toUpperCase()}
+                </span>
+                {session.workerName}
+                <span className="text-white/40 font-normal">· switch</span>
+              </button>
+            )}
           </div>
           {children}
         </div>
@@ -191,26 +210,4 @@ export function PinGate({ role, children }: PinGateProps) {
           id="pin-submit"
           onClick={handleSubmit}
           disabled={loading || pin.join("").length < 4}
-          className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors"
-        >
-          {loading ? "Checking…" : "Enter Station"}
-        </button>
-
-        <p className="text-white/20 text-xs text-center mt-6">
-          PIN not working? Ask your manager to check it in the admin workers page.
-        </p>
-      </div>
-
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          20%       { transform: translateX(-8px); }
-          40%       { transform: translateX(8px); }
-          60%       { transform: translateX(-6px); }
-          80%       { transform: translateX(6px); }
-        }
-        .animate-shake { animation: shake 0.5s ease-in-out; }
-      `}</style>
-    </div>
-  )
-}
+          className="w-full b
