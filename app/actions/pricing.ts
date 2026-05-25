@@ -79,4 +79,11 @@ export async function setPricingConfig(config: PricingConfig): Promise<void> {
       value: String(config[field]),
       location_id: locationId,
       updated_at: new Date().toISOString(),
- 
+    })
+  )
+  await supabase.from("settings").upsert(rows, { onConflict: "location_id,key" })
+  revalidatePath("/admin/pricing")
+  revalidatePath("/book/wash-fold")
+  revalidatePath("/book/wash-only")
+  revalidatePath("/book/comforter-wash")
+}
