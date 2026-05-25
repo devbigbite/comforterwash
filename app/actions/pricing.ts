@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { getLocationId } from "@/lib/location"
 import { revalidatePath } from "next/cache"
 
 export interface PricingConfig {
@@ -47,11 +48,12 @@ const KEY_MAP: Record<keyof PricingConfig, string> = {
 
 export async function getPricingConfig(): Promise<PricingConfig> {
   try {
-    const supabase = await createClient()
+    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
     const keys = Object.values(KEY_MAP)
     const { data } = await supabase
       .from("settings")
       .select("key, value")
+      .eq("location_id", locationId)
       .in("key", keys)
 
     const map: Record<string, string> = {}
@@ -70,17 +72,11 @@ export async function getPricingConfig(): Promise<PricingConfig> {
 }
 
 export async function setPricingConfig(config: PricingConfig): Promise<void> {
-  const supabase = await createClient()
+  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
   const rows = (Object.entries(KEY_MAP) as [keyof PricingConfig, string][]).map(
     ([field, dbKey]) => ({
       key: dbKey,
       value: String(config[field]),
+      location_id: locationId,
       updated_at: new Date().toISOString(),
-    })
-  )
-  await supabase.from("settings").upsert(rows)
-  revalidatePath("/admin/pricing")
-  revalidatePath("/book/wash-fold")
-  revalidatePath("/book/wash-only")
-  revalidatePath("/book/comforter-wash")
-}
+ 
