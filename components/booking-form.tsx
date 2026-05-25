@@ -15,7 +15,7 @@ import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "./promo-code-field"
 import { useLang } from "@/components/lang-provider"
-import { getComforterPromo, getDeliveryFeeSettings } from "@/app/actions/settings"
+import { getComforterPromo, getDeliveryFeeSettings, getTipsEnabled } from "@/app/actions/settings"
 import { getPricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
@@ -1086,6 +1086,4 @@ export function BookingForm() {
           </div>
         )}
       </CardContent>
-    </Card>
-  )
-}
+  
