@@ -14,7 +14,7 @@ import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
-import { getPricingConfig } from "@/app/actions/pricing"
+import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getMonthlyPlanEnabled, getComforterPromo } from "@/app/actions/settings"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getDeliveryFeeSettings } from "@/app/actions/settings"
@@ -199,7 +199,7 @@ function WeekdayPicker({
 }
 
 // ─── main component ───────────────────────────────────────────────────────────
-export function WashFoldForm() {
+export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfig }) {
   const { translations: tr } = useLang()
   const tf = tr.form
   const tw = tr.washFoldForm
@@ -218,6 +218,11 @@ export function WashFoldForm() {
   const [comforterPromo, setComforterPromo] = useState(false)
   const [comforterPromoCents, setComforterPromoCents] = useState(COMFORTER_PROMO_CENTS)
   const [extraOptions, setExtraOptions] = useState<ServiceOption[]>([])
+  // Seed module-level vars from server-side prop to avoid flash of wrong prices
+  if (initialPricing) {
+    FREQ_CENTS = { one_time: initialPricing.washFoldOneTimeCents, weekly: initialPricing.washFoldSubCents, biweekly: initialPricing.washFoldSubCents }
+    MIN_POUNDS = initialPricing.washFoldMinLbs
+  }
   const [freqPricing, setFreqPricing] = useState(buildFreqPricing())
   const [minLbs, setMinLbs] = useState(MIN_POUNDS)
 

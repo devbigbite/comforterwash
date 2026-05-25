@@ -53,7 +53,7 @@ export default async function WashFoldPage() {
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-10">
-        <WashFoldForm />
+        <WashFoldForm initialPricing={pricing} />
       </div>
     </main>
   )

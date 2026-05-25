@@ -14,7 +14,7 @@ import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
-import { getPricingConfig } from "@/app/actions/pricing"
+import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getDeliveryFeeSettings, getComforterPromo } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
@@ -103,7 +103,7 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
   )
 }
 
-export function WashOnlyForm() {
+export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfig }) {
   const { translations: tr } = useLang()
   const tf = tr.form
   const tw = tr.washFoldForm
@@ -141,6 +141,11 @@ export function WashOnlyForm() {
   const [tipOption, setTipOption] = useState<TipOption>("none")
   const [customTipCents, setCustomTipCents] = useState(0)
   const [feeConfig, setFeeConfig] = useState<DeliveryFeeConfig>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
+  // Seed from server-side prop to avoid flash of wrong prices
+  if (initialPricing) {
+    PRICE_PER_LB = initialPricing.washOnlyCents
+    MIN_POUNDS = initialPricing.washOnlyMinLbs
+  }
   const [priceCents, setPriceCents] = useState(PRICE_PER_LB)
   const [minLbs, setMinLbs] = useState(MIN_POUNDS)
   const [detergentOptions, setDetergentOptions] = useState<ServiceOption[]>([])
