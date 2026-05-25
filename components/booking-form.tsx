@@ -1086,4 +1086,6 @@ export function BookingForm() {
           </div>
         )}
       </CardContent>
-  
+    </Card>
+  )
+}
