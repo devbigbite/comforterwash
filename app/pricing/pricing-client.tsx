@@ -5,6 +5,7 @@ import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe
 import { loadStripe } from "@stripe/stripe-js"
 import { CheckCircle2, Check } from "lucide-react"
 import { SubscriptionPlan, startPlanCheckout } from "@/app/actions/subscription-plans"
+import { getAllTimeWindows, type Route } from "@/lib/route-availability"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -25,12 +26,10 @@ const DAYS = [
   { id: "friday",    short: "FRI", label: "Friday" },
 ]
 
-const WINDOWS = ["8am–12pm", "12pm–4pm", "4pm–7pm"]
-
 const DETERGENTS = [
-  { id: "Standard",              label: "Standard Detergent",              desc: "Included · fresh-scented",         price: "Free" },
-  { id: "Free & Clear",          label: "Fragrance-Free / Hypoallergenic", desc: "Great for sensitive skin",         price: "Free" },
-  { id: "Premium Tide",          label: "Premium Tide",                    desc: "Upgraded detergent · better clean", price: "+$3.00" },
+  { id: "Standard",     label: "Standard Detergent",              desc: "Included · fresh-scented",          price: "Free" },
+  { id: "Free & Clear", label: "Fragrance-Free / Hypoallergenic", desc: "Great for sensitive skin",          price: "Free" },
+  { id: "Premium Tide", label: "Premium Tide",                    desc: "Upgraded detergent · better clean", price: "+$3.00" },
 ]
 
 // ── Step indicator ─────────────────────────────────────────────────────────────
@@ -77,7 +76,36 @@ function PlanBanner({ plan }: { plan: SubscriptionPlan }) {
   )
 }
 
-export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) {
+// ── Time slot pills ────────────────────────────────────────────────────────────
+function TimeSlotPicker({ value, onChange, windows }: {
+  value: string
+  onChange: (v: string) => void
+  windows: { id: string; label: string }[]
+}) {
+  if (windows.length === 0) return null
+  return (
+    <div>
+      <p className="text-xs text-gray-500 mb-2">Available time slots</p>
+      <div className="flex flex-wrap gap-2">
+        {windows.map(w => (
+          <button key={w.id} type="button" onClick={() => onChange(w.label)}
+            className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
+              value === w.label
+                ? "bg-[#E8726A] border-[#E8726A] text-white"
+                : "border-gray-200 text-gray-600 hover:border-gray-300"
+            }`}>
+            {w.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default function PricingClient({ plans, routes }: { plans: SubscriptionPlan[]; routes: Route[] }) {
+  const timeWindows = getAllTimeWindows(routes)
+  const defaultWindow = timeWindows[0]?.label ?? ""
+
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null)
   const [saving, setSaving] = useState(false)
@@ -87,8 +115,8 @@ export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) 
   const [form, setForm] = useState({
     name: "", email: "", phone: "",
     address: "", deliveryAddress: "", sameAddress: true,
-    pickupDay: "monday", pickupWindow: "8am–12pm",
-    deliveryDay: "wednesday", deliveryWindow: "8am–12pm",
+    pickupDay: "monday", pickupWindow: defaultWindow,
+    deliveryDay: "wednesday", deliveryWindow: defaultWindow,
     detergent: "Standard",
   })
 
@@ -203,36 +231,36 @@ export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) 
           <h2 className="text-xl font-extrabold text-[#0D2240]">Your details</h2>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Full Name *</label>
+            <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Full Name *</label>
             <input className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
               value={form.name} onChange={e => set("name", e.target.value)} placeholder="Jane Smith" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Email *</label>
+              <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Email *</label>
               <input type="email" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
                 value={form.email} onChange={e => set("email", e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Phone *</label>
+              <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Phone *</label>
               <input type="tel" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
                 value={form.phone} onChange={e => set("phone", e.target.value)} />
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Pickup Address *</label>
+            <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Pickup Address *</label>
             <input className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
               placeholder="Street address, City, State ZIP"
               value={form.address} onChange={e => set("address", e.target.value)} />
           </div>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <label className="flex items-center gap-2 text-sm cursor-pointer text-gray-700">
             <input type="checkbox" className="rounded" checked={form.sameAddress}
               onChange={e => set("sameAddress", e.target.checked)} />
             Same delivery address
           </label>
           {!form.sameAddress && (
             <div>
-              <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Delivery Address *</label>
+              <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Delivery Address *</label>
               <input className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
                 placeholder="Street address, City, State ZIP"
                 value={form.deliveryAddress} onChange={e => set("deliveryAddress", e.target.value)} />
@@ -260,7 +288,7 @@ export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) 
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-[#0D2240]">{d.label}</p>
-                    <p className="text-xs text-gray-400">{d.desc}</p>
+                    <p className="text-xs text-gray-500">{d.desc}</p>
                   </div>
                   <span className={`text-xs font-semibold shrink-0 ${d.price === "Free" ? "text-green-600" : "text-gray-600"}`}>{d.price}</span>
                 </button>
@@ -298,34 +326,22 @@ export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) 
             <div className="flex items-center gap-2 mb-3">
               <div className="w-6 h-6 rounded-full bg-[#E8726A] text-white text-xs font-bold flex items-center justify-center">1</div>
               <p className="font-bold text-[#0D2240]">Pickup Day &amp; Time</p>
-              <span className="text-xs text-gray-400 ml-1">— recurring weekly</span>
+              <span className="text-xs text-gray-500 ml-1">— recurring weekly</span>
             </div>
-            <p className="text-xs text-gray-400 mb-3">Which day should we pick up each week?</p>
+            <p className="text-xs text-gray-500 mb-3">Which day should we pick up each week?</p>
             <div className="flex gap-2 mb-4">
               {DAYS.map(d => (
                 <button key={d.id} type="button" onClick={() => set("pickupDay", d.id)}
                   className={`flex-1 py-3 rounded-xl border text-center transition-colors ${
                     form.pickupDay === d.id
                       ? "bg-[#E8726A] border-[#E8726A] text-white"
-                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300"
                   }`}>
                   <p className="text-[10px] font-bold">{d.short}</p>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mb-2">Available time slots</p>
-            <div className="flex flex-wrap gap-2">
-              {WINDOWS.map(w => (
-                <button key={w} type="button" onClick={() => set("pickupWindow", w)}
-                  className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
-                    form.pickupWindow === w
-                      ? "bg-[#E8726A] border-[#E8726A] text-white"
-                      : "border-gray-200 text-gray-600 hover:border-gray-300"
-                  }`}>
-                  {w}
-                </button>
-              ))}
-            </div>
+            <TimeSlotPicker value={form.pickupWindow} onChange={v => set("pickupWindow", v)} windows={timeWindows} />
           </div>
 
           <hr className="border-gray-100" />
@@ -335,34 +351,22 @@ export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) 
             <div className="flex items-center gap-2 mb-3">
               <div className="w-6 h-6 rounded-full bg-[#0D2240] text-white text-xs font-bold flex items-center justify-center">2</div>
               <p className="font-bold text-[#0D2240]">Delivery Day &amp; Time</p>
-              <span className="text-xs text-gray-400 ml-1">— 48–72hrs after pickup</span>
+              <span className="text-xs text-gray-500 ml-1">— 48–72hrs after pickup</span>
             </div>
-            <p className="text-xs text-gray-400 mb-3">Which day should we deliver each week?</p>
+            <p className="text-xs text-gray-500 mb-3">Which day should we deliver each week?</p>
             <div className="flex gap-2 mb-4">
               {DAYS.map(d => (
                 <button key={d.id} type="button" onClick={() => set("deliveryDay", d.id)}
                   className={`flex-1 py-3 rounded-xl border text-center transition-colors ${
                     form.deliveryDay === d.id
                       ? "bg-[#E8726A] border-[#E8726A] text-white"
-                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300"
                   }`}>
                   <p className="text-[10px] font-bold">{d.short}</p>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mb-2">Available time slots</p>
-            <div className="flex flex-wrap gap-2">
-              {WINDOWS.map(w => (
-                <button key={w} type="button" onClick={() => set("deliveryWindow", w)}
-                  className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
-                    form.deliveryWindow === w
-                      ? "bg-[#E8726A] border-[#E8726A] text-white"
-                      : "border-gray-200 text-gray-600 hover:border-gray-300"
-                  }`}>
-                  {w}
-                </button>
-              ))}
-            </div>
+            <TimeSlotPicker value={form.deliveryWindow} onChange={v => set("deliveryWindow", v)} windows={timeWindows} />
           </div>
 
           <div className="flex gap-3 pt-1">
@@ -387,7 +391,7 @@ export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) 
         {/* Left: features */}
         <div className="lg:w-72 shrink-0">
           <h1 className="text-3xl font-extrabold text-[#0D2240] mb-2">Choose Your Plan</h1>
-          <p className="text-gray-500 text-sm mb-6">All plans include:</p>
+          <p className="text-gray-600 text-sm mb-6">All plans include:</p>
           <ul className="space-y-3">
             {FEATURES.map(f => (
               <li key={f} className="flex items-start gap-2.5 text-sm text-gray-700">
@@ -396,13 +400,13 @@ export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) 
               </li>
             ))}
           </ul>
-          <p className="text-xs text-gray-400 mt-6">*Change, pause, or cancel anytime.</p>
+          <p className="text-xs text-gray-500 mt-6">*Change, pause, or cancel anytime.</p>
         </div>
 
         {/* Right: plan cards */}
         <div className="flex-1 space-y-4">
           {plans.length === 0 ? (
-            <p className="text-gray-400">No plans available yet. Check back soon.</p>
+            <p className="text-gray-500">No plans available yet. Check back soon.</p>
           ) : (
             plans.map(plan => (
               <div key={plan.id}
@@ -420,10 +424,10 @@ export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) 
                   <div>
                     <h3 className="font-extrabold text-[#0D2240] text-xl">{plan.name}</h3>
                     <p className="text-[#E8726A] text-2xl font-extrabold mt-1">
-                      ${(plan.monthly_price_cents / 100).toFixed(0)}<span className="text-sm font-normal text-gray-400">/mo</span>
+                      ${(plan.monthly_price_cents / 100).toFixed(0)}<span className="text-sm font-normal text-gray-500">/mo</span>
                     </p>
                   </div>
-                  <div className="text-right text-sm text-gray-500 shrink-0">
+                  <div className="text-right text-sm text-gray-600 shrink-0">
                     <p className="font-semibold text-gray-700">{plan.lbs_included} lbs included</p>
                     <p>${(plan.overage_rate_cents / 100).toFixed(2)}/lb overage</p>
                   </div>
