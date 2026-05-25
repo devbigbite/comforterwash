@@ -16,7 +16,7 @@ const empty = {
 function dollarsToCents(val: string) { return Math.round(parseFloat(val || "0") * 100) }
 function centsToDollars(cents: number) { return (cents / 100).toFixed(2) }
 
-// ── Defined OUTSIDE the page component so React never remounts it on re-renders ──
+// Defined OUTSIDE the page component so React never remounts it on re-renders
 function PlanForm({
   f, set, onSave, onCancel, isNew, saving, error,
 }: {
@@ -228,5 +228,10 @@ export default function AdminPlansPage() {
       )}
 
       <div className="mt-8 bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
-        <strong>Note:</strong> Changing a plan's monthly price creates a new Stripe Price for future subscribers.
-        Existing subscribers keep their current p
+        <strong>Note:</strong> Changing a plan&apos;s monthly price creates a new Stripe Price for future subscribers.
+        Existing subscribers keep their current price until they are manually migrated in the Stripe dashboard.
+        Archiving a plan hides it from the pricing page but does not cancel existing subscribers.
+      </div>
+    </div>
+  )
+}
