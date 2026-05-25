@@ -160,4 +160,9 @@ export function AdminHeader() {
             className="flex items-center gap-1.5 text-white/40 hover:text-white text-sm transition-colors"
           >
             <LogOut className="h-4 w-4" />
-     
+          </button>
+        </form>
+      </div>
+    </header>
+  )
+}
