@@ -22,6 +22,7 @@ import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFee
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
 import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, type Route, type TimeWindow } from "@/lib/route-availability"
 import { getActiveRoutes } from "@/app/actions/routes"
+import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 // ── Pricing ─────────────────────────────────────────────────────────────────
 // Defaults — overwritten on mount from Supabase
@@ -890,9 +891,11 @@ export function BookingForm() {
               {/* Pickup address */}
               <div className="space-y-2">
                 <Label className="font-semibold text-[#0D2240] text-sm">{tf.pickupAddressLabel}</Label>
-                <Input placeholder="Street address" value={formData.pickupStreet}
-                  onChange={e => setFormData(p => ({ ...p, pickupStreet: e.target.value }))}
-                  className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
+                <AddressAutocomplete
+                  value={formData.pickupStreet}
+                  onChange={street => setFormData(p => ({ ...p, pickupStreet: street }))}
+                  onPlaceSelect={parts => setFormData(p => ({ ...p, pickupStreet: parts.street, pickupCity: parts.city, pickupState: parts.state, pickupZip: parts.zip }))}
+                />
                 <div className="grid gap-2 min-w-0" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
                   <Input placeholder="City" value={formData.pickupCity}
                     onChange={e => setFormData(p => ({ ...p, pickupCity: e.target.value }))}
@@ -916,9 +919,11 @@ export function BookingForm() {
               {!formData.sameAddress && (
                 <div className="space-y-2">
                   <Label className="font-semibold text-[#0D2240] text-sm">{tf.deliveryAddressLabel}</Label>
-                  <Input placeholder="Street address" value={formData.deliveryStreet}
-                    onChange={e => setFormData(p => ({ ...p, deliveryStreet: e.target.value }))}
-                    className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
+                  <AddressAutocomplete
+                    value={formData.deliveryStreet}
+                    onChange={street => setFormData(p => ({ ...p, deliveryStreet: street }))}
+                    onPlaceSelect={parts => setFormData(p => ({ ...p, deliveryStreet: parts.street, deliveryCity: parts.city, deliveryState: parts.state, deliveryZip: parts.zip }))}
+                  />
                   <div className="grid gap-2 min-w-0" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
                     <Input placeholder="City" value={formData.deliveryCity}
                       onChange={e => setFormData(p => ({ ...p, deliveryCity: e.target.value }))}

@@ -22,6 +22,7 @@ import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
 import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, getAllTimeWindows, type Route, type TimeWindow } from "@/lib/route-availability"
 import { getActiveRoutes } from "@/app/actions/routes"
 import { useLang } from "@/components/lang-provider"
+import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 // ─── constants ───────────────────────────────────────────────────────────────
 const LBS_PER_BAG = 15
@@ -936,9 +937,11 @@ export function WashFoldForm() {
               {/* Pickup address */}
               <div className="space-y-2">
                 <Label className="font-semibold text-[#0D2240] text-sm">Pickup Address</Label>
-                <Input placeholder="Street address" value={formData.pickupStreet}
-                  onChange={(e) => setFormData(p => ({ ...p, pickupStreet: e.target.value }))}
-                  className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
+                <AddressAutocomplete
+                  value={formData.pickupStreet}
+                  onChange={street => setFormData(p => ({ ...p, pickupStreet: street }))}
+                  onPlaceSelect={parts => setFormData(p => ({ ...p, pickupStreet: parts.street, pickupCity: parts.city, pickupState: parts.state, pickupZip: parts.zip }))}
+                />
                 <div className="grid gap-2 min-w-0" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
                   <Input placeholder="City" value={formData.pickupCity}
                     onChange={(e) => setFormData(p => ({ ...p, pickupCity: e.target.value }))}
@@ -962,9 +965,11 @@ export function WashFoldForm() {
               {!formData.sameAddress && (
                 <div className="space-y-2">
                   <Label className="font-semibold text-[#0D2240] text-sm">Delivery Address</Label>
-                  <Input placeholder="Street address" value={formData.deliveryStreet}
-                    onChange={(e) => setFormData(p => ({ ...p, deliveryStreet: e.target.value }))}
-                    className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
+                  <AddressAutocomplete
+                    value={formData.deliveryStreet}
+                    onChange={street => setFormData(p => ({ ...p, deliveryStreet: street }))}
+                    onPlaceSelect={parts => setFormData(p => ({ ...p, deliveryStreet: parts.street, deliveryCity: parts.city, deliveryState: parts.state, deliveryZip: parts.zip }))}
+                  />
                   <div className="grid gap-2 min-w-0" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
                     <Input placeholder="City" value={formData.deliveryCity}
                       onChange={(e) => setFormData(p => ({ ...p, deliveryCity: e.target.value }))}
