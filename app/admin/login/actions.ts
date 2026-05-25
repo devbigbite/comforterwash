@@ -32,3 +32,8 @@ export async function logoutAction() {
   cookieStore.delete("admin_auth")
   redirect("/admin/login")
 }
+
+export async function checkIsAdmin(): Promise<boolean> {
+  const cookieStore = await cookies()
+  return cookieStore.get("admin_auth")?.value === "authenticated"
+}
