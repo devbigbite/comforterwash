@@ -312,6 +312,25 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Monthly Plans CTA ──────────────────────────────────────────── */}
+      <section className="bg-[#0D2240] px-4 py-12">
+        <div className="mx-auto max-w-3xl flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+          <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-3xl shrink-0">📅</div>
+          <div className="flex-1">
+            <h2 className="text-xl font-extrabold text-white uppercase tracking-wide mb-1">Monthly Laundry Plans</h2>
+            <p className="text-white/60 text-sm leading-relaxed">
+              Subscribe and save. Flat monthly fee with included pounds, auto-billed overage, and priority scheduling — no thinking required.
+            </p>
+          </div>
+          <Link
+            href="/pricing"
+            className="shrink-0 bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold text-sm uppercase tracking-widest px-7 py-3.5 rounded-full transition-colors whitespace-nowrap"
+          >
+            See Plans →
+          </Link>
+        </div>
+      </section>
+
       {/* ── Testimonials ───────────────────────────────────────────────── */}
       <section className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
@@ -427,23 +446,4 @@ export default function Home() {
               <Link href="/book/comforter-wash" className="hover:text-[#E8726A] transition-colors">{tr.footer.comforterWash}</Link>
               <Link href="/book/wash-fold" className="hover:text-[#E8726A] transition-colors">{tr.footer.washFold}</Link>
               <Link href="/book/wash-only" className="hover:text-[#E8726A] transition-colors">{tr.footer.washOnly}</Link>
-              <Link href="/service-areas" className="hover:text-[#E8726A] transition-colors">{tr.footer.serviceAreas}</Link>
-              <Link href="/faq" className="hover:text-[#E8726A] transition-colors">{tr.footer.faq}</Link>
-            </div>
-            <div className="flex items-center gap-4">
-              <p className="text-white/25 text-xs">&copy; {new Date().getFullYear()} WashFold Orlando</p>
-              <span className="text-white/10 text-xs">·</span>
-              <Link href="/faq" className="text-white/40 hover:text-[#E8726A] text-xs transition-colors">FAQ</Link>
-              <Link href="/terms" className="text-white/40 hover:text-[#E8726A] text-xs transition-colors">Terms</Link>
-              <Link href="/privacy" className="text-white/40 hover:text-[#E8726A] text-xs transition-colors">Privacy</Link>
-              <span className="text-white/10 text-xs">·</span>
-              <Link href="/driver" className="text-white/20 hover:text-white/50 text-xs transition-colors">Driver</Link>
-              <Link href="/operator" className="text-white/20 hover:text-white/50 text-xs transition-colors">Operator</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
-
-    </main>
-  )
-}
+              <Link href="/pricing" className="hover:

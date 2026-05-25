@@ -24,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
     label: "Customers",
     items: [
       { href: "/admin/subscriptions", label: "Subscriptions" },
+      { href: "/admin/plans",         label: "Monthly Plans" },
     ],
   },
   {
@@ -159,9 +160,4 @@ export function AdminHeader() {
             className="flex items-center gap-1.5 text-white/40 hover:text-white text-sm transition-colors"
           >
             <LogOut className="h-4 w-4" />
-          </button>
-        </form>
-      </div>
-    </header>
-  )
-}
+     

@@ -46,7 +46,7 @@ export async function capturePayment(bookingId: string) {
   const supabase = createAdminClient()
   const { data: booking } = await supabase
     .from("bookings")
-    .select("stripe_payment_intent_id, customer_final_cents, pre_auth_cents, stripe_customer_id, stripe_payment_method_id")
+    .select("stripe_payment_intent_id, customer_final_cents, pre_auth_cents, stripe_customer_id, stripe_payment_method_id, actual_weight_lbs, customer_email, location_id")
     .eq("id", bookingId)
     .single()
 
@@ -70,6 +70,35 @@ export async function capturePayment(bookingId: string) {
     .from("bookings")
     .update({ payment_status: "captured" })
     .eq("id", bookingId)
+
+  // ── Increment monthly plan usage ────────────────────────────────────────────
+  // If this customer has an active monthly_plan subscription, add the actual
+  // weight to their cycle counter so overage can be calculated at renewal.
+  if (booking.actual_weight_lbs && booking.customer_email && booking.location_id) {
+    try {
+      const { data: planSub } = await supabase
+        .from("subscriptions")
+        .select("id, lbs_used_this_cycle")
+        .eq("location_id", booking.location_id)
+        .eq("customer_email", booking.customer_email)
+        .eq("subscription_type", "monthly_plan")
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single()
+
+      if (planSub) {
+        const newLbs = (planSub.lbs_used_this_cycle ?? 0) + booking.actual_weight_lbs
+        await supabase
+          .from("subscriptions")
+          .update({ lbs_used_this_cycle: newLbs })
+          .eq("id", planSub.id)
+        console.log(`[stripe] Monthly plan usage: ${newLbs} lbs total (added ${booking.actual_weight_lbs} lbs) — sub ${planSub.id}`)
+      }
+    } catch {
+      // Non-fatal: don't block payment capture if usage tracking fails
+    }
+  }
 
   // ── Charge the overage if actual weight blew past the pre-auth buffer ──
   if (overageCents > 0) {
@@ -261,41 +290,4 @@ export async function handleSuccessfulPayment(sessionId: string) {
           pounds:          meta.pounds ? parseFloat(meta.pounds) : undefined,
           estimatedTotal,
           bookingId:       booking?.id ?? "",
-          shortCode:       booking?.short_code ?? undefined,
-        }
-
-        // Customer confirmation (don't await — keeps payment flow fast)
-        sendBookingConfirmationEmail(emailData).catch(err =>
-          console.error("[stripe] Customer confirmation email failed:", err)
-        )
-
-        // Admin new-order alert
-        sendAdminNewOrderEmail({
-          ...emailData,
-          customerPhone:      meta.customerPhone ?? "",
-          preAuthTotal:       estimatedTotal,
-          subscriptionFrequency: frequency,
-        }).catch(err =>
-          console.error("[stripe] Admin alert email failed:", err)
-        )
-
-        // Auto-create account for new recurring subscribers
-        const isRecurring = frequency === "weekly" || frequency === "biweekly"
-        if (isRecurring && meta.customerEmail && meta.customerName) {
-          import("@/app/actions/customer-auth").then(({ createAccountForSubscriber }) =>
-            createAccountForSubscriber(
-              meta.customerEmail!,
-              meta.customerName!,
-              meta.customerPhone ?? "",
-            ).catch(err => console.error("[stripe] createAccountForSubscriber failed:", err))
-          )
-        }
-      }
-    }
-
-    return { success: true }
-  } catch (error) {
-    console.error("[stripe] handleSuccessfulPayment error:", error)
-    return { success: false, error: "Failed to save booking" }
-  }
-}
+          shortCode:       booking?.short_code ?? u
