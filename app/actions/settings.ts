@@ -371,3 +371,25 @@ export async function setMonthlyPlanEnabled(enabled: boolean): Promise<void> {
   revalidatePath("/admin/settings")
   revalidatePath("/pricing")
 }
+
+export async function getTipsEnabled(): Promise<boolean> {
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  const { data } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "tips_enabled")
+    .eq("location_id", locationId)
+    .maybeSingle()
+  return data?.value !== "false"   // default true
+}
+
+export async function setTipsEnabled(enabled: boolean): Promise<void> {
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  await supabase.from("settings").upsert(
+    { key: "tips_enabled", value: String(enabled), location_id: locationId, updated_at: new Date().toISOString() },
+    { onConflict: "location_id,key" }
+  )
+  revalidatePath("/admin/pricing")
+}
