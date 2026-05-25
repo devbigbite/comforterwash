@@ -1,6 +1,7 @@
 import { getActivePlans } from "@/app/actions/subscription-plans"
 import { getActiveRoutes } from "@/app/actions/routes"
 import { getServiceOptions } from "@/app/actions/service-options"
+import { getMonthlyPlanEnabled } from "@/app/actions/settings"
 import PricingClient from "./pricing-client"
 import Link from "next/link"
 
@@ -10,10 +11,11 @@ export const metadata = {
 }
 
 export default async function PricingPage() {
-  const [plans, routes, detergents] = await Promise.all([
+  const [plans, routes, detergents, planEnabled] = await Promise.all([
     getActivePlans(),
     getActiveRoutes(),
     getServiceOptions("detergent"),
+    getMonthlyPlanEnabled(),
   ])
 
   return (
@@ -35,7 +37,18 @@ export default async function PricingPage() {
         </div>
       </header>
 
-      <PricingClient plans={plans} routes={routes} detergents={detergents} />
+      {!planEnabled ? (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+          <div className="text-5xl mb-4">🚧</div>
+          <h2 className="text-2xl font-extrabold text-[#0D2240] mb-2">Monthly plans are paused</h2>
+          <p className="text-gray-500 max-w-sm mb-6">We&apos;re not accepting new monthly plan subscribers right now. Check back soon or book a one-time or recurring pickup instead.</p>
+          <Link href="/" className="bg-[#0D2240] text-white font-bold px-6 py-3 rounded-xl hover:bg-[#1a3a5c] transition-colors">
+            Book a pickup
+          </Link>
+        </div>
+      ) : (
+        <PricingClient plans={plans} routes={routes} detergents={detergents} />
+      )}
     </main>
   )
 }

@@ -520,10 +520,17 @@ export default function PricingClient({
                   className="mt-4 w-full bg-[#0D2240] text-white py-3 rounded-xl font-bold hover:bg-[#0D2240]/90 transition-colors">
                   Choose This Plan →
                 </button>
+                <p className="text-xs text-center text-gray-400 mt-2">
+                  {plan.min_commitment_months ?? 3}-month minimum commitment · cancel anytime after
+                </p>
               </div>
             ))
           )}
         </div>
+        <p className="text-xs text-center text-gray-400 mt-4">
+          All plans require a {plans[0]?.min_commitment_months ?? 3}-month minimum commitment.
+          After that, cancel anytime with 30 days&apos; notice.
+        </p>
       </div>
     </div>
   )

@@ -72,19 +72,17 @@ export async function capturePayment(bookingId: string) {
     .eq("id", bookingId)
 
   // ── Increment monthly plan usage ────────────────────────────────────────────
-  // If this customer has an active monthly_plan subscription, add the actual
-  // weight to their cycle counter so overage can be calculated at renewal.
-  if (booking.actual_weight_lbs && booking.customer_email && booking.location_id) {
+  // Only increments when the booking is explicitly linked to a plan subscription
+  // via plan_subscription_id — prevents one-time bookings from the same email
+  // from polluting the monthly cycle counter.
+  if (booking.actual_weight_lbs && booking.plan_subscription_id) {
     try {
       const { data: planSub } = await supabase
         .from("subscriptions")
         .select("id, lbs_used_this_cycle")
-        .eq("location_id", booking.location_id)
-        .eq("customer_email", booking.customer_email)
+        .eq("id", booking.plan_subscription_id)
         .eq("subscription_type", "monthly_plan")
         .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(1)
         .single()
 
       if (planSub) {
@@ -93,7 +91,7 @@ export async function capturePayment(bookingId: string) {
           .from("subscriptions")
           .update({ lbs_used_this_cycle: newLbs })
           .eq("id", planSub.id)
-        console.log(`[stripe] Monthly plan usage: ${newLbs} lbs total (added ${booking.actual_weight_lbs} lbs) — sub ${planSub.id}`)
+        console.log(`[stripe] Plan usage updated: ${newLbs} lbs (added ${booking.actual_weight_lbs} lbs) — sub ${planSub.id}`)
       }
     } catch {
       // Non-fatal: don't block payment capture if usage tracking fails

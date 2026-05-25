@@ -21,6 +21,22 @@ const STATUS_COLOR: Record<string, string> = {
   delivered: "bg-[#0D2240] text-white",
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Pending",
+  confirmed: "Confirmed",
+  picked_up: "Picked Up",
+  at_warehouse: "At Warehouse",
+  at_facility: "At Facility",
+  in_washer: "In Washer",
+  in_dryer: "In Dryer",
+  folded: "Folded",
+  ready: "Ready",
+  ready_at_warehouse: "Ready",
+  out_for_delivery: "Out for Delivery",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+}
+
 // Pipeline steps for the inline tracker
 const PIPELINE = [
   { keys: ["pending"],                                              label: "Confirmed",      icon: "✅" },
@@ -78,6 +94,17 @@ export default async function AccountPage() {
     .select("*, order_bags(id, bag_number, label_code, status)")
     .or(`user_id.eq.${user.id},customer_email.eq.${user.email}`)
     .order("created_at", { ascending: false })
+
+  // Monthly plan subscription
+  const { data: monthlyPlan } = await admin
+    .from("subscriptions")
+    .select("*, subscription_plans(name)")
+    .eq("customer_email", user.email ?? "")
+    .eq("subscription_type", "monthly_plan")
+    .in("status", ["active", "paused"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
   const activeOrder = bookings?.find(
     (b) => b.status !== "delivered" && b.status !== "cancelled"
@@ -230,6 +257,115 @@ export default async function AccountPage() {
             </div>
           </div>
         )}
+
+        {/* ── Monthly Plan Usage Widget ── */}
+        {monthlyPlan && (() => {
+          const lbsUsed  = monthlyPlan.lbs_used_this_cycle ?? 0
+          const lbsTotal = monthlyPlan.lbs_included ?? 0
+          const pct      = lbsTotal > 0 ? Math.min(100, Math.round((lbsUsed / lbsTotal) * 100)) : 0
+          const isOver   = lbsUsed > lbsTotal && lbsTotal > 0
+          const isWarn   = pct >= 80 && !isOver
+          const cycleDiff = monthlyPlan.cycle_end
+            ? Math.max(0, Math.ceil((new Date(monthlyPlan.cycle_end + "T12:00:00").getTime() - Date.now()) / 86400000))
+            : 0
+          const commitDiff = monthlyPlan.commitment_ends_at
+            ? Math.max(0, Math.ceil((new Date(monthlyPlan.commitment_ends_at + "T12:00:00").getTime() - Date.now()) / 86400000))
+            : 0
+          const planName = (monthlyPlan as any).subscription_plans?.name ?? "Monthly Plan"
+          const overageRate = monthlyPlan.overage_rate_cents
+            ? `$${(monthlyPlan.overage_rate_cents / 100).toFixed(2)}/lb`
+            : null
+
+          return (
+            <div className={`bg-white rounded-2xl border-2 shadow-sm overflow-hidden ${
+              isOver ? "border-red-200" : isWarn ? "border-amber-200" : "border-blue-100"
+            }`}>
+              {/* Header */}
+              <div className={`px-5 py-3 flex items-center justify-between ${
+                isOver ? "bg-red-500" : isWarn ? "bg-amber-400" : "bg-[#0D2240]"
+              }`}>
+                <div className="flex items-center gap-2">
+                  <span className="text-white font-extrabold text-sm uppercase tracking-wide">📋 Monthly Plan</span>
+                  <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{planName}</span>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                  monthlyPlan.status === "active" ? "bg-green-400/30 text-white" : "bg-amber-400/30 text-white"
+                }`}>{monthlyPlan.status}</span>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Warning banners */}
+                {isOver && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <span className="text-red-500 text-sm">⚠️</span>
+                    <p className="text-xs font-bold text-red-700">
+                      Over limit by {lbsUsed - lbsTotal} lbs — overage charges apply{overageRate ? ` at ${overageRate}` : ""}.
+                    </p>
+                  </div>
+                )}
+                {isWarn && !isOver && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <span className="text-amber-500 text-sm">⚡</span>
+                    <p className="text-xs font-bold text-amber-700">
+                      {pct}% of your included lbs used — approaching your limit.
+                    </p>
+                  </div>
+                )}
+
+                {/* Progress bar */}
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="font-extrabold text-[#0D2240]">{lbsUsed} <span className="font-normal text-gray-400">of</span> {lbsTotal} lbs used</span>
+                    <span className="text-gray-400">{pct}%</span>
+                  </div>
+                  <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${isOver ? "bg-red-500" : pct >= 80 ? "bg-amber-400" : "bg-[#0D2240]"}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                    <span>0 lbs</span>
+                    <span>{lbsTotal} lbs included</span>
+                  </div>
+                </div>
+
+                {/* Cycle info */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-[#f7f8fb] rounded-xl px-3 py-2.5 text-center">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Days Left</p>
+                    <p className="text-xl font-extrabold text-[#0D2240]">{cycleDiff}</p>
+                    <p className="text-[10px] text-gray-400">in this cycle</p>
+                  </div>
+                  <div className="bg-[#f7f8fb] rounded-xl px-3 py-2.5 text-center">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Overage Rate</p>
+                    <p className="text-xl font-extrabold text-[#0D2240]">{overageRate ?? "—"}</p>
+                    <p className="text-[10px] text-gray-400">per extra lb</p>
+                  </div>
+                </div>
+
+                {/* Cycle dates + commitment */}
+                <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                  {monthlyPlan.cycle_start && monthlyPlan.cycle_end && (
+                    <span>
+                      Cycle: <strong className="text-[#0D2240]">
+                        {new Date(monthlyPlan.cycle_start + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        {" – "}
+                        {new Date(monthlyPlan.cycle_end + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </strong>
+                    </span>
+                  )}
+                  {commitDiff > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="text-amber-500">🔒</span>
+                      <strong className="text-amber-700">Committed for {commitDiff} more days</strong>
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ── Re-book shortcut ── */}
         {lastOrder && (

@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig } from "@/app/actions/pricing"
+import { getMonthlyPlanEnabled } from "@/app/actions/settings"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getDeliveryFeeSettings } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
@@ -204,6 +205,7 @@ export function WashFoldForm() {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [serviceMode, setServiceMode] = useState<"paygo" | "subscription">("paygo")
   const [subscribeType, setSubscribeType] = useState<"weekly" | "biweekly" | "monthly">("weekly")
+  const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState(true)
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "",
     pickupStreet: "", pickupCity: "", pickupState: "FL", pickupZip: "",
@@ -292,6 +294,7 @@ export function WashFoldForm() {
   useEffect(() => {
     getExcludedDates().then(dates => setExcludedDates(new Set(dates)))
     getActiveRoutes().then(setActiveRoutes)
+    getMonthlyPlanEnabled().then(setMonthlyPlanEnabled)
     getDeliveryFeeSettings().then(s => setFeeConfig(s))
     getPricingConfig().then(cfg => {
       FREQ_CENTS = { one_time: cfg.washFoldOneTimeCents, weekly: cfg.washFoldSubCents, biweekly: cfg.washFoldSubCents }
@@ -638,7 +641,7 @@ export function WashFoldForm() {
                   {([
                     { value: "weekly"   as const, label: "Weekly",        price: freqPricing.weekly.label,   note: "Every week" },
                     { value: "biweekly" as const, label: "Biweekly",      price: freqPricing.biweekly.label, note: "Every 2 weeks" },
-                    { value: "monthly"  as const, label: "Monthly plan",  price: "Fixed fee",                note: "Pre-paid" },
+                    ...(monthlyPlanEnabled ? [{ value: "monthly" as const, label: "Monthly plan", price: "Fixed fee", note: "Pre-paid" }] : []),
                   ]).map((opt) => (
                     <button key={opt.value} type="button"
                       onClick={() => selectSubscribeType(opt.value)}
@@ -660,7 +663,7 @@ export function WashFoldForm() {
             </div>
 
             {/* ── Monthly plan panel (no booking form needed) ── */}
-            {serviceMode === "subscription" && subscribeType === "monthly" && (
+            {serviceMode === "subscription" && subscribeType === "monthly" && monthlyPlanEnabled && (
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 space-y-4">
                 <p className="text-sm font-semibold text-[#0D2240]">What&apos;s included with a monthly plan:</p>
                 <div className="space-y-2">

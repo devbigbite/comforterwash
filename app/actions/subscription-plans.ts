@@ -18,6 +18,7 @@ export interface SubscriptionPlan {
   is_popular: boolean
   is_active: boolean
   sort_order: number
+  min_commitment_months: number
   created_at: string
 }
 
@@ -205,11 +206,18 @@ export async function startPlanCheckout(params: {
     const supabase = createAdminClient()
     const { data: plan } = await supabase
       .from("subscription_plans")
-      .select("stripe_price_id, name, lbs_included, overage_rate_cents, monthly_price_cents")
+      .select("stripe_price_id, name, lbs_included, overage_rate_cents, monthly_price_cents, min_commitment_months")
       .eq("id", params.planId)
       .single()
 
     if (!plan?.stripe_price_id) throw new Error("Plan not found or has no Stripe price")
+
+    const minMonths = plan.min_commitment_months ?? 3
+    // Commitment end = today + min months. Stripe cancel_at prevents customer
+    // from cancelling before this date through the Stripe portal.
+    const commitmentEndsAt = new Date()
+    commitmentEndsAt.setMonth(commitmentEndsAt.getMonth() + minMonths)
+    const cancelAt = Math.floor(commitmentEndsAt.getTime() / 1000)
 
     const session = await stripe.checkout.sessions.create({
       ui_mode: "embedded",
@@ -218,20 +226,23 @@ export async function startPlanCheckout(params: {
       line_items: [{ price: plan.stripe_price_id, quantity: 1 }],
       customer_email: params.customerEmail,
       subscription_data: {
+        cancel_at: cancelAt,
         metadata: {
-          plan_id:               params.planId,
-          customer_name:         params.customerName,
-          customer_phone:        params.customerPhone,
-          customer_address:      params.customerAddress,
-          delivery_address:      params.deliveryAddress,
-          pickup_day_of_week:    params.pickupDayOfWeek,
-          pickup_time_window:    params.pickupTimeWindow,
-          delivery_day_of_week:  params.deliveryDayOfWeek,
-          delivery_time_window:  params.deliveryTimeWindow,
-          detergent:             params.detergent,
-          lbs_included:          String(plan.lbs_included),
-          overage_rate_cents:    String(plan.overage_rate_cents),
-          monthly_price_cents:   String(plan.monthly_price_cents),
+          plan_id:                  params.planId,
+          customer_name:            params.customerName,
+          customer_phone:           params.customerPhone,
+          customer_address:         params.customerAddress,
+          delivery_address:         params.deliveryAddress,
+          pickup_day_of_week:       params.pickupDayOfWeek,
+          pickup_time_window:       params.pickupTimeWindow,
+          delivery_day_of_week:     params.deliveryDayOfWeek,
+          delivery_time_window:     params.deliveryTimeWindow,
+          detergent:                params.detergent,
+          lbs_included:             String(plan.lbs_included),
+          overage_rate_cents:       String(plan.overage_rate_cents),
+          monthly_price_cents:      String(plan.monthly_price_cents),
+          min_commitment_months:    String(minMonths),
+          commitment_ends_at:       commitmentEndsAt.toISOString().split("T")[0],
         },
       },
       metadata: {

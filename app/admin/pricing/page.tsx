@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { getPricingConfig, setPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, type ServiceOption } from "@/app/actions/service-options"
-import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig } from "@/app/actions/settings"
+import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled } from "@/app/actions/settings"
 import Link from "next/link"
 
 function cents(val: number) { return `$${(val / 100).toFixed(2)}` }
@@ -151,20 +151,24 @@ export default function PricingPage() {
   const [svcs, setSvcs] = useState<ServicesConfig>({ comforter_wash: true, wash_fold: true, wash_only: true })
   const [savingSvcs, setSavingSvcs] = useState(false)
   const [savedSvcs, setSavedSvcs] = useState(false)
+  const [monthlyPlanEnabled, setMonthlyPlanEnabledState] = useState(true)
+  const [savingPlanToggle, setSavingPlanToggle] = useState(false)
 
   async function loadAll() {
-    const [cfg, dets, exts, fee, svcsCfg] = await Promise.all([
+    const [cfg, dets, exts, fee, svcsCfg, planEnabled] = await Promise.all([
       getPricingConfig(),
       getAllServiceOptions("detergent"),
       getAllServiceOptions("extra"),
       getDeliveryFeeSettings(),
       getServicesConfig(),
+      getMonthlyPlanEnabled(),
     ])
     setConfig(cfg)
     setDetergents(dets)
     setExtras(exts)
     setDeliveryFee(fee)
     setSvcs(svcsCfg)
+    setMonthlyPlanEnabledState(planEnabled)
   }
 
   async function handleSaveSvcs() {
@@ -263,6 +267,33 @@ export default function PricingPage() {
                 </button>
               </div>
             ))}
+
+            {/* Monthly Plan toggle — separate save, instant feedback */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#f0f4f9] border border-blue-100">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">📋</span>
+                <div>
+                  <p className="font-bold text-sm text-[#0D2240]">Monthly Plans</p>
+                  <p className="text-xs text-gray-400">Allow customers to subscribe to a fixed monthly plan</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={savingPlanToggle}
+                onClick={async () => {
+                  setSavingPlanToggle(true)
+                  const next = !monthlyPlanEnabled
+                  setMonthlyPlanEnabledState(next)
+                  await setMonthlyPlanEnabled(next)
+                  setSavingPlanToggle(false)
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${monthlyPlanEnabled ? "bg-[#0D2240]" : "bg-gray-200"}`}
+                role="switch"
+                aria-checked={monthlyPlanEnabled}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${monthlyPlanEnabled ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </div>
           </div>
         </div>
 

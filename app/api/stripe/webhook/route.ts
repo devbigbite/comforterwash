@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
           lbs_included:            parseInt(meta.lbs_included ?? "0"),
           overage_rate_cents:      parseInt(meta.overage_rate_cents ?? "0"),
           lbs_used_this_cycle:     0,
+          commitment_ends_at:    meta.commitment_ends_at ?? null,
           cycle_start:             cycleStart,
           cycle_end:               cycleEnd,
           stripe_subscription_id:  stripeSubId,
