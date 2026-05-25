@@ -16,7 +16,7 @@ import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
-import { getDeliveryFeeSettings, getComforterPromo } from "@/app/actions/settings"
+import { getTipsEnabled, getDeliveryFeeSettings, getComforterPromo } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
 import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, type Route, type TimeWindow } from "@/lib/route-availability"
@@ -139,6 +139,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
   const [activeRoutes, setActiveRoutes] = useState<Route[]>([])
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
   const [tipOption, setTipOption] = useState<TipOption>("none")
+  const [tipsEnabled, setTipsEnabled] = useState(true)
   const [customTipCents, setCustomTipCents] = useState(0)
   const [feeConfig, setFeeConfig] = useState<DeliveryFeeConfig>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
   // Seed from server-side prop to avoid flash of wrong prices
@@ -216,6 +217,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
     getActiveRoutes().then(setActiveRoutes)
     getComforterPromo().then(setComforterPromo)
     getDeliveryFeeSettings().then(s => setFeeConfig(s))
+    getTipsEnabled().then(setTipsEnabled)
     getPricingConfig().then(cfg => {
       PRICE_PER_LB = cfg.washOnlyCents
       MIN_POUNDS = cfg.washOnlyMinLbs
@@ -337,7 +339,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
               <span className="text-[#0D2240]">{tf.preAuthEst}</span>
               <span className="text-[#E8726A]">${totalDisplay}</span>
             </div>
-            <p className="text-[10px] text-gray-400">{tw.chargedAtSummary.replace("{priceLabel}", priceLabel)}</p>
+            <p className="text-[10px] text-gray-400">{tw.chargedAtSummary.replace("{priceLabel}", priceLabel).replace("20 lb", `${minLbs} lb`)}</p>
           </div>
           <Checkout
             amountCents={preAuthCents}
@@ -775,7 +777,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
             />
 
             {/* Tip selector */}
-            <div className="rounded-2xl border border-gray-200 p-4">
+            {tipsEnabled && <div className="rounded-2xl border border-gray-200 p-4">
               <p className="text-sm font-bold text-[#0D2240] mb-3">Add a Tip <span className="text-gray-400 font-normal">(optional — shared among all staff)</span></p>
               <div className="flex gap-2 flex-wrap mb-3">
                 {TIP_PRESETS.map(p => (
@@ -794,7 +796,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                     onChange={e => setCustomTipCents(Math.round(parseFloat(e.target.value || "0") * 100))} />
                 </div>
               )}
-            </div>
+            </div>}
 
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[

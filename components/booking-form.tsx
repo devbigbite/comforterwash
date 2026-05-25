@@ -261,6 +261,7 @@ export function BookingForm() {
 
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
   const [tipOption, setTipOption] = useState<TipOption>("none")
+  const [tipsEnabled, setTipsEnabled] = useState(true)
   const [customTipCents, setCustomTipCents] = useState(0)
   const [feeConfig, setFeeConfig] = useState<DeliveryFeeConfig>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
   const [comforterSizes, setComforterSizes] = useState(buildSizes())
@@ -273,6 +274,7 @@ export function BookingForm() {
     getActiveRoutes().then(setActiveRoutes)
     getComforterPromo().then(setPromoActive)
     getDeliveryFeeSettings().then(s => setFeeConfig(s))
+    getTipsEnabled().then(setTipsEnabled)
     getPricingConfig().then(cfg => {
       PROMO_PRICE_CENTS = cfg.comforterPromoCents
       SIZE_CENTS = { twin: cfg.comforterTwinCents, full: cfg.comforterFullCents, queen: cfg.comforterQueenCents, king: cfg.comforterKingCents }
@@ -1002,7 +1004,7 @@ export function BookingForm() {
             />
 
             {/* Tip selector */}
-            <div className="rounded-2xl border border-gray-200 p-4">
+            {tipsEnabled && <div className="rounded-2xl border border-gray-200 p-4">
               <p className="text-sm font-bold text-[#0D2240] mb-3">Add a Tip <span className="text-gray-400 font-normal">(optional — shared among all staff)</span></p>
               <div className="flex gap-2 flex-wrap mb-3">
                 {TIP_PRESETS.map(p => (
@@ -1021,7 +1023,7 @@ export function BookingForm() {
                     onChange={e => setCustomTipCents(Math.round(parseFloat(e.target.value || "0") * 100))} />
                 </div>
               )}
-            </div>
+            </div>}
 
             <details className="group">
               <summary className="flex items-center justify-between cursor-pointer text-sm font-semibold text-[#0D2240] bg-gray-50 rounded-xl px-4 py-3 hover:bg-[#fdf6f5] transition-colors list-none">

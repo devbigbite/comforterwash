@@ -17,7 +17,7 @@ import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getMonthlyPlanEnabled, getComforterPromo } from "@/app/actions/settings"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
-import { getDeliveryFeeSettings } from "@/app/actions/settings"
+import { getTipsEnabled, getDeliveryFeeSettings } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
 import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, getAllTimeWindows, type Route, type TimeWindow } from "@/lib/route-availability"
@@ -257,6 +257,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
   const [activeRoutes, setActiveRoutes] = useState<Route[]>([])
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
   const [tipOption, setTipOption] = useState<TipOption>("none")
+  const [tipsEnabled, setTipsEnabled] = useState(true)
   const [customTipCents, setCustomTipCents] = useState(0)
   const [feeConfig, setFeeConfig] = useState<DeliveryFeeConfig>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
 
@@ -321,6 +322,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
     getMonthlyPlanEnabled().then(setMonthlyPlanEnabled)
     getComforterPromo().then(setComforterPromo)
     getDeliveryFeeSettings().then(s => setFeeConfig(s))
+    getTipsEnabled().then(setTipsEnabled)
     getPricingConfig().then(cfg => {
       FREQ_CENTS = { one_time: cfg.washFoldOneTimeCents, weekly: cfg.washFoldSubCents, biweekly: cfg.washFoldSubCents }
       MIN_POUNDS = cfg.washFoldMinLbs
@@ -555,7 +557,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
               <span className="text-[#E8726A]">${totalDisplay}</span>
             </div>
             <p className="text-[10px] text-gray-400 leading-relaxed">
-              {tw.chargedAtSummary.replace("{priceLabel}", priceLabel)}
+              {tw.chargedAtSummary.replace("{priceLabel}", priceLabel).replace("20 lb", `${minLbs} lb`)}
             </p>
           </div>
           <Checkout
@@ -841,7 +843,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
                 <p className="text-xs text-amber-700 leading-relaxed">
-                  <span className="font-bold">{tw.estimateNote}</span> {tw.chargedAt.replace("{priceLabel}", priceLabel)}
+                  <span className="font-bold">{tw.estimateNote}</span> {tw.chargedAt.replace("{priceLabel}", priceLabel).replace("20 lb", `${minLbs} lb`)}
                 </p>
               </div>
             </div>
@@ -1251,7 +1253,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
             />
 
             {/* Tip selector */}
-            <div className="rounded-2xl border border-gray-200 p-4">
+            {tipsEnabled && <div className="rounded-2xl border border-gray-200 p-4">
               <p className="text-sm font-bold text-[#0D2240] mb-3">Add a Tip <span className="text-gray-400 font-normal">(optional — shared among all staff)</span></p>
               <div className="flex gap-2 flex-wrap mb-3">
                 {TIP_PRESETS.map(p => (
@@ -1270,7 +1272,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                     onChange={e => setCustomTipCents(Math.round(parseFloat(e.target.value || "0") * 100))} />
                 </div>
               )}
-            </div>
+            </div>}
 
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[
