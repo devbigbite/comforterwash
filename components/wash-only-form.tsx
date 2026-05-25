@@ -16,7 +16,7 @@ import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
-import { getDeliveryFeeSettings } from "@/app/actions/settings"
+import { getDeliveryFeeSettings, getComforterPromo } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
 import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, type Route, type TimeWindow } from "@/lib/route-availability"
@@ -27,6 +27,20 @@ import { AddressAutocomplete } from "@/components/address-autocomplete"
 let PRICE_PER_LB = 199  // $1.99 in cents — overwritten on mount
 let MIN_POUNDS = 20
 const LBS_PER_BAG = 15
+// ── Comforter add-on ─────────────────────────────────────────────────────────
+type CSize = "twin" | "full" | "queen" | "king"
+let COMFORTER_CENTS: Record<CSize, number> = { twin: 2900, full: 3300, queen: 3800, king: 4300 }
+let COMFORTER_PROMO_CENTS = 3300
+const COMFORTER_SIZE_DEFS: { id: CSize; label: string; note: string }[] = [
+  { id: "twin",  label: "Twin",  note: 'Up to 50″×70″' },
+  { id: "full",  label: "Full",  note: 'Up to 54″×75″' },
+  { id: "queen", label: "Queen", note: 'Up to 60″×80″' },
+  { id: "king",  label: "King",  note: 'Up to 108″×90″' },
+]
+function buildComforterSizes() {
+  return COMFORTER_SIZE_DEFS.map(s => ({ ...s, cents: COMFORTER_CENTS[s.id] }))
+}
+
 
 function bagsToEstLbs(bags: number) {
   return Math.max(bags * LBS_PER_BAG, MIN_POUNDS)
@@ -131,6 +145,11 @@ export function WashOnlyForm() {
   const [minLbs, setMinLbs] = useState(MIN_POUNDS)
   const [detergentOptions, setDetergentOptions] = useState<ServiceOption[]>([])
   const [extraOptions, setExtraOptions] = useState<ServiceOption[]>([])
+  const [comforterAddon, setComforterAddon] = useState(false)
+  const [comforterQtys, setComforterQtys] = useState<Record<CSize, number>>({ twin: 0, full: 0, queen: 0, king: 0 })
+  const [comforterSizesList, setComforterSizesList] = useState(buildComforterSizes())
+  const [comforterPromo, setComforterPromo] = useState(false)
+  const [comforterPromoCents, setComforterPromoCents] = useState(COMFORTER_PROMO_CENTS)
 
   // ── Auth gate state ───────────────────────────────────────────────────────
   const [emailCheckState, setEmailCheckState] = useState<"idle" | "otp_sent" | "verified">("idle")
@@ -190,12 +209,15 @@ export function WashOnlyForm() {
   useEffect(() => {
     getExcludedDates().then(dates => setExcludedDates(new Set(dates)))
     getActiveRoutes().then(setActiveRoutes)
+    getComforterPromo().then(setComforterPromo)
     getDeliveryFeeSettings().then(s => setFeeConfig(s))
     getPricingConfig().then(cfg => {
       PRICE_PER_LB = cfg.washOnlyCents
       MIN_POUNDS = cfg.washOnlyMinLbs
       setPriceCents(cfg.washOnlyCents)
       setMinLbs(cfg.washOnlyMinLbs)
+      if (cfg.comforterTwinCents) { COMFORTER_CENTS = { twin: cfg.comforterTwinCents, full: cfg.comforterFullCents ?? 3300, queen: cfg.comforterQueenCents ?? 3800, king: cfg.comforterKingCents ?? 4300 }; setComforterSizesList(buildComforterSizes()) }
+      if (cfg.comforterPromoCents) { COMFORTER_PROMO_CENTS = cfg.comforterPromoCents; setComforterPromoCents(cfg.comforterPromoCents) }
     })
     Promise.all([getServiceOptions("detergent"), getServiceOptions("extra")]).then(([dets, exts]) => {
       setDetergentOptions(dets)
@@ -236,13 +258,20 @@ export function WashOnlyForm() {
   const selectedExtrasList = extraOptions.filter(e => formData.selectedExtras[e.id])
   const extrasCents = (selectedDetergent?.price_cents ?? 0) + selectedExtrasList.reduce((s, e) => s + e.price_cents, 0)
   const baseCents = Math.max(formData.pounds * priceCents, minLbs * priceCents)
-  const subtotalCents      = baseCents + extrasCents
+  const comforterTotalCount = comforterAddon ? Object.values(comforterQtys).reduce((a, b) => a + b, 0) : 0
+  const comforterSubtotalCents = comforterAddon
+    ? comforterPromo
+      ? comforterTotalCount * comforterPromoCents
+      : comforterSizesList.reduce((acc, s) => acc + comforterQtys[s.id as CSize] * s.cents, 0)
+    : 0
+  const laundrySubtotalCents = baseCents + extrasCents
+  const subtotalCents      = laundrySubtotalCents + comforterSubtotalCents
   const discountCents      = promo ? Math.min(promo.discountCents, subtotalCents) : 0
   const afterDiscountCents = subtotalCents - discountCents
   const deliveryFeeCents   = calcDeliveryFee(feeConfig, "wash_only")
   const tipCents           = calcTip(tipOption, customTipCents, afterDiscountCents)
   const totalCents         = afterDiscountCents + deliveryFeeCents + tipCents
-  const preAuthCents       = Math.ceil((afterDiscountCents + deliveryFeeCents) * 1.25) + tipCents
+  const preAuthCents       = Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * 1.25)) + comforterSubtotalCents + tipCents
   const totalDisplay       = (totalCents / 100).toFixed(2)
 
   const priceLabel = `$${(priceCents / 100).toFixed(2)}/lb`
@@ -271,6 +300,12 @@ export function WashOnlyForm() {
               { label: tf.labelEstWeight, value: `~${formData.pounds} lbs` },
               { label: tw.detergentLabel, value: selectedDetergent?.name ?? "" },
               ...(selectedExtrasList.length > 0 ? [{ label: tf.labelExtras ?? "Extras", value: selectedExtrasList.map(e => e.name).join(", ") }] : []),
+              ...(comforterTotalCount > 0 ? [{
+                label: "🛏️ Comforters",
+                value: comforterSizesList.filter(s => comforterQtys[s.id as CSize] > 0)
+                  .map(s => `${s.label} ×${comforterQtys[s.id as CSize]}`).join(", ")
+                  + ` · +$${(comforterSubtotalCents/100).toFixed(2)}`
+              }] : []),
               { label: tf.labelPickup,   value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
               { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
               { label: "Pickup Address", value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
@@ -324,7 +359,12 @@ export function WashOnlyForm() {
               pricePerLbCents: String(priceCents),
               pounds: String(formData.pounds),
               numBags: String(formData.numBags),
-              numComforters: "0",
+              numComforters: String(comforterTotalCount),
+              comforterSizes: comforterAddon && comforterTotalCount > 0
+                ? comforterSizesList.filter(s => comforterQtys[s.id as CSize] > 0)
+                    .map(s => `${s.label}:${comforterQtys[s.id as CSize]}`).join(",")
+                : "",
+              flatRatePromo: comforterPromo.toString(),
               detergent: selectedDetergent?.name ?? "",
               extras: selectedExtrasList.map(e => e.name).join(", "),
               extrasCents: String(extrasCents),
@@ -527,6 +567,66 @@ export function WashOnlyForm() {
                 ))}
               </div>
             )}
+
+            {/* ── Comforter Add-On ── */}
+            <div className="border-2 border-gray-100 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-[#0D2240] text-sm">🛏️ Add Comforters to this Pickup?</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">Flat rate per item · by size · same pickup run</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setComforterAddon(v => !v); if (comforterAddon) setComforterQtys({ twin: 0, full: 0, queen: 0, king: 0 }) }}
+                  className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${comforterAddon ? "bg-[#0D2240]" : "bg-gray-200"}`}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform ${comforterAddon ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+              {comforterAddon && (
+                <div className="space-y-2 pt-1">
+                  {comforterPromo && (
+                    <div className="bg-[#E8726A]/10 border border-[#E8726A]/20 rounded-xl px-3 py-2 flex items-center gap-2">
+                      <span className="text-sm">🎉</span>
+                      <p className="text-xs font-bold text-[#E8726A]">
+                        Promo active — every comforter ${(comforterPromoCents / 100).toFixed(0)} any size
+                      </p>
+                    </div>
+                  )}
+                  {comforterSizesList.map(s => {
+                    const qty   = comforterQtys[s.id as CSize]
+                    const price = comforterPromo ? comforterPromoCents : s.cents
+                    return (
+                      <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-[#f7f8fb] border border-gray-100">
+                        <div>
+                          <p className="font-semibold text-[#0D2240] text-sm">{s.label}</p>
+                          <p className="text-xs text-gray-400">
+                            {s.note} · <span className={comforterPromo && s.cents !== comforterPromoCents ? "text-[#E8726A] font-bold" : ""}>${(price / 100).toFixed(2)} ea</span>
+                            {comforterPromo && s.cents > comforterPromoCents && (
+                              <span className="ml-1 line-through text-gray-300">${(s.cents / 100).toFixed(2)}</span>
+                            )}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button type="button"
+                            onClick={() => setComforterQtys(q => ({ ...q, [s.id]: Math.max(0, q[s.id as CSize] - 1) }))}
+                            className="w-7 h-7 rounded-full bg-gray-200 hover:bg-gray-300 text-sm font-bold flex items-center justify-center transition-colors">−</button>
+                          <span className="w-5 text-center font-extrabold text-[#0D2240] text-sm">{qty}</span>
+                          <button type="button"
+                            onClick={() => setComforterQtys(q => ({ ...q, [s.id]: q[s.id as CSize] + 1 }))}
+                            className="w-7 h-7 rounded-full bg-[#0D2240] hover:bg-[#1a3a5c] text-white text-sm font-bold flex items-center justify-center transition-colors">+</button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {comforterTotalCount > 0 && (
+                    <p className="text-xs text-right font-bold text-[#0D2240] pt-1">
+                      {comforterTotalCount} comforter{comforterTotalCount > 1 ? "s" : ""} added · +${(comforterSubtotalCents / 100).toFixed(2)}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>{tf.back}</Button>
               <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]" onClick={() => setStep(3)}>
@@ -699,6 +799,12 @@ export function WashOnlyForm() {
                 { label: tf.labelBags, value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
                 { label: tw.detergentLabel, value: selectedDetergent?.name ?? "" },
                 ...(selectedExtrasList.length > 0 ? [{ label: tf.labelExtras ?? "Extras", value: selectedExtrasList.map(e => e.name).join(", ") }] : []),
+                ...(comforterTotalCount > 0 ? [{
+                  label: "🛏️ Comforters",
+                  value: comforterSizesList.filter(s => comforterQtys[s.id as CSize] > 0)
+                    .map(s => `${s.label} ×${comforterQtys[s.id as CSize]}`).join(", ")
+                    + ` · +$${(comforterSubtotalCents/100).toFixed(2)}`
+                }] : []),
                 { label: tf.labelPickup,   value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
                 { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
                 { label: "Pickup Address", value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
