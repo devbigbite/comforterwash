@@ -98,7 +98,7 @@ export default function HeroCarousel({
   const isExternal = !!currentImage && currentImage.startsWith("http")
 
   return (
-    <section className="relative w-full overflow-hidden bg-[#0D2240] -mb-px" style={{ minHeight: "clamp(460px, 70vw, 580px)" }}>
+    <section className="relative w-full overflow-hidden bg-[#0D2240] -mb-px" style={{ minHeight: "clamp(380px, 70vw, 580px)" }}>
       {/* Background image — per slide */}
       <div className={"absolute inset-x-0 top-0 transition-opacity duration-700 " + (slide.type === "full" ? "bottom-16" : "bottom-0")} style={{ opacity: transitioning ? 0 : 1 }}>
         {slide.type === "full" && currentImage && (
@@ -114,7 +114,7 @@ export default function HeroCarousel({
       </div>
 
       {/* Slide content */}
-      <div className="relative z-10 w-full h-full transition-opacity duration-700" style={{ minHeight: "clamp(420px, 65vw, 560px)", opacity: transitioning ? 0 : 1 }}>
+      <div className="relative z-10 w-full h-full transition-opacity duration-700" style={{ minHeight: "clamp(340px, 65vw, 560px)", opacity: transitioning ? 0 : 1 }}>
 
         {/* Full-width text slide */}
         {slide.type === "full" && (
@@ -142,7 +142,7 @@ export default function HeroCarousel({
                 src={currentImage}
                 alt="How it works"
                 fill
-                className="object-contain sm:object-cover object-center"
+                className="object-cover object-top"
                 unoptimized={isExternal}
               />
             )}

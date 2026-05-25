@@ -132,7 +132,7 @@ export default function Home() {
         </div>
 
         {/* Van / lifestyle photo */}
-        <div className="mx-auto max-w-4xl mt-10 rounded-3xl overflow-hidden shadow-lg relative" style={{ height: "320px" }}>
+        <div className="mx-auto max-w-4xl mt-10 rounded-3xl overflow-hidden shadow-lg relative h-48 sm:h-72 md:h-80">
           <Image
             src={images?.why_us ?? "/img-why-us.jpg"}
             alt="WashFold Orlando pickup and delivery"
@@ -141,12 +141,12 @@ export default function Home() {
             unoptimized={!!(images?.why_us?.startsWith("http"))}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0D2240]/60 via-transparent to-transparent" />
-          <div className="absolute inset-0 flex items-center px-10">
+          <div className="absolute inset-0 flex items-center px-5 sm:px-10">
             <div className="max-w-sm">
               <p className="text-white/80 text-xs font-bold uppercase tracking-[0.2em] mb-2">
                 {(locale === "es" ? siteText.why_photo_tag_es : siteText.why_photo_tag) || tr.why.photoTag}
               </p>
-              <h3 className="text-white font-extrabold text-3xl leading-tight mb-4">
+              <h3 className="text-white font-extrabold text-xl sm:text-3xl leading-tight mb-3 sm:mb-4">
                 {((locale === "es" ? siteText.why_photo_headline_es : siteText.why_photo_headline) || tr.why.photoHeadline)
                   .split("\n").map((line: string, i: number) => (
                     <span key={i}>{line}{i === 0 && <br />}</span>
@@ -279,7 +279,7 @@ export default function Home() {
         <div className="mx-auto max-w-3xl">
           <h2 className="text-3xl font-extrabold text-[#0D2240] uppercase tracking-wide text-center mb-2">{tr.pricing.heading}</h2>
           <div className="w-16 h-0.5 bg-[#E8726A] mx-auto mb-10" />
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="border-2 border-gray-100 hover:border-[#E8726A] rounded-3xl p-8 text-center transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🛏️</div>
               <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">{tr.pricing.comforterTitle}</h3>
