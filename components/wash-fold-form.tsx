@@ -1330,4 +1330,53 @@ export function WashFoldForm() {
                 <Checkbox checked={formData.agreedToTerms}
                   onCheckedChange={(c) => setFormData(p => ({ ...p, agreedToTerms: c as boolean }))}
                   className="mt-0.5 shrink-0" />
-                <span className="text-sm text-gray-700 leading-r
+                <span className="text-sm text-gray-700 leading-relaxed">
+                  {isRecurring ? tw.agreeWeightSubTerms : tw.agreeWeightTerms}
+                  {!formData.agreedToTerms && <span className="ml-1.5 text-[#E8726A] font-bold text-[11px]">← required</span>}
+                </span>
+              </label>
+
+              {/* SMS consent */}
+              <label className={`flex items-start gap-3 cursor-pointer rounded-xl border-2 p-3 transition-all ${formData.smsConsent ? "border-green-300 bg-green-50" : "border-dashed border-gray-300 bg-white hover:border-[#E8726A]/50"}`}>
+                <Checkbox checked={formData.smsConsent}
+                  onCheckedChange={(c) => setFormData(p => ({ ...p, smsConsent: c as boolean }))}
+                  className="mt-0.5 shrink-0" />
+                <span className="text-sm text-gray-700 leading-relaxed">
+                  <strong>{tf.smsConsentBold}</strong>{tf.smsConsentSuffix}
+                  {!formData.smsConsent && <span className="ml-1.5 text-[#E8726A] font-bold text-[11px]">← required</span>}
+                </span>
+              </label>
+
+              {/* Electronic signature */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <Label className="font-extrabold text-[#0D2240] text-sm">
+                    {tf.signatureLabel} <span className="text-[#E8726A]">*</span>
+                  </Label>
+                  {formData.signature.trim()
+                    ? <span className="text-[10px] font-bold text-green-600 uppercase tracking-wide">✓ Signed</span>
+                    : <span className="text-[10px] font-bold text-[#E8726A] uppercase tracking-wide">Required</span>
+                  }
+                </div>
+                <div className={`rounded-xl border-2 transition-all ${formData.signature.trim() ? "border-green-300 bg-green-50" : "border-dashed border-gray-300 bg-white"}`}>
+                  <Input placeholder={tf.signaturePlaceholder} value={formData.signature}
+                    onChange={(e) => setFormData(p => ({ ...p, signature: e.target.value }))}
+                    className="h-13 font-serif text-xl italic border-0 bg-transparent focus-visible:ring-0 shadow-none" />
+                </div>
+                <p className="text-xs text-gray-500 font-semibold">{tf.signatureNote}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(3)}>{tf.back}</Button>
+              <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
+                disabled={!canStep4} onClick={() => setStep("payment")}>
+                {tf.proceedToPayment}
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
