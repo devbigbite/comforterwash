@@ -462,4 +462,6 @@ export default function PricingClient({
         </div>
       </div>
     </div>
+  )
+}
   
