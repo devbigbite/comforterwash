@@ -4,8 +4,12 @@
 @custom-variant dark (&:is(.dark *));
 
 /* Prevent horizontal overflow / scroll on all pages */
-html, body {
-  overflow-x: hidden;
+html {
+  overflow-x: clip;   /* clip doesn't create a scroll container — preserves vertical scroll */
+  max-width: 100%;
+}
+body {
+  overflow-x: clip;
   max-width: 100%;
 }
 
@@ -139,8 +143,4 @@ html, body {
   }
 }
 
-/* Google Places Autocomplete dropdown — must float above all page content */
-.pac-container {
-  z-index: 9999 !important;
-  pointer-events: auto !important;
-}
+/* Google Places Autocomplete dropdown — mu

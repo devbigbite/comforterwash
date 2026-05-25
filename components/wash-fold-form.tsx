@@ -1121,7 +1121,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                         <div>
                           <p className="font-semibold text-[#0D2240] text-sm">{s.label}</p>
                           <p className="text-xs text-gray-400">
-                            {s.note} · <span className={comforterPromo && s.cents !== comforterPromoCents ? "text-[#E8726A] font-bold" : ""}>${(price / 100).toFixed(2)} ea</span>
+                            {s.note} · <span className={comforterPromo ? "text-[#E8726A] font-bold" : ""}>${(price / 100).toFixed(2)} ea</span>
                             {comforterPromo && s.cents > comforterPromoCents && (
                               <span className="ml-1 line-through text-gray-300">${(s.cents / 100).toFixed(2)}</span>
                             )}
