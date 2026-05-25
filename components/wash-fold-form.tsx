@@ -203,6 +203,7 @@ export function WashFoldForm() {
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [serviceMode, setServiceMode] = useState<"paygo" | "subscription">("paygo")
+  const [subscribeType, setSubscribeType] = useState<"weekly" | "biweekly" | "monthly">("weekly")
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "",
     pickupStreet: "", pickupCity: "", pickupState: "FL", pickupZip: "",
@@ -375,6 +376,17 @@ export function WashFoldForm() {
       && !!formData.recurringDeliveryDay && !!formData.recurringDeliveryTime
     : !!formData.pickupDate && !!formData.deliveryDate
       && !!formData.pickupTimeWindow && !!formData.deliveryTimeWindow
+
+  function selectPaygo() {
+    setServiceMode("paygo")
+    setFormData(p => ({ ...p, frequency: "one_time" }))
+  }
+
+  function selectSubscribeType(t: "weekly" | "biweekly" | "monthly") {
+    setServiceMode("subscription")
+    setSubscribeType(t)
+    if (t !== "monthly") setFormData(p => ({ ...p, frequency: t as "weekly" | "biweekly" }))
+  }
 
   function buildAddr(street: string, city: string, state: string, zip: string) {
     return `${street}, ${city}, ${state} ${zip}`.trim()
@@ -577,50 +589,84 @@ export function WashFoldForm() {
         {step === 1 && (
           <div className="space-y-7">
 
-            {/* ── Service mode selector ── */}
-            <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">How would you like to book?</h3>
-              <div className="grid grid-cols-2 gap-3 mt-3">
-                <button type="button"
-                  onClick={() => setServiceMode("paygo")}
+            {/* ── Tier selector ── */}
+            <div className="space-y-3">
+              <h3 className="text-xl font-extrabold text-[#0D2240]">How would you like to book?</h3>
+
+              {/* Top row: Pay as you go vs Subscribe & Save */}
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" onClick={selectPaygo}
                   className={cn(
-                    "flex flex-col items-start gap-1.5 rounded-2xl border-2 p-4 text-left transition-all",
+                    "flex flex-col items-start gap-1 rounded-2xl border-2 p-4 text-left transition-all",
                     serviceMode === "paygo" ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300"
                   )}>
-                  <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full",
+                  <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
                     serviceMode === "paygo" ? "bg-[#fde8e5] text-[#b84c3e]" : "bg-gray-100 text-gray-500")}>
-                    Pay per pickup
+                    One-time
                   </span>
-                  <span className={cn("font-extrabold text-sm mt-0.5", serviceMode === "paygo" ? "text-[#0D2240]" : "text-gray-700")}>
+                  <span className={cn("font-extrabold text-sm mt-1", serviceMode === "paygo" ? "text-[#0D2240]" : "text-gray-700")}>
                     Pay as you go
                   </span>
-                  <span className="text-xs text-gray-500 leading-snug">Billed by the pound. No commitment.</span>
+                  <span className={cn("font-bold text-base", serviceMode === "paygo" ? "text-[#E8726A]" : "text-gray-400")}>
+                    {freqPricing.one_time.label}
+                  </span>
+                  <span className="text-[11px] text-gray-500 leading-snug mt-0.5">No commitment. Pay after each pickup.</span>
                 </button>
-                <button type="button"
-                  onClick={() => setServiceMode("subscription")}
+
+                <button type="button" onClick={() => selectSubscribeType(subscribeType)}
                   className={cn(
-                    "flex flex-col items-start gap-1.5 rounded-2xl border-2 p-4 text-left transition-all",
+                    "flex flex-col items-start gap-1 rounded-2xl border-2 p-4 text-left transition-all",
                     serviceMode === "subscription" ? "border-[#0D2240] bg-[#f0f4f9]" : "border-gray-200 bg-white hover:border-gray-300"
                   )}>
-                  <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full",
+                  <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
                     serviceMode === "subscription" ? "bg-[#d8e4f0] text-[#0D2240]" : "bg-gray-100 text-gray-500")}>
-                    Monthly plan
+                    Recurring
                   </span>
-                  <span className={cn("font-extrabold text-sm mt-0.5", serviceMode === "subscription" ? "text-[#0D2240]" : "text-gray-700")}>
-                    Subscribe &amp; save
+                  <span className={cn("font-extrabold text-sm mt-1", serviceMode === "subscription" ? "text-[#0D2240]" : "text-gray-700")}>
+                    Subscribe &amp; Save
                   </span>
-                  <span className="text-xs text-gray-500 leading-snug">Fixed monthly fee. Includes set lbs &amp; a schedule.</span>
+                  <span className={cn("font-bold text-base", serviceMode === "subscription" ? "text-[#E8726A]" : "text-gray-400")}>
+                    from {freqPricing.weekly.label}
+                  </span>
+                  <span className="text-[11px] text-green-600 font-bold mt-0.5">Save 10%+ · Lock in your schedule</span>
                 </button>
               </div>
+
+              {/* Subscribe sub-options */}
+              {serviceMode === "subscription" && (
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  {([
+                    { value: "weekly"   as const, label: "Weekly",        price: freqPricing.weekly.label,   note: "Every week" },
+                    { value: "biweekly" as const, label: "Biweekly",      price: freqPricing.biweekly.label, note: "Every 2 weeks" },
+                    { value: "monthly"  as const, label: "Monthly plan",  price: "Fixed fee",                note: "Pre-paid" },
+                  ]).map((opt) => (
+                    <button key={opt.value} type="button"
+                      onClick={() => selectSubscribeType(opt.value)}
+                      className={cn(
+                        "flex flex-col items-center gap-0.5 rounded-xl border-2 py-3 px-2 transition-all",
+                        subscribeType === opt.value ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300"
+                      )}>
+                      <span className={cn("font-extrabold text-xs", subscribeType === opt.value ? "text-[#0D2240]" : "text-gray-700")}>
+                        {opt.label}
+                      </span>
+                      <span className={cn("font-bold text-sm", subscribeType === opt.value ? "text-[#E8726A]" : "text-gray-400")}>
+                        {opt.price}
+                      </span>
+                      <span className="text-[10px] text-gray-400">{opt.note}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* ── Subscription panel ── */}
-            {serviceMode === "subscription" && (
+            {/* ── Monthly plan panel (no booking form needed) ── */}
+            {serviceMode === "subscription" && subscribeType === "monthly" && (
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 space-y-4">
                 <p className="text-sm font-semibold text-[#0D2240]">What&apos;s included with a monthly plan:</p>
                 <div className="space-y-2">
                   {[
-                    "Lower per-lb rate than pay-as-you-go",
+                    "Fixed monthly fee — no surprise bills",
+                    "Includes a set number of lbs each cycle",
                     "Locked-in weekly pickup day & time",
                     "Overage lbs billed at your plan rate",
                     "Cancel or pause anytime",
@@ -632,47 +678,15 @@ export function WashFoldForm() {
                   ))}
                 </div>
                 <a href="/pricing"
-                  className="flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-[#0D2240] text-white text-sm font-bold hover:bg-[#1a3a5c] transition-colors no-underline">
+                  className="flex items-center justify-center w-full h-12 rounded-xl bg-[#0D2240] text-white text-sm font-bold hover:bg-[#1a3a5c] transition-colors no-underline">
                   See monthly plans →
                 </a>
                 <p className="text-xs text-center text-gray-400">You&apos;ll complete your address &amp; schedule on the next page</p>
               </div>
             )}
 
-            {/* ── Pay-per-pickup flow ── */}
-            {serviceMode === "paygo" && (<>
-
-            {/* Frequency selector */}
-            <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tw.howOften}</h3>
-              <p className="text-sm text-gray-400 mb-4">{tw.subscriberNote}</p>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { value: "one_time", label: tw.oneTime,  price: freqPricing.one_time.label, note: "" },
-                  { value: "weekly",   label: tw.weekly,   price: freqPricing.weekly.label,   note: tw.save10 },
-                  { value: "biweekly", label: tw.biweekly, price: freqPricing.biweekly.label, note: tw.save10 },
-                ] as const).map((opt) => (
-                  <button key={opt.value} type="button"
-                    onClick={() => setFormData(p => ({ ...p, frequency: opt.value }))}
-                    className={cn(
-                      "flex flex-col items-center gap-1 rounded-2xl border-2 py-3 px-2 transition-all",
-                      formData.frequency === opt.value ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300"
-                    )}>
-                    <span className={cn("font-extrabold text-sm", formData.frequency === opt.value ? "text-[#0D2240]" : "text-gray-700")}>
-                      {opt.label}
-                    </span>
-                    <span className={cn("font-bold text-lg", formData.frequency === opt.value ? "text-[#E8726A]" : "text-gray-400")}>
-                      {opt.price}
-                    </span>
-                    {opt.note && (
-                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                        {opt.note}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* ── Booking form: shown for paygo (one-time) OR subscribe weekly/biweekly ── */}
+            {(serviceMode === "paygo" || (serviceMode === "subscription" && subscribeType !== "monthly")) && (<>
 
             {/* Bag counter */}
             <div>
