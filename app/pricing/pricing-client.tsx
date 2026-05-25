@@ -5,7 +5,9 @@ import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe
 import { loadStripe } from "@stripe/stripe-js"
 import { CheckCircle2, Check } from "lucide-react"
 import { SubscriptionPlan, startPlanCheckout } from "@/app/actions/subscription-plans"
+import { ServiceOption } from "@/app/actions/service-options"
 import { getAllTimeWindows, type Route } from "@/lib/route-availability"
+import AddressAutocomplete from "@/components/address-autocomplete"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -24,12 +26,6 @@ const DAYS = [
   { id: "wednesday", short: "WED", label: "Wednesday" },
   { id: "thursday",  short: "THU", label: "Thursday" },
   { id: "friday",    short: "FRI", label: "Friday" },
-]
-
-const DETERGENTS = [
-  { id: "Standard",     label: "Standard Detergent",              desc: "Included · fresh-scented",          price: "Free" },
-  { id: "Free & Clear", label: "Fragrance-Free / Hypoallergenic", desc: "Great for sensitive skin",          price: "Free" },
-  { id: "Premium Tide", label: "Premium Tide",                    desc: "Upgraded detergent · better clean", price: "+$3.00" },
 ]
 
 // ── Step indicator ─────────────────────────────────────────────────────────────
@@ -102,7 +98,13 @@ function TimeSlotPicker({ value, onChange, windows }: {
   )
 }
 
-export default function PricingClient({ plans, routes }: { plans: SubscriptionPlan[]; routes: Route[] }) {
+export default function PricingClient({
+  plans, routes, detergents,
+}: {
+  plans: SubscriptionPlan[]
+  routes: Route[]
+  detergents: ServiceOption[]
+}) {
   const timeWindows = getAllTimeWindows(routes)
   const defaultWindow = timeWindows[0]?.label ?? ""
 
@@ -117,7 +119,7 @@ export default function PricingClient({ plans, routes }: { plans: SubscriptionPl
     address: "", deliveryAddress: "", sameAddress: true,
     pickupDay: "monday", pickupWindow: defaultWindow,
     deliveryDay: "wednesday", deliveryWindow: defaultWindow,
-    detergent: "Standard",
+    detergentId: detergents[0]?.id ?? "",
   })
 
   function set<K extends keyof typeof form>(k: K, v: typeof form[K]) {
@@ -142,6 +144,8 @@ export default function PricingClient({ plans, routes }: { plans: SubscriptionPl
     if (required.some(v => !v.trim())) { setError("Please fill in all required fields."); return }
     if (!form.sameAddress && !form.deliveryAddress.trim()) { setError("Please enter a delivery address."); return }
 
+    const selectedDetergent = detergents.find(d => d.id === form.detergentId)
+
     setSaving(true)
     setError("")
     const result = await startPlanCheckout({
@@ -155,7 +159,7 @@ export default function PricingClient({ plans, routes }: { plans: SubscriptionPl
       pickupTimeWindow:   form.pickupWindow,
       deliveryDayOfWeek:  form.deliveryDay,
       deliveryTimeWindow: form.deliveryWindow,
-      detergent:          form.detergent,
+      detergent:          selectedDetergent?.name ?? "",
     })
     setSaving(false)
 
@@ -167,6 +171,7 @@ export default function PricingClient({ plans, routes }: { plans: SubscriptionPl
 
   const fetchClientSecret = useCallback(async () => {
     if (!selectedPlan) return ""
+    const selectedDetergent = detergents.find(d => d.id === form.detergentId)
     const result = await startPlanCheckout({
       planId:             selectedPlan.id,
       customerName:       form.name,
@@ -178,12 +183,12 @@ export default function PricingClient({ plans, routes }: { plans: SubscriptionPl
       pickupTimeWindow:   form.pickupWindow,
       deliveryDayOfWeek:  form.deliveryDay,
       deliveryTimeWindow: form.deliveryWindow,
-      detergent:          form.detergent,
+      detergent:          selectedDetergent?.name ?? "",
     })
     if ("error" in result) return ""
     sessionIdRef.current = result.sessionId
     return result.clientSecret
-  }, [selectedPlan, form])
+  }, [selectedPlan, form, detergents])
 
   // ── Done ───────────────────────────────────────────────────────────────────
   if (step === 5) {
@@ -247,54 +252,69 @@ export default function PricingClient({ plans, routes }: { plans: SubscriptionPl
                 value={form.phone} onChange={e => set("phone", e.target.value)} />
             </div>
           </div>
+
           <div>
             <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Pickup Address *</label>
-            <input className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+            <AddressAutocomplete
+              value={form.address}
+              onChange={v => set("address", v)}
+              onPlaceSelect={parts => set("address", `${parts.street}, ${parts.city}, ${parts.state} ${parts.zip}`)}
               placeholder="Street address, City, State ZIP"
-              value={form.address} onChange={e => set("address", e.target.value)} />
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+            />
           </div>
+
           <label className="flex items-center gap-2 text-sm cursor-pointer text-gray-700">
             <input type="checkbox" className="rounded" checked={form.sameAddress}
               onChange={e => set("sameAddress", e.target.checked)} />
             Same delivery address
           </label>
+
           {!form.sameAddress && (
             <div>
               <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Delivery Address *</label>
-              <input className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+              <AddressAutocomplete
+                value={form.deliveryAddress}
+                onChange={v => set("deliveryAddress", v)}
+                onPlaceSelect={parts => set("deliveryAddress", `${parts.street}, ${parts.city}, ${parts.state} ${parts.zip}`)}
                 placeholder="Street address, City, State ZIP"
-                value={form.deliveryAddress} onChange={e => set("deliveryAddress", e.target.value)} />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+              />
             </div>
           )}
 
           <hr className="border-gray-100" />
 
           {/* Detergent preference */}
-          <div>
-            <p className="text-sm font-bold text-[#0D2240] mb-3">Detergent Preference</p>
-            <div className="space-y-2">
-              {DETERGENTS.map(d => (
-                <button key={d.id} type="button"
-                  onClick={() => set("detergent", d.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors ${
-                    form.detergent === d.id
-                      ? "border-[#E8726A] bg-[#E8726A]/5"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}>
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                    form.detergent === d.id ? "border-[#E8726A]" : "border-gray-300"
-                  }`}>
-                    {form.detergent === d.id && <div className="w-2 h-2 rounded-full bg-[#E8726A]" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#0D2240]">{d.label}</p>
-                    <p className="text-xs text-gray-500">{d.desc}</p>
-                  </div>
-                  <span className={`text-xs font-semibold shrink-0 ${d.price === "Free" ? "text-green-600" : "text-gray-600"}`}>{d.price}</span>
-                </button>
-              ))}
+          {detergents.length > 0 && (
+            <div>
+              <p className="text-sm font-bold text-[#0D2240] mb-3">Detergent Preference</p>
+              <div className="space-y-2">
+                {detergents.map(d => (
+                  <button key={d.id} type="button"
+                    onClick={() => set("detergentId", d.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors ${
+                      form.detergentId === d.id
+                        ? "border-[#E8726A] bg-[#E8726A]/5"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      form.detergentId === d.id ? "border-[#E8726A]" : "border-gray-300"
+                    }`}>
+                      {form.detergentId === d.id && <div className="w-2 h-2 rounded-full bg-[#E8726A]" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#0D2240]">{d.name}</p>
+                      {d.description && <p className="text-xs text-gray-500">{d.description}</p>}
+                    </div>
+                    <span className={`text-xs font-semibold shrink-0 ${d.price_cents === 0 ? "text-green-600" : "text-gray-600"}`}>
+                      {d.price_cents === 0 ? "Free" : `+$${(d.price_cents / 100).toFixed(2)}`}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 

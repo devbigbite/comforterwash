@@ -1,5 +1,6 @@
 import { getActivePlans } from "@/app/actions/subscription-plans"
 import { getActiveRoutes } from "@/app/actions/routes"
+import { getServiceOptions } from "@/app/actions/service-options"
 import PricingClient from "./pricing-client"
 import Link from "next/link"
 
@@ -9,7 +10,11 @@ export const metadata = {
 }
 
 export default async function PricingPage() {
-  const [plans, routes] = await Promise.all([getActivePlans(), getActiveRoutes()])
+  const [plans, routes, detergents] = await Promise.all([
+    getActivePlans(),
+    getActiveRoutes(),
+    getServiceOptions("detergent"),
+  ])
 
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
@@ -30,7 +35,7 @@ export default async function PricingPage() {
         </div>
       </header>
 
-      <PricingClient plans={plans} routes={routes} />
+      <PricingClient plans={plans} routes={routes} detergents={detergents} />
     </main>
   )
 }
