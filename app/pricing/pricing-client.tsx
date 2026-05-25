@@ -18,17 +18,67 @@ const FEATURES = [
 ]
 
 const DAYS = [
-  { id: "monday",    label: "Monday" },
-  { id: "tuesday",   label: "Tuesday" },
-  { id: "wednesday", label: "Wednesday" },
-  { id: "thursday",  label: "Thursday" },
-  { id: "friday",    label: "Friday" },
+  { id: "monday",    short: "MON", label: "Monday" },
+  { id: "tuesday",   short: "TUE", label: "Tuesday" },
+  { id: "wednesday", short: "WED", label: "Wednesday" },
+  { id: "thursday",  short: "THU", label: "Thursday" },
+  { id: "friday",    short: "FRI", label: "Friday" },
 ]
+
 const WINDOWS = ["8am–12pm", "12pm–4pm", "4pm–7pm"]
-const DETERGENTS = ["Standard", "Free & Clear (Fragrance-Free)", "Premium Tide"]
+
+const DETERGENTS = [
+  { id: "Standard",              label: "Standard Detergent",              desc: "Included · fresh-scented",         price: "Free" },
+  { id: "Free & Clear",          label: "Fragrance-Free / Hypoallergenic", desc: "Great for sensitive skin",         price: "Free" },
+  { id: "Premium Tide",          label: "Premium Tide",                    desc: "Upgraded detergent · better clean", price: "+$3.00" },
+]
+
+// ── Step indicator ─────────────────────────────────────────────────────────────
+function Steps({ current }: { current: number }) {
+  const steps = ["PLAN", "SCHEDULE", "YOUR INFO", "PAYMENT"]
+  return (
+    <div className="flex items-center justify-center gap-0 mb-8">
+      {steps.map((label, i) => {
+        const num = i + 1
+        const done = num < current
+        const active = num === current
+        return (
+          <div key={label} className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+                done    ? "bg-[#E8726A] text-white" :
+                active  ? "bg-[#0D2240] text-white" :
+                          "bg-gray-100 text-gray-400"
+              }`}>
+                {done ? <Check className="w-4 h-4" /> : num}
+              </div>
+              <span className={`text-[10px] mt-1 font-semibold tracking-wide ${active ? "text-[#0D2240]" : "text-gray-400"}`}>{label}</span>
+            </div>
+            {i < steps.length - 1 && (
+              <div className={`w-12 h-0.5 mx-1 mb-4 ${num < current ? "bg-[#E8726A]" : "bg-gray-200"}`} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Plan banner shown on signup steps ─────────────────────────────────────────
+function PlanBanner({ plan }: { plan: SubscriptionPlan }) {
+  return (
+    <div className="bg-[#0D2240] text-white rounded-2xl p-4 mb-6 flex justify-between items-center">
+      <div>
+        <p className="font-bold">{plan.name}</p>
+        <p className="text-white/60 text-sm">{plan.lbs_included} lbs/mo · ${(plan.overage_rate_cents / 100).toFixed(2)}/lb overage</p>
+      </div>
+      <p className="text-[#E8726A] font-extrabold text-xl">${(plan.monthly_price_cents / 100).toFixed(0)}<span className="text-xs font-normal text-white/50">/mo</span></p>
+    </div>
+  )
+}
 
 export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) {
-  const [step, setStep] = useState<"plans" | "signup" | "checkout" | "done">("plans")
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -42,9 +92,19 @@ export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) 
     detergent: "Standard",
   })
 
+  function set<K extends keyof typeof form>(k: K, v: typeof form[K]) {
+    setForm(p => ({ ...p, [k]: v }))
+  }
+
   function selectPlan(plan: SubscriptionPlan) {
     setSelectedPlan(plan)
-    setStep("signup")
+    setStep(2)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  function goTo(n: 1 | 2 | 3 | 4 | 5) {
+    setError("")
+    setStep(n)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
@@ -57,192 +117,270 @@ export default function PricingClient({ plans }: { plans: SubscriptionPlan[] }) 
     setSaving(true)
     setError("")
     const result = await startPlanCheckout({
-      planId:            selectedPlan.id,
-      customerName:      form.name,
-      customerEmail:     form.email,
-      customerPhone:     form.phone,
-      customerAddress:   form.address,
-      deliveryAddress:   form.sameAddress ? form.address : form.deliveryAddress,
-      pickupDayOfWeek:   form.pickupDay,
-      pickupTimeWindow:  form.pickupWindow,
-      deliveryDayOfWeek: form.deliveryDay,
+      planId:             selectedPlan.id,
+      customerName:       form.name,
+      customerEmail:      form.email,
+      customerPhone:      form.phone,
+      customerAddress:    form.address,
+      deliveryAddress:    form.sameAddress ? form.address : form.deliveryAddress,
+      pickupDayOfWeek:    form.pickupDay,
+      pickupTimeWindow:   form.pickupWindow,
+      deliveryDayOfWeek:  form.deliveryDay,
       deliveryTimeWindow: form.deliveryWindow,
-      detergent:         form.detergent,
+      detergent:          form.detergent,
     })
     setSaving(false)
 
     if ("error" in result) { setError(result.error); return }
     sessionIdRef.current = result.sessionId
-    setStep("checkout")
+    setStep(4)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   const fetchClientSecret = useCallback(async () => {
-    // clientSecret was already obtained in submitSignup; re-fetch if needed
     if (!selectedPlan) return ""
     const result = await startPlanCheckout({
-      planId:            selectedPlan.id,
-      customerName:      form.name,
-      customerEmail:     form.email,
-      customerPhone:     form.phone,
-      customerAddress:   form.address,
-      deliveryAddress:   form.sameAddress ? form.address : form.deliveryAddress,
-      pickupDayOfWeek:   form.pickupDay,
-      pickupTimeWindow:  form.pickupWindow,
-      deliveryDayOfWeek: form.deliveryDay,
+      planId:             selectedPlan.id,
+      customerName:       form.name,
+      customerEmail:      form.email,
+      customerPhone:      form.phone,
+      customerAddress:    form.address,
+      deliveryAddress:    form.sameAddress ? form.address : form.deliveryAddress,
+      pickupDayOfWeek:    form.pickupDay,
+      pickupTimeWindow:   form.pickupWindow,
+      deliveryDayOfWeek:  form.deliveryDay,
       deliveryTimeWindow: form.deliveryWindow,
-      detergent:         form.detergent,
+      detergent:          form.detergent,
     })
     if ("error" in result) return ""
     sessionIdRef.current = result.sessionId
     return result.clientSecret
   }, [selectedPlan, form])
 
-  if (step === "done") {
+  // ── Done ───────────────────────────────────────────────────────────────────
+  if (step === 5) {
     return (
       <div className="max-w-xl mx-auto px-4 py-20 text-center">
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-10">
           <CheckCircle2 className="w-14 h-14 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-extrabold text-[#0D2240] mb-2">You're all set! 🎉</h2>
+          <h2 className="text-2xl font-extrabold text-[#0D2240] mb-2">You&apos;re all set! 🎉</h2>
           <p className="text-gray-600 mb-2">Your <strong>{selectedPlan?.name}</strong> plan is active.</p>
-          <p className="text-gray-500 text-sm">We'll reach out to confirm your first pickup. Check your email for confirmation.</p>
+          <p className="text-gray-500 text-sm">We&apos;ll reach out to confirm your first pickup. Check your email for confirmation.</p>
         </div>
       </div>
     )
   }
 
-  if (step === "checkout") {
+  // ── Step 4: Payment ────────────────────────────────────────────────────────
+  if (step === 4) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-10">
-        <button onClick={() => setStep("signup")} className="text-sm text-gray-400 hover:text-[#0D2240] mb-6 flex items-center gap-1">
-          ← Back
-        </button>
+        <Steps current={4} />
+        {selectedPlan && <PlanBanner plan={selectedPlan} />}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
           <h2 className="text-xl font-extrabold text-[#0D2240] mb-1">Complete your subscription</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            {selectedPlan?.name} — ${((selectedPlan?.monthly_price_cents ?? 0) / 100).toFixed(0)}/mo
-          </p>
+          <p className="text-sm text-gray-500 mb-6">Billed monthly · cancel anytime</p>
           <EmbeddedCheckoutProvider
             stripe={stripePromise}
-            options={{ fetchClientSecret, onComplete: () => setStep("done") }}
+            options={{ fetchClientSecret, onComplete: () => setStep(5) }}
           >
             <EmbeddedCheckout />
           </EmbeddedCheckoutProvider>
+          <button onClick={() => goTo(3)} className="mt-4 text-sm text-gray-400 hover:text-[#0D2240]">← Back</button>
         </div>
       </div>
     )
   }
 
-  if (step === "signup") {
+  // ── Step 3: Your Info ──────────────────────────────────────────────────────
+  if (step === 3) {
     return (
       <div className="max-w-xl mx-auto px-4 py-10">
-        <button onClick={() => setStep("plans")} className="text-sm text-gray-400 hover:text-[#0D2240] mb-6 flex items-center gap-1">
-          ← Back to plans
-        </button>
-
-        {selectedPlan && (
-          <div className="bg-[#0D2240] text-white rounded-2xl p-5 mb-6 flex justify-between items-center">
-            <div>
-              <p className="font-bold text-lg">{selectedPlan.name}</p>
-              <p className="text-white/70 text-sm">{selectedPlan.lbs_included} lbs/mo · ${(selectedPlan.overage_rate_cents / 100).toFixed(2)}/lb overage</p>
-            </div>
-            <p className="text-[#E8726A] font-extrabold text-2xl">${(selectedPlan.monthly_price_cents / 100).toFixed(0)}<span className="text-sm font-normal text-white/60">/mo</span></p>
-          </div>
-        )}
+        <Steps current={3} />
+        {selectedPlan && <PlanBanner plan={selectedPlan} />}
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
           <h2 className="text-xl font-extrabold text-[#0D2240]">Your details</h2>
 
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <label className="text-xs text-gray-500 font-medium">Full Name *</label>
-              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mt-1"
-                value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 font-medium">Email *</label>
-              <input type="email" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mt-1"
-                value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 font-medium">Phone *</label>
-              <input type="tel" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mt-1"
-                value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 font-medium">Pickup Address *</label>
-              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mt-1"
-                placeholder="Street address, City, State ZIP"
-                value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
-            </div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={form.sameAddress}
-                onChange={e => setForm(p => ({ ...p, sameAddress: e.target.checked }))} />
-              Same delivery address
-            </label>
-            {!form.sameAddress && (
-              <div>
-                <label className="text-xs text-gray-500 font-medium">Delivery Address *</label>
-                <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mt-1"
-                  placeholder="Street address, City, State ZIP"
-                  value={form.deliveryAddress} onChange={e => setForm(p => ({ ...p, deliveryAddress: e.target.value }))} />
-              </div>
-            )}
+          <div>
+            <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Full Name *</label>
+            <input className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+              value={form.name} onChange={e => set("name", e.target.value)} placeholder="Jane Smith" />
           </div>
-
-          <hr className="border-gray-100" />
-          <h3 className="font-bold text-[#0D2240]">Pickup schedule</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 font-medium">Pickup Day</label>
-              <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mt-1"
-                value={form.pickupDay} onChange={e => setForm(p => ({ ...p, pickupDay: e.target.value }))}>
-                {DAYS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-              </select>
+              <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Email *</label>
+              <input type="email" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                value={form.email} onChange={e => set("email", e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 font-medium">Pickup Window</label>
-              <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mt-1"
-                value={form.pickupWindow} onChange={e => setForm(p => ({ ...p, pickupWindow: e.target.value }))}>
-                {WINDOWS.map(w => <option key={w} value={w}>{w}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 font-medium">Delivery Day</label>
-              <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mt-1"
-                value={form.deliveryDay} onChange={e => setForm(p => ({ ...p, deliveryDay: e.target.value }))}>
-                {DAYS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 font-medium">Delivery Window</label>
-              <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mt-1"
-                value={form.deliveryWindow} onChange={e => setForm(p => ({ ...p, deliveryWindow: e.target.value }))}>
-                {WINDOWS.map(w => <option key={w} value={w}>{w}</option>)}
-              </select>
+              <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Phone *</label>
+              <input type="tel" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                value={form.phone} onChange={e => set("phone", e.target.value)} />
             </div>
           </div>
-
           <div>
-            <label className="text-xs text-gray-500 font-medium">Detergent Preference</label>
-            <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mt-1"
-              value={form.detergent} onChange={e => setForm(p => ({ ...p, detergent: e.target.value }))}>
-              {DETERGENTS.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
+            <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Pickup Address *</label>
+            <input className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+              placeholder="Street address, City, State ZIP"
+              value={form.address} onChange={e => set("address", e.target.value)} />
+          </div>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" className="rounded" checked={form.sameAddress}
+              onChange={e => set("sameAddress", e.target.checked)} />
+            Same delivery address
+          </label>
+          {!form.sameAddress && (
+            <div>
+              <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Delivery Address *</label>
+              <input className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                placeholder="Street address, City, State ZIP"
+                value={form.deliveryAddress} onChange={e => set("deliveryAddress", e.target.value)} />
+            </div>
+          )}
+
+          <hr className="border-gray-100" />
+
+          {/* Detergent preference */}
+          <div>
+            <p className="text-sm font-bold text-[#0D2240] mb-3">Detergent Preference</p>
+            <div className="space-y-2">
+              {DETERGENTS.map(d => (
+                <button key={d.id} type="button"
+                  onClick={() => set("detergent", d.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors ${
+                    form.detergent === d.id
+                      ? "border-[#E8726A] bg-[#E8726A]/5"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}>
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    form.detergent === d.id ? "border-[#E8726A]" : "border-gray-300"
+                  }`}>
+                    {form.detergent === d.id && <div className="w-2 h-2 rounded-full bg-[#E8726A]" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-[#0D2240]">{d.label}</p>
+                    <p className="text-xs text-gray-400">{d.desc}</p>
+                  </div>
+                  <span className={`text-xs font-semibold shrink-0 ${d.price === "Free" ? "text-green-600" : "text-gray-600"}`}>{d.price}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
-          <button onClick={submitSignup} disabled={saving}
-            className="w-full bg-[#E8726A] text-white py-3 rounded-xl font-bold text-base hover:bg-[#E8726A]/90 transition-colors disabled:opacity-50">
-            {saving ? "Setting up…" : "Continue to Payment →"}
-          </button>
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => goTo(2)}
+              className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+              ← Back
+            </button>
+            <button onClick={submitSignup} disabled={saving}
+              className="flex-[2] bg-[#E8726A] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#E8726A]/90 transition-colors disabled:opacity-50">
+              {saving ? "Setting up…" : "Continue: Payment →"}
+            </button>
+          </div>
         </div>
       </div>
     )
   }
 
-  // ── Plan selection ──────────────────────────────────────────────────────────
+  // ── Step 2: Schedule ───────────────────────────────────────────────────────
+  if (step === 2) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-10">
+        <Steps current={2} />
+        {selectedPlan && <PlanBanner plan={selectedPlan} />}
+
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+          {/* Pickup */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-6 h-6 rounded-full bg-[#E8726A] text-white text-xs font-bold flex items-center justify-center">1</div>
+              <p className="font-bold text-[#0D2240]">Pickup Day &amp; Time</p>
+              <span className="text-xs text-gray-400 ml-1">— recurring weekly</span>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">Which day should we pick up each week?</p>
+            <div className="flex gap-2 mb-4">
+              {DAYS.map(d => (
+                <button key={d.id} type="button" onClick={() => set("pickupDay", d.id)}
+                  className={`flex-1 py-3 rounded-xl border text-center transition-colors ${
+                    form.pickupDay === d.id
+                      ? "bg-[#E8726A] border-[#E8726A] text-white"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}>
+                  <p className="text-[10px] font-bold">{d.short}</p>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mb-2">Available time slots</p>
+            <div className="flex flex-wrap gap-2">
+              {WINDOWS.map(w => (
+                <button key={w} type="button" onClick={() => set("pickupWindow", w)}
+                  className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
+                    form.pickupWindow === w
+                      ? "bg-[#E8726A] border-[#E8726A] text-white"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}>
+                  {w}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <hr className="border-gray-100" />
+
+          {/* Delivery */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-6 h-6 rounded-full bg-[#0D2240] text-white text-xs font-bold flex items-center justify-center">2</div>
+              <p className="font-bold text-[#0D2240]">Delivery Day &amp; Time</p>
+              <span className="text-xs text-gray-400 ml-1">— 48–72hrs after pickup</span>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">Which day should we deliver each week?</p>
+            <div className="flex gap-2 mb-4">
+              {DAYS.map(d => (
+                <button key={d.id} type="button" onClick={() => set("deliveryDay", d.id)}
+                  className={`flex-1 py-3 rounded-xl border text-center transition-colors ${
+                    form.deliveryDay === d.id
+                      ? "bg-[#E8726A] border-[#E8726A] text-white"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}>
+                  <p className="text-[10px] font-bold">{d.short}</p>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mb-2">Available time slots</p>
+            <div className="flex flex-wrap gap-2">
+              {WINDOWS.map(w => (
+                <button key={w} type="button" onClick={() => set("deliveryWindow", w)}
+                  className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
+                    form.deliveryWindow === w
+                      ? "bg-[#E8726A] border-[#E8726A] text-white"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}>
+                  {w}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => goTo(1)}
+              className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+              ← Back
+            </button>
+            <button onClick={() => goTo(3)}
+              className="flex-[2] bg-[#E8726A] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#E8726A]/90 transition-colors">
+              Continue: Your Info →
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Step 1: Plan selection ──────────────────────────────────────────────────
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
       <div className="flex flex-col lg:flex-row gap-12 items-start">
