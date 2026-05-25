@@ -376,7 +376,7 @@ export function BookingForm() {
   // ── Payment screen ────────────────────────────────────────────────────────
   if (step === "payment") {
     return (
-      <Card className="shadow-lg border-0 ring-1 ring-gray-100">
+      <Card className="shadow-lg border-0 ring-1 ring-gray-100 overflow-hidden">
         <CardContent className="pt-6 space-y-5">
           <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5">
             <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">{tb.bookingSummary}</h3>
@@ -502,7 +502,7 @@ export function BookingForm() {
   }
 
   return (
-    <Card className="shadow-lg border-0 ring-1 ring-gray-100">
+    <Card className="shadow-lg border-0 ring-1 ring-gray-100 overflow-hidden">
       <CardContent className="pt-6">
 
         {/* Progress indicator */}

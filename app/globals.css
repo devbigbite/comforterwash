@@ -3,6 +3,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Prevent horizontal overflow / scroll on all pages */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 :root {
   /* WashFold Orlando brand — Navy + Coral */
   --background: oklch(1 0 0);
@@ -133,8 +139,4 @@
   }
 }
 
-/* Google Places Autocomplete dropdown — must float above all page content */
-.pac-container {
-  z-index: 9999 !important;
-  pointer-events: auto !important;
-}
+/* Google Places Autocomplete dropdown — must f
