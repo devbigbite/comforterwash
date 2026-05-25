@@ -288,7 +288,7 @@ const es = {
     addFabricSoftener: "Agregar Suavizante",
     pickupTime:        "↑ Hora de recogida",
     deliveryTime:      "↓ Hora de entrega",
-    fridayNote:        "Las recogidas del viernes se procesan el fin de semana — la entrega más temprana es el miércoles.",
+    fridayNote:        "Las recogidas del viernes se procesan el fin de semana — la entrega más temprana es el martes.",
     minTurnaround:     "Mínimo 3 días de procesamiento.",
     anyWeekday:        "Cualquier día de la semana",
     daysAfterPickup:   "días después de la recogida",
