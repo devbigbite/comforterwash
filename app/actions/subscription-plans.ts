@@ -48,8 +48,6 @@ export async function getAllPlans(): Promise<SubscriptionPlan[]> {
 
 // ── Admin: create plan (syncs Stripe Product + Price) ────────────────────────
 export async function createPlan(input: {
-  await requireAdmin()
-
   name: string
   monthly_price_cents: number
   lbs_included: number
@@ -58,6 +56,7 @@ export async function createPlan(input: {
   is_active: boolean
   sort_order: number
 }): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin()
   try {
     const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
@@ -102,8 +101,6 @@ export async function createPlan(input: {
 export async function updatePlan(
   id: string,
   input: Partial<{
-  await requireAdmin()
-
     name: string
     monthly_price_cents: number
     lbs_included: number
@@ -113,6 +110,7 @@ export async function updatePlan(
     sort_order: number
   }>
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin()
   try {
     const supabase = createAdminClient()
     const { data: plan } = await supabase
@@ -166,9 +164,8 @@ export async function updatePlan(
 }
 
 // ── Admin: delete (soft-archive) plan ────────────────────────────────────────
-export async function deletePlan(id: string): Promise<{
+export async function deletePlan(id: string): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin()
- ok: boolean; error?: string }> {
   try {
     const supabase = createAdminClient()
     const { data: plan } = await supabase

@@ -60,9 +60,9 @@ export async function getEmailTemplate(key: string): Promise<EmailTemplate | nul
 export async function upsertEmailTemplate(
   key: string,
   updates: {
-  await requireAdmin()
- subject: string; headline: string; body: string; cta_text?: string | null; footer_note?: string | null; alert_box?: string | null; contact_note?: string | null }
+    subject: string; headline: string; body: string; cta_text?: string | null; footer_note?: string | null; alert_box?: string | null; contact_note?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin()
   const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
   const { error } = await supabase
     .from("email_templates")

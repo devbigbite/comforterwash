@@ -94,9 +94,8 @@ export async function createRouteTimeWindow(
   maxBookings: number | null,
   isPrivate: boolean,
   windowType: 'both' | 'pickup_only' | 'delivery_only' = 'both'
-): Promise<{
+): Promise<{ error?: string }> {
   await requireAdmin()
- error?: string }> {
   const supabase = createAdminClient()
 
   // Get current max sort_order for this route

@@ -32,9 +32,8 @@ export async function getMiscFees(bookingId: string): Promise<MiscFee[]> {
 
 // ── Charge a misc fee ─────────────────────────────────────────────────────────
 // Creates a hosted Stripe Checkout session → returns a shareable payment URL
-export async function chargeMiscFee(formData: FormData): Promise<{
+export async function chargeMiscFee(formData: FormData): Promise<{ error?: string; paymentUrl?: string }> {
   await requireAdmin()
- error?: string; paymentUrl?: string }> {
   try {
     const bookingId   = formData.get("bookingId")   as string
     const label       = formData.get("label")       as string

@@ -112,9 +112,8 @@ export async function closeTipPool(
   workerIds: string[],
   workerNames: string[],
   notes?: string,
-): Promise<{
+): Promise<{ error?: string }> {
   await requireAdmin()
- error?: string }> {
   if (workerIds.length === 0) return { error: "Select at least one worker." }
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
@@ -145,9 +144,8 @@ export async function closeTipPool(
 }
 
 /** Reopen (mark as open) a previously closed pool */
-export async function reopenTipPool(id: string): Promise<{
+export async function reopenTipPool(id: string): Promise<{ error?: string }> {
   await requireAdmin()
- error?: string }> {
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("tip_pools")
