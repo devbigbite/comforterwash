@@ -28,6 +28,10 @@ const DAYS = [
   { id: "friday",    short: "FRI", label: "Friday" },
 ]
 
+function buildAddr(street: string, city: string, state: string, zip: string) {
+  return `${street}, ${city}, ${state} ${zip}`.trim()
+}
+
 // ── Step indicator ─────────────────────────────────────────────────────────────
 function Steps({ current }: { current: number }) {
   const steps = ["PLAN", "SCHEDULE", "YOUR INFO", "PAYMENT"]
@@ -98,6 +102,41 @@ function TimeSlotPicker({ value, onChange, windows }: {
   )
 }
 
+// ── Address block (street + city/state/zip) ────────────────────────────────────
+function AddressBlock({ label, street, city, state, zip, onChange }: {
+  label: string
+  street: string
+  city: string
+  state: string
+  zip: string
+  onChange: (parts: { street?: string; city?: string; state?: string; zip?: string }) => void
+}) {
+  const inputCls = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">{label} *</p>
+      <AddressAutocomplete
+        value={street}
+        onChange={v => onChange({ street: v })}
+        onPlaceSelect={parts => onChange({ street: parts.street, city: parts.city, state: parts.state, zip: parts.zip })}
+        placeholder="Street address"
+        className={inputCls}
+      />
+      <div className="grid gap-2" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
+        <input placeholder="City" value={city}
+          onChange={e => onChange({ city: e.target.value })}
+          className={inputCls} />
+        <input placeholder="FL" maxLength={2} value={state}
+          onChange={e => onChange({ state: e.target.value.toUpperCase() })}
+          className={`${inputCls} text-center uppercase`} />
+        <input placeholder="Zip" value={zip}
+          onChange={e => onChange({ zip: e.target.value })}
+          className={inputCls} />
+      </div>
+    </div>
+  )
+}
+
 export default function PricingClient({
   plans, routes, detergents,
 }: {
@@ -116,7 +155,9 @@ export default function PricingClient({
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "",
-    address: "", deliveryAddress: "", sameAddress: true,
+    pickupStreet: "", pickupCity: "", pickupState: "FL", pickupZip: "",
+    sameAddress: true,
+    deliveryStreet: "", deliveryCity: "", deliveryState: "FL", deliveryZip: "",
     pickupDay: "monday", pickupWindow: defaultWindow,
     deliveryDay: "wednesday", deliveryWindow: defaultWindow,
     detergentId: detergents[0]?.id ?? "",
@@ -124,6 +165,26 @@ export default function PricingClient({
 
   function set<K extends keyof typeof form>(k: K, v: typeof form[K]) {
     setForm(p => ({ ...p, [k]: v }))
+  }
+
+  function patchPickup(parts: { street?: string; city?: string; state?: string; zip?: string }) {
+    setForm(p => ({
+      ...p,
+      pickupStreet: parts.street  ?? p.pickupStreet,
+      pickupCity:   parts.city    ?? p.pickupCity,
+      pickupState:  parts.state   ?? p.pickupState,
+      pickupZip:    parts.zip     ?? p.pickupZip,
+    }))
+  }
+
+  function patchDelivery(parts: { street?: string; city?: string; state?: string; zip?: string }) {
+    setForm(p => ({
+      ...p,
+      deliveryStreet: parts.street  ?? p.deliveryStreet,
+      deliveryCity:   parts.city    ?? p.deliveryCity,
+      deliveryState:  parts.state   ?? p.deliveryState,
+      deliveryZip:    parts.zip     ?? p.deliveryZip,
+    }))
   }
 
   function selectPlan(plan: SubscriptionPlan) {
@@ -138,13 +199,24 @@ export default function PricingClient({
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
+  function getAddresses() {
+    const pickup = buildAddr(form.pickupStreet, form.pickupCity, form.pickupState, form.pickupZip)
+    const delivery = form.sameAddress
+      ? pickup
+      : buildAddr(form.deliveryStreet, form.deliveryCity, form.deliveryState, form.deliveryZip)
+    return { pickup, delivery }
+  }
+
   async function submitSignup() {
     if (!selectedPlan) return
-    const required = [form.name, form.email, form.phone, form.address]
+    const required = [form.name, form.email, form.phone, form.pickupStreet, form.pickupCity, form.pickupZip]
     if (required.some(v => !v.trim())) { setError("Please fill in all required fields."); return }
-    if (!form.sameAddress && !form.deliveryAddress.trim()) { setError("Please enter a delivery address."); return }
+    if (!form.sameAddress && (!form.deliveryStreet.trim() || !form.deliveryCity.trim())) {
+      setError("Please fill in the delivery address."); return
+    }
 
     const selectedDetergent = detergents.find(d => d.id === form.detergentId)
+    const { pickup, delivery } = getAddresses()
 
     setSaving(true)
     setError("")
@@ -153,8 +225,8 @@ export default function PricingClient({
       customerName:       form.name,
       customerEmail:      form.email,
       customerPhone:      form.phone,
-      customerAddress:    form.address,
-      deliveryAddress:    form.sameAddress ? form.address : form.deliveryAddress,
+      customerAddress:    pickup,
+      deliveryAddress:    delivery,
       pickupDayOfWeek:    form.pickupDay,
       pickupTimeWindow:   form.pickupWindow,
       deliveryDayOfWeek:  form.deliveryDay,
@@ -172,13 +244,14 @@ export default function PricingClient({
   const fetchClientSecret = useCallback(async () => {
     if (!selectedPlan) return ""
     const selectedDetergent = detergents.find(d => d.id === form.detergentId)
+    const { pickup, delivery } = getAddresses()
     const result = await startPlanCheckout({
       planId:             selectedPlan.id,
       customerName:       form.name,
       customerEmail:      form.email,
       customerPhone:      form.phone,
-      customerAddress:    form.address,
-      deliveryAddress:    form.sameAddress ? form.address : form.deliveryAddress,
+      customerAddress:    pickup,
+      deliveryAddress:    delivery,
       pickupDayOfWeek:    form.pickupDay,
       pickupTimeWindow:   form.pickupWindow,
       deliveryDayOfWeek:  form.deliveryDay,
@@ -188,6 +261,7 @@ export default function PricingClient({
     if ("error" in result) return ""
     sessionIdRef.current = result.sessionId
     return result.clientSecret
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlan, form, detergents])
 
   // ── Done ───────────────────────────────────────────────────────────────────
@@ -249,38 +323,28 @@ export default function PricingClient({
             <div>
               <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Phone *</label>
               <input type="tel" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
-                value={form.phone} onChange={e => set("phone", e.target.value)} />
+                value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="(407) 555-0100" />
             </div>
           </div>
 
-          <div>
-            <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Pickup Address *</label>
-            <AddressAutocomplete
-              value={form.address}
-              onChange={v => set("address", v)}
-              onPlaceSelect={parts => set("address", `${parts.street}, ${parts.city}, ${parts.state} ${parts.zip}`)}
-              placeholder="Street address, City, State ZIP"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
-            />
-          </div>
+          <AddressBlock
+            label="Pickup Address"
+            street={form.pickupStreet} city={form.pickupCity} state={form.pickupState} zip={form.pickupZip}
+            onChange={patchPickup}
+          />
 
-          <label className="flex items-center gap-2 text-sm cursor-pointer text-gray-700">
+          <label className="flex items-center gap-2.5 cursor-pointer bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5">
             <input type="checkbox" className="rounded" checked={form.sameAddress}
               onChange={e => set("sameAddress", e.target.checked)} />
-            Same delivery address
+            <span className="text-sm text-gray-700 font-medium">Same address for pickup &amp; delivery</span>
           </label>
 
           {!form.sameAddress && (
-            <div>
-              <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Delivery Address *</label>
-              <AddressAutocomplete
-                value={form.deliveryAddress}
-                onChange={v => set("deliveryAddress", v)}
-                onPlaceSelect={parts => set("deliveryAddress", `${parts.street}, ${parts.city}, ${parts.state} ${parts.zip}`)}
-                placeholder="Street address, City, State ZIP"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
-              />
-            </div>
+            <AddressBlock
+              label="Delivery Address"
+              street={form.deliveryStreet} city={form.deliveryCity} state={form.deliveryState} zip={form.deliveryZip}
+              onChange={patchDelivery}
+            />
           )}
 
           <hr className="border-gray-100" />
@@ -464,4 +528,3 @@ export default function PricingClient({
     </div>
   )
 }
-  
