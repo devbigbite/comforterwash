@@ -526,11 +526,11 @@ export default function PricingClient({
               </div>
             ))
           )}
+          <p className="text-xs text-center text-gray-400 mt-4">
+            All plans require a {plans[0]?.min_commitment_months ?? 3}-month minimum commitment.
+            After that, cancel anytime with 30 days&apos; notice.
+          </p>
         </div>
-        <p className="text-xs text-center text-gray-400 mt-4">
-          All plans require a {plans[0]?.min_commitment_months ?? 3}-month minimum commitment.
-          After that, cancel anytime with 30 days&apos; notice.
-        </p>
       </div>
     </div>
   )
