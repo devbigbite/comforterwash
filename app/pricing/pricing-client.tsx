@@ -7,7 +7,7 @@ import { CheckCircle2, Check } from "lucide-react"
 import { SubscriptionPlan, startPlanCheckout } from "@/app/actions/subscription-plans"
 import { ServiceOption } from "@/app/actions/service-options"
 import { getAllTimeWindows, type Route } from "@/lib/route-availability"
-import AddressAutocomplete from "@/components/address-autocomplete"
+import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -462,5 +462,4 @@ export default function PricingClient({
         </div>
       </div>
     </div>
-  )
-}
+  
