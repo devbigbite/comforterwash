@@ -165,17 +165,21 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
 }
 
 function WeekdayPicker({
-  label, value, available, onChange, note,
+  label, value, available, onChange, note, accent = "coral",
 }: {
   label: string
   value: string
   available: string[]
   onChange: (id: string) => void
   note?: string
+  accent?: "coral" | "navy"
 }) {
+  const selClass = accent === "navy"
+    ? "bg-[#0D2240] border-[#0D2240] text-white shadow-md scale-105"
+    : "bg-[#E8726A] border-[#E8726A] text-white shadow-md scale-105"
   return (
     <div>
-      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">{label}</p>
+      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">{label}</p>
       <div className="flex gap-2 flex-wrap">
         {WEEKDAYS.map(d => {
           const isAvail = available.includes(d.id)
@@ -183,9 +187,9 @@ function WeekdayPicker({
           return (
             <button key={d.id} type="button" disabled={!isAvail} onClick={() => onChange(d.id)}
               className={cn(
-                "px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all",
-                isSel   ? "bg-[#E8726A] border-[#E8726A] text-white shadow-sm"
-                : isAvail ? "bg-white border-gray-200 text-[#0D2240] hover:border-[#E8726A]"
+                "w-12 h-12 rounded-2xl text-sm font-extrabold border-2 transition-all duration-150 flex flex-col items-center justify-center gap-0.5",
+                isSel   ? selClass
+                : isAvail ? "bg-white border-gray-200 text-[#0D2240] hover:border-gray-400 hover:shadow-sm"
                 : "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
               )}>
               {d.short}
@@ -193,7 +197,7 @@ function WeekdayPicker({
           )
         })}
       </div>
-      {note && <p className="text-[10px] text-gray-400 mt-1.5">{note}</p>}
+      {note && <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1"><span>ℹ️</span>{note}</p>}
     </div>
   )
 }
@@ -862,80 +866,110 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                     </p>
                   </div>
 
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
-                    {/* Pickup day */}
-                    <WeekdayPicker
-                      label={tw.pickupDay}
-                      value={formData.recurringPickupDay}
-                      available={WEEKDAYS.map(d => d.id)}
-                      onChange={handlePickupDayChange}
-                    />
-
-                    {/* Pickup time */}
-                    {formData.recurringPickupDay && (
-                      <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">{tw.pickupTime}</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {getAllTimeWindows(activeRoutes).map(w => (
-                            <button key={w.id} type="button"
-                              onClick={() => setFormData(p => ({ ...p, recurringPickupTime: w.label }))}
-                              className={cn("px-5 py-2 rounded-xl text-sm font-bold border-2 transition-all",
-                                formData.recurringPickupTime === w.label
-                                  ? "bg-[#E8726A] border-[#E8726A] text-white"
-                                  : "bg-white border-gray-200 text-[#0D2240] hover:border-[#E8726A]")}>
-                              {w.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Delivery day */}
-                    {formData.recurringPickupDay && formData.recurringPickupTime && (
+                  {/* ── Pickup section ── */}
+                  <div className="rounded-2xl overflow-hidden border border-[#f0d4d0] shadow-sm">
+                    <div className="bg-[#E8726A] px-4 py-2.5 flex items-center gap-2">
+                      <span className="text-white text-base">🚗</span>
+                      <span className="text-white font-extrabold text-sm tracking-wide">Pickup</span>
+                    </div>
+                    <div className="bg-[#fff8f7] p-4 space-y-4">
                       <WeekdayPicker
-                        label={tw.deliveryDay}
-                        value={formData.recurringDeliveryDay}
-                        available={validDeliveryDays}
-                        onChange={(d) => setFormData(p => ({ ...p, recurringDeliveryDay: d }))}
-                        note={formData.recurringPickupDay === "friday" ? tw.fridayNote : tw.minTurnaround}
+                        accent="coral"
+                        label={tw.pickupDay}
+                        value={formData.recurringPickupDay}
+                        available={WEEKDAYS.map(d => d.id)}
+                        onChange={handlePickupDayChange}
                       />
-                    )}
-
-                    {/* Delivery time */}
-                    {formData.recurringDeliveryDay && (
-                      <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">{tw.deliveryTime}</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {getAllTimeWindows(activeRoutes).map(w => (
-                            <button key={w.id} type="button"
-                              onClick={() => setFormData(p => ({ ...p, recurringDeliveryTime: w.label }))}
-                              className={cn("px-5 py-2 rounded-xl text-sm font-bold border-2 transition-all",
-                                formData.recurringDeliveryTime === w.label
-                                  ? "bg-[#E8726A] border-[#E8726A] text-white"
-                                  : "bg-white border-gray-200 text-[#0D2240] hover:border-[#E8726A]")}>
-                              {w.label}
-                            </button>
-                          ))}
+                      {formData.recurringPickupDay && (
+                        <div>
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">{tw.pickupTime}</p>
+                          <div className="flex gap-2 flex-wrap">
+                            {getAllTimeWindows(activeRoutes).map(w => (
+                              <button key={w.id} type="button"
+                                onClick={() => setFormData(p => ({ ...p, recurringPickupTime: w.label }))}
+                                className={cn("px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all",
+                                  formData.recurringPickupTime === w.label
+                                    ? "bg-[#E8726A] border-[#E8726A] text-white shadow-md"
+                                    : "bg-white border-gray-200 text-[#0D2240] hover:border-gray-400")}>
+                                {w.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
+
+                  {/* ── Arrow connector ── */}
+                  {formData.recurringPickupDay && formData.recurringPickupTime && (
+                    <div className="flex items-center justify-center -my-2">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <div className="w-px h-3 bg-gray-200" />
+                        <div className="bg-white border border-gray-200 rounded-full p-1.5 shadow-sm">
+                          <svg className="w-4 h-4 text-[#0D2240]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                          </svg>
+                        </div>
+                        <div className="w-px h-3 bg-gray-200" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Delivery section ── */}
+                  {formData.recurringPickupDay && formData.recurringPickupTime && (
+                    <div className="rounded-2xl overflow-hidden border border-[#c8d4e8] shadow-sm">
+                      <div className="bg-[#0D2240] px-4 py-2.5 flex items-center gap-2">
+                        <span className="text-white text-base">📦</span>
+                        <span className="text-white font-extrabold text-sm tracking-wide">Delivery</span>
+                      </div>
+                      <div className="bg-[#f5f8ff] p-4 space-y-4">
+                        <WeekdayPicker
+                          accent="navy"
+                          label={tw.deliveryDay}
+                          value={formData.recurringDeliveryDay}
+                          available={validDeliveryDays}
+                          onChange={(d) => setFormData(p => ({ ...p, recurringDeliveryDay: d }))}
+                          note={formData.recurringPickupDay === "friday" ? tw.fridayNote : tw.minTurnaround}
+                        />
+                        {formData.recurringDeliveryDay && (
+                          <div>
+                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">{tw.deliveryTime}</p>
+                            <div className="flex gap-2 flex-wrap">
+                              {getAllTimeWindows(activeRoutes).map(w => (
+                                <button key={w.id} type="button"
+                                  onClick={() => setFormData(p => ({ ...p, recurringDeliveryTime: w.label }))}
+                                  className={cn("px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all",
+                                    formData.recurringDeliveryTime === w.label
+                                      ? "bg-[#0D2240] border-[#0D2240] text-white shadow-md"
+                                      : "bg-white border-gray-200 text-[#0D2240] hover:border-gray-400")}>
+                                  {w.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* First pickup / delivery preview */}
                   {firstPickup && firstDelivery && (
-                    <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4">
-                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-2">{tw.yourFirstOrder}</p>
-                      <div className="flex gap-6 text-sm">
-                        <div>
-                          <p className="text-blue-500 text-[10px] font-bold uppercase">{tw.pickupLabel}</p>
-                          <p className="font-extrabold text-[#0D2240]">{format(firstPickup, "EEE, MMM d")}</p>
+                    <div className="bg-[#0D2240] rounded-2xl px-5 py-4">
+                      <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-3">{tw.yourFirstOrder}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 bg-white/10 rounded-xl px-4 py-3">
+                          <p className="text-[#E8726A] text-[10px] font-bold uppercase tracking-wide mb-0.5">🚗 {tw.pickupLabel}</p>
+                          <p className="font-extrabold text-white text-base">{format(firstPickup, "EEE, MMM d")}</p>
                         </div>
-                        <div>
-                          <p className="text-blue-500 text-[10px] font-bold uppercase">{tw.deliveryLabel}</p>
-                          <p className="font-extrabold text-[#0D2240]">{format(firstDelivery, "EEE, MMM d")}</p>
+                        <svg className="w-5 h-5 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                        <div className="flex-1 bg-white/10 rounded-xl px-4 py-3">
+                          <p className="text-blue-300 text-[10px] font-bold uppercase tracking-wide mb-0.5">📦 {tw.deliveryLabel}</p>
+                          <p className="font-extrabold text-white text-base">{format(firstDelivery, "EEE, MMM d")}</p>
                         </div>
                       </div>
-                      <p className="text-[10px] text-blue-500 mt-2">
+                      <p className="text-[10px] text-white/40 mt-3 text-center">
                         {formData.frequency === "weekly" ? tw.repeatsEveryWeek : tw.repeatsEveryTwoWeeks}
                       </p>
                     </div>
