@@ -290,4 +290,41 @@ export async function handleSuccessfulPayment(sessionId: string) {
           pounds:          meta.pounds ? parseFloat(meta.pounds) : undefined,
           estimatedTotal,
           bookingId:       booking?.id ?? "",
-          shortCode:       booking?.short_code ?? u
+          shortCode:       booking?.short_code ?? undefined,
+        }
+
+        // Customer confirmation (don't await — keeps payment flow fast)
+        sendBookingConfirmationEmail(emailData).catch(err =>
+          console.error("[stripe] Customer confirmation email failed:", err)
+        )
+
+        // Admin new-order alert
+        sendAdminNewOrderEmail({
+          ...emailData,
+          customerPhone:      meta.customerPhone ?? "",
+          preAuthTotal:       estimatedTotal,
+          subscriptionFrequency: frequency,
+        }).catch(err =>
+          console.error("[stripe] Admin alert email failed:", err)
+        )
+
+        // Auto-create account for new recurring subscribers
+        const isRecurring = frequency === "weekly" || frequency === "biweekly"
+        if (isRecurring && meta.customerEmail && meta.customerName) {
+          import("@/app/actions/customer-auth").then(({ createAccountForSubscriber }) =>
+            createAccountForSubscriber(
+              meta.customerEmail!,
+              meta.customerName!,
+              meta.customerPhone ?? "",
+            ).catch(err => console.error("[stripe] createAccountForSubscriber failed:", err))
+          )
+        }
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("[stripe] handleSuccessfulPayment error:", error)
+    return { success: false, error: "Failed to save booking" }
+  }
+}
