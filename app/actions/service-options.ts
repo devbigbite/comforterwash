@@ -45,9 +45,9 @@ export async function getAllServiceOptions(type?: "detergent" | "extra"): Promis
   }
 }
 
-export async function upsertServiceOption(option: Partial<ServiceOption> & {
+export async function upsertServiceOption(option: Partial<ServiceOption> & { type: "detergent" | "extra"; name: string }): Promise<void> {
   await requireAdmin()
- type: "detergent" | "extra"; name: string }): Promise<void> {
+
   const supabase = await createClient()
   await supabase.from("service_options").upsert({
     ...option,

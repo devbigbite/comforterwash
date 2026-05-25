@@ -135,7 +135,6 @@ export async function createSubscription(params: {
 export async function pauseSubscription(id: string) {
   await requireAdmin()
 
-  "use server"
   const supabase = createAdminClient()
   await supabase.from("subscriptions").update({ status: "paused" }).eq("id", id)
 }
@@ -143,7 +142,6 @@ export async function pauseSubscription(id: string) {
 export async function resumeSubscription(id: string) {
   await requireAdmin()
 
-  "use server"
   const supabase = createAdminClient()
   await supabase.from("subscriptions").update({ status: "active" }).eq("id", id)
 }
@@ -151,7 +149,6 @@ export async function resumeSubscription(id: string) {
 export async function cancelSubscription(id: string) {
   await requireAdmin()
 
-  "use server"
   const supabase = createAdminClient()
   await supabase.from("subscriptions").update({ status: "cancelled" }).eq("id", id)
 }
