@@ -304,7 +304,7 @@ export default function PricingClient({ plans, routes }: { plans: SubscriptionPl
               ← Back
             </button>
             <button onClick={submitSignup} disabled={saving}
-              className="flex-[2] bg-[#E8726A] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#E8726A]/90 transition-colors disabled:opacity-50">
+              className="flex-[2] bg-[#0D2240] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#0D2240]/90 transition-colors disabled:opacity-50">
               {saving ? "Setting up…" : "Continue: Payment →"}
             </button>
           </div>
@@ -375,7 +375,7 @@ export default function PricingClient({ plans, routes }: { plans: SubscriptionPl
               ← Back
             </button>
             <button onClick={() => goTo(3)}
-              className="flex-[2] bg-[#E8726A] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#E8726A]/90 transition-colors">
+              className="flex-[2] bg-[#0D2240] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#0D2240]/90 transition-colors">
               Continue: Your Info →
             </button>
           </div>
