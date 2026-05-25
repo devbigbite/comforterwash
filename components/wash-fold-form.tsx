@@ -202,6 +202,7 @@ export function WashFoldForm() {
   const [minLbs, setMinLbs] = useState(MIN_POUNDS)
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
+  const [serviceMode, setServiceMode] = useState<"paygo" | "subscription">("paygo")
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "",
     pickupStreet: "", pickupCity: "", pickupState: "FL", pickupZip: "",
@@ -576,6 +577,71 @@ export function WashFoldForm() {
         {step === 1 && (
           <div className="space-y-7">
 
+            {/* ── Service mode selector ── */}
+            <div>
+              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">How would you like to book?</h3>
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <button type="button"
+                  onClick={() => setServiceMode("paygo")}
+                  className={cn(
+                    "flex flex-col items-start gap-1.5 rounded-2xl border-2 p-4 text-left transition-all",
+                    serviceMode === "paygo" ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300"
+                  )}>
+                  <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full",
+                    serviceMode === "paygo" ? "bg-[#fde8e5] text-[#b84c3e]" : "bg-gray-100 text-gray-500")}>
+                    Pay per pickup
+                  </span>
+                  <span className={cn("font-extrabold text-sm mt-0.5", serviceMode === "paygo" ? "text-[#0D2240]" : "text-gray-700")}>
+                    Pay as you go
+                  </span>
+                  <span className="text-xs text-gray-500 leading-snug">Billed by the pound. No commitment.</span>
+                </button>
+                <button type="button"
+                  onClick={() => setServiceMode("subscription")}
+                  className={cn(
+                    "flex flex-col items-start gap-1.5 rounded-2xl border-2 p-4 text-left transition-all",
+                    serviceMode === "subscription" ? "border-[#0D2240] bg-[#f0f4f9]" : "border-gray-200 bg-white hover:border-gray-300"
+                  )}>
+                  <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full",
+                    serviceMode === "subscription" ? "bg-[#d8e4f0] text-[#0D2240]" : "bg-gray-100 text-gray-500")}>
+                    Monthly plan
+                  </span>
+                  <span className={cn("font-extrabold text-sm mt-0.5", serviceMode === "subscription" ? "text-[#0D2240]" : "text-gray-700")}>
+                    Subscribe &amp; save
+                  </span>
+                  <span className="text-xs text-gray-500 leading-snug">Fixed monthly fee. Includes set lbs &amp; a schedule.</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ── Subscription panel ── */}
+            {serviceMode === "subscription" && (
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 space-y-4">
+                <p className="text-sm font-semibold text-[#0D2240]">What&apos;s included with a monthly plan:</p>
+                <div className="space-y-2">
+                  {[
+                    "Lower per-lb rate than pay-as-you-go",
+                    "Locked-in weekly pickup day & time",
+                    "Overage lbs billed at your plan rate",
+                    "Cancel or pause anytime",
+                  ].map((text) => (
+                    <div key={text} className="flex items-start gap-2 text-sm text-gray-700">
+                      <span className="text-green-600 font-bold mt-0.5 flex-shrink-0">✓</span>
+                      <span>{text}</span>
+                    </div>
+                  ))}
+                </div>
+                <a href="/pricing"
+                  className="flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-[#0D2240] text-white text-sm font-bold hover:bg-[#1a3a5c] transition-colors no-underline">
+                  See monthly plans →
+                </a>
+                <p className="text-xs text-center text-gray-400">You&apos;ll complete your address &amp; schedule on the next page</p>
+              </div>
+            )}
+
+            {/* ── Pay-per-pickup flow ── */}
+            {serviceMode === "paygo" && (<>
+
             {/* Frequency selector */}
             <div>
               <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tw.howOften}</h3>
@@ -805,6 +871,7 @@ export function WashFoldForm() {
               disabled={!canStep1} onClick={() => setStep(2)}>
               {tf.continueAddOns}
             </Button>
+            </>)}
           </div>
         )}
 
