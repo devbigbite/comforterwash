@@ -117,9 +117,8 @@ export async function chargeMiscFee(formData: FormData): Promise<{ error?: strin
 }
 
 // ── Mark a fee as waived (no charge) ────────────────────────────────────────
-export async function waiveMiscFee(feeId: string, bookingId: string): Promise<{
+export async function waiveMiscFee(feeId: string, bookingId: string): Promise<{ error?: string }> {
   await requireAdmin()
- error?: string }> {
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("misc_fees")
@@ -140,9 +139,8 @@ export async function waiveMiscFee(feeId: string, bookingId: string): Promise<{
 }
 
 // ── Mark a fee as paid manually (e.g. cash/Venmo) ───────────────────────────
-export async function markFeePaid(feeId: string, bookingId: string): Promise<{
+export async function markFeePaid(feeId: string, bookingId: string): Promise<{ error?: string }> {
   await requireAdmin()
- error?: string }> {
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("misc_fees")
