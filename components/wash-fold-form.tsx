@@ -330,8 +330,10 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
     getPricingConfig().then(cfg => {
       FREQ_CENTS = { one_time: cfg.washFoldOneTimeCents, weekly: cfg.washFoldSubCents, biweekly: cfg.washFoldSubCents }
       MIN_POUNDS = cfg.washFoldMinLbs
+      COMFORTER_CENTS = { twin: cfg.comforterTwinCents, full: cfg.comforterFullCents, queen: cfg.comforterQueenCents, king: cfg.comforterKingCents }
       setFreqPricing(buildFreqPricing())
       setMinLbs(cfg.washFoldMinLbs)
+      setComforterSizesList(buildComforterSizes())
     })
     Promise.all([getServiceOptions("detergent"), getServiceOptions("extra")]).then(([dets, exts]) => {
       setDetergentOptions(dets)
