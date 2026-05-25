@@ -446,4 +446,24 @@ export default function Home() {
               <Link href="/book/comforter-wash" className="hover:text-[#E8726A] transition-colors">{tr.footer.comforterWash}</Link>
               <Link href="/book/wash-fold" className="hover:text-[#E8726A] transition-colors">{tr.footer.washFold}</Link>
               <Link href="/book/wash-only" className="hover:text-[#E8726A] transition-colors">{tr.footer.washOnly}</Link>
-              <Link href="/pricing" className="hover:
+              <Link href="/pricing" className="hover:text-[#E8726A] transition-colors">Monthly Plans</Link>
+              <Link href="/service-areas" className="hover:text-[#E8726A] transition-colors">{tr.footer.serviceAreas}</Link>
+              <Link href="/faq" className="hover:text-[#E8726A] transition-colors">{tr.footer.faq}</Link>
+            </div>
+            <div className="flex items-center gap-4">
+              <p className="text-white/25 text-xs">&copy; {new Date().getFullYear()} WashFold Orlando</p>
+              <span className="text-white/10 text-xs">·</span>
+              <Link href="/faq" className="text-white/40 hover:text-[#E8726A] text-xs transition-colors">FAQ</Link>
+              <Link href="/terms" className="text-white/40 hover:text-[#E8726A] text-xs transition-colors">Terms</Link>
+              <Link href="/privacy" className="text-white/40 hover:text-[#E8726A] text-xs transition-colors">Privacy</Link>
+              <span className="text-white/10 text-xs">·</span>
+              <Link href="/driver" className="text-white/20 hover:text-white/50 text-xs transition-colors">Driver</Link>
+              <Link href="/operator" className="text-white/20 hover:text-white/50 text-xs transition-colors">Operator</Link>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+    </main>
+  )
+}
