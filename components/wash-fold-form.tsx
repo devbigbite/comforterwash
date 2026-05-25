@@ -633,22 +633,26 @@ export function WashFoldForm() {
                 {/* ── Option 1: One-Time ── */}
                 <button type="button" onClick={selectPaygo}
                   className={cn(
-                    "w-full flex items-center justify-between rounded-2xl border-2 p-4 text-left transition-all",
-                    serviceMode === "paygo" ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300"
+                    "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
+                    serviceMode === "paygo" ? "border-[#E8726A] bg-[#fdf6f3] p-4" : "border-gray-200 bg-white hover:border-gray-300 px-4 py-3"
                   )}>
                   <div className="flex-1 min-w-0">
-                    <span className={cn("inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide mb-1",
-                      serviceMode === "paygo" ? "bg-[#fde8e5] text-[#b84c3e]" : "bg-gray-100 text-gray-500")}>
-                      One-time
-                    </span>
-                    <p className={cn("font-extrabold text-sm", serviceMode === "paygo" ? "text-[#0D2240]" : "text-gray-700")}>
-                      Pay as you go
-                    </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">
-                      No commitment · billed by actual weight after pickup
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className={cn("inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
+                        serviceMode === "paygo" ? "bg-[#fde8e5] text-[#b84c3e]" : "bg-gray-100 text-gray-500")}>
+                        One-time
+                      </span>
+                      <p className={cn("font-extrabold text-sm", serviceMode === "paygo" ? "text-[#0D2240]" : "text-gray-500")}>
+                        Pay as you go
+                      </p>
+                    </div>
+                    {serviceMode === "paygo" && (
+                      <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
+                        No commitment · billed by actual weight after pickup
+                      </p>
+                    )}
                   </div>
-                  <span className={cn("font-extrabold text-lg shrink-0 ml-4", serviceMode === "paygo" ? "text-[#E8726A]" : "text-gray-400")}>
+                  <span className={cn("font-extrabold shrink-0 ml-4", serviceMode === "paygo" ? "text-[#E8726A] text-lg" : "text-gray-400 text-sm")}>
                     {freqPricing.one_time.label}
                   </span>
                 </button>
@@ -657,26 +661,30 @@ export function WashFoldForm() {
                 <button type="button"
                   onClick={() => selectSubscribeType(subscribeType === "monthly" ? "weekly" : subscribeType)}
                   className={cn(
-                    "w-full flex items-center justify-between rounded-2xl border-2 p-4 text-left transition-all",
+                    "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
                     serviceMode === "subscription" && subscribeType !== "monthly"
-                      ? "border-[#0D2240] bg-[#f0f4f9]"
-                      : "border-gray-200 bg-white hover:border-gray-300"
+                      ? "border-[#0D2240] bg-[#f0f4f9] p-4"
+                      : "border-gray-200 bg-white hover:border-gray-300 px-4 py-3"
                   )}>
                   <div className="flex-1 min-w-0">
-                    <span className={cn("inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide mb-1",
-                      serviceMode === "subscription" && subscribeType !== "monthly"
-                        ? "bg-[#d8e4f0] text-[#0D2240]"
-                        : "bg-gray-100 text-gray-500")}>
-                      Recurring · per pickup
-                    </span>
-                    <p className={cn("font-extrabold text-sm", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[#0D2240]" : "text-gray-700")}>
-                      Subscribe by weight
-                    </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">
-                      Lock in your pickup day · billed per pickup by actual weight
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className={cn("inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
+                        serviceMode === "subscription" && subscribeType !== "monthly"
+                          ? "bg-[#d8e4f0] text-[#0D2240]"
+                          : "bg-gray-100 text-gray-500")}>
+                        Recurring · per pickup
+                      </span>
+                      <p className={cn("font-extrabold text-sm", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[#0D2240]" : "text-gray-500")}>
+                        Subscribe by weight
+                      </p>
+                    </div>
+                    {serviceMode === "subscription" && subscribeType !== "monthly" && (
+                      <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
+                        Lock in your pickup day · billed per pickup by actual weight
+                      </p>
+                    )}
                   </div>
-                  <span className={cn("font-extrabold text-lg shrink-0 ml-4", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[#E8726A]" : "text-gray-400")}>
+                  <span className={cn("font-extrabold shrink-0 ml-4", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[#E8726A] text-lg" : "text-gray-400 text-sm")}>
                     {freqPricing.weekly.label}
                   </span>
                 </button>
@@ -707,13 +715,13 @@ export function WashFoldForm() {
                 {monthlyPlanEnabled && (
                   <button type="button" onClick={() => selectSubscribeType("monthly")}
                     className={cn(
-                      "w-full flex items-center justify-between rounded-2xl border-2 p-4 text-left transition-all",
+                      "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
                       serviceMode === "subscription" && subscribeType === "monthly"
-                        ? "border-[#0D2240] bg-[#f0f4f9]"
-                        : "border-gray-200 bg-white hover:border-gray-300"
+                        ? "border-[#0D2240] bg-[#f0f4f9] p-4"
+                        : "border-gray-200 bg-white hover:border-gray-300 px-4 py-3"
                     )}>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-1">
+                      <div className="flex items-center gap-1.5">
                         <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
                           serviceMode === "subscription" && subscribeType === "monthly"
                             ? "bg-[#d8e4f0] text-[#0D2240]"
@@ -723,19 +731,23 @@ export function WashFoldForm() {
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 uppercase tracking-wide">
                           Best value
                         </span>
+                        <p className={cn("font-extrabold text-sm", serviceMode === "subscription" && subscribeType === "monthly" ? "text-[#0D2240]" : "text-gray-500")}>
+                          Pre-paid monthly
+                        </p>
                       </div>
-                      <p className={cn("font-extrabold text-sm", serviceMode === "subscription" && subscribeType === "monthly" ? "text-[#0D2240]" : "text-gray-700")}>
-                        Pre-paid monthly plan
-                      </p>
-                      <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">
-                        Fixed monthly fee · includes a set number of lbs · no per-pickup billing
-                      </p>
+                      {serviceMode === "subscription" && subscribeType === "monthly" && (
+                        <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
+                          Fixed monthly fee · includes a set number of lbs · no per-pickup billing
+                        </p>
+                      )}
                     </div>
                     <div className="shrink-0 ml-4 text-right">
-                      <span className={cn("font-extrabold text-base block", serviceMode === "subscription" && subscribeType === "monthly" ? "text-[#E8726A]" : "text-gray-400")}>
+                      <span className={cn("font-extrabold block", serviceMode === "subscription" && subscribeType === "monthly" ? "text-[#E8726A] text-base" : "text-gray-400 text-sm")}>
                         Fixed fee
                       </span>
-                      <span className="text-[10px] text-gray-400">Pre-paid</span>
+                      {serviceMode === "subscription" && subscribeType === "monthly" && (
+                        <span className="text-[10px] text-gray-400">Pre-paid</span>
+                      )}
                     </div>
                   </button>
                 )}
