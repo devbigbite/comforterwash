@@ -8,6 +8,7 @@ import Link from "next/link"
 import { useLang } from "@/components/lang-provider"
 import { useState, useEffect } from "react"
 import { getLandingOffers, getSiteImages, getSiteText, getServicesConfig, type ServicesConfig } from "@/app/actions/settings"
+import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
 import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
 import { MessageUsModal } from "@/components/message-us-modal"
@@ -22,11 +23,13 @@ export default function Home() {
   const [images, setImages] = useState<SiteImages | null>(null)
   const [siteText, setSiteText] = useState<SiteText>(DEFAULT_TEXT)
   const [services, setServices] = useState<ServicesConfig | null>(null)
+  const [livePricing, setLivePricing] = useState<PricingConfig | null>(null)
   useEffect(() => {
     getLandingOffers().then(setOffers)
     getSiteImages().then(setImages)
     getSiteText().then(setSiteText)
     getServicesConfig().then(setServices)
+    getPricingConfig().then(setLivePricing)
   }, [])
   const visibleOffers = (offers ?? []).filter(o => o.enabled)
   return (
@@ -63,8 +66,8 @@ export default function Home() {
                 icon: "👕",
                 title: tr.services.washFoldTitle,
                 desc: tr.services.washFoldDesc,
-                price: tr.pricing.washFoldPrice,
-                unit: tr.services.washFoldUnit,
+                price: livePricing ? `$${(livePricing.washFoldOneTimeCents / 100).toFixed(2)}` : tr.pricing.washFoldPrice,
+                unit: livePricing ? `per lb · ${livePricing.washFoldMinLbs} lb min` : tr.services.washFoldUnit,
               },
               {
                 key: "wash_only" as keyof ServicesConfig,
@@ -72,7 +75,7 @@ export default function Home() {
                 icon: "🧺",
                 title: tr.services.washOnlyTitle,
                 desc: tr.services.washOnlyDesc,
-                price: "$1.99",
+                price: livePricing ? `$${(livePricing.washOnlyCents / 100).toFixed(2)}` : "$1.99",
                 unit: tr.services.washOnlyUnit,
               },
             ].filter(svc => services !== null && services[svc.key])
@@ -290,9 +293,9 @@ export default function Home() {
             <div className="border-2 border-gray-100 hover:border-[#E8726A] rounded-3xl p-8 text-center transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">👕</div>
               <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">{tr.pricing.washFoldTitle}</h3>
-              <p className="text-gray-400 text-sm mb-4">{tr.pricing.washFoldMin}</p>
-              <p className="text-5xl font-extrabold text-[#E8726A] mb-1">{tr.pricing.washFoldPrice}<span className="text-2xl">/lb</span></p>
-              <p className="text-gray-400 text-xs mb-6">{tr.pricing.washFoldSub}</p>
+              <p className="text-gray-400 text-sm mb-4">{livePricing ? `${livePricing.washFoldMinLbs} lb minimum` : tr.pricing.washFoldMin}</p>
+              <p className="text-5xl font-extrabold text-[#E8726A] mb-1">{livePricing ? `$${(livePricing.washFoldOneTimeCents / 100).toFixed(2)}` : tr.pricing.washFoldPrice}<span className="text-2xl">/lb</span></p>
+              <p className="text-gray-400 text-xs mb-6">{livePricing ? `$${(livePricing.washFoldSubCents / 100).toFixed(2)}/lb with weekly/biweekly subscription` : tr.pricing.washFoldSub}</p>
               <Link href="/book/wash-fold" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {tr.pricing.cta}
               </Link>
@@ -300,8 +303,8 @@ export default function Home() {
             <div className="border-2 border-gray-100 hover:border-[#E8726A] rounded-3xl p-8 text-center transition-colors">
               <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🧺</div>
               <h3 className="font-extrabold text-[#0D2240] uppercase tracking-wide text-base mb-1">{tr.pricing.washOnlyTitle}</h3>
-              <p className="text-gray-400 text-sm mb-4">{tr.pricing.washOnlyMin}</p>
-              <p className="text-5xl font-extrabold text-[#E8726A] mb-1">{tr.pricing.washOnlyPrice}<span className="text-2xl">/lb</span></p>
+              <p className="text-gray-400 text-sm mb-4">{livePricing ? `${livePricing.washOnlyMinLbs} lb minimum` : tr.pricing.washOnlyMin}</p>
+              <p className="text-5xl font-extrabold text-[#E8726A] mb-1">{livePricing ? `$${(livePricing.washOnlyCents / 100).toFixed(2)}` : tr.pricing.washOnlyPrice}<span className="text-2xl">/lb</span></p>
               <p className="text-gray-400 text-xs mb-6">{tr.pricing.washOnlyPerLb}</p>
               <Link href="/book/wash-only" className="block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {tr.pricing.cta}
