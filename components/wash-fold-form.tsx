@@ -672,15 +672,15 @@ export function WashFoldForm() {
                         serviceMode === "subscription" && subscribeType !== "monthly"
                           ? "bg-[#d8e4f0] text-[#0D2240]"
                           : "bg-gray-100 text-gray-500")}>
-                        Recurring · per pickup
+                        Recurring
                       </span>
                       <p className={cn("font-extrabold text-sm", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[#0D2240]" : "text-gray-500")}>
-                        Subscribe by weight
+                        Subscribe to Weekly or Bi-Weekly Service
                       </p>
                     </div>
                     {serviceMode === "subscription" && subscribeType !== "monthly" && (
                       <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
-                        Lock in your pickup day · billed per pickup by actual weight
+                        Lock in your pickup day · billed by actual weight each pickup
                       </p>
                     )}
                   </div>
