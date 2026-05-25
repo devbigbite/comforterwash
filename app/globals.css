@@ -143,4 +143,8 @@ body {
   }
 }
 
-/* Google Places Autocomplete dropdown — mu
+/* Google Places Autocomplete dropdown — must float above all page content */
+.pac-container {
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
