@@ -298,9 +298,9 @@ const es = {
     repeatsEveryTwoWeeks: "Luego se repite automáticamente cada dos semanas.",
     pickupLabel:       "Recogida",
     deliveryLabel:     "Entrega",
-    subscriptionCommitment: "Compromiso de suscripción",
-    subscriptionCommitText: "Al continuar, me comprometo a un mínimo de 4 recogidas a la tarifa",
-    subscriptionCommitText2: "Entiendo que mi tarjeta se cobrará automáticamente según el peso real después de cada recogida. Puedo pausar o cancelar en cualquier momento con 48 horas de anticipación.",
+    subscriptionCommitment: "Suscripción",
+    subscriptionCommitText: "Al suscribirme, entiendo que mi tarjeta se cobrará automáticamente según el peso real después de cada recogida a la tarifa",
+    subscriptionCommitText2: "Puedo pausar o cancelar en cualquier momento con 48 horas de anticipación antes de mi próxima recogida.",
     agreeWeightTerms:  "Entiendo que el cargo final se basará en el peso real y acepto los términos del servicio.",
     agreeWeightSubTerms: "Entiendo que el cargo final se basará en el peso real, acepto el compromiso de suscripción y los términos del servicio.",
     detergentLabel:    "Detergente",
@@ -331,3 +331,4 @@ const es = {
 } as const
 
 export default es
+                         

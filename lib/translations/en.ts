@@ -298,9 +298,9 @@ const en = {
     repeatsEveryTwoWeeks: "Then repeats every two weeks automatically.",
     pickupLabel:       "Pickup",
     deliveryLabel:     "Delivery",
-    subscriptionCommitment: "Subscription commitment",
-    subscriptionCommitText: "By proceeding, I commit to a minimum of 4 pickups at the",
-    subscriptionCommitText2: "rate. I understand my card will be charged automatically at actual weight after each pickup. I can pause or cancel anytime with 48 hours' notice before my next pickup.",
+    subscriptionCommitment: "Subscription",
+    subscriptionCommitText: "By subscribing, I understand my card will be charged automatically at actual weight after each pickup at the",
+    subscriptionCommitText2: "rate. I can pause or cancel anytime with 48 hours' notice before my next pickup.",
     agreeWeightTerms:  "I understand the final charge will be based on actual weight and agree to the terms of service.",
     agreeWeightSubTerms: "I understand the final charge will be based on actual weight, agree to the subscription commitment above, and agree to the terms of service.",
     detergentLabel:    "Detergent",
@@ -332,3 +332,4 @@ const en = {
 
 export default en
 export type TranslationKeys = typeof en
+                                              
