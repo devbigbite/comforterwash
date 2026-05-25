@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { requireAdmin } from "@/lib/auth-guard"
 
 export interface ServiceOption {
   id: string
@@ -44,7 +45,9 @@ export async function getAllServiceOptions(type?: "detergent" | "extra"): Promis
   }
 }
 
-export async function upsertServiceOption(option: Partial<ServiceOption> & { type: "detergent" | "extra"; name: string }): Promise<void> {
+export async function upsertServiceOption(option: Partial<ServiceOption> & {
+  await requireAdmin()
+ type: "detergent" | "extra"; name: string }): Promise<void> {
   const supabase = await createClient()
   await supabase.from("service_options").upsert({
     ...option,
@@ -55,12 +58,16 @@ export async function upsertServiceOption(option: Partial<ServiceOption> & { typ
 }
 
 export async function deleteServiceOption(id: string): Promise<void> {
+  await requireAdmin()
+
   const supabase = await createClient()
   await supabase.from("service_options").delete().eq("id", id)
   revalidatePath("/admin/pricing")
 }
 
 export async function toggleServiceOption(id: string, enabled: boolean): Promise<void> {
+  await requireAdmin()
+
   const supabase = await createClient()
   await supabase.from("service_options").update({ enabled }).eq("id", id)
   revalidatePath("/admin/pricing")

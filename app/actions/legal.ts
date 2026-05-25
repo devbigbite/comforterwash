@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 export type LegalSection = {
   id: string
@@ -160,6 +161,8 @@ export async function getLegalPage(key: "terms" | "privacy"): Promise<LegalSecti
 }
 
 export async function saveLegalPage(key: "terms" | "privacy", sections: LegalSection[]) {
+  await requireAdmin()
+
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { error } = await supabase
     .from("legal_pages")

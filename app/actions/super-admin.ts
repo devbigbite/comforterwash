@@ -3,10 +3,12 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import type { Location } from "@/lib/location"
+import { requireSuperAdmin } from "@/lib/auth-guard"
 
 // ── Read ──────────────────────────────────────────────────────────────────────
 
 export async function getAllLocations(): Promise<(Location & { created_at: string })[]> {
+  await requireSuperAdmin()
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("locations")
@@ -20,12 +22,13 @@ export async function getAllLocations(): Promise<(Location & { created_at: strin
 export async function createLocation(
   formData: FormData
 ): Promise<{ error?: string }> {
+  await requireSuperAdmin()
   const supabase = createAdminClient()
 
-  const name        = (formData.get("name") as string ?? "").trim()
-  const slug        = (formData.get("slug") as string ?? "").toLowerCase().trim()
+  const name         = (formData.get("name") as string ?? "").trim()
+  const slug         = (formData.get("slug") as string ?? "").toLowerCase().trim()
   const customDomain = (formData.get("custom_domain") as string ?? "").trim() || null
-  const plan        = (formData.get("plan") as string ?? "").trim() || null
+  const plan         = (formData.get("plan") as string ?? "").trim() || null
 
   if (!name || !slug) return { error: "Name and slug are required." }
   if (!/^[a-z0-9-]+$/.test(slug)) {
@@ -61,6 +64,7 @@ export async function updateLocation(
     plan?: string | null
   }
 ): Promise<{ error?: string }> {
+  await requireSuperAdmin()
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("locations")

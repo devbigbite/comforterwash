@@ -3,8 +3,11 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 export async function createPromoCode(formData: FormData) {
+  await requireAdmin()
+
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const discountType = formData.get("discount_type") as string
   const discountValue = parseFloat(formData.get("discount_value") as string)
@@ -29,12 +32,16 @@ export async function createPromoCode(formData: FormData) {
 }
 
 export async function togglePromoCode(id: string, active: boolean) {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   await supabase.from("promo_codes").update({ active }).eq("id", id)
   revalidatePath("/admin/promos")
 }
 
 export async function deletePromoCode(id: string) {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   await supabase.from("promo_codes").delete().eq("id", id)
   revalidatePath("/admin/promos")

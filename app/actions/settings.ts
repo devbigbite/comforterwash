@@ -7,6 +7,7 @@ import { getLocationId } from "@/lib/location"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
 import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
 import { DEFAULT_TEXT, type SiteText } from "@/lib/site-text-config"
+import { requireAdmin } from "@/lib/auth-guard"
 
 // ── Internal helper: upsert a setting key for the current location ────────────
 async function upsertSetting(key: string, value: string, locationId: string) {
@@ -35,6 +36,8 @@ export async function getComforterPromo(): Promise<boolean> {
 }
 
 export async function setComforterPromo(active: boolean): Promise<void> {
+  await requireAdmin()
+
   const locationId = await getLocationId()
   await upsertSetting("comforter_flat_rate_promo", active ? "true" : "false", locationId)
   revalidatePath("/admin/promos")
@@ -72,6 +75,8 @@ export async function getLandingOffers(): Promise<LandingOffer[]> {
 }
 
 export async function setLandingOffer(index: number, offer: LandingOffer): Promise<void> {
+  await requireAdmin()
+
   const locationId = await getLocationId()
   const n = index + 1
   const supabase = await createClient()
@@ -112,6 +117,8 @@ export async function getSiteImages(): Promise<SiteImages> {
 }
 
 export async function uploadSiteImage(key: string, formData: FormData): Promise<string> {
+  await requireAdmin()
+
   const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
   const file = formData.get("file") as File
   if (!file || file.size === 0) throw new Error("No file provided")
@@ -140,6 +147,8 @@ export async function uploadSiteImage(key: string, formData: FormData): Promise<
 }
 
 export async function resetSiteImage(key: string): Promise<void> {
+  await requireAdmin()
+
   const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
   await supabase.from("settings").delete().eq("location_id", locationId).eq("key", `img_${key}`)
   revalidatePath("/")
@@ -170,6 +179,8 @@ export async function getSiteText(): Promise<SiteText> {
 }
 
 export async function setSiteTextValue(key: keyof SiteText, value: string): Promise<void> {
+  await requireAdmin()
+
   const locationId = await getLocationId()
   await upsertSetting(`txt_${key}`, value, locationId)
   revalidatePath("/")
@@ -177,6 +188,8 @@ export async function setSiteTextValue(key: keyof SiteText, value: string): Prom
 }
 
 export async function resetSiteText(key: keyof SiteText): Promise<void> {
+  await requireAdmin()
+
   const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
   await supabase.from("settings").delete().eq("location_id", locationId).eq("key", `txt_${key}`)
   revalidatePath("/")
@@ -202,6 +215,8 @@ export async function getServiceAreaPolygon(): Promise<object | null> {
 }
 
 export async function setServiceAreaPolygon(geojson: object): Promise<void> {
+  await requireAdmin()
+
   const locationId = await getLocationId()
   await upsertSetting("service_area_polygon", JSON.stringify(geojson), locationId)
   revalidatePath("/service-areas")
@@ -209,6 +224,8 @@ export async function setServiceAreaPolygon(geojson: object): Promise<void> {
 }
 
 export async function deleteServiceAreaPolygon(): Promise<void> {
+  await requireAdmin()
+
   const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
   await supabase.from("settings").delete().eq("location_id", locationId).eq("key", "service_area_polygon")
   revalidatePath("/service-areas")
@@ -250,6 +267,8 @@ export async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
 }
 
 export async function setDeliveryFeeSettings(settings: DeliveryFeeSettings): Promise<void> {
+  await requireAdmin()
+
   const locationId = await getLocationId()
   const supabase = await createClient()
   await supabase.from("settings").upsert(
@@ -292,6 +311,8 @@ export async function getServicesConfig(): Promise<ServicesConfig> {
 }
 
 export async function setServicesConfig(config: ServicesConfig): Promise<void> {
+  await requireAdmin()
+
   const locationId = await getLocationId()
   const supabase = await createClient()
   await supabase.from("settings").upsert(
@@ -333,6 +354,8 @@ export async function getWarehouseSettings(): Promise<WarehouseSettings> {
 }
 
 export async function setWarehouseSettings(name: string, address: string): Promise<void> {
+  await requireAdmin()
+
   const locationId = await getLocationId()
   const supabase = await createClient()
   await supabase.from("settings").upsert(
@@ -362,6 +385,8 @@ export async function getMonthlyPlanEnabled(): Promise<boolean> {
 }
 
 export async function setMonthlyPlanEnabled(enabled: boolean): Promise<void> {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   const locationId = await getLocationId()
   await supabase.from("settings").upsert(
@@ -385,6 +410,8 @@ export async function getTipsEnabled(): Promise<boolean> {
 }
 
 export async function setTipsEnabled(enabled: boolean): Promise<void> {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   const locationId = await getLocationId()
   await supabase.from("settings").upsert(

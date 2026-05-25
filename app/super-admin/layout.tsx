@@ -10,10 +10,10 @@ export default async function SuperAdminLayout({
   children: React.ReactNode
 }) {
   const cookieStore = await cookies()
-  const adminAuth = cookieStore.get("admin_auth")
+  const superAdminAuth = cookieStore.get("super_admin_auth")
 
-  if (adminAuth?.value !== "authenticated") {
-    redirect("/admin/login")
+  if (superAdminAuth?.value !== "authenticated") {
+    redirect("/super-admin/login")
   }
 
   return (

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 export interface EmailTemplateVariable {
   key: string
@@ -58,7 +59,9 @@ export async function getEmailTemplate(key: string): Promise<EmailTemplate | nul
 // ── Save (update) a template ──────────────────────────────────────────────────
 export async function upsertEmailTemplate(
   key: string,
-  updates: { subject: string; headline: string; body: string; cta_text?: string | null; footer_note?: string | null; alert_box?: string | null; contact_note?: string | null }
+  updates: {
+  await requireAdmin()
+ subject: string; headline: string; body: string; cta_text?: string | null; footer_note?: string | null; alert_box?: string | null; contact_note?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
   const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
   const { error } = await supabase

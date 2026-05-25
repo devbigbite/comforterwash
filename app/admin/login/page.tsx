@@ -1,7 +1,8 @@
 import { loginAction } from "./actions"
 
 export default function LoginPage({ searchParams }: { searchParams: { error?: string } }) {
-  const hasError = searchParams?.error === "1"
+  const hasError  = searchParams?.error === "1"
+  const isLocked  = searchParams?.error === "locked"
 
   return (
     <main className="min-h-screen bg-[#0f2057] flex items-center justify-center px-4">
@@ -34,7 +35,8 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
                 type="password"
                 required
                 autoFocus
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/30 focus:border-[#1e3a8a] text-sm transition"
+                disabled={isLocked}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/30 focus:border-[#1e3a8a] text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Enter password"
               />
             </div>
@@ -42,10 +44,16 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
             {hasError && (
               <p className="text-sm text-red-600 font-medium">Incorrect password. Try again.</p>
             )}
+            {isLocked && (
+              <p className="text-sm text-red-600 font-medium">
+                Too many failed attempts. Please wait 15 minutes before trying again.
+              </p>
+            )}
 
             <button
               type="submit"
-              className="w-full bg-[#1e3a8a] text-white font-bold py-3 rounded-xl hover:bg-[#1e40af] transition-colors text-sm"
+              disabled={isLocked}
+              className="w-full bg-[#1e3a8a] text-white font-bold py-3 rounded-xl hover:bg-[#1e40af] transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Sign In →
             </button>

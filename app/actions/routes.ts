@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { getLocationId } from "@/lib/location"
 import type { Route, TimeWindow } from "@/lib/route-availability"
+import { requireAdmin } from "@/lib/auth-guard"
 
 /**
  * Returns all active routes from the DB, each with their time_windows embedded.
@@ -93,7 +94,9 @@ export async function createRouteTimeWindow(
   maxBookings: number | null,
   isPrivate: boolean,
   windowType: 'both' | 'pickup_only' | 'delivery_only' = 'both'
-): Promise<{ error?: string }> {
+): Promise<{
+  await requireAdmin()
+ error?: string }> {
   const supabase = createAdminClient()
 
   // Get current max sort_order for this route
@@ -123,6 +126,8 @@ export async function createRouteTimeWindow(
 }
 
 export async function deleteRouteTimeWindow(windowId: string): Promise<void> {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   await supabase.from("route_time_windows").delete().eq("id", windowId)
   revalidatePath("/admin/routes")

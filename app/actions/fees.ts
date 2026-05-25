@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
 import { stripe } from "@/lib/stripe"
 import { revalidatePath } from "next/cache"
+import { requireAdmin } from "@/lib/auth-guard"
 
 export type MiscFee = {
   id: string
@@ -31,7 +32,9 @@ export async function getMiscFees(bookingId: string): Promise<MiscFee[]> {
 
 // ── Charge a misc fee ─────────────────────────────────────────────────────────
 // Creates a hosted Stripe Checkout session → returns a shareable payment URL
-export async function chargeMiscFee(formData: FormData): Promise<{ error?: string; paymentUrl?: string }> {
+export async function chargeMiscFee(formData: FormData): Promise<{
+  await requireAdmin()
+ error?: string; paymentUrl?: string }> {
   try {
     const bookingId   = formData.get("bookingId")   as string
     const label       = formData.get("label")       as string
@@ -115,7 +118,9 @@ export async function chargeMiscFee(formData: FormData): Promise<{ error?: strin
 }
 
 // ── Mark a fee as waived (no charge) ────────────────────────────────────────
-export async function waiveMiscFee(feeId: string, bookingId: string): Promise<{ error?: string }> {
+export async function waiveMiscFee(feeId: string, bookingId: string): Promise<{
+  await requireAdmin()
+ error?: string }> {
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("misc_fees")
@@ -136,7 +141,9 @@ export async function waiveMiscFee(feeId: string, bookingId: string): Promise<{ 
 }
 
 // ── Mark a fee as paid manually (e.g. cash/Venmo) ───────────────────────────
-export async function markFeePaid(feeId: string, bookingId: string): Promise<{ error?: string }> {
+export async function markFeePaid(feeId: string, bookingId: string): Promise<{
+  await requireAdmin()
+ error?: string }> {
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("misc_fees")

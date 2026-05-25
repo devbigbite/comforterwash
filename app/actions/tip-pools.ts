@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 /** Returns the Monday of the week containing `date` (UTC) */
 function weekStart(date: Date): Date {
@@ -111,7 +112,9 @@ export async function closeTipPool(
   workerIds: string[],
   workerNames: string[],
   notes?: string,
-): Promise<{ error?: string }> {
+): Promise<{
+  await requireAdmin()
+ error?: string }> {
   if (workerIds.length === 0) return { error: "Select at least one worker." }
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
@@ -142,7 +145,9 @@ export async function closeTipPool(
 }
 
 /** Reopen (mark as open) a previously closed pool */
-export async function reopenTipPool(id: string): Promise<{ error?: string }> {
+export async function reopenTipPool(id: string): Promise<{
+  await requireAdmin()
+ error?: string }> {
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("tip_pools")

@@ -3,6 +3,7 @@
 import Stripe from "stripe"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-04-10" })
 
@@ -132,18 +133,24 @@ export async function createSubscription(params: {
 // ─── Admin actions ────────────────────────────────────────────────────────────
 
 export async function pauseSubscription(id: string) {
+  await requireAdmin()
+
   "use server"
   const supabase = createAdminClient()
   await supabase.from("subscriptions").update({ status: "paused" }).eq("id", id)
 }
 
 export async function resumeSubscription(id: string) {
+  await requireAdmin()
+
   "use server"
   const supabase = createAdminClient()
   await supabase.from("subscriptions").update({ status: "active" }).eq("id", id)
 }
 
 export async function cancelSubscription(id: string) {
+  await requireAdmin()
+
   "use server"
   const supabase = createAdminClient()
   await supabase.from("subscriptions").update({ status: "cancelled" }).eq("id", id)

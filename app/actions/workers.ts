@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { stripe } from "@/lib/stripe"
 import { revalidatePath } from "next/cache"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 // ── Submit application (public) ───────────────────────────────────────────────
 export async function submitApplication(formData: FormData) {
@@ -35,6 +36,8 @@ export async function submitApplication(formData: FormData) {
 
 // ── Approve worker ────────────────────────────────────────────────────────────
 export async function approveWorker(workerId: string) {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   await supabase.from("workers").update({ status: "approved" }).eq("id", workerId)
   revalidatePath("/admin/workers")
@@ -42,6 +45,8 @@ export async function approveWorker(workerId: string) {
 
 // ── Reject worker ─────────────────────────────────────────────────────────────
 export async function rejectWorker(workerId: string, notes?: string) {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   await supabase
     .from("workers")
@@ -52,6 +57,8 @@ export async function rejectWorker(workerId: string, notes?: string) {
 
 // ── Update pay rates ──────────────────────────────────────────────────────────
 export async function updatePayRates(formData: FormData) {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   const workerId = formData.get("workerId") as string
 
@@ -69,6 +76,8 @@ export async function updatePayRates(formData: FormData) {
 
 // ── Create Stripe Connect Express account + return onboarding URL ─────────────
 export async function createStripeConnectAccount(workerId: string) {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   const { data: worker } = await supabase
     .from("workers")
@@ -116,6 +125,8 @@ export async function createStripeConnectAccount(workerId: string) {
 
 // ── Sync onboarding status from Stripe ───────────────────────────────────────
 export async function syncStripeStatus(workerId: string) {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   const { data: worker } = await supabase
     .from("workers")
@@ -139,6 +150,8 @@ export async function syncStripeStatus(workerId: string) {
 
 // ── Issue payout ──────────────────────────────────────────────────────────────
 export async function issuePayout(formData: FormData) {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   const workerId  = formData.get("workerId") as string
   const bookingId = formData.get("bookingId") as string | null

@@ -9,6 +9,7 @@ import {
 } from "@/lib/staff-config"
 import { sendScheduleAlertEmail } from "@/lib/email"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 export interface TimePunch {
   id: string
@@ -66,6 +67,8 @@ export async function getActiveWorkers(): Promise<ActiveWorker[]> {
 
 /** Set or update a worker's 4-digit clock PIN (admin only). */
 export async function setWorkerPin(workerName: string, pin: string) {
+  await requireAdmin()
+
   if (!/^\d{4}$/.test(pin)) return { error: "PIN must be exactly 4 digits" }
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -79,6 +82,8 @@ export async function setWorkerPin(workerName: string, pin: string) {
 
 /** Clear a worker's PIN (admin reset). */
 export async function clearWorkerPin(workerName: string) {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   await supabase.from("workers").update({ clock_pin: null }).eq("name", workerName)
   revalidatePath("/admin/workers")
@@ -397,6 +402,8 @@ export async function getShiftsForWeek(weekStart: string): Promise<ScheduledShif
 }
 
 export async function createShift(formData: FormData) {
+  await requireAdmin()
+
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const workerName  = formData.get("workerName")  as string
   const role        = formData.get("role")         as string
@@ -422,6 +429,8 @@ export async function createShift(formData: FormData) {
 }
 
 export async function deleteShift(shiftId: string) {
+  await requireAdmin()
+
   const supabase = createAdminClient()
   await supabase.from("staff_scheduled_shifts").delete().eq("id", shiftId)
   revalidatePath("/admin/schedule")
@@ -429,6 +438,8 @@ export async function deleteShift(shiftId: string) {
 
 // ── Admin: edit a punch (manual correction) ──────────────────────────────────
 export async function updatePunch(formData: FormData) {
+  await requireAdmin()
+
   const supabase       = createAdminClient()
   const punchId        = formData.get("punchId")        as string
   const clockedInAt    = formData.get("clockedInAt")    as string
@@ -451,6 +462,8 @@ export async function updatePunch(formData: FormData) {
 }
 
 export async function createPunch(formData: FormData) {
+  await requireAdmin()
+
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const workerName    = formData.get("workerName")    as string
   const role          = formData.get("role")          as string

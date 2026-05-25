@@ -3,6 +3,7 @@
 import Stripe from "stripe"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-04-10" })
 
@@ -47,6 +48,8 @@ export async function getAllPlans(): Promise<SubscriptionPlan[]> {
 
 // ── Admin: create plan (syncs Stripe Product + Price) ────────────────────────
 export async function createPlan(input: {
+  await requireAdmin()
+
   name: string
   monthly_price_cents: number
   lbs_included: number
@@ -99,6 +102,8 @@ export async function createPlan(input: {
 export async function updatePlan(
   id: string,
   input: Partial<{
+  await requireAdmin()
+
     name: string
     monthly_price_cents: number
     lbs_included: number
@@ -161,7 +166,9 @@ export async function updatePlan(
 }
 
 // ── Admin: delete (soft-archive) plan ────────────────────────────────────────
-export async function deletePlan(id: string): Promise<{ ok: boolean; error?: string }> {
+export async function deletePlan(id: string): Promise<{
+  await requireAdmin()
+ ok: boolean; error?: string }> {
   try {
     const supabase = createAdminClient()
     const { data: plan } = await supabase

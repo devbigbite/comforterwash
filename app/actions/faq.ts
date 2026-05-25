@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 export type FaqCategory = "general" | "comforter_wash" | "wash_fold"
 
@@ -183,6 +184,8 @@ export async function getFaqItems(): Promise<FaqItem[]> {
 }
 
 export async function upsertFaqItems(category: FaqCategory, items: Omit<FaqItem, "created_at">[]) {
+  await requireAdmin()
+
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   // Delete existing items for this category
