@@ -13,6 +13,76 @@ const empty = {
   sort_order: 0,
 }
 
+function dollarsToCents(val: string) { return Math.round(parseFloat(val || "0") * 100) }
+function centsToDollars(cents: number) { return (cents / 100).toFixed(2) }
+
+// ── Defined OUTSIDE the page component so React never remounts it on re-renders ──
+function PlanForm({
+  f, set, onSave, onCancel, isNew, saving, error,
+}: {
+  f: typeof empty
+  set: (v: typeof empty) => void
+  onSave: () => void
+  onCancel: () => void
+  isNew?: boolean
+  saving: boolean
+  error: string
+}) {
+  return (
+    <div className="bg-[#f7f8fb] rounded-xl p-4 mt-2 space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-gray-500 font-medium">Plan Name</label>
+          <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1"
+            value={f.name} onChange={e => set({ ...f, name: e.target.value })} placeholder="e.g. Less Laundry" />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 font-medium">Sort Order</label>
+          <input type="number" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1"
+            value={f.sort_order} onChange={e => set({ ...f, sort_order: parseInt(e.target.value) || 0 })} />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 font-medium">Monthly Price ($)</label>
+          <input type="number" step="0.01" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1"
+            value={centsToDollars(f.monthly_price_cents)}
+            onChange={e => set({ ...f, monthly_price_cents: dollarsToCents(e.target.value) })} />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 font-medium">Lbs Included / Month</label>
+          <input type="number" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1"
+            value={f.lbs_included} onChange={e => set({ ...f, lbs_included: parseInt(e.target.value) || 0 })} />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 font-medium">Overage Rate ($/lb)</label>
+          <input type="number" step="0.01" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1"
+            value={centsToDollars(f.overage_rate_cents)}
+            onChange={e => set({ ...f, overage_rate_cents: dollarsToCents(e.target.value) })} />
+        </div>
+        <div className="flex flex-col gap-2 justify-end pb-1">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={f.is_popular} onChange={e => set({ ...f, is_popular: e.target.checked })} />
+            <span>Most Popular badge</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={f.is_active} onChange={e => set({ ...f, is_active: e.target.checked })} />
+            <span>Active (visible to customers)</span>
+          </label>
+        </div>
+      </div>
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      <div className="flex gap-2">
+        <button onClick={onSave} disabled={saving}
+          className="bg-[#0D2240] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#0D2240]/90 disabled:opacity-50">
+          {saving ? "Saving…" : isNew ? "Create Plan" : "Save Changes"}
+        </button>
+        <button onClick={onCancel} className="px-4 py-2 rounded-lg text-sm border border-gray-200 hover:bg-gray-50">
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPlansPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [loading, setLoading] = useState(true)
@@ -71,71 +141,6 @@ export default function AdminPlansPage() {
     load()
   }
 
-  function dollarsToCents(val: string) { return Math.round(parseFloat(val || "0") * 100) }
-  function centsToDollars(cents: number) { return (cents / 100).toFixed(2) }
-
-  const PlanForm = ({
-    f, set, onSave, onCancel, isNew
-  }: {
-    f: typeof empty
-    set: (v: typeof empty) => void
-    onSave: () => void
-    onCancel: () => void
-    isNew?: boolean
-  }) => (
-    <div className="bg-[#f7f8fb] rounded-xl p-4 mt-2 space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-gray-500 font-medium">Plan Name</label>
-          <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1"
-            value={f.name} onChange={e => set({ ...f, name: e.target.value })} placeholder="e.g. Less Laundry" />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 font-medium">Sort Order</label>
-          <input type="number" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1"
-            value={f.sort_order} onChange={e => set({ ...f, sort_order: parseInt(e.target.value) || 0 })} />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 font-medium">Monthly Price ($)</label>
-          <input type="number" step="0.01" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1"
-            value={centsToDollars(f.monthly_price_cents)}
-            onChange={e => set({ ...f, monthly_price_cents: dollarsToCents(e.target.value) })} />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 font-medium">Lbs Included / Month</label>
-          <input type="number" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1"
-            value={f.lbs_included} onChange={e => set({ ...f, lbs_included: parseInt(e.target.value) || 0 })} />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 font-medium">Overage Rate ($/lb)</label>
-          <input type="number" step="0.01" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1"
-            value={centsToDollars(f.overage_rate_cents)}
-            onChange={e => set({ ...f, overage_rate_cents: dollarsToCents(e.target.value) })} />
-        </div>
-        <div className="flex flex-col gap-2 justify-end pb-1">
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={f.is_popular} onChange={e => set({ ...f, is_popular: e.target.checked })} />
-            <span>Most Popular badge</span>
-          </label>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={f.is_active} onChange={e => set({ ...f, is_active: e.target.checked })} />
-            <span>Active (visible to customers)</span>
-          </label>
-        </div>
-      </div>
-      {error && <p className="text-red-500 text-sm">{error}</p>}
-      <div className="flex gap-2">
-        <button onClick={onSave} disabled={saving}
-          className="bg-[#0D2240] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#0D2240]/90 disabled:opacity-50">
-          {saving ? "Saving…" : isNew ? "Create Plan" : "Save Changes"}
-        </button>
-        <button onClick={onCancel} className="px-4 py-2 rounded-lg text-sm border border-gray-200 hover:bg-gray-50">
-          Cancel
-        </button>
-      </div>
-    </div>
-  )
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between mb-6">
@@ -155,7 +160,7 @@ export default function AdminPlansPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
           <h2 className="font-bold text-[#0D2240] mb-1">New Plan</h2>
           <PlanForm f={newForm} set={setNewForm} onSave={saveNew}
-            onCancel={() => { setShowNew(false); setError("") }} isNew />
+            onCancel={() => { setShowNew(false); setError("") }} isNew saving={saving} error={error} />
         </div>
       )}
 
@@ -215,7 +220,7 @@ export default function AdminPlansPage() {
 
               {editId === plan.id && (
                 <PlanForm f={form} set={setForm} onSave={saveEdit}
-                  onCancel={() => { setEditId(null); setError("") }} />
+                  onCancel={() => { setEditId(null); setError("") }} saving={saving} error={error} />
               )}
             </div>
           ))}
@@ -224,9 +229,4 @@ export default function AdminPlansPage() {
 
       <div className="mt-8 bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
         <strong>Note:</strong> Changing a plan's monthly price creates a new Stripe Price for future subscribers.
-        Existing subscribers keep their current price until they are manually migrated in the Stripe dashboard.
-        Archiving a plan hides it from the pricing page but does not cancel existing subscribers.
-      </div>
-    </div>
-  )
-}
+        Existing subscribers keep their current p
