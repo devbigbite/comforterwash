@@ -6,6 +6,8 @@ import { redirect } from "next/navigation"
 import { getServicesConfig } from "@/app/actions/settings"
 import { getPricingConfig } from "@/app/actions/pricing"
 
+export const dynamic = "force-dynamic"
+
 export const metadata = {
   title: "Book Wash & Fold — WashFold Orlando",
   description: "Clothes washed, dried, and folded with free pickup & delivery. $2.40/lb, $20 minimum.",
