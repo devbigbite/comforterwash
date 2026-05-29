@@ -31,7 +31,7 @@ const EXCLUDED_PREFIXES = [
 
 export function SiteNav() {
   const pathname = usePathname()
-  const { translations: tr } = useLang()
+  const { translations: tr, locale } = useLang()
 
   if (EXCLUDED_PREFIXES.some(prefix => pathname.startsWith(prefix))) return null
 
