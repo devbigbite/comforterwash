@@ -3,13 +3,13 @@ import Link from "next/link"
 export const metadata = {
   title: "Commercial Laundry Services — WashFold Orlando",
   description:
-    "Professional laundry pickup & delivery for Orlando businesses. Hotels, Airbnb hosts, gyms, spas, restaurants, medical offices and more. Get a custom quote today.",
+    "Effective laundry pickup & delivery for Orlando businesses. Hotels, Airbnb hosts, gyms, spas, restaurants, medical offices and more. Get a custom quote today.",
 }
 
 const INDUSTRIES = [
   {
-    icon: "🏨",
-    title: "Hotels & Motels",
+    icon: "🏡",
+    title: "Guesthouses & Bed & Breakfast",
     desc: "Sheets, pillowcases, towels, and robes — cleaned on a reliable schedule so your rooms are always guest-ready.",
   },
   {
@@ -114,7 +114,7 @@ export default function CommercialPage() {
             Commercial Services
           </span>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white leading-tight mb-5">
-            Professional Laundry for<br />
+            Effective Laundry for<br />
             <span className="text-[#E8726A]">Orlando Businesses</span>
           </h1>
           <p className="text-white/70 text-lg leading-relaxed mb-8 max-w-2xl mx-auto">
@@ -127,12 +127,6 @@ export default function CommercialPage() {
               className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold text-sm uppercase tracking-widest px-8 py-4 rounded-full transition-colors"
             >
               Request a Quote →
-            </a>
-            <a
-              href="tel:+14079991234"
-              className="inline-block bg-white/10 hover:bg-white/20 text-white font-bold text-sm uppercase tracking-widest px-8 py-4 rounded-full transition-colors border border-white/20"
-            >
-              Call Us
             </a>
           </div>
         </div>
