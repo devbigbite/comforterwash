@@ -9,6 +9,11 @@ import {
 } from "@/app/actions/storage-spaces"
 import { StorageEntryWindowsEditor, type StorageEntryWindow } from "@/components/admin/StorageEntryWindowsEditor"
 import { PartnerLinkCopy } from "@/components/admin/PartnerLinkCopy"
+import {
+  syncFacilityStripeStatus,
+  issueFacilityPayout,
+  type FacilityPayout,
+} from "@/app/actions/facility-payments"
 
 // ── shared field CSS ─────────────────────────────────────────────────────────
 const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-full"
@@ -86,6 +91,12 @@ async function toggleFacility(formData: FormData) {
   const supabase = createAdminClient()
   await supabase.from("facilities").update({ active: !active }).eq("id", id)
   revalidatePath("/admin/facilities")
+}
+
+async function adminSyncFacilityStripe(formData: FormData) {
+  "use server"
+  const facilityId = formData.get("facilityId") as string
+  await syncFacilityStripeStatus(facilityId)
 }
 
 // ── shared form fields component (used for both Add and Edit) ────────────────
@@ -227,11 +238,12 @@ const STORAGE_LABEL: Record<number, { label: string; color: string }> = {
 
 export default async function FacilitiesPage() {
   const supabase = createAdminClient()
-  const [{ data: facilities }, { data: allWindows }, { data: allStorageSpaces }, { data: allEntryWindows }] = await Promise.all([
+  const [{ data: facilities }, { data: allWindows }, { data: allStorageSpaces }, { data: allEntryWindows }, { data: allPayouts }] = await Promise.all([
     supabase.from("facilities").select("*, machine_groups(count)").order("name"),
     supabase.from("facility_access_windows").select("*").eq("active", true).order("start_time"),
     supabase.from("storage_spaces").select("*").order("active", { ascending: false }).order("name"),
     supabase.from("storage_entry_windows").select("*").eq("active", true).order("start_time"),
+    supabase.from("facility_payouts").select("id, facility_id, amount_cents, period_from, period_to, orders_count, total_lbs, stripe_transfer_id, status, notes, created_at").order("created_at", { ascending: false }).limit(200),
   ])
   const storageByFacility = (allStorageSpaces ?? []).reduce<Record<string, StorageSpace[]>>((acc, s) => {
     if (!acc[s.facility_id]) acc[s.facility_id] = []
@@ -247,6 +259,12 @@ export default async function FacilitiesPage() {
     const ew = w as StorageEntryWindow
     if (!acc[ew.storage_space_id]) acc[ew.storage_space_id] = []
     acc[ew.storage_space_id].push(ew)
+    return acc
+  }, {})
+  const payoutsByFacility = (allPayouts ?? []).reduce<Record<string, FacilityPayout[]>>((acc, p) => {
+    const fp = p as FacilityPayout & { facility_id: string }
+    if (!acc[fp.facility_id]) acc[fp.facility_id] = []
+    acc[fp.facility_id].push(fp)
     return acc
   }, {})
 
@@ -390,6 +408,15 @@ export default async function FacilitiesPage() {
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E8726A]/10 text-[#E8726A] border border-[#E8726A]/20 hover:bg-[#E8726A]/20 transition-colors">
                       Partner Portal ↗
                     </a>
+                  )}
+                  {f.supports_partner_attendant && (
+                    f.stripe_onboarding_complete ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">✅ Stripe Connected</span>
+                    ) : f.stripe_account_id ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200">⚠️ Stripe Incomplete</span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-50 text-gray-400 border border-gray-200">Stripe Not Set Up</span>
+                    )
                   )}
                   {(storageByFacility[f.id] ?? []).length > 0 ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
@@ -636,6 +663,98 @@ export default async function FacilitiesPage() {
                 </details>
               </div>
             </details>
+
+            {/* Stripe & Payouts accordion — partner attendant facilities only */}
+            {f.supports_partner_attendant && (
+              <details className="group border-t border-gray-100">
+                <summary className="cursor-pointer px-5 py-2.5 text-xs font-semibold text-gray-400 hover:text-[#0D2240] transition-colors list-none flex items-center gap-1.5 select-none">
+                  <span className="group-open:hidden">💳 Stripe &amp; Payouts</span>
+                  <span className="hidden group-open:inline">💳 Close Stripe &amp; Payouts</span>
+                </summary>
+                <div className="px-5 pb-5 pt-4 bg-[#f7f8fb] border-t border-gray-100 space-y-4">
+
+                  {/* Stripe connection status */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Stripe Connect Status</p>
+                      {f.stripe_onboarding_complete ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200 text-xs font-bold">✅ Connected &amp; Ready</span>
+                          {f.stripe_account_id && <span className="text-[10px] text-gray-400 font-mono">{f.stripe_account_id}</span>}
+                        </div>
+                      ) : f.stripe_account_id ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs font-bold">⚠️ Onboarding Incomplete</span>
+                          <span className="text-[10px] text-gray-400 font-mono">{f.stripe_account_id}</span>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 border border-gray-200 text-xs font-bold">Not Connected</span>
+                      )}
+                    </div>
+                    <form action={adminSyncFacilityStripe} className="shrink-0">
+                      <input type="hidden" name="facilityId" value={f.id} />
+                      <button type="submit" className="text-xs font-bold text-[#0D2240] border border-gray-200 bg-white px-3 py-1.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        🔄 Sync Stripe Status
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Issue payout — only if fully onboarded */}
+                  {f.stripe_onboarding_complete && (
+                    <div className="border border-gray-200 rounded-xl p-4 bg-white">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Issue Payout</p>
+                      <form action={issueFacilityPayout} className="space-y-2">
+                        <input type="hidden" name="facilityId" value={f.id} />
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period From</label>
+                            <input name="period_from" type="date" required
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period To</label>
+                            <input name="period_to" type="date" required
+                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes (optional)</label>
+                          <input name="notes" placeholder="e.g. April week 3"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                        <button type="submit"
+                          className="w-full text-xs font-bold text-white bg-[#E8726A] hover:bg-[#d45f57] px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
+                          💸 Issue Payout via Stripe
+                        </button>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* Payout history */}
+                  {(payoutsByFacility[f.id] ?? []).length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payout History</p>
+                      <div className="space-y-1.5">
+                        {(payoutsByFacility[f.id] ?? []).slice(0, 10).map(p => (
+                          <div key={p.id} className="flex items-center gap-3 flex-wrap bg-white rounded-xl px-3 py-2 border border-gray-100 text-xs">
+                            <span className="font-bold text-[#0D2240]">${(p.amount_cents / 100).toFixed(2)}</span>
+                            {p.period_from && p.period_to && (
+                              <span className="text-gray-400">{p.period_from} – {p.period_to}</span>
+                            )}
+                            {p.orders_count != null && <span className="text-gray-400">{p.orders_count} orders</span>}
+                            {p.total_lbs != null && <span className="text-gray-400">{Number(p.total_lbs).toFixed(1)} lbs</span>}
+                            <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ${p.status === "transferred" ? "bg-green-50 text-green-700 border border-green-200" : "bg-yellow-50 text-yellow-700 border border-yellow-200"}`}>
+                              {p.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              </details>
+            )}
 
             {/* Edit accordion */}
             <details className="group border-t border-gray-100">
