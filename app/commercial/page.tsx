@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { CommercialForm } from "@/components/CommercialForm"
 
 export const metadata = {
   title: "Commercial Laundry Services — WashFold Orlando",
@@ -101,8 +102,7 @@ const STEPS = [
 ]
 
 export default function CommercialPage() {
-  const email = "clean@washfoldorlando.com"
-  const mailtoHref = `mailto:${email}?subject=Commercial%20Laundry%20Quote%20Request&body=Hi%20WashFold%2C%0A%0AI%27m%20interested%20in%20commercial%20laundry%20services%20for%20my%20business.%0A%0ABusiness%20name%3A%20%0ABusiness%20type%3A%20%0AEstimated%20weekly%20volume%3A%20%0APreferred%20pickup%20days%3A%20%0A%0AThank%20you!`
+
 
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
@@ -123,7 +123,7 @@ export default function CommercialPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
-              href={mailtoHref}
+              href="#request-bid"
               className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold text-sm uppercase tracking-widest px-8 py-4 rounded-full transition-colors"
             >
               Request a Quote →
@@ -198,28 +198,19 @@ export default function CommercialPage() {
         </div>
       </section>
 
-      {/* ── CTA Banner ──────────────────────────────────────────────────────── */}
-      <section className="bg-[#0D2240] px-4 py-16 text-center">
+      {/* ── Request a Bid Form ───────────────────────────────────────────────── */}
+      <section id="request-bid" className="bg-[#0D2240] px-4 py-16">
         <div className="mx-auto max-w-2xl">
-          <div className="text-4xl mb-4">🧺</div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-4">
-            Ready to Take Laundry Off Your Plate?
-          </h2>
-          <p className="text-white/70 text-sm leading-relaxed mb-8">
-            Tell us about your business and volume. We&apos;ll reply within one business day with a custom quote.
-          </p>
-          <a
-            href={mailtoHref}
-            className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold text-sm uppercase tracking-widest px-10 py-4 rounded-full transition-colors"
-          >
-            Request a Bid →
-          </a>
-          <p className="text-white/40 text-xs mt-4">
-            Or email us directly at{" "}
-            <a href={`mailto:${email}`} className="text-white/70 underline hover:text-white transition-colors">
-              {email}
-            </a>
-          </p>
+          <div className="text-center mb-8">
+            <div className="text-4xl mb-4">🧺</div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+              Request a Bid
+            </h2>
+            <p className="text-white/60 text-sm leading-relaxed">
+              Fill in your details and we&apos;ll reply within one business day with a custom quote.
+            </p>
+          </div>
+          <CommercialForm />
         </div>
       </section>
 
