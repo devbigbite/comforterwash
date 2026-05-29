@@ -7,7 +7,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useLang } from "@/components/lang-provider"
 import { useState, useEffect } from "react"
-import { getLandingOffers, getSiteImages, getSiteText, getServicesConfig, type ServicesConfig } from "@/app/actions/settings"
+import { getLandingOffers, getSiteImages, getSiteText, getServicesConfig, getMonthlyPlanEnabled, type ServicesConfig } from "@/app/actions/settings"
 import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
 import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
@@ -24,12 +24,14 @@ export default function Home() {
   const [siteText, setSiteText] = useState<SiteText>(DEFAULT_TEXT)
   const [services, setServices] = useState<ServicesConfig | null>(null)
   const [livePricing, setLivePricing] = useState<PricingConfig | null>(null)
+  const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState(true)
   useEffect(() => {
     getLandingOffers().then(setOffers)
     getSiteImages().then(setImages)
     getSiteText().then(setSiteText)
     getServicesConfig().then(setServices)
     getPricingConfig().then(setLivePricing)
+    getMonthlyPlanEnabled().then(setMonthlyPlanEnabled)
   }, [])
   const visibleOffers = (offers ?? []).filter(o => o.enabled)
   return (
@@ -316,7 +318,7 @@ export default function Home() {
       </section>
 
       {/* ── Monthly Plans CTA ──────────────────────────────────────────── */}
-      <section className="bg-[#0D2240] px-4 py-12">
+      {monthlyPlanEnabled && <section className="bg-[#0D2240] px-4 py-12">
         <div className="mx-auto max-w-3xl flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
           <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-3xl shrink-0">📅</div>
           <div className="flex-1">
@@ -332,7 +334,7 @@ export default function Home() {
             See Plans →
           </Link>
         </div>
-      </section>
+      </section>}
 
       {/* ── Testimonials ───────────────────────────────────────────────── */}
       <section className="bg-[#f7f8fb] px-4 py-16">
