@@ -39,13 +39,16 @@ export function SiteNav() {
   const isHome = pathname === "/"
   const href = (hash: string) => isHome ? hash : `/${hash}`
 
+  // Preserve locale when navigating to standalone pages
+  const lp = (path: string) => locale === "es" ? `${path}?lang=es` : path
+
   const navLinks = [
     { label: tr.nav.pickupDelivery, href: href("#services") },
     { label: tr.nav.howItWorks,     href: href("#how") },
     { label: tr.nav.pricing,        href: href("#pricing") },
-    { label: tr.nav.serviceAreas,   href: "/service-areas" },
-    { label: tr.nav.faq,            href: "/faq" },
-    { label: tr.nav.commercial,     href: "/commercial" },
+    { label: tr.nav.serviceAreas,   href: lp("/service-areas") },
+    { label: tr.nav.faq,            href: lp("/faq") },
+    { label: tr.nav.commercial,     href: lp("/commercial") },
   ]
 
   return (
