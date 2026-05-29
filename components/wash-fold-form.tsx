@@ -73,7 +73,7 @@ const WEEKDAYS = [
 function getValidDeliveryDays(pickupDayId: string): string[] {
   const pickup = WEEKDAYS.find(d => d.id === pickupDayId)
   if (!pickup) return []
-  const minGap = pickupDayId === "friday" ? 5 : 3
+  const minGap = pickupDayId === "friday" ? 4 : 2
   return WEEKDAYS.filter(d => {
     const gap = d.num > pickup.num ? d.num - pickup.num : 7 - pickup.num + d.num
     return gap >= minGap
@@ -96,7 +96,7 @@ function nextOccurrence(dayId: string, after?: Date): Date {
 }
 
 function firstDeliveryDate(pickupDate: Date, deliveryDayId: string, pickupDayId: string): Date {
-  const minGap = pickupDayId === "friday" ? 5 : 3
+  const minGap = pickupDayId === "friday" ? 4 : 2
   const earliest = new Date(pickupDate)
   earliest.setDate(earliest.getDate() + minGap)
   const candidate = nextOccurrence(deliveryDayId, new Date(pickupDate))
@@ -387,7 +387,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
     if (!available) return false
     if (formData.pickupDate) {
       const min = new Date(formData.pickupDate)
-      min.setDate(min.getDate() + 3)
+      min.setDate(min.getDate() + 2)
       min.setHours(0, 0, 0, 0)
       return d >= min
     }
@@ -1004,7 +1004,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                       <div className="flex items-center gap-1.5 mb-3">
                         <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">2</span>
                         <h4 className="font-bold text-[#0D2240] text-sm">{tf.labelDelivery} Date &amp; Time</h4>
-                        <span className="text-xs text-gray-400">— {formData.pickupDate.getDay() === 5 ? "5" : "3"}+ {tw.daysAfterPickup}</span>
+                        <span className="text-xs text-gray-400">— {formData.pickupDate.getDay() === 5 ? "4" : "2"}+ {tw.daysAfterPickup}</span>
                       </div>
                       {formData.deliveryDate && (
                         <p className="text-xs text-[#E8726A] font-medium mb-3">

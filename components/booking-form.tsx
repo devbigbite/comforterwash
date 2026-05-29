@@ -326,7 +326,7 @@ export function BookingForm() {
       : [1, 2, 3].includes(d.getDay())
     if (!available) return false
     if (formData.pickupDate) {
-      const min = new Date(formData.pickupDate); min.setDate(min.getDate() + 3); min.setHours(0, 0, 0, 0)
+      const min = new Date(formData.pickupDate); min.setDate(min.getDate() + 2); min.setHours(0, 0, 0, 0)
       return d >= min
     }
     return true
