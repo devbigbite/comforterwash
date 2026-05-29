@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { submitCommercialInquiry } from "@/app/actions/commercial-inquiry"
 
 const BUSINESS_TYPES = [
-  "Lodging (Hotel / Motel / Inn)",
+  "Lodging and Hosting",
   "Short-Term Rentals / Airbnb",
   "Gyms & Fitness Centers",
   "Spas & Salons",
@@ -16,12 +16,13 @@ const BUSINESS_TYPES = [
 ]
 
 const inp = "w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white placeholder-gray-400"
-const label = "block text-xs font-extrabold text-[#0D2240] uppercase tracking-wide mb-1.5"
+const label = "block text-xs font-extrabold text-white/90 uppercase tracking-wide mb-1.5"
 
 export function CommercialForm() {
   const [pending, startTransition] = useTransition()
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedType, setSelectedType] = useState("")
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -102,12 +103,27 @@ export function CommercialForm() {
       {/* Row 3: Business Type */}
       <div>
         <label className={label}>Business Type <span className="text-[#E8726A]">*</span></label>
-        <select name="business_type" required defaultValue="" className={inp}>
+        <select
+          name="business_type"
+          required
+          defaultValue=""
+          className={inp}
+          onChange={(e) => setSelectedType(e.target.value)}
+        >
           <option value="" disabled>Select your industry…</option>
           {BUSINESS_TYPES.map(t => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
+        {selectedType === "Other" && (
+          <input
+            name="other_type"
+            type="text"
+            required
+            placeholder="Please describe your business…"
+            className={`${inp} mt-2`}
+          />
+        )}
       </div>
 
       {/* Row 4: Optional fields */}
@@ -115,7 +131,7 @@ export function CommercialForm() {
         <div>
           <label className={label}>
             Estimated Weekly Volume
-            <span className="ml-1 text-gray-400 normal-case font-normal">(optional)</span>
+            <span className="ml-1 text-white/40 normal-case font-normal">(optional)</span>
           </label>
           <input
             name="weekly_volume"
@@ -127,7 +143,7 @@ export function CommercialForm() {
         <div>
           <label className={label}>
             Preferred Pickup / Delivery Days
-            <span className="ml-1 text-gray-400 normal-case font-normal">(optional)</span>
+            <span className="ml-1 text-white/40 normal-case font-normal">(optional)</span>
           </label>
           <input
             name="preferred_days"

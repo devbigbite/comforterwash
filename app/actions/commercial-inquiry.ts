@@ -16,6 +16,7 @@ export async function submitCommercialInquiry(
   const businessType   = (formData.get("business_type") as string)?.trim()
   const weeklyVolume   = (formData.get("weekly_volume") as string)?.trim() || null
   const preferredDays  = (formData.get("preferred_days") as string)?.trim() || null
+  const otherType      = (formData.get("other_type") as string)?.trim() || null
 
   if (!businessName || !contact || !email || !phone || !businessType) {
     return { success: false, error: "Please fill in all required fields." }
@@ -50,6 +51,11 @@ export async function submitCommercialInquiry(
             <td style="padding:10px 12px;background:#f7f8fb;border-radius:6px;font-weight:bold;color:#0D2240;font-size:13px;">Business Type</td>
             <td style="padding:10px 12px;color:#374151;font-size:13px;">${businessType}</td>
           </tr>
+          ${otherType ? `
+          <tr>
+            <td style="padding:10px 12px;font-weight:bold;color:#0D2240;font-size:13px;">Business Description</td>
+            <td style="padding:10px 12px;color:#374151;font-size:13px;">${otherType}</td>
+          </tr>` : ""}
           ${weeklyVolume ? `
           <tr>
             <td style="padding:10px 12px;font-weight:bold;color:#0D2240;font-size:13px;">Est. Weekly Volume</td>
