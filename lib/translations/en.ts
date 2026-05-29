@@ -18,6 +18,7 @@ const en = {
     pricing: "Pricing",
     serviceAreas: "Service Areas",
     faq: "FAQ",
+    commercial: "Commercial",
   },
   hero: {
     slide1Headline: "Laundry Service That Feels Like Family",

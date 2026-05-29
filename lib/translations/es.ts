@@ -18,6 +18,7 @@ const es = {
     pricing: "Precios",
     serviceAreas: "Áreas de Servicio",
     faq: "Preguntas Frecuentes",
+    commercial: "Comercial",
   },
   hero: {
     slide1Headline: "Servicio de Lavandería con Toque Familiar",
