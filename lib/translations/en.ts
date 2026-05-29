@@ -329,6 +329,86 @@ const en = {
     paySuccess:     "Payment successful! Your booking is confirmed. You'll receive an SMS update shortly.",
     saveError:      "Payment went through but we couldn't save your booking. Please contact us.",
   },
+
+  // ── Page: FAQ ───────────────────────────────────────────────────────────────
+  faqPage: {
+    title:       "Frequently Asked Questions",
+    subtitle:    "Everything you need to know about our laundry pickup & delivery service in Orlando.",
+    catGeneral:        "General",
+    catGeneralDesc:    "How it works, service areas, pickup & delivery, contact",
+    catComforter:      "Comforter Washing",
+    catComforterDesc:  "Sizes, pricing, care process, turnaround time",
+    catWashFold:       "Wash & Fold",
+    catWashFoldDesc:   "Per-pound pricing, detergent, stains, subscriptions",
+    questionCount:     "question",
+    questionsCount:    "questions",
+    stillHave:         "Still have questions?",
+    stillHaveSub:      "We're happy to help. Reach out and we'll get back to you quickly.",
+    emailUs:           "Email Us →",
+    backHome:          "← Back to Home",
+    terms:             "Terms of Service",
+    privacy:           "Privacy Policy",
+  },
+
+  // ── Page: Service Areas ─────────────────────────────────────────────────────
+  serviceAreasPage: {
+    badge:          "WashFold Orlando",
+    title:          "Pickup & Delivery\nService Areas",
+    subtitle:       "We serve the greater Orlando metro — free pickup and delivery straight to your door.",
+    scheduleBtn:    "Schedule a Pickup",
+    checkZip:       "Check Your ZIP Code",
+    areasTitle:     "Areas We Serve",
+    zipCount:       "ZIP code",
+    zipCounts:      "ZIP codes",
+    acrossOrlando:  "across the Orlando metro area",
+    comingSoon:     "Service area details coming soon.",
+    servingThis:    "Serving this area",
+    noZip:          "Don't see your ZIP code?",
+    noZipSub:       "We're expanding fast. Reach out and we'll let you know when we're in your area.",
+    messageUs:      "Message Us",
+  },
+
+  // ── Page: Commercial ────────────────────────────────────────────────────────
+  commercialPage: {
+    badge:       "Commercial Services",
+    heroTitle1:  "Effective Laundry Service for",
+    heroTitle2:  "Orlando Businesses",
+    heroSub:     "Reliable pickup & delivery laundry service for hotels, Airbnbs, gyms, spas, restaurants, and more. Custom pricing, flexible schedules, no contracts.",
+    heroBtn:     "Request a Quote →",
+    industriesTitle:   "Industries We Serve",
+    industriesSub:     "From a single Airbnb to a multi-location gym chain — if your business generates laundry, we can handle it.",
+    howTitle:    "How It Works",
+    howSub:      "Getting started takes less than 10 minutes.",
+    benefitsTitle: "Why WashFold for Business?",
+    benefitsSub:   "We built our service around reliability — because your business depends on it.",
+    formTitle:   "Request a Bid",
+    formSub:     "Fill in your details and we'll reply within one business day with a custom quote.",
+    footerBack:  "Back to Home",
+    industries: [
+      { icon: "🏡", title: "Guesthouses & Bed & Breakfast",    desc: "Sheets, pillowcases, towels, and robes — cleaned on a reliable schedule so your rooms are always guest-ready." },
+      { icon: "🏡", title: "Airbnb & Short-Term Rentals",       desc: "Turnover laundry between guests without lifting a finger. We pick up dirty linens and deliver fresh ones on your schedule." },
+      { icon: "🏋️", title: "Gyms & Fitness Centers",           desc: "Towels, workout gear, and locker room linens washed to your standards. Volume pricing available." },
+      { icon: "💆", title: "Spas & Salons",                     desc: "Robes, towels, and treatment linens handled with care. Consistent quality your clients will notice." },
+      { icon: "🍽️", title: "Restaurants & Cafés",              desc: "Table linens, aprons, chef coats, and bar rags. Keep your front and back of house looking sharp." },
+      { icon: "🏥", title: "Medical & Dental Offices",          desc: "Scrubs, lab coats, and patient gowns cleaned with clinical attention to detail and hygiene." },
+      { icon: "👷", title: "Construction & Contractors",         desc: "Work uniforms, safety vests, and heavy-duty gear — we handle the tough stuff so your crew stays professional." },
+      { icon: "💼", title: "Offices & Co-Working Spaces",       desc: "Kitchen towels, cleaning cloths, and branded uniforms refreshed weekly without any hassle." },
+    ],
+    benefits: [
+      { icon: "📅", title: "Flexible Schedules",    desc: "Daily, weekly, or custom pickup & delivery windows built around your business hours." },
+      { icon: "💰", title: "Volume Pricing",         desc: "The more you wash, the more you save. Custom per-pound rates for commercial accounts." },
+      { icon: "⚡", title: "Fast Turnaround",        desc: "24–48 hour turnaround as standard. Rush service available for urgent needs." },
+      { icon: "🔒", title: "No Long-Term Contracts", desc: "Month-to-month service with no hidden fees. Cancel or adjust anytime." },
+      { icon: "📍", title: "Orlando-Based",          desc: "Local team, local reliability. We know Orlando and we show up on time, every time." },
+      { icon: "🧺", title: "Dedicated Account Setup", desc: "We learn your preferences once — detergent, fold style, sorting — and repeat them every time." },
+    ],
+    steps: [
+      { num: "1", title: "Request a Quote",          desc: "Tell us about your business, volume, and frequency. We'll put together a custom pricing proposal." },
+      { num: "2", title: "We Set Up Your Account",   desc: "We schedule your first pickup, note your preferences, and assign a dedicated pickup window." },
+      { num: "3", title: "Sit Back & Let Us Handle It", desc: "Recurring pickup & delivery on autopilot. Clean laundry, every time, without the hassle." },
+    ],
+  },
+
 } as const
 
 export default en
