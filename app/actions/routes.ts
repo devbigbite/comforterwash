@@ -43,7 +43,7 @@ export async function getActiveRoutes(): Promise<Route[]> {
 
   return routes.map(r => ({
     ...r,
-    turnaround_days: r.turnaround_days ?? 3,
+    turnaround_days: r.turnaround_days ?? 2,
     time_windows: windowsByRoute[r.id] ?? [],
   })) as Route[]
 }

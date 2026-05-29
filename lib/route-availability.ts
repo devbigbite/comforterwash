@@ -190,9 +190,9 @@ export function getAllTimeWindows(routes: Route[], type?: "pickup" | "delivery")
 
 /**
  * Returns the minimum turnaround_days across all routes that serve the given
- * pickup date. Falls back to `defaultGap` (3) if no routes are configured.
+ * pickup date. Falls back to `defaultGap` (2) if no routes are configured.
  */
-function getMinTurnaround(pickupDate: Date, routes: Route[], defaultGap = 3): number {
+function getMinTurnaround(pickupDate: Date, routes: Route[], defaultGap = 2): number {
   const dayName = DAY_NAMES[pickupDate.getDay()]
   const servingRoutes = routes.filter(r =>
     r.active &&
