@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 
@@ -27,7 +27,7 @@ export interface EmailTemplate {
 
 // ── Fetch all templates for this location ─────────────────────────────────────
 export async function getEmailTemplates(audience?: string): Promise<EmailTemplate[]> {
-  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   let query = supabase
     .from("email_templates")
     .select("*")
@@ -44,7 +44,7 @@ export async function getEmailTemplates(audience?: string): Promise<EmailTemplat
 
 // ── Fetch a single template by key for this location ─────────────────────────
 export async function getEmailTemplate(key: string): Promise<EmailTemplate | null> {
-  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data, error } = await supabase
     .from("email_templates")
     .select("*")
@@ -63,7 +63,7 @@ export async function upsertEmailTemplate(
     subject: string; headline: string; body: string; cta_text?: string | null; footer_note?: string | null; alert_box?: string | null; contact_note?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
   await requireAdmin()
-  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { error } = await supabase
     .from("email_templates")
     .update({ ...updates, updated_at: new Date().toISOString() })

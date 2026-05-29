@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
 import { revalidatePath } from "next/cache"
 
@@ -48,7 +48,7 @@ const KEY_MAP: Record<keyof PricingConfig, string> = {
 
 export async function getPricingConfig(): Promise<PricingConfig> {
   try {
-    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
     const keys = Object.values(KEY_MAP)
     const { data } = await supabase
       .from("settings")
@@ -72,7 +72,7 @@ export async function getPricingConfig(): Promise<PricingConfig> {
 }
 
 export async function setPricingConfig(config: PricingConfig): Promise<void> {
-  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const rows = (Object.entries(KEY_MAP) as [keyof PricingConfig, string][]).map(
     ([field, dbKey]) => ({
       key: dbKey,

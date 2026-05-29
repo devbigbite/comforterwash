@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/lib/auth-guard"
 
@@ -16,7 +16,7 @@ export interface ServiceOption {
 
 export async function getServiceOptions(type?: "detergent" | "extra"): Promise<ServiceOption[]> {
   try {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     let query = supabase
       .from("service_options")
       .select("*")
@@ -32,7 +32,7 @@ export async function getServiceOptions(type?: "detergent" | "extra"): Promise<S
 
 export async function getAllServiceOptions(type?: "detergent" | "extra"): Promise<ServiceOption[]> {
   try {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     let query = supabase
       .from("service_options")
       .select("*")
@@ -48,7 +48,7 @@ export async function getAllServiceOptions(type?: "detergent" | "extra"): Promis
 export async function upsertServiceOption(option: Partial<ServiceOption> & { type: "detergent" | "extra"; name: string }): Promise<void> {
   await requireAdmin()
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   await supabase.from("service_options").upsert({
     ...option,
     price_cents: option.price_cents ?? 0,
@@ -60,7 +60,7 @@ export async function upsertServiceOption(option: Partial<ServiceOption> & { typ
 export async function deleteServiceOption(id: string): Promise<void> {
   await requireAdmin()
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   await supabase.from("service_options").delete().eq("id", id)
   revalidatePath("/admin/pricing")
 }
@@ -68,7 +68,7 @@ export async function deleteServiceOption(id: string): Promise<void> {
 export async function toggleServiceOption(id: string, enabled: boolean): Promise<void> {
   await requireAdmin()
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   await supabase.from("service_options").update({ enabled }).eq("id", id)
   revalidatePath("/admin/pricing")
 }

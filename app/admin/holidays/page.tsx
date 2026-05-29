@@ -1,7 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { PlatformHoursEditor } from "@/components/admin/platform-hours-editor"
-import { createClient } from "@/lib/supabase/server"
 import { todayET } from "@/lib/date-et"
 
 async function addHoliday(formData: FormData) {
@@ -61,7 +60,7 @@ export default async function HolidaysPage() {
     .order("date", { ascending: true })
 
   // Load saved platform hours from settings
-  const supabaseServer = await createClient()
+  const supabaseServer = createAdminClient()
   const { data: hoursSetting } = await supabaseServer
     .from("settings")
     .select("value")

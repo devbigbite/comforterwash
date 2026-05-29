@@ -1,6 +1,5 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { getLocationId } from "@/lib/location"
@@ -11,7 +10,7 @@ import { requireAdmin } from "@/lib/auth-guard"
 
 // ── Internal helper: upsert a setting key for the current location ────────────
 async function upsertSetting(key: string, value: string, locationId: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   await supabase.from("settings").upsert(
     { key, value, location_id: locationId, updated_at: new Date().toISOString() },
     { onConflict: "location_id,key" }
@@ -22,7 +21,7 @@ async function upsertSetting(key: string, value: string, locationId: string) {
 
 export async function getComforterPromo(): Promise<boolean> {
   try {
-    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
     const { data } = await supabase
       .from("settings")
       .select("value")
@@ -48,7 +47,7 @@ export async function setComforterPromo(active: boolean): Promise<void> {
 
 export async function getLandingOffers(): Promise<LandingOffer[]> {
   try {
-    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
     const { data } = await supabase
       .from("settings")
       .select("key,value")
@@ -79,7 +78,7 @@ export async function setLandingOffer(index: number, offer: LandingOffer): Promi
 
   const locationId = await getLocationId()
   const n = index + 1
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   await supabase.from("settings").upsert(
     [
       { key: `landing_offer_${n}_enabled`, value: offer.enabled ? "true" : "false", location_id: locationId },
@@ -97,7 +96,7 @@ export async function setLandingOffer(index: number, offer: LandingOffer): Promi
 
 export async function getSiteImages(): Promise<SiteImages> {
   try {
-    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
     const { data } = await supabase
       .from("settings")
       .select("key,value")
@@ -119,7 +118,7 @@ export async function getSiteImages(): Promise<SiteImages> {
 export async function uploadSiteImage(key: string, formData: FormData): Promise<string> {
   await requireAdmin()
 
-  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const file = formData.get("file") as File
   if (!file || file.size === 0) throw new Error("No file provided")
 
@@ -149,7 +148,7 @@ export async function uploadSiteImage(key: string, formData: FormData): Promise<
 export async function resetSiteImage(key: string): Promise<void> {
   await requireAdmin()
 
-  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   await supabase.from("settings").delete().eq("location_id", locationId).eq("key", `img_${key}`)
   revalidatePath("/")
   revalidatePath("/admin/images")
@@ -159,7 +158,7 @@ export async function resetSiteImage(key: string): Promise<void> {
 
 export async function getSiteText(): Promise<SiteText> {
   try {
-    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
     const { data } = await supabase
       .from("settings")
       .select("key,value")
@@ -190,7 +189,7 @@ export async function setSiteTextValue(key: keyof SiteText, value: string): Prom
 export async function resetSiteText(key: keyof SiteText): Promise<void> {
   await requireAdmin()
 
-  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   await supabase.from("settings").delete().eq("location_id", locationId).eq("key", `txt_${key}`)
   revalidatePath("/")
   revalidatePath("/admin/images")
@@ -200,7 +199,7 @@ export async function resetSiteText(key: keyof SiteText): Promise<void> {
 
 export async function getServiceAreaPolygon(): Promise<object | null> {
   try {
-    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
     const { data } = await supabase
       .from("settings")
       .select("value")
@@ -226,7 +225,7 @@ export async function setServiceAreaPolygon(geojson: object): Promise<void> {
 export async function deleteServiceAreaPolygon(): Promise<void> {
   await requireAdmin()
 
-  const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   await supabase.from("settings").delete().eq("location_id", locationId).eq("key", "service_area_polygon")
   revalidatePath("/service-areas")
   revalidatePath("/admin/service-area")
@@ -248,7 +247,7 @@ const DELIVERY_FEE_KEYS = [
 
 export async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
   try {
-    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
     const { data } = await supabase
       .from("settings")
       .select("key,value")
@@ -270,7 +269,7 @@ export async function setDeliveryFeeSettings(settings: DeliveryFeeSettings): Pro
   await requireAdmin()
 
   const locationId = await getLocationId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   await supabase.from("settings").upsert(
     [
       { key: "delivery_fee_comforter_cents", value: String(settings.comforterCents), location_id: locationId, updated_at: new Date().toISOString() },
@@ -292,7 +291,7 @@ export interface ServicesConfig {
 
 export async function getServicesConfig(): Promise<ServicesConfig> {
   try {
-    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
     const { data } = await supabase
       .from("settings")
       .select("key,value")
@@ -314,7 +313,7 @@ export async function setServicesConfig(config: ServicesConfig): Promise<void> {
   await requireAdmin()
 
   const locationId = await getLocationId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   await supabase.from("settings").upsert(
     [
       { key: "service_comforter_wash", value: config.comforter_wash ? "true" : "false", location_id: locationId, updated_at: new Date().toISOString() },
@@ -336,7 +335,7 @@ export interface WarehouseSettings {
 
 export async function getWarehouseSettings(): Promise<WarehouseSettings> {
   try {
-    const [supabase, locationId] = await Promise.all([createClient(), getLocationId()])
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
     const { data } = await supabase
       .from("settings")
       .select("key,value")
@@ -357,7 +356,7 @@ export async function setWarehouseSettings(name: string, address: string): Promi
   await requireAdmin()
 
   const locationId = await getLocationId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   await supabase.from("settings").upsert(
     [
       { key: "warehouse_name",    value: name,    location_id: locationId, updated_at: new Date().toISOString() },
