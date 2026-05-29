@@ -3,13 +3,14 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import { stripe } from "@/lib/stripe"
+import PhotoUploader from "./photo-uploader"
 
 // Operator steps — wash_only skips the folding step
-type StepDef = { action: string; next: string; color: string; needsMachine: boolean }
+type StepDef = { action: string; next: string; color: string; needsMachine: boolean; needsFoldingNotes?: boolean }
 const OPERATOR_STEPS_FULL: Record<string, StepDef> = {
   at_facility:  { action: "Load into Washer",      next: "in_washer", color: "bg-cyan-600 hover:bg-cyan-700",    needsMachine: true  },
   in_washer:    { action: "Move to Dryer",          next: "in_dryer",  color: "bg-orange-500 hover:bg-orange-600", needsMachine: true  },
-  in_dryer:     { action: "Mark as Folded",         next: "folded",    color: "bg-yellow-500 hover:bg-yellow-600", needsMachine: false },
+  in_dryer:     { action: "Mark as Folded",         next: "folded",    color: "bg-yellow-500 hover:bg-yellow-600", needsMachine: false, needsFoldingNotes: true },
   folded:       { action: "Mark Ready for Pickup",  next: "ready",     color: "bg-green-600 hover:bg-green-700",   needsMachine: false },
 }
 const OPERATOR_STEPS_WASH_ONLY: Record<string, StepDef> = {
@@ -58,6 +59,7 @@ async function advanceBag(formData: FormData) {
   const machineId = formData.get("machineId") as string | null
   const operatorName = (formData.get("operatorName") as string) || "operator"
   const weightStr = formData.get("weight_lbs") as string | null
+  const foldingNotes = (formData.get("folding_notes") as string | null)?.trim() || null
 
   const supabase = createAdminClient()
 
@@ -101,7 +103,6 @@ async function advanceBag(formData: FormData) {
           weight_entered_at: new Date().toISOString(),
         }).eq("id", bookingId)
 
-        // Capture Stripe payment — handles overages automatically
         if (booking.stripe_payment_intent_id && customerFinalCents) {
           try {
             const { capturePayment } = await import("@/app/actions/stripe")
@@ -119,7 +120,6 @@ async function advanceBag(formData: FormData) {
           created_by: operatorName,
         })
       } else if (booking.actual_weight_lbs) {
-        // Weight already on file — operator just acknowledging
         await supabase.from("order_events").insert({
           booking_id: bookingId,
           bag_id: bagId,
@@ -141,16 +141,64 @@ async function advanceBag(formData: FormData) {
     ready:     "ready_for_delivery",
   }
 
+  const eventNotes = foldingNotes
+    ? foldingNotes
+    : (machineId ? "Machine assigned" : null)
+
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     bag_id: bagId,
     machine_id: machineId || null,
     event_type: eventMap[nextStatus] ?? nextStatus,
-    notes: machineId ? "Machine assigned" : null,
+    notes: eventNotes,
     created_by: operatorName,
   })
 
   revalidatePath(`/operator/order/${bookingId}`)
+}
+
+async function completeOrderFolding(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const operatorName = (formData.get("operatorName") as string) || "operator"
+  const foldedCount = formData.get("folded_count") as string
+  const completionNotes = (formData.get("completion_notes") as string | null)?.trim() || null
+
+  const supabase = createAdminClient()
+
+  // Advance all folded bags to ready
+  await supabase.from("order_bags")
+    .update({ status: "ready" })
+    .eq("booking_id", bookingId)
+    .eq("status", "folded")
+
+  const noteParts = [
+    `${foldedCount} bag${parseInt(foldedCount) !== 1 ? "s" : ""} confirmed folded`,
+    completionNotes ? `Notes: ${completionNotes}` : null,
+  ].filter(Boolean).join(" · ")
+
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "order_folding_complete",
+    notes: noteParts,
+    created_by: operatorName,
+  })
+
+  revalidatePath(`/operator/order/${bookingId}`)
+}
+
+async function recordFoldingPhoto(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const photoUrl = formData.get("photoUrl") as string
+
+  const supabase = createAdminClient()
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "folding_photo",
+    notes: photoUrl,
+    created_by: "operator",
+  })
 }
 
 export default async function OperatorOrderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -199,6 +247,10 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
   // Margin warning: facility minimum > actual weight
   const facilityMin = facility?.minimum_lbs ?? 0
   const showMarginWarning = weightOnFile && facilityMin > weightOnFile
+
+  // Folding completion card: show when ALL bags are in "folded" state
+  const allBagsAreFolded = !isWashOnly && bags && bags.length > 0 &&
+    bags.every(b => b.status === "folded")
 
   return (
     <div className="min-h-screen bg-[#f7f8fb]">
@@ -303,7 +355,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
           )}
         </div>
 
-        {/* Partner attendant mode — operator shouldn't be processing this */}
+        {/* Partner attendant mode */}
         {isPartnerMode && (
           <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 text-center">
             <p className="text-purple-700 font-extrabold text-lg">🤝 Partner Attendant Order</p>
@@ -329,6 +381,78 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
           </div>
         )}
 
+        {/* ─── Folding Completion Card ─────────────────────────────────── */}
+        {allBagsAreFolded && (
+          <div className="bg-white rounded-2xl shadow-sm border-2 border-yellow-300 overflow-hidden">
+            <div className="bg-yellow-400 px-4 py-3">
+              <p className="font-extrabold text-[#0D2240] text-base">🧺 Folding Complete — Confirm & Finalize</p>
+              <p className="text-[#0D2240]/70 text-xs mt-0.5">All bags are folded. Add a photo, confirm the count, then mark ready.</p>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Photo uploader */}
+              <PhotoUploader
+                bookingId={booking.id}
+                action={recordFoldingPhoto}
+                label="📷 Folding Photos"
+                emptyHint="Take a photo of the folded bags before packaging."
+                compact
+              />
+
+              {/* Completion form */}
+              <form action={completeOrderFolding} className="space-y-3">
+                <input type="hidden" name="bookingId" value={booking.id} />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
+                      Bags Folded *
+                    </label>
+                    <input
+                      name="folded_count"
+                      type="number"
+                      min="1"
+                      defaultValue={bags?.length ?? 1}
+                      required
+                      className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] font-mono focus:outline-none focus:border-yellow-400"
+                    />
+                    <p className="text-[10px] text-gray-300 mt-1">Expected: {bags?.length ?? 0}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
+                      Your Name
+                    </label>
+                    <input
+                      name="operatorName"
+                      type="text"
+                      placeholder="Your name"
+                      className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-yellow-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
+                    Notes (optional)
+                  </label>
+                  <textarea
+                    name="completion_notes"
+                    rows={2}
+                    placeholder="Any issues? Missing items? Special instructions followed?"
+                    className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-yellow-400 resize-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-extrabold py-4 rounded-2xl text-base transition-colors"
+                >
+                  ✅ Mark All Ready for Pickup
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Bags */}
         {bags?.map((bag) => {
           const currentIdx = ALL_STATUSES.indexOf(bag.status)
@@ -336,7 +460,6 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
           const isDone = ["ready", "out_for_delivery", "delivered"].includes(bag.status)
           const isDriverSide = ["pending", "picked_up"].includes(bag.status)
 
-          // Weight entry required on at_facility → in_washer for own_operator when no weight on file
           const needsWeightEntry = bag.status === "at_facility" && isOwnOperator && !weightOnFile
           const weightAlreadySet = bag.status === "at_facility" && weightOnFile
 
@@ -355,7 +478,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                 </div>
               </div>
 
-              {/* Progress bar — highlight operator zone */}
+              {/* Progress bar */}
               <div className="px-4 py-2">
                 <div className="flex gap-0.5">
                   {ALL_STATUSES.map((s, i) => (
@@ -392,7 +515,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                     <input type="hidden" name="bookingId" value={booking.id} />
                     <input type="hidden" name="nextStatus" value={step.next} />
 
-                    {/* Weight entry for own_operator at washer loading */}
+                    {/* Weight entry */}
                     {needsWeightEntry && (
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                         <label className="block text-xs font-bold text-amber-700 uppercase tracking-wide mb-1.5">
@@ -414,7 +537,6 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                       </div>
                     )}
 
-                    {/* Weight already on file — hidden field to pass through, show info */}
                     {weightAlreadySet && (
                       <>
                         <input type="hidden" name="weight_lbs" value={String(weightOnFile)} />
@@ -450,6 +572,21 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                             )
                           })}
                         </select>
+                      </div>
+                    )}
+
+                    {/* Notes for folding step */}
+                    {step.needsFoldingNotes && (
+                      <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
+                          Folding Notes (optional)
+                        </label>
+                        <textarea
+                          name="folding_notes"
+                          rows={2}
+                          placeholder="Any issues with this bag? Items needing special attention?"
+                          className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] resize-none"
+                        />
                       </div>
                     )}
 
