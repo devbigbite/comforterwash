@@ -114,7 +114,7 @@ export default function CommercialPage() {
             Commercial Services
           </span>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white leading-tight mb-5">
-            Effective Laundry for<br />
+            Effective Laundry Service for<br />
             <span className="text-[#E8726A]">Orlando Businesses</span>
           </h1>
           <p className="text-white/70 text-lg leading-relaxed mb-8 max-w-2xl mx-auto">
