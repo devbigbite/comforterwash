@@ -92,11 +92,13 @@ export async function createStripeConnectAccount(workerId: string) {
   // Create Express account if one doesn't exist yet
   if (!accountId) {
     const account = await stripe.accounts.create({
-      type: "express",
-      email: worker.email,
-      capabilities: {
-        transfers: { requested: true },
+      controller: {
+        stripe_dashboard: { type: "express" },
+        fees:             { payer: "application" },
+        losses:           { payments: "application" },
       },
+      email:         worker.email,
+      capabilities: { transfers: { requested: true } },
       business_type: "individual",
       settings: {
         payouts: { schedule: { interval: "weekly", weekly_anchor: "friday" } },

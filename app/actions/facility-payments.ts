@@ -39,8 +39,12 @@ export async function createFacilityStripeAccount(
 
   if (!accountId) {
     const account = await stripe.accounts.create({
-      type: "express",
-      email: facility.contact_email ?? undefined,
+      controller: {
+        stripe_dashboard: { type: "express" },
+        fees:             { payer: "application" },
+        losses:           { payments: "application" },
+      },
+      email:         facility.contact_email ?? undefined,
       capabilities: { transfers: { requested: true } },
       business_type: "company",
       settings: {
