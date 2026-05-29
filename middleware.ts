@@ -10,6 +10,31 @@ const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfold.com
 const locationCache = new Map<string, { id: string; expiresAt: number }>()
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
+// ── Rate limiting for /partner/ routes ──────────────────────────────────────
+const rateLimitStore = new Map<string, { count: number; windowStart: number }>()
+const RATE_LIMIT_WINDOW_MS = 60_000  // 1-minute sliding window
+const RATE_LIMIT_MAX       = 20      // max requests per IP per window
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+
+  // Prune stale entries when store grows large
+  if (rateLimitStore.size > 10_000) {
+    for (const [k, v] of rateLimitStore) {
+      if (now - v.windowStart > RATE_LIMIT_WINDOW_MS) rateLimitStore.delete(k)
+    }
+  }
+
+  const entry = rateLimitStore.get(ip)
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitStore.set(ip, { count: 1, windowStart: now })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false
+  entry.count++
+  return true
+}
+
 async function getLocationIdForHost(hostname: string): Promise<string> {
   const host = hostname.split(":")[0] // strip port for local dev
 
@@ -36,6 +61,26 @@ async function getLocationIdForHost(hostname: string): Promise<string> {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // ── 0. Rate limit /partner/ routes ───────────────────────────────────────
+  if (pathname.startsWith("/partner/")) {
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown"
+    if (!checkRateLimit(ip)) {
+      return new NextResponse(
+        JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": "60",
+          },
+        }
+      )
+    }
+  }
 
   // ── 1. Resolve location from hostname ────────────────────────────────────
   const hostname = request.headers.get("host") ?? "localhost"
