@@ -53,9 +53,6 @@ export function SiteNav() {
       {/* Top utility bar */}
       <div className="bg-[#0D2240] text-white/70 text-xs">
         <div className="mx-auto max-w-7xl px-4 h-9 flex items-center justify-between">
-          <div className="flex items-center gap-5">
-            <span className="hidden sm:inline">{tr.common.hours}</span>
-          </div>
           <div className="flex items-center gap-4">
             <Link href="/login" className="hover:text-white transition-colors">{tr.common.signIn}</Link>
             <Link href="/account" className="hover:text-white transition-colors">{tr.common.myAccount}</Link>
