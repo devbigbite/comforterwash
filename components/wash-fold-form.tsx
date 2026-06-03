@@ -68,12 +68,13 @@ const WEEKDAYS = [
   { id: "wednesday", label: "Wednesday", short: "Wed", num: 3 },
   { id: "thursday",  label: "Thursday",  short: "Thu", num: 4 },
   { id: "friday",    label: "Friday",    short: "Fri", num: 5 },
+  { id: "saturday",  label: "Saturday",  short: "Sat", num: 6 },
 ]
 
 function getValidDeliveryDays(pickupDayId: string): string[] {
   const pickup = WEEKDAYS.find(d => d.id === pickupDayId)
   if (!pickup) return []
-  const minGap = pickupDayId === "friday" ? 4 : 2
+  const minGap = pickupDayId === "friday" ? 4 : pickupDayId === "saturday" ? 3 : 2
   return WEEKDAYS.filter(d => {
     const gap = d.num > pickup.num ? d.num - pickup.num : 7 - pickup.num + d.num
     return gap >= minGap
@@ -82,7 +83,7 @@ function getValidDeliveryDays(pickupDayId: string): string[] {
 
 function nextOccurrence(dayId: string, after?: Date): Date {
   const dayNums: Record<string, number> = {
-    monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5
+    monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6
   }
   const target = dayNums[dayId]
   const base = after ? new Date(after) : new Date()
@@ -96,7 +97,7 @@ function nextOccurrence(dayId: string, after?: Date): Date {
 }
 
 function firstDeliveryDate(pickupDate: Date, deliveryDayId: string, pickupDayId: string): Date {
-  const minGap = pickupDayId === "friday" ? 4 : 2
+  const minGap = pickupDayId === "friday" ? 4 : pickupDayId === "saturday" ? 3 : 2
   const earliest = new Date(pickupDate)
   earliest.setDate(earliest.getDate() + minGap)
   const candidate = nextOccurrence(deliveryDayId, new Date(pickupDate))
@@ -931,7 +932,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                           value={formData.recurringDeliveryDay}
                           available={validDeliveryDays}
                           onChange={(d) => setFormData(p => ({ ...p, recurringDeliveryDay: d }))}
-                          note={formData.recurringPickupDay === "friday" ? tw.fridayNote : tw.minTurnaround}
+                          note={formData.recurringPickupDay === "friday" || formData.recurringPickupDay === "saturday" ? tw.fridayNote : tw.minTurnaround}
                         />
                         {formData.recurringDeliveryDay && (
                           <div>
@@ -990,7 +991,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                     <DateStrip selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} />
                     {formData.pickupDate && (
                       <>
-                        {formData.pickupDate.getDay() === 5 && (
+                        {(formData.pickupDate.getDay() === 5 || formData.pickupDate.getDay() === 6) && (
                           <p className="text-[10px] text-amber-600 font-medium mt-2 bg-amber-50 px-3 py-1.5 rounded-lg">
                             {tw.fridayNote}
                           </p>
@@ -1004,7 +1005,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                       <div className="flex items-center gap-1.5 mb-3">
                         <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">2</span>
                         <h4 className="font-bold text-[#0D2240] text-sm">{tf.labelDelivery} Date &amp; Time</h4>
-                        <span className="text-xs text-gray-400">— {formData.pickupDate.getDay() === 5 ? "4" : "2"}+ {tw.daysAfterPickup}</span>
+                        <span className="text-xs text-gray-400">— {formData.pickupDate.getDay() === 5 ? "4" : formData.pickupDate.getDay() === 6 ? "3" : "2"}+ {tw.daysAfterPickup}</span>
                       </div>
                       {formData.deliveryDate && (
                         <p className="text-xs text-[#E8726A] font-medium mb-3">

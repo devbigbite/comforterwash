@@ -289,7 +289,7 @@ const en = {
     addFabricSoftener: "Add Fabric Softener",
     pickupTime:        "↑ Pickup time",
     deliveryTime:      "↓ Delivery time",
-    fridayNote:        "Friday pickups are processed over the weekend — earliest delivery is Tuesday.",
+    fridayNote:        "Friday & Saturday pickups are processed Monday — earliest delivery is Tuesday.",
     minTurnaround:     "2-day turnaround minimum.",
     anyWeekday:        "Any weekday",
     daysAfterPickup:   "days after pickup",
