@@ -132,23 +132,68 @@ export async function createSubscription(params: {
 
 // ─── Admin actions ────────────────────────────────────────────────────────────
 
-export async function pauseSubscription(id: string) {
-  await requireAdmin()
+const MIN_PICKUPS_BEFORE_CANCEL = 3
 
-  const supabase = createAdminClient()
-  await supabase.from("subscriptions").update({ status: "paused" }).eq("id", id)
+async function getSubscription(supabase: ReturnType<typeof createAdminClient>, id: string) {
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select("id, pickups_completed, subscription_type")
+    .eq("id", id)
+    .single()
+  if (error) throw new Error("Subscription not found")
+  return data
 }
 
-export async function resumeSubscription(id: string) {
-  await requireAdmin()
+function isInCommitment(sub: { pickups_completed?: number | null; subscription_type?: string | null }): boolean {
+  // Only weekly/biweekly subscriptions have the 3-pickup minimum.
+  // Monthly plans use commitment_ends_at instead (separate flow).
+  if (sub.subscription_type === "monthly_plan") return false
+  return (sub.pickups_completed ?? 0) < MIN_PICKUPS_BEFORE_CANCEL
+}
 
+export async function pauseSubscription(id: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  const sub = await getSubscription(supabase, id)
+
+  if (isInCommitment(sub)) {
+    return {
+      ok: false,
+      error: `Este cliente solo ha completado ${sub.pickups_completed ?? 0} de ${MIN_PICKUPS_BEFORE_CANCEL} recogidas mínimas. No se puede pausar aún.`,
+    }
+  }
+
+  await supabase.from("subscriptions").update({ status: "paused" }).eq("id", id)
+  return { ok: true }
+}
+
+export async function resumeSubscription(id: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin()
   const supabase = createAdminClient()
   await supabase.from("subscriptions").update({ status: "active" }).eq("id", id)
+  return { ok: true }
 }
 
-export async function cancelSubscription(id: string) {
+export async function cancelSubscription(id: string): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin()
+  const supabase = createAdminClient()
+  const sub = await getSubscription(supabase, id)
 
+  if (isInCommitment(sub)) {
+    return {
+      ok: false,
+      error: `Este cliente solo ha completado ${sub.pickups_completed ?? 0} de ${MIN_PICKUPS_BEFORE_CANCEL} recogidas mínimas. No se puede cancelar aún.`,
+    }
+  }
+
+  await supabase.from("subscriptions").update({ status: "cancelled" }).eq("id", id)
+  return { ok: true }
+}
+
+/** Admin override — bypasses the minimum commitment check. Use with explicit confirmation. */
+export async function forcecancelSubscription(id: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin()
   const supabase = createAdminClient()
   await supabase.from("subscriptions").update({ status: "cancelled" }).eq("id", id)
+  return { ok: true }
 }

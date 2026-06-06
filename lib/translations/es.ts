@@ -290,6 +290,7 @@ const es = {
     tierSeePlans:          "Ver planes mensuales →",
     tierCompleteNextPage:  "Completarás tu dirección y horario en la siguiente página",
     tierMinPickups:        "Mínimo 3 recogidas · luego cancela cuando quieras",
+    bagPhotoNote:          "📸 Tomaremos una foto de las bolsas recogidas y la guardamos en tu récord para referencia.",
     estimatedWeight: "Peso estimado",
     preAuth:       "Pre-autorización",
     estimateNote:  "Esto es una estimación.",

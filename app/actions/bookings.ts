@@ -212,9 +212,33 @@ export async function updateBookingStatus(bookingId: string, status: string, not
     const deliveryTime = booking.delivery_time_window
 
     switch (status) {
-      case "picked_up":
+      case "picked_up": {
         await sendBookingNotification(bookingId, "picked_up", customerName, deliveryDate)
+        // Increment pickups_completed on the active subscription for this customer,
+        // but only for recurring bookings (not one-time).
+        if (booking.subscription_frequency && booking.subscription_frequency !== "one_time") {
+          try {
+            const { data: sub } = await supabase
+              .from("subscriptions")
+              .select("id, pickups_completed")
+              .eq("customer_email", booking.customer_email)
+              .eq("status", "active")
+              .in("frequency", ["weekly", "biweekly"])
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle()
+            if (sub) {
+              await supabase
+                .from("subscriptions")
+                .update({ pickups_completed: (sub.pickups_completed ?? 0) + 1 })
+                .eq("id", sub.id)
+            }
+          } catch (e) {
+            console.error("[updateBookingStatus] Failed to increment pickups_completed:", e)
+          }
+        }
         break
+      }
       case "out_for_delivery":
         await sendBookingNotification(bookingId, "out_for_delivery", customerName, deliveryTime)
         break

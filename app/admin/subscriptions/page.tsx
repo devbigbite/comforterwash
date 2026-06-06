@@ -1,24 +1,28 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { pauseSubscription, resumeSubscription, cancelSubscription, forcecancelSubscription } from "@/app/actions/subscriptions"
 
 async function pauseSub(id: string) {
   "use server"
-  const supabase = createAdminClient()
-  await supabase.from("subscriptions").update({ status: "paused" }).eq("id", id)
+  await pauseSubscription(id)
   revalidatePath("/admin/subscriptions")
 }
 
 async function resumeSub(id: string) {
   "use server"
-  const supabase = createAdminClient()
-  await supabase.from("subscriptions").update({ status: "active" }).eq("id", id)
+  await resumeSubscription(id)
   revalidatePath("/admin/subscriptions")
 }
 
 async function cancelSub(id: string) {
   "use server"
-  const supabase = createAdminClient()
-  await supabase.from("subscriptions").update({ status: "cancelled" }).eq("id", id)
+  await cancelSubscription(id)
+  revalidatePath("/admin/subscriptions")
+}
+
+async function forceCancelSub(id: string) {
+  "use server"
+  await forcecancelSubscription(id)
   revalidatePath("/admin/subscriptions")
 }
 
@@ -182,6 +186,8 @@ export default async function SubscriptionsPage() {
             const nextPickup = s.next_pickup_date
               ? new Date(s.next_pickup_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
               : "—"
+            const completed   = s.pickups_completed ?? 0
+            const inCommitment = completed < 3
             return (
               <div key={s.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -192,6 +198,11 @@ export default async function SubscriptionsPage() {
                         s.status === "active" ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>{s.status}</span>
                       <span className="text-[10px] bg-gray-100 text-gray-500 font-bold px-2 py-0.5 rounded-full capitalize">{s.frequency}</span>
                       {s.stripe_customer_id && <span className="text-[10px] bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">✓ Card saved</span>}
+                      {inCommitment && (
+                        <span className="text-[10px] bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full">
+                          🔒 Compromiso: {completed}/3 recogidas
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-gray-400 mb-2">{s.customer_email} · {s.customer_phone}</p>
                     <div className="flex flex-wrap gap-4 text-xs text-gray-600 mb-2">
@@ -203,20 +214,44 @@ export default async function SubscriptionsPage() {
                       {s.price_per_lb_cents > 0 && <span>${(s.price_per_lb_cents / 100).toFixed(2)}/lb</span>}
                     </div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex gap-2 shrink-0 flex-wrap justify-end">
                     {s.status === "active" && (
-                      <form action={pauseSub.bind(null, s.id)}>
-                        <button className="text-[10px] font-bold text-amber-600 border border-amber-200 bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors uppercase tracking-wide">Pause</button>
-                      </form>
+                      inCommitment ? (
+                        <span title="Cliente aún en compromiso mínimo (3 recogidas)"
+                          className="text-[10px] font-bold text-gray-300 border border-gray-100 bg-gray-50 px-3 py-1.5 rounded-lg uppercase tracking-wide cursor-not-allowed">
+                          Pausar 🔒
+                        </span>
+                      ) : (
+                        <form action={pauseSub.bind(null, s.id)}>
+                          <button className="text-[10px] font-bold text-amber-600 border border-amber-200 bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors uppercase tracking-wide">Pause</button>
+                        </form>
+                      )
                     )}
                     {s.status === "paused" && (
                       <form action={resumeSub.bind(null, s.id)}>
                         <button className="text-[10px] font-bold text-green-700 border border-green-200 bg-green-50 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors uppercase tracking-wide">Resume</button>
                       </form>
                     )}
-                    <form action={cancelSub.bind(null, s.id)}>
-                      <button className="text-[10px] font-bold text-red-400 border border-red-100 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors uppercase tracking-wide">Cancel</button>
-                    </form>
+                    {inCommitment ? (
+                      <details className="relative">
+                        <summary className="text-[10px] font-bold text-gray-300 border border-gray-100 bg-gray-50 px-3 py-1.5 rounded-lg uppercase tracking-wide cursor-pointer list-none">
+                          Cancelar 🔒
+                        </summary>
+                        <div className="absolute right-0 top-8 z-10 bg-white border border-red-200 rounded-xl shadow-lg p-3 w-56 text-xs">
+                          <p className="text-red-700 font-semibold mb-2">⚠ Cliente en compromiso ({completed}/3 recogidas)</p>
+                          <p className="text-gray-500 mb-3">¿Cancelar de todas formas? Esto anula el compromiso mínimo.</p>
+                          <form action={forceCancelSub.bind(null, s.id)}>
+                            <button className="w-full text-[10px] font-bold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg uppercase tracking-wide transition-colors">
+                              Sí, cancelar igual
+                            </button>
+                          </form>
+                        </div>
+                      </details>
+                    ) : (
+                      <form action={cancelSub.bind(null, s.id)}>
+                        <button className="text-[10px] font-bold text-red-400 border border-red-100 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors uppercase tracking-wide">Cancel</button>
+                      </form>
+                    )}
                   </div>
                 </div>
               </div>
