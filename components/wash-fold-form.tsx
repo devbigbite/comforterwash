@@ -248,8 +248,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
     recurringPickupTime:     "",
     recurringDeliveryDay:    "",
     recurringDeliveryTime:   "",
-    numBags:     2,
-    pounds:      bagsToEstLbs(2),
+    numBags:     1,
+    pounds:      bagsToEstLbs(1),
     frequency:   "one_time" as "one_time" | "weekly" | "biweekly",
     detergentId:    "" as string,
     selectedExtras: {} as Record<string, boolean>,
@@ -640,8 +640,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
 
             {/* ── Tier selector ── */}
             <div className="space-y-3">
-              <h3 className="text-xl font-extrabold text-[#0D2240]">How would you like to book?</h3>
-              <p className="text-sm text-gray-400 -mt-1">Three ways to get clean laundry — pick what fits your routine.</p>
+              <h3 className="text-xl font-extrabold text-[#0D2240]">{tw.howToBook}</h3>
+              <p className="text-sm text-gray-400 -mt-1">{tw.howToBookSub}</p>
 
               <div className="space-y-2">
                 {/* ── Option 1: One-Time ── */}
@@ -654,15 +654,15 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                     <div className="flex items-center gap-2">
                       <span className={cn("inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
                         serviceMode === "paygo" ? "bg-[#fde8e5] text-[#b84c3e]" : "bg-gray-100 text-gray-500")}>
-                        One-time
+                        {tw.tierOneTimeLabel}
                       </span>
                       <p className={cn("font-extrabold text-sm", serviceMode === "paygo" ? "text-[#0D2240]" : "text-gray-500")}>
-                        Pay as you go
+                        {tw.tierPayAsYouGo}
                       </p>
                     </div>
                     {serviceMode === "paygo" && (
                       <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
-                        No commitment · billed by actual weight after pickup
+                        {tw.tierNoCommitment}
                       </p>
                     )}
                   </div>
@@ -686,15 +686,15 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                         serviceMode === "subscription" && subscribeType !== "monthly"
                           ? "bg-[#d8e4f0] text-[#0D2240]"
                           : "bg-gray-100 text-gray-500")}>
-                        Recurring
+                        {tw.tierRecurringLabel}
                       </span>
                       <p className={cn("font-extrabold text-sm", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[#0D2240]" : "text-gray-500")}>
-                        Subscribe to Weekly or Bi-Weekly Service
+                        {tw.tierSubscribeLabel}
                       </p>
                     </div>
                     {serviceMode === "subscription" && subscribeType !== "monthly" && (
                       <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
-                        Lock in your pickup day · billed by actual weight each pickup
+                        {tw.tierLockIn}
                       </p>
                     )}
                   </div>
@@ -707,8 +707,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                 {serviceMode === "subscription" && subscribeType !== "monthly" && (
                   <div className="grid grid-cols-2 gap-2 px-1 pb-1">
                     {([
-                      { value: "weekly"   as const, label: "Weekly",    note: "Every week" },
-                      { value: "biweekly" as const, label: "Biweekly",  note: "Every 2 weeks" },
+                      { value: "weekly"   as const, label: tw.tierWeekly,    note: tw.tierEveryWeek },
+                      { value: "biweekly" as const, label: tw.tierBiweekly,  note: tw.tierEveryTwoWeeks },
                     ] as const).map(opt => (
                       <button key={opt.value} type="button"
                         onClick={() => selectSubscribeType(opt.value)}
@@ -740,18 +740,18 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                           serviceMode === "subscription" && subscribeType === "monthly"
                             ? "bg-[#d8e4f0] text-[#0D2240]"
                             : "bg-gray-100 text-gray-500")}>
-                          Monthly plan
+                          {tw.tierMonthlyLabel}
                         </span>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 uppercase tracking-wide">
-                          Best value
+                          {tw.tierBestValue}
                         </span>
                         <p className={cn("font-extrabold text-sm", serviceMode === "subscription" && subscribeType === "monthly" ? "text-[#0D2240]" : "text-gray-500")}>
-                          Pre-paid monthly
+                          {tw.tierPrePaidMonthly}
                         </p>
                       </div>
                       {serviceMode === "subscription" && subscribeType === "monthly" && (
                         <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
-                          Fixed monthly fee · includes a set number of lbs · no per-pickup billing
+                          {tw.tierFixedMonthlyFee}
                         </p>
                       )}
                     </div>
@@ -771,15 +771,9 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
             {/* ── Monthly plan panel (no booking form needed) ── */}
             {serviceMode === "subscription" && subscribeType === "monthly" && monthlyPlanEnabled && (
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 space-y-4">
-                <p className="text-sm font-semibold text-[#0D2240]">What&apos;s included with a monthly plan:</p>
+                <p className="text-sm font-semibold text-[#0D2240]">{tw.tierMonthlyLabel}:</p>
                 <div className="space-y-2">
-                  {[
-                    "Fixed monthly fee — no surprise bills",
-                    "Includes a set number of lbs each cycle",
-                    "Locked-in weekly pickup day & time",
-                    "Overage lbs billed at your plan rate",
-                    "Cancel or pause anytime",
-                  ].map((text) => (
+                  {tw.tierMonthlyBullets.map((text: string) => (
                     <div key={text} className="flex items-start gap-2 text-sm text-gray-700">
                       <span className="text-green-600 font-bold mt-0.5 flex-shrink-0">✓</span>
                       <span>{text}</span>
@@ -788,9 +782,9 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                 </div>
                 <a href="/pricing"
                   className="flex items-center justify-center w-full h-12 rounded-xl bg-[#0D2240] text-white text-sm font-bold hover:bg-[#1a3a5c] transition-colors no-underline">
-                  See monthly plans →
+                  {tw.tierSeePlans}
                 </a>
-                <p className="text-xs text-center text-gray-400">You&apos;ll complete your address &amp; schedule on the next page</p>
+                <p className="text-xs text-center text-gray-400">{tw.tierCompleteNextPage}</p>
               </div>
             )}
 
@@ -1436,3 +1430,4 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
     </Card>
   )
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            

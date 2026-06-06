@@ -261,8 +261,34 @@ const es = {
     weekly:        "Semanal",
     biweekly:      "Quincenal",
     save10:        "Ahorra 10%",
-    howManyBags:   "¿Cuántas bolsas nos dejas?",
-    bagWeightNote: "Una bolsa estándar tiene unas 20 lb. Pesamos todo en la recogida y ajustamos el cargo final.",
+    howManyBags:   "Pesaremos tu ropa antes de procesarla. ¿Cuántas bolsas debemos recoger en esta vuelta?",
+    bagWeightNote: "Una bolsa estándar tiene unas 20 lb. El cobro final se ajusta al peso real.",
+    // booking tier selector
+    howToBook:             "¿Cómo quieres agendar?",
+    howToBookSub:          "Dos formas de obtener ropa limpia — elige la que mejor se adapte a tu rutina.",
+    tierOneTimeLabel:      "Una vez",
+    tierPayAsYouGo:        "Paga según el peso",
+    tierNoCommitment:      "Sin compromiso · se cobra por peso real después de la recogida",
+    tierRecurringLabel:    "Recurrente",
+    tierSubscribeLabel:    "Suscripción Semanal o Quincenal",
+    tierLockIn:            "Fija tu día de recogida · se cobra por peso real en cada visita",
+    tierWeekly:            "Semanal",
+    tierBiweekly:          "Quincenal",
+    tierEveryWeek:         "Cada semana",
+    tierEveryTwoWeeks:     "Cada 2 semanas",
+    tierMonthlyLabel:      "Plan mensual",
+    tierBestValue:         "Mejor precio",
+    tierPrePaidMonthly:    "Mensual prepagado",
+    tierFixedMonthlyFee:   "Tarifa fija mensual · incluye una cantidad de lb · sin cobro por recogida",
+    tierMonthlyBullets: [
+      "Tarifa fija mensual — sin sorpresas",
+      "Incluye una cantidad de lb por ciclo",
+      "Día y hora de recogida fijos cada semana",
+      "Libras adicionales a tu tarifa del plan",
+      "Pausa o cancela cuando quieras",
+    ],
+    tierSeePlans:          "Ver planes mensuales →",
+    tierCompleteNextPage:  "Completarás tu dirección y horario en la siguiente página",
     estimatedWeight: "Peso estimado",
     preAuth:       "Pre-autorización",
     estimateNote:  "Esto es una estimación.",
@@ -394,20 +420,4 @@ const es = {
       { icon: "💼", title: "Oficinas y Espacios de Co-Trabajo",       desc: "Toallas de cocina, paños de limpieza y uniformes de marca renovados semanalmente sin complicaciones." },
     ],
     benefits: [
-      { icon: "📅", title: "Horarios Flexibles",    desc: "Ventanas de recogida y entrega diarias, semanales o personalizadas según el horario de tu negocio." },
-      { icon: "💰", title: "Precios por Volumen",         desc: "Cuanto más lavas, más ahorras. Tarifas por libra personalizadas para cuentas comerciales." },
-      { icon: "⚡", title: "Entrega Rápida",        desc: "Entrega en 24–48 horas como estándar. Servicio urgente disponible para necesidades inmediatas." },
-      { icon: "🔒", title: "Sin Contratos a Largo Plazo", desc: "Servicio mes a mes sin tarifas ocultas. Cancela o ajusta en cualquier momento." },
-      { icon: "📍", title: "Con Base en Orlando",          desc: "Equipo local, confiabilidad local. Conocemos Orlando y llegamos a tiempo, siempre." },
-      { icon: "🧺", title: "Configuración de Cuenta Dedicada", desc: "Aprendemos tus preferencias una vez — detergente, forma de doblar, clasificación — y las repetimos cada vez." },
-    ],
-    steps: [
-      { num: "1", title: "Solicita una Cotización",          desc: "Cuéntanos sobre tu negocio, volumen y frecuencia. Prepararemos una propuesta de precios personalizada." },
-      { num: "2", title: "Configuramos tu Cuenta",   desc: "Programamos tu primera recogida, anotamos tus preferencias y asignamos una ventana de recogida dedicada." },
-      { num: "3", title: "Relájate y Déjanos Encargarnos", desc: "Recogida y entrega recurrente en piloto automático. Ropa limpia, siempre, sin complicaciones." },
-    ],
-  },
-
-} as const
-
-export default es
+      { icon: "📅", title: "Horarios Flexibles",    desc: "Ventanas de recogida y entrega diarias, semanales o personalizada
