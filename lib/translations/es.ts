@@ -420,4 +420,20 @@ const es = {
       { icon: "💼", title: "Oficinas y Espacios de Co-Trabajo",       desc: "Toallas de cocina, paños de limpieza y uniformes de marca renovados semanalmente sin complicaciones." },
     ],
     benefits: [
-      { icon: "📅", title: "Horarios Flexibles",    desc: "Ventanas de recogida y entrega diarias, semanales o personalizada
+      { icon: "📅", title: "Horarios Flexibles",    desc: "Ventanas de recogida y entrega diarias, semanales o personalizadas según el horario de tu negocio." },
+      { icon: "💰", title: "Precios por Volumen",         desc: "Cuanto más lavas, más ahorras. Tarifas por libra personalizadas para cuentas comerciales." },
+      { icon: "⚡", title: "Entrega Rápida",        desc: "Entrega en 24–48 horas como estándar. Servicio urgente disponible para necesidades inmediatas." },
+      { icon: "🔒", title: "Sin Contratos a Largo Plazo", desc: "Servicio mes a mes sin tarifas ocultas. Cancela o ajusta en cualquier momento." },
+      { icon: "📍", title: "Con Base en Orlando",          desc: "Equipo local, confiabilidad local. Conocemos Orlando y llegamos a tiempo, siempre." },
+      { icon: "🧺", title: "Configuración de Cuenta Dedicada", desc: "Aprendemos tus preferencias una vez — detergente, forma de doblar, clasificación — y las repetimos cada vez." },
+    ],
+    steps: [
+      { num: "1", title: "Solicita una Cotización",          desc: "Cuéntanos sobre tu negocio, volumen y frecuencia. Prepararemos una propuesta de precios personalizada." },
+      { num: "2", title: "Configuramos tu Cuenta",   desc: "Programamos tu primera recogida, anotamos tus preferencias y asignamos una ventana de recogida dedicada." },
+      { num: "3", title: "Relájate y Déjanos Encargarnos", desc: "Recogida y entrega recurrente en piloto automático. Ropa limpia, siempre, sin complicaciones." },
+    ],
+  },
+
+} as const
+
+export default es
