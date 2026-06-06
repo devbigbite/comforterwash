@@ -693,9 +693,10 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                       </p>
                     </div>
                     {serviceMode === "subscription" && subscribeType !== "monthly" && (
-                      <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
-                        {tw.tierLockIn}
-                      </p>
+                      <div className="mt-1.5 space-y-1">
+                        <p className="text-[11px] text-gray-400 leading-snug">{tw.tierLockIn}</p>
+                        <p className="text-[11px] text-amber-600 font-semibold leading-snug">{tw.tierMinPickups}</p>
+                      </div>
                     )}
                   </div>
                   <span className={cn("font-extrabold shrink-0 ml-4", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[#E8726A] text-lg" : "text-gray-400 text-sm")}>
@@ -926,7 +927,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                           value={formData.recurringDeliveryDay}
                           available={validDeliveryDays}
                           onChange={(d) => setFormData(p => ({ ...p, recurringDeliveryDay: d }))}
-                          note={formData.recurringPickupDay === "friday" || formData.recurringPickupDay === "saturday" ? tw.fridayNote : tw.minTurnaround}
+                          note={formData.recurringPickupDay === "friday" || formData.recurringPickupDay === "saturday" ? tw.fridayNote : undefined}
                         />
                         {formData.recurringDeliveryDay && (
                           <div>
@@ -980,7 +981,6 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                     <div className="flex items-center gap-1.5 mb-3">
                       <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">1</span>
                       <h4 className="font-bold text-[#0D2240] text-sm">{tf.labelPickup} Fecha y Hora</h4>
-                      <span className="text-xs text-gray-400">— {tw.anyWeekday}</span>
                     </div>
                     <DateStrip selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} />
                     {formData.pickupDate && (
