@@ -36,6 +36,7 @@ let FREQ_CENTS = { one_time: 240, weekly: 215, biweekly: 215 }
 type CSize = "twin" | "full" | "queen" | "king"
 let COMFORTER_CENTS: Record<CSize, number> = { twin: 2900, full: 3300, queen: 3800, king: 4300 }
 let COMFORTER_PROMO_CENTS = 3300
+// Labels/notes are overridden at render time from translations
 const COMFORTER_SIZE_DEFS: { id: CSize; label: string; note: string }[] = [
   { id: "twin",  label: "Twin",  note: 'Up to 50″×70″' },
   { id: "full",  label: "Full",  note: 'Up to 54″×75″' },
@@ -1119,8 +1120,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
             <div className="border-2 border-gray-100 rounded-2xl p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-bold text-[#0D2240] text-sm">🛏️ Add Comforters to this Pickup?</h4>
-                  <p className="text-xs text-gray-400 mt-0.5">Flat rate per item · by size · same pickup run</p>
+                  <h4 className="font-bold text-[#0D2240] text-sm">{tf.addComfortersTitle}</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">{tf.addComfortersSub}</p>
                 </div>
                 <button
                   type="button"
@@ -1136,7 +1137,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                     <div className="bg-[#E8726A]/10 border border-[#E8726A]/20 rounded-xl px-3 py-2 flex items-center gap-2">
                       <span className="text-sm">🎉</span>
                       <p className="text-xs font-bold text-[#E8726A]">
-                        Promo active — every comforter ${(comforterPromoCents / 100).toFixed(0)} any size
+                        {tf.promoActive.replace("${price}", `$${(comforterPromoCents / 100).toFixed(0)}`)}
                       </p>
                     </div>
                   )}
@@ -1146,9 +1147,9 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                     return (
                       <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-[#f7f8fb] border border-gray-100">
                         <div>
-                          <p className="font-semibold text-[#0D2240] text-sm">{s.label}</p>
+                          <p className="font-semibold text-[#0D2240] text-sm">{(tf.comforterSizes as Record<string, {label:string;note:string}>)[s.id]?.label ?? s.label}</p>
                           <p className="text-xs text-gray-400">
-                            {s.note} · <span className={comforterPromo ? "text-[#E8726A] font-bold" : ""}>${(price / 100).toFixed(2)} ea</span>
+                            {(tf.comforterSizes as Record<string, {label:string;note:string}>)[s.id]?.note ?? s.note} · <span className={comforterPromo ? "text-[#E8726A] font-bold" : ""}>${(price / 100).toFixed(2)} {tf.eaLabel}</span>
                             {comforterPromo && s.cents > comforterPromoCents && (
                               <span className="ml-1 line-through text-gray-300">${(s.cents / 100).toFixed(2)}</span>
                             )}
