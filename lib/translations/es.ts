@@ -214,6 +214,8 @@ const es = {
     addComfortersSub:   "Tarifa fija por artículo · según tamaño · misma recogida",
     promoActive:        "Promo activa — cada edredón ${price} cualquier tamaño",
     eaLabel:            "c/u",
+    comforterWashableNote: "⚠️ Recuerda: ¡Solo Edredones Lavables en Agua!",
+    comforterCareLabel:    "*Verifica la etiqueta de instrucciones de lavado de tu item para ver cualquier restricción",
     comforterSizes: {
       twin:  { label: "Twin",   note: "Hasta 50″×70″" },
       full:  { label: "Full",   note: "Hasta 54″×75″" },

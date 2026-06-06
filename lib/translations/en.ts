@@ -214,6 +214,8 @@ const en = {
     addComfortersSub:   "Flat rate per item · by size · same pickup run",
     promoActive:        "Promo active — every comforter ${price} any size",
     eaLabel:            "ea",
+    comforterWashableNote: "⚠️ Remember: Water-Washable Comforters Only!",
+    comforterCareLabel:    "*Check your item's care label for any washing restrictions",
     comforterSizes: {
       twin:  { label: "Twin",  note: "Up to 50″×70″" },
       full:  { label: "Full",  note: "Up to 54″×75″" },

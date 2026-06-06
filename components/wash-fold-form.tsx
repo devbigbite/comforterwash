@@ -1167,6 +1167,12 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                       </div>
                     )
                   })}
+                  <p className="text-xs text-center text-amber-600 font-semibold pt-1">
+                    {tf.comforterWashableNote}
+                  </p>
+                  <p className="text-xs text-center text-gray-400 italic pt-0.5">
+                    {tf.comforterCareLabel}
+                  </p>
                   {comforterTotalCount > 0 && (
                     <p className="text-xs text-right font-bold text-[#0D2240] pt-1">
                       {comforterTotalCount} comforter{comforterTotalCount > 1 ? "s" : ""} added · +${(comforterSubtotalCents / 100).toFixed(2)}
