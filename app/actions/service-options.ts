@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/auth-guard"
 
 export interface ServiceOption {
   id: string
-  type: "detergent" | "extra"
+  type: "detergent" | "extra" | "accessory"
   name: string
   description: string
   price_cents: number
@@ -14,7 +14,7 @@ export interface ServiceOption {
   sort_order: number
 }
 
-export async function getServiceOptions(type?: "detergent" | "extra"): Promise<ServiceOption[]> {
+export async function getServiceOptions(type?: "detergent" | "extra" | "accessory"): Promise<ServiceOption[]> {
   try {
     const supabase = createAdminClient()
     let query = supabase
@@ -30,7 +30,7 @@ export async function getServiceOptions(type?: "detergent" | "extra"): Promise<S
   }
 }
 
-export async function getAllServiceOptions(type?: "detergent" | "extra"): Promise<ServiceOption[]> {
+export async function getAllServiceOptions(type?: "detergent" | "extra" | "accessory"): Promise<ServiceOption[]> {
   try {
     const supabase = createAdminClient()
     let query = supabase
@@ -45,7 +45,7 @@ export async function getAllServiceOptions(type?: "detergent" | "extra"): Promis
   }
 }
 
-export async function upsertServiceOption(option: Partial<ServiceOption> & { type: "detergent" | "extra"; name: string }): Promise<void> {
+export async function upsertServiceOption(option: Partial<ServiceOption> & { type: "detergent" | "extra" | "accessory"; name: string }): Promise<void> {
   await requireAdmin()
 
   const supabase = createAdminClient()

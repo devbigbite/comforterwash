@@ -201,6 +201,7 @@ const es = {
     reviewOrder:   "Revisa tu pedido y firma abajo",
     detergentPreference: "Preferencia de Detergente",
     treatmentAddOns: "Extras de Tratamiento",
+    accessoryAddOns: "Accesorios",
     fabricSoftenerLabel: "Suavizante de Tela",
     fabricSoftenerComforterDesc: "Deja tu edredón súper suave y esponjoso",
     fabricSoftenerWashDesc: "Deja la ropa suave y sin estática",

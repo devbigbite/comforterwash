@@ -201,6 +201,7 @@ const en = {
     reviewOrder:   "Review your order and sign below",
     detergentPreference: "Detergent Preference",
     treatmentAddOns: "Treatment Add-Ons",
+    accessoryAddOns: "Accessory Add-Ons",
     fabricSoftenerLabel: "Fabric Softener",
     fabricSoftenerComforterDesc: "Leaves your comforter feeling extra soft and fluffy",
     fabricSoftenerWashDesc: "Leaves clothes feeling soft and static-free",

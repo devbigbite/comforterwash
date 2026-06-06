@@ -10,14 +10,14 @@ function cents(val: number) { return `$${(val / 100).toFixed(2)}` }
 function dollarsToField(val: number) { return (val / 100).toFixed(2) }
 function fieldToCents(str: string) { return Math.round(parseFloat(str) * 100) }
 
-const BLANK_OPTION = (type: "detergent" | "extra"): Partial<ServiceOption> => ({
+const BLANK_OPTION = (type: "detergent" | "extra" | "accessory"): Partial<ServiceOption> => ({
   type, name: "", description: "", price_cents: 0, enabled: true,
 })
 
 function OptionsSection({
   title, icon, type, options, onRefresh,
 }: {
-  title: string; icon: string; type: "detergent" | "extra"
+  title: string; icon: string; type: "detergent" | "extra" | "accessory"
   options: ServiceOption[]; onRefresh: () => void
 }) {
   const [adding, setAdding] = useState(false)
@@ -28,7 +28,7 @@ function OptionsSection({
   async function save() {
     if (!draft.name?.trim()) return
     setBusy(true)
-    await upsertServiceOption({ ...draft, type } as ServiceOption & { type: "detergent" | "extra"; name: string })
+    await upsertServiceOption({ ...draft, type } as ServiceOption & { type: "detergent" | "extra" | "accessory"; name: string })
     setBusy(false)
     setAdding(false)
     setEditingId(null)
@@ -143,6 +143,7 @@ export default function PricingPage() {
   const [config, setConfig] = useState<PricingConfig | null>(null)
   const [detergents, setDetergents] = useState<ServiceOption[]>([])
   const [extras, setExtras] = useState<ServiceOption[]>([])
+  const [accessories, setAccessories] = useState<ServiceOption[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [deliveryFee, setDeliveryFee] = useState<DeliveryFeeSettings>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
@@ -157,10 +158,11 @@ export default function PricingPage() {
   const [savingPlanToggle, setSavingPlanToggle] = useState(false)
 
   async function loadAll() {
-    const [cfg, dets, exts, fee, svcsCfg, planEnabled] = await Promise.all([
+    const [cfg, dets, exts, accs, fee, svcsCfg, planEnabled] = await Promise.all([
       getPricingConfig(),
       getAllServiceOptions("detergent"),
       getAllServiceOptions("extra"),
+      getAllServiceOptions("accessory"),
       getDeliveryFeeSettings(),
       getServicesConfig(),
       getMonthlyPlanEnabled(),
@@ -168,6 +170,7 @@ export default function PricingPage() {
     setConfig(cfg)
     setDetergents(dets)
     setExtras(exts)
+    setAccessories(accs)
     setDeliveryFee(fee)
     setSvcs(svcsCfg)
     setMonthlyPlanEnabledState(planEnabled)
@@ -504,6 +507,15 @@ export default function PricingPage() {
           icon="✨"
           type="extra"
           options={extras}
+          onRefresh={loadAll}
+        />
+
+        {/* ── Accessory Add-Ons ───────────────────────── */}
+        <OptionsSection
+          title="Accessory Add-Ons"
+          icon="🛍️"
+          type="accessory"
+          options={accessories}
           onRefresh={loadAll}
         />
       </div>
