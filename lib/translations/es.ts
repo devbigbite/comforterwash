@@ -249,7 +249,7 @@ const es = {
     deliveryWhen:  "¿Cuándo deseas la entrega?",
     deliverySuggested: "sugerida:",
     customizeWash: "Personaliza tu lavado",
-    addOnsOptional: "(Opcional)",
+    addOnsOptional: "Elige tu detergente, luego agrega tratamientos o accesorios opcionales.",
     bookingSummary: "Resumen de Reserva",
     labelComforters: "Edredones",
   },

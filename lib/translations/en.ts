@@ -249,7 +249,7 @@ const en = {
     deliveryWhen:  "When would you like your delivery?",
     deliverySuggested: "suggested:",
     customizeWash: "Customize your wash",
-    addOnsOptional: "All add-ons are optional — skip to continue with standard service",
+    addOnsOptional: "Choose your detergent, then add any optional treatments or accessories.",
     bookingSummary: "Booking Summary",
     labelComforters: "Comforters",
   },
