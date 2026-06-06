@@ -826,6 +826,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                   </button>
                 ))}
               </div>
+              <p className="text-xs text-gray-400 leading-relaxed text-center pt-1">{tw.bagPhotoNote}</p>
             </div>
 
             {/* Estimate card */}
@@ -849,7 +850,6 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                 </p>
               </div>
               <p className="text-xs font-semibold text-green-600 pt-1">{tw.freePickupDelivery}</p>
-              <p className="text-xs text-gray-400 leading-relaxed">{tw.bagPhotoNote}</p>
             </div>
 
             {/* ── DATE / SCHEDULE SECTION ── */}
@@ -1001,7 +1001,6 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                       <div className="flex items-center gap-1.5 mb-3">
                         <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">2</span>
                         <h4 className="font-bold text-[#0D2240] text-sm">{tf.labelDelivery} Fecha y Hora</h4>
-                        <span className="text-xs text-gray-400">— {formData.pickupDate.getDay() === 5 ? "4" : formData.pickupDate.getDay() === 6 ? "3" : "2"}+ {tw.daysAfterPickup}</span>
                       </div>
                       {formData.deliveryDate && (
                         <p className="text-xs text-[#E8726A] font-medium mb-3">
