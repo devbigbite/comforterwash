@@ -12,6 +12,7 @@ export interface ServiceOption {
   price_cents: number
   enabled: boolean
   sort_order: number
+  is_hypoallergenic: boolean
 }
 
 export async function getServiceOptions(type?: "detergent" | "extra" | "accessory"): Promise<ServiceOption[]> {
@@ -70,5 +71,13 @@ export async function toggleServiceOption(id: string, enabled: boolean): Promise
 
   const supabase = createAdminClient()
   await supabase.from("service_options").update({ enabled }).eq("id", id)
+  revalidatePath("/admin/pricing")
+}
+
+export async function setHypoallergenic(id: string, is_hypoallergenic: boolean): Promise<void> {
+  await requireAdmin()
+
+  const supabase = createAdminClient()
+  await supabase.from("service_options").update({ is_hypoallergenic }).eq("id", id)
   revalidatePath("/admin/pricing")
 }

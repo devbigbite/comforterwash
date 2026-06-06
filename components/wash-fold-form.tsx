@@ -355,7 +355,10 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
   const isRecurring  = formData.frequency !== "one_time"
 
   const selectedDetergent   = detergentOptions.find(d => d.id === formData.detergentId)
-  const selectedExtrasList  = extraOptions.filter(e => formData.selectedExtras[e.id])
+  const visibleExtraOptions = selectedDetergent?.is_hypoallergenic
+    ? extraOptions.filter(e => e.is_hypoallergenic)
+    : extraOptions
+  const selectedExtrasList  = visibleExtraOptions.filter(e => formData.selectedExtras[e.id])
   const extrasCents         = (selectedDetergent?.price_cents ?? 0) + selectedExtrasList.reduce((s, e) => s + e.price_cents, 0)
 
   const pricePerLbCents = freqPricing[formData.frequency as keyof typeof freqPricing].cents
@@ -1064,11 +1067,11 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
               </div>
             )}
 
-            {extraOptions.length > 0 && (
+            {visibleExtraOptions.length > 0 && (
               <div>
                 <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.treatmentAddOns}</h4>
                 <div className="space-y-2">
-                  {extraOptions.map((addon) => (
+                  {visibleExtraOptions.map((addon) => (
                     <label key={addon.id}
                       className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
                         formData.selectedExtras[addon.id] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>

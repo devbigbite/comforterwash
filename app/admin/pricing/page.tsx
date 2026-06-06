@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { getPricingConfig, setPricingConfig, type PricingConfig } from "@/app/actions/pricing"
-import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, type ServiceOption } from "@/app/actions/service-options"
+import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, type ServiceOption } from "@/app/actions/service-options"
 import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getTipsEnabled, setTipsEnabled } from "@/app/actions/settings"
 import Link from "next/link"
 
@@ -44,6 +44,11 @@ function OptionsSection({
 
   async function toggle(id: string, enabled: boolean) {
     await toggleServiceOption(id, enabled)
+    onRefresh()
+  }
+
+  async function toggleHypo(id: string, current: boolean) {
+    await setHypoallergenic(id, !current)
     onRefresh()
   }
 
@@ -108,12 +113,13 @@ function OptionsSection({
             ) : (
               <div className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-sm text-[#0D2240]">{opt.name}</span>
                     {opt.price_cents > 0
                       ? <span className="text-xs bg-[#0D2240] text-white font-bold px-2 py-0.5 rounded-full">{cents(opt.price_cents)}</span>
                       : <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">Free</span>
                     }
+                    {opt.is_hypoallergenic && <span className="text-xs bg-teal-100 text-teal-700 font-bold px-2 py-0.5 rounded-full">🌿 Hypo-Safe</span>}
                     {!opt.enabled && <span className="text-xs bg-gray-100 text-gray-500 font-bold px-2 py-0.5 rounded-full">Hidden</span>}
                   </div>
                   {opt.description && <p className="text-xs text-gray-400 mt-0.5">{opt.description}</p>}
@@ -124,6 +130,11 @@ function OptionsSection({
                   <button onClick={() => toggle(opt.id, !opt.enabled)}
                     className="text-xs text-gray-400 hover:text-[#0D2240] font-semibold transition-colors">
                     {opt.enabled ? "Hide" : "Show"}
+                  </button>
+                  <button onClick={() => toggleHypo(opt.id, opt.is_hypoallergenic)}
+                    className={`text-xs font-semibold transition-colors ${opt.is_hypoallergenic ? "text-teal-600 hover:text-gray-400" : "text-gray-400 hover:text-teal-600"}`}
+                    title={opt.is_hypoallergenic ? "Mark as NOT hypo-safe" : "Mark as hypo-safe"}>
+                    🌿
                   </button>
                   <button onClick={() => remove(opt.id)}
                     className="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors">Delete</button>
