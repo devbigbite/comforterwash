@@ -262,7 +262,7 @@ const es = {
     biweekly:      "Quincenal",
     save10:        "Ahorra 10%",
     howManyBags:   "¿Cuántas bolsas nos dejas?",
-    bagWeightNote: "Una bolsa estándar tiene unas 15 lb. Pesamos todo en la recogida y ajustamos el cargo final.",
+    bagWeightNote: "Una bolsa estándar tiene unas 20 lb. Pesamos todo en la recogida y ajustamos el cargo final.",
     estimatedWeight: "Peso estimado",
     preAuth:       "Pre-autorización",
     estimateNote:  "Esto es una estimación.",

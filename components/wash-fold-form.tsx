@@ -26,7 +26,7 @@ import { useLang } from "@/components/lang-provider"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 // ─── constants ───────────────────────────────────────────────────────────────
-const LBS_PER_BAG = 15
+const LBS_PER_BAG = 20
 
 // Dynamic — overwritten on mount from Supabase
 let MIN_POUNDS = 20
@@ -838,7 +838,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">{tw.estimatedWeight}</p>
-                  <p className="text-sm font-bold text-[#0D2240]">~{formData.pounds} lbs ({formData.numBags} {formData.numBags > 1 ? tf.bags : tf.bag} × ~15 lbs)</p>
+                  <p className="text-sm font-bold text-[#0D2240]">~{formData.pounds} lbs ({formData.numBags} {formData.numBags > 1 ? tf.bags : tf.bag} × ~20 lbs)</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">{tw.preAuth}</p>
