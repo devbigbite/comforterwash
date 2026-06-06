@@ -848,7 +848,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                   <span className="font-bold">{tw.estimateNote}</span> {tw.chargedAt.replace("{priceLabel}", priceLabel).replace("20 lb", `${minLbs} lb`)}
                 </p>
               </div>
-              <p className="text-xs text-gray-400 leading-relaxed pt-1">{tw.bagPhotoNote}</p>
+              <p className="text-xs font-semibold text-green-600 pt-1">{tw.freePickupDelivery}</p>
+              <p className="text-xs text-gray-400 leading-relaxed">{tw.bagPhotoNote}</p>
             </div>
 
             {/* ── DATE / SCHEDULE SECTION ── */}
