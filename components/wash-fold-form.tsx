@@ -58,17 +58,17 @@ function bagsToEstLbs(bags: number) {
   return Math.max(bags * LBS_PER_BAG, MIN_POUNDS)
 }
 
-const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+const DAY_ABBR = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
 const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
 // ─── weekday schedule helpers ────────────────────────────────────────────────
 const WEEKDAYS = [
-  { id: "monday",    label: "Monday",    short: "Mon", num: 1 },
-  { id: "tuesday",   label: "Tuesday",   short: "Tue", num: 2 },
-  { id: "wednesday", label: "Wednesday", short: "Wed", num: 3 },
-  { id: "thursday",  label: "Thursday",  short: "Thu", num: 4 },
-  { id: "friday",    label: "Friday",    short: "Fri", num: 5 },
-  { id: "saturday",  label: "Saturday",  short: "Sat", num: 6 },
+  { id: "monday",    label: "Lunes",     short: "Lun", num: 1 },
+  { id: "tuesday",   label: "Martes",    short: "Mar", num: 2 },
+  { id: "wednesday", label: "Miércoles", short: "Mié", num: 3 },
+  { id: "thursday",  label: "Jueves",    short: "Jue", num: 4 },
+  { id: "friday",    label: "Viernes",   short: "Vie", num: 5 },
+  { id: "saturday",  label: "Sábado",    short: "Sáb", num: 6 },
 ]
 
 function getValidDeliveryDays(pickupDayId: string): string[] {
@@ -979,7 +979,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                   <div>
                     <div className="flex items-center gap-1.5 mb-3">
                       <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">1</span>
-                      <h4 className="font-bold text-[#0D2240] text-sm">{tf.labelPickup} Date &amp; Time</h4>
+                      <h4 className="font-bold text-[#0D2240] text-sm">{tf.labelPickup} Fecha y Hora</h4>
                       <span className="text-xs text-gray-400">— {tw.anyWeekday}</span>
                     </div>
                     <DateStrip selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} />
@@ -998,7 +998,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                     <div>
                       <div className="flex items-center gap-1.5 mb-3">
                         <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">2</span>
-                        <h4 className="font-bold text-[#0D2240] text-sm">{tf.labelDelivery} Date &amp; Time</h4>
+                        <h4 className="font-bold text-[#0D2240] text-sm">{tf.labelDelivery} Fecha y Hora</h4>
                         <span className="text-xs text-gray-400">— {formData.pickupDate.getDay() === 5 ? "4" : formData.pickupDate.getDay() === 6 ? "3" : "2"}+ {tw.daysAfterPickup}</span>
                       </div>
                       {formData.deliveryDate && (
