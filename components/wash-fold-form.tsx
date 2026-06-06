@@ -660,7 +660,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                         {tw.tierPayAsYouGo}
                       </p>
                     </div>
-                    {serviceMode === "paygo" && (
+                    {serviceMode === "paygo" && tw.tierNoCommitment && (
                       <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
                         {tw.tierNoCommitment}
                       </p>
