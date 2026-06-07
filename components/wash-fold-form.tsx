@@ -16,7 +16,7 @@ import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getMonthlyPlanEnabled, getComforterPromo } from "@/app/actions/settings"
-import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
+import { getServiceOptions, effectivePrice, isSaleActive, type ServiceOption } from "@/app/actions/service-options"
 import { getTipsEnabled, getDeliveryFeeSettings } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
@@ -359,7 +359,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
     ? extraOptions.filter(e => e.is_hypoallergenic)
     : extraOptions
   const selectedExtrasList  = visibleExtraOptions.filter(e => formData.selectedExtras[e.id])
-  const extrasCents         = (selectedDetergent?.price_cents ?? 0) + selectedExtrasList.reduce((s, e) => s + e.price_cents, 0)
+  const extrasCents         = (selectedDetergent ? effectivePrice(selectedDetergent) : 0) + selectedExtrasList.reduce((s, e) => s + effectivePrice(e), 0)
 
   const pricePerLbCents = freqPricing[formData.frequency as keyof typeof freqPricing].cents
   const baseCents       = Math.max(formData.pounds * pricePerLbCents, minLbs * pricePerLbCents)
@@ -1097,24 +1097,34 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
               <div>
                 <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.accessoryAddOns}</h4>
                 <div className="space-y-2">
-                  {accessoryOptions.map((addon) => (
-                    <label key={addon.id}
-                      className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
-                        formData.selectedExtras[addon.id] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
-                      <Checkbox
-                        checked={!!formData.selectedExtras[addon.id]}
-                        onCheckedChange={(c) => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [addon.id]: c as boolean } }))}
-                        className="shrink-0" />
-                      <div className="flex-1">
-                        <p className="font-semibold text-[#0D2240] text-sm">{addon.name}</p>
-                        {addon.description && <p className="text-xs text-gray-400">{addon.description}</p>}
-                      </div>
-                      {addon.price_cents === 0
-                        ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                        : <span className="text-[10px] font-bold text-[#0D2240] bg-gray-100 px-2 py-0.5 rounded-full">+${(addon.price_cents / 100).toFixed(2)}</span>
-                      }
-                    </label>
-                  ))}
+                  {accessoryOptions.map((addon) => {
+                    const saleOn = isSaleActive(addon)
+                    const price = effectivePrice(addon)
+                    return (
+                      <label key={addon.id}
+                        className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                          formData.selectedExtras[addon.id] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                        <Checkbox
+                          checked={!!formData.selectedExtras[addon.id]}
+                          onCheckedChange={(c) => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [addon.id]: c as boolean } }))}
+                          className="shrink-0" />
+                        <div className="flex-1">
+                          <p className="font-semibold text-[#0D2240] text-sm">{addon.name}</p>
+                          {addon.description && <p className="text-xs text-gray-400">{addon.description}</p>}
+                        </div>
+                        {price === 0 ? (
+                          <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
+                        ) : saleOn ? (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-[10px] font-bold text-[#E8726A] bg-[#fdf6f3] px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}</span>
+                            <span className="text-[10px] text-gray-400 line-through">+${(addon.price_cents / 100).toFixed(2)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-bold text-[#0D2240] bg-gray-100 px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}</span>
+                        )}
+                      </label>
+                    )
+                  })}
                 </div>
               </div>
             )}

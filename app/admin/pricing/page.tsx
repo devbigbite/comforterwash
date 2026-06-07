@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { getPricingConfig, setPricingConfig, type PricingConfig } from "@/app/actions/pricing"
-import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, type ServiceOption } from "@/app/actions/service-options"
+import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, isSaleActive, type ServiceOption } from "@/app/actions/service-options"
 import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getTipsEnabled, setTipsEnabled } from "@/app/actions/settings"
 import Link from "next/link"
 
@@ -36,6 +36,12 @@ function OptionsSection({
     onRefresh()
   }
 
+  function cancelDraft() {
+    setAdding(false)
+    setEditingId(null)
+    setDraft(BLANK_OPTION(type))
+  }
+
   async function remove(id: string) {
     if (!confirm("Delete this option?")) return
     await deleteServiceOption(id)
@@ -54,37 +60,70 @@ function OptionsSection({
 
   const inputCls = "border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#0D2240]/20 bg-white w-full"
 
-  function DraftForm() {
-    return (
-      <div className="mt-3 p-4 bg-[#f8faff] rounded-xl border border-[#0D2240]/10 space-y-3">
+  // Inline draft form — NOT a nested component (avoids remount-on-rerender focus loss)
+  const draftForm = (
+    <div className="mt-3 p-4 bg-[#f8faff] rounded-xl border border-[#0D2240]/10 space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Name</label>
+          <input className={inputCls} placeholder="e.g. Tide" value={draft.name ?? ""}
+            onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} />
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Regular price (0 = free)</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+            <input type="number" step="0.01" min="0" className={inputCls + " pl-6"}
+              value={dollarsToField(draft.price_cents ?? 0)}
+              onChange={e => setDraft(d => ({ ...d, price_cents: fieldToCents(e.target.value) }))} />
+          </div>
+        </div>
+      </div>
+      <div>
+        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Description</label>
+        <input className={inputCls} placeholder="Short description shown to customers" value={draft.description ?? ""}
+          onChange={e => setDraft(d => ({ ...d, description: e.target.value }))} />
+      </div>
+
+      {/* Sale price */}
+      <div className="border-t border-[#0D2240]/10 pt-3">
+        <p className="text-[10px] font-bold text-[#E8726A] uppercase tracking-wider mb-2">🏷️ Limited-Time Sale (optional)</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Name</label>
-            <input className={inputCls} placeholder="e.g. Tide" value={draft.name ?? ""} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Price (leave 0 = free)</label>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Sale price</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
               <input type="number" step="0.01" min="0" className={inputCls + " pl-6"}
-                value={dollarsToField(draft.price_cents ?? 0)}
-                onChange={e => setDraft(d => ({ ...d, price_cents: fieldToCents(e.target.value) }))} />
+                placeholder="Leave blank to remove"
+                value={draft.sale_price_cents != null ? dollarsToField(draft.sale_price_cents) : ""}
+                onChange={e => setDraft(d => ({
+                  ...d,
+                  sale_price_cents: e.target.value === "" ? null : fieldToCents(e.target.value),
+                }))} />
             </div>
           </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Sale ends (optional)</label>
+            <input type="datetime-local" className={inputCls}
+              value={draft.sale_ends_at ? draft.sale_ends_at.slice(0, 16) : ""}
+              onChange={e => setDraft(d => ({
+                ...d,
+                sale_ends_at: e.target.value ? new Date(e.target.value).toISOString() : null,
+              }))} />
+          </div>
         </div>
-        <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Description</label>
-          <input className={inputCls} placeholder="Short description shown to customers" value={draft.description ?? ""} onChange={e => setDraft(d => ({ ...d, description: e.target.value }))} />
-        </div>
-        <div className="flex items-center gap-3 pt-1">
-          <button onClick={save} disabled={busy || !draft.name?.trim()} className="bg-[#0D2240] hover:bg-[#142d52] disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors">
-            {busy ? "Saving…" : "Save"}
-          </button>
-          <button onClick={() => { setAdding(false); setEditingId(null); setDraft(BLANK_OPTION(type)) }} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
-        </div>
+        <p className="text-[10px] text-gray-400 mt-1.5">Customers see the sale price with the regular price crossed out. Leave end date blank for no expiry.</p>
       </div>
-    )
-  }
+
+      <div className="flex items-center gap-3 pt-1">
+        <button onClick={save} disabled={busy || !draft.name?.trim()}
+          className="bg-[#0D2240] hover:bg-[#142d52] disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors">
+          {busy ? "Saving…" : "Save"}
+        </button>
+        <button onClick={cancelDraft} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+      </div>
+    </div>
+  )
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -106,46 +145,60 @@ function OptionsSection({
       )}
 
       <div className="divide-y divide-gray-50">
-        {options.map(opt => (
-          <div key={opt.id} className={`py-3 ${!opt.enabled ? "opacity-50" : ""}`}>
-            {editingId === opt.id ? (
-              <DraftForm />
-            ) : (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-[#0D2240]">{opt.name}</span>
-                    {opt.price_cents > 0
-                      ? <span className="text-xs bg-[#0D2240] text-white font-bold px-2 py-0.5 rounded-full">{cents(opt.price_cents)}</span>
-                      : <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">Free</span>
-                    }
-                    {opt.is_hypoallergenic && <span className="text-xs bg-teal-100 text-teal-700 font-bold px-2 py-0.5 rounded-full">🌿 Hypo-Safe</span>}
-                    {!opt.enabled && <span className="text-xs bg-gray-100 text-gray-500 font-bold px-2 py-0.5 rounded-full">Hidden</span>}
+        {options.map(opt => {
+          const saleOn = isSaleActive(opt)
+          return (
+            <div key={opt.id} className={`py-3 ${!opt.enabled ? "opacity-50" : ""}`}>
+              {editingId === opt.id ? draftForm : (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm text-[#0D2240]">{opt.name}</span>
+                      {saleOn ? (
+                        <>
+                          <span className="text-xs bg-[#E8726A] text-white font-bold px-2 py-0.5 rounded-full">
+                            {cents(opt.sale_price_cents!)} SALE
+                          </span>
+                          <span className="text-xs text-gray-400 line-through">{cents(opt.price_cents)}</span>
+                        </>
+                      ) : opt.price_cents > 0 ? (
+                        <span className="text-xs bg-[#0D2240] text-white font-bold px-2 py-0.5 rounded-full">{cents(opt.price_cents)}</span>
+                      ) : (
+                        <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">Free</span>
+                      )}
+                      {opt.is_hypoallergenic && <span className="text-xs bg-teal-100 text-teal-700 font-bold px-2 py-0.5 rounded-full">🌿 Hypo-Safe</span>}
+                      {!opt.enabled && <span className="text-xs bg-gray-100 text-gray-500 font-bold px-2 py-0.5 rounded-full">Hidden</span>}
+                    </div>
+                    {opt.description && <p className="text-xs text-gray-400 mt-0.5">{opt.description}</p>}
+                    {saleOn && opt.sale_ends_at && (
+                      <p className="text-[10px] text-[#E8726A] mt-0.5">
+                        Sale ends {new Date(opt.sale_ends_at).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
-                  {opt.description && <p className="text-xs text-gray-400 mt-0.5">{opt.description}</p>}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => { setEditingId(opt.id); setDraft({ ...opt }); setAdding(false) }}
+                      className="text-xs text-gray-400 hover:text-[#0D2240] font-semibold transition-colors">Edit</button>
+                    <button onClick={() => toggle(opt.id, !opt.enabled)}
+                      className="text-xs text-gray-400 hover:text-[#0D2240] font-semibold transition-colors">
+                      {opt.enabled ? "Hide" : "Show"}
+                    </button>
+                    <button onClick={() => toggleHypo(opt.id, opt.is_hypoallergenic)}
+                      className={`text-xs font-semibold transition-colors ${opt.is_hypoallergenic ? "text-teal-600 hover:text-gray-400" : "text-gray-400 hover:text-teal-600"}`}
+                      title={opt.is_hypoallergenic ? "Mark as NOT hypo-safe" : "Mark as hypo-safe"}>
+                      🌿
+                    </button>
+                    <button onClick={() => remove(opt.id)}
+                      className="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors">Delete</button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => { setEditingId(opt.id); setDraft({ ...opt }); setAdding(false) }}
-                    className="text-xs text-gray-400 hover:text-[#0D2240] font-semibold transition-colors">Edit</button>
-                  <button onClick={() => toggle(opt.id, !opt.enabled)}
-                    className="text-xs text-gray-400 hover:text-[#0D2240] font-semibold transition-colors">
-                    {opt.enabled ? "Hide" : "Show"}
-                  </button>
-                  <button onClick={() => toggleHypo(opt.id, opt.is_hypoallergenic)}
-                    className={`text-xs font-semibold transition-colors ${opt.is_hypoallergenic ? "text-teal-600 hover:text-gray-400" : "text-gray-400 hover:text-teal-600"}`}
-                    title={opt.is_hypoallergenic ? "Mark as NOT hypo-safe" : "Mark as hypo-safe"}>
-                    🌿
-                  </button>
-                  <button onClick={() => remove(opt.id)}
-                    className="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors">Delete</button>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          )
+        })}
       </div>
 
-      {adding && <DraftForm />}
+      {adding && draftForm}
     </div>
   )
 }
