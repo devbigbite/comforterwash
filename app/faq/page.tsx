@@ -87,7 +87,7 @@ export default async function FaqPage({
   const { lang } = await searchParams
   const tr = lang === "es" ? es.faqPage : en.faqPage
 
-  const allItems = await getFaqItems()
+  const allItems = await getFaqItems(lang)
   const activeItems = allItems.filter(i => i.active)
   const CATEGORIES = getCategories(tr)
 

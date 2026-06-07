@@ -200,7 +200,7 @@ const es = {
     reviewAndSign: "Revisa tu reserva y firma abajo",
     reviewOrder:   "Revisa tu pedido y firma abajo",
     detergentPreference: "Preferencia de Detergente",
-    treatmentAddOns: "Extras de Tratamiento",
+    treatmentAddOns: "Opciones de Tratamiento",
     accessoryAddOns: "Accesorios",
     fabricSoftenerLabel: "Suavizante de Tela",
     fabricSoftenerComforterDesc: "Deja tu edredón súper suave y esponjoso",

@@ -57,6 +57,7 @@ const NAV_ITEMS: NavItem[] = [
       { href: "/admin/promos",    label: "Promotions" },
       { href: "/admin/images",    label: "Site Images" },
       { href: "/admin/templates", label: "Email Templates" },
+      { href: "/admin/faq",       label: "FAQ Editor" },
       { href: "/admin/docs",      label: "Docs & FAQ" },
     ],
   },
