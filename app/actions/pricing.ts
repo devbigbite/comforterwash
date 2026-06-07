@@ -20,9 +20,9 @@ export interface PricingConfig {
   comforterPromoCents:  number   // default 3300
 }
 
-const DEFAULTS: PricingConfig = {
-  washFoldOneTimeCents: 240,
-  washFoldSubCents:     215,
+export const PRICING_DEFAULTS: PricingConfig = {
+  washFoldOneTimeCents: 255,
+  washFoldSubCents:     245,
   washFoldMinLbs:       20,
   washOnlyCents:        199,
   washOnlyMinLbs:       20,
@@ -59,7 +59,7 @@ export async function getPricingConfig(): Promise<PricingConfig> {
     const map: Record<string, string> = {}
     for (const row of data ?? []) map[row.key] = row.value
 
-    const result = { ...DEFAULTS }
+    const result = { ...PRICING_DEFAULTS }
     for (const [field, dbKey] of Object.entries(KEY_MAP) as [keyof PricingConfig, string][]) {
       if (map[dbKey] !== undefined) {
         result[field] = parseInt(map[dbKey], 10) as never
@@ -67,7 +67,7 @@ export async function getPricingConfig(): Promise<PricingConfig> {
     }
     return result
   } catch {
-    return DEFAULTS
+    return PRICING_DEFAULTS
   }
 }
 
