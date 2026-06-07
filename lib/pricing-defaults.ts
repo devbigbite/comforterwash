@@ -1,6 +1,4 @@
-import type { PricingConfig } from "@/app/actions/pricing"
-
-export const PRICING_DEFAULTS: PricingConfig = {
+export const PRICING_DEFAULTS = {
   washFoldOneTimeCents: 255,
   washFoldSubCents:     245,
   washFoldMinLbs:       20,
