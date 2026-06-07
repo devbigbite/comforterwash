@@ -1,6 +1,7 @@
 import { WashFoldForm } from "@/components/wash-fold-form"
 import { LangToggle } from "@/components/lang-toggle"
 import { BookingPageTitle } from "@/components/booking-page-title"
+import { WashFoldPageSubtitle } from "@/components/wash-fold-page-subtitle"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServicesConfig } from "@/app/actions/settings"
@@ -45,11 +46,11 @@ export default async function WashFoldPage() {
           <span className="text-white font-bold text-sm">Wash &amp; Fold</span>
         </div>
         <h1 className="text-3xl font-extrabold text-white mb-1"><BookingPageTitle /></h1>
-        <p className="text-white/60 text-sm">
-          ${(pricing.washFoldOneTimeCents / 100).toFixed(2)}/lb one-time
-          {" · "}${(pricing.washFoldSubCents / 100).toFixed(2)}/lb with subscription
-          {" · "}{pricing.washFoldMinLbs} lb minimum
-        </p>
+        <WashFoldPageSubtitle
+          oneTimeCents={pricing.washFoldOneTimeCents}
+          subCents={pricing.washFoldSubCents}
+          minLbs={pricing.washFoldMinLbs}
+        />
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-10">
