@@ -9,6 +9,8 @@ export interface ServiceOption {
   type: "detergent" | "extra" | "accessory"
   name: string
   description: string
+  name_es?: string | null
+  description_es?: string | null
   price_cents: number
   sale_price_cents?: number | null
   sale_ends_at?: string | null
@@ -17,24 +19,6 @@ export interface ServiceOption {
   is_hypoallergenic: boolean
 }
 
-/** Returns the active price — sale price if set and not expired, otherwise regular price */
-export function effectivePrice(opt: ServiceOption): number {
-  if (
-    opt.sale_price_cents != null &&
-    (!opt.sale_ends_at || new Date(opt.sale_ends_at) > new Date())
-  ) {
-    return opt.sale_price_cents
-  }
-  return opt.price_cents
-}
-
-/** True if a sale is currently active */
-export function isSaleActive(opt: ServiceOption): boolean {
-  return (
-    opt.sale_price_cents != null &&
-    (!opt.sale_ends_at || new Date(opt.sale_ends_at) > new Date())
-  )
-}
 
 export async function getServiceOptions(type?: "detergent" | "extra" | "accessory"): Promise<ServiceOption[]> {
   try {

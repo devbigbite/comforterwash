@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { getPricingConfig, setPricingConfig, type PricingConfig } from "@/app/actions/pricing"
-import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, isSaleActive, type ServiceOption } from "@/app/actions/service-options"
+import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, type ServiceOption } from "@/app/actions/service-options"
+import { isSaleActive } from "@/lib/service-option-utils"
 import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getTipsEnabled, setTipsEnabled } from "@/app/actions/settings"
 import Link from "next/link"
 
@@ -80,9 +81,26 @@ function OptionsSection({
         </div>
       </div>
       <div>
-        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Description</label>
+        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Description (English)</label>
         <input className={inputCls} placeholder="Short description shown to customers" value={draft.description ?? ""}
           onChange={e => setDraft(d => ({ ...d, description: e.target.value }))} />
+      </div>
+
+      {/* Spanish translations */}
+      <div className="border-t border-[#0D2240]/10 pt-3">
+        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-2">🇪🇸 Spanish Translation (optional)</p>
+        <div className="grid grid-cols-1 gap-3">
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Name (Spanish)</label>
+            <input className={inputCls} placeholder="e.g. Detergente Estándar" value={draft.name_es ?? ""}
+              onChange={e => setDraft(d => ({ ...d, name_es: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Description (Spanish)</label>
+            <input className={inputCls} placeholder="Descripción corta en español" value={draft.description_es ?? ""}
+              onChange={e => setDraft(d => ({ ...d, description_es: e.target.value }))} />
+          </div>
+        </div>
       </div>
 
       {/* Sale price */}

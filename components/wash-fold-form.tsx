@@ -16,7 +16,8 @@ import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getMonthlyPlanEnabled, getComforterPromo } from "@/app/actions/settings"
-import { getServiceOptions, effectivePrice, isSaleActive, type ServiceOption } from "@/app/actions/service-options"
+import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
+import { effectivePrice, isSaleActive } from "@/lib/service-option-utils"
 import { getTipsEnabled, getDeliveryFeeSettings } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
@@ -206,9 +207,13 @@ function WeekdayPicker({
 
 // ─── main component ───────────────────────────────────────────────────────────
 export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfig }) {
-  const { translations: tr } = useLang()
+  const { translations: tr, locale } = useLang()
   const tf = tr.form
   const tw = tr.washFoldForm
+
+  // Helper: return Spanish text if available and locale is es, else English
+  function optName(opt: ServiceOption) { return (locale === "es" && opt.name_es) ? opt.name_es : opt.name }
+  function optDesc(opt: ServiceOption) { return (locale === "es" && opt.description_es) ? opt.description_es : opt.description }
 
   const STEPS = [
     { id: 1, label: tf.stepService },
@@ -1054,8 +1059,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                         checked={formData.detergentId === opt.id}
                         onChange={() => setFormData(p => ({ ...p, detergentId: opt.id }))} />
                       <div className="flex-1">
-                        <p className="font-semibold text-[#0D2240] text-sm">{opt.name}</p>
-                        {opt.description && <p className="text-xs text-gray-400">{opt.description}</p>}
+                        <p className="font-semibold text-[#0D2240] text-sm">{optName(opt)}</p>
+                        {opt.description && <p className="text-xs text-gray-400">{optDesc(opt)}</p>}
                       </div>
                       {opt.price_cents === 0
                         ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
@@ -1080,8 +1085,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                         onCheckedChange={(c) => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [addon.id]: c as boolean } }))}
                         className="shrink-0" />
                       <div className="flex-1">
-                        <p className="font-semibold text-[#0D2240] text-sm">{addon.name}</p>
-                        {addon.description && <p className="text-xs text-gray-400">{addon.description}</p>}
+                        <p className="font-semibold text-[#0D2240] text-sm">{optName(addon)}</p>
+                        {addon.description && <p className="text-xs text-gray-400">{optDesc(addon)}</p>}
                       </div>
                       {addon.price_cents === 0
                         ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>

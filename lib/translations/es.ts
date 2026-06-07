@@ -98,7 +98,7 @@ const es = {
   },
   zip: {
     heading: "¿Llegamos a Tu Puerta?",
-    subheading: "Ingresa tu código postal para confirmar que el servicio de recogida está disponible en tu vecindario.",
+    subheading: "Ingresa tu código postal para confirmar que el servicio de recogida está disponible en tu comunidad.",
     placeholder: "Ingresa tu código postal",
     check: "Verificar",
     checking: "Verificando...",
@@ -141,7 +141,7 @@ const es = {
     q1: "¿Cuál es la diferencia entre los servicios?",
     a1: "Lavado de Edredón es para edredones — desde $33 cada uno (el precio varía según el tamaño). Lavado y Doblado es para ropa regular: lavada, secada y doblada a $2.40/lb (o $2.15/lb con suscripción). Solo Lavado es a $1.99/lb — la ropa se devuelve limpia en una bolsa, sin doblar.",
     q2: "¿Qué días hacen las recogidas?",
-    a2: "Los días de recogida y entrega varían según tu vecindario y se muestran al reservar. La mayoría de clientes tienen recogidas disponibles de lunes a viernes en ventanas de mañana (9AM–1PM) o tarde (3PM–7PM).",
+    a2: "Los días de recogida y entrega varían según tu comunidad y se muestran al reservar. La mayoría de clientes tienen recogidas disponibles de lunes a viernes en ventanas de mañana (9AM–1PM) o tarde (3PM–7PM).",
     q3: "¿Cómo funciona el peso en Lavado y Doblado?",
     a3: "Estimas el peso al reservar y pesamos tu ropa en la recogida. Confirmamos el precio final después de pesar. Aplica mínimo de 20 lb.",
     q4: "¿Qué pasa si no estoy en casa?",
