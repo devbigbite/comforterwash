@@ -26,6 +26,7 @@ function OptionsSection({
   const [draft, setDraft] = useState<Partial<ServiceOption>>(BLANK_OPTION(type))
   const [busy, setBusy] = useState(false)
 
+
   async function save() {
     if (!draft.name?.trim()) return
     setBusy(true)
@@ -102,6 +103,18 @@ function OptionsSection({
           </div>
         </div>
       </div>
+
+      {/* Requires comforter — only relevant for accessories */}
+      {type === "accessory" && (
+        <div className="flex items-center gap-3 pt-1">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" className="w-4 h-4 accent-[#0D2240]"
+              checked={!!draft.requires_comforter}
+              onChange={e => setDraft(d => ({ ...d, requires_comforter: e.target.checked }))} />
+            <span className="text-xs font-bold text-gray-600">Only show when customer adds comforters</span>
+          </label>
+        </div>
+      )}
 
       {/* Sale price */}
       <div className="border-t border-[#0D2240]/10 pt-3">
@@ -184,6 +197,7 @@ function OptionsSection({
                       ) : (
                         <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">Free</span>
                       )}
+                      {opt.requires_comforter && <span className="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">🛏️ Comforter only</span>}
                       {opt.is_hypoallergenic && <span className="text-xs bg-teal-100 text-teal-700 font-bold px-2 py-0.5 rounded-full">🌿 Hypo-Safe</span>}
                       {!opt.enabled && <span className="text-xs bg-gray-100 text-gray-500 font-bold px-2 py-0.5 rounded-full">Hidden</span>}
                     </div>

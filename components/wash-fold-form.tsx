@@ -1102,34 +1102,36 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
               <div>
                 <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.accessoryAddOns}</h4>
                 <div className="space-y-2">
-                  {accessoryOptions.map((addon) => {
-                    const saleOn = isSaleActive(addon)
-                    const price = effectivePrice(addon)
-                    return (
-                      <label key={addon.id}
-                        className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
-                          formData.selectedExtras[addon.id] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
-                        <Checkbox
-                          checked={!!formData.selectedExtras[addon.id]}
-                          onCheckedChange={(c) => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [addon.id]: c as boolean } }))}
-                          className="shrink-0" />
-                        <div className="flex-1">
-                          <p className="font-semibold text-[#0D2240] text-sm">{addon.name}</p>
-                          {addon.description && <p className="text-xs text-gray-400">{addon.description}</p>}
-                        </div>
-                        {price === 0 ? (
-                          <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                        ) : saleOn ? (
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span className="text-[10px] font-bold text-[#E8726A] bg-[#fdf6f3] px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}</span>
-                            <span className="text-[10px] text-gray-400 line-through">+${(addon.price_cents / 100).toFixed(2)}</span>
+                  {accessoryOptions
+                    .filter(addon => !addon.requires_comforter || comforterAddon)
+                    .map((addon) => {
+                      const saleOn = isSaleActive(addon)
+                      const price = effectivePrice(addon)
+                      return (
+                        <label key={addon.id}
+                          className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                            formData.selectedExtras[addon.id] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                          <Checkbox
+                            checked={!!formData.selectedExtras[addon.id]}
+                            onCheckedChange={(c) => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [addon.id]: c as boolean } }))}
+                            className="shrink-0" />
+                          <div className="flex-1">
+                            <p className="font-semibold text-[#0D2240] text-sm">{optName(addon)}</p>
+                            {addon.description && <p className="text-xs text-gray-400">{optDesc(addon)}</p>}
                           </div>
-                        ) : (
-                          <span className="text-[10px] font-bold text-[#0D2240] bg-gray-100 px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}</span>
-                        )}
-                      </label>
-                    )
-                  })}
+                          {price === 0 ? (
+                            <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
+                          ) : saleOn ? (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="text-[10px] font-bold text-[#E8726A] bg-[#fdf6f3] px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}</span>
+                              <span className="text-[10px] text-gray-400 line-through">+${(addon.price_cents / 100).toFixed(2)}</span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] font-bold text-[#0D2240] bg-gray-100 px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}</span>
+                          )}
+                        </label>
+                      )
+                    })}
                 </div>
               </div>
             )}

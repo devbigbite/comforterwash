@@ -17,6 +17,7 @@ export interface ServiceOption {
   enabled: boolean
   sort_order: number
   is_hypoallergenic: boolean
+  requires_comforter: boolean
 }
 
 
