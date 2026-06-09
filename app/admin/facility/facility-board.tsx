@@ -32,6 +32,11 @@ function colorHex(key: string | null): string {
   return COLOR_KEYS.find(c => c.key === key)?.hex ?? "#d1d5db"
 }
 
+// Phases where color key + photo are mandatory on every order
+const FINISHED_PHASES = new Set(["ready", "staged", "out_for_delivery"])
+// Phase where color key must be assigned BEFORE advancing
+const REQUIRES_COLOR_KEY_BEFORE = "ready"  // i.e. must be set when leaving "folding"
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const SERVICE_ICON: Record<string, string> = {
@@ -163,7 +168,11 @@ function OrderDrawer({
   }
 
   const urgency = deliveryUrgency(order.delivery_date)
-  const isReadyOrLater = ["ready", "staged", "out_for_delivery"].includes(order.phase)
+  const isFinished = FINISHED_PHASES.has(order.phase)
+  // Must have color key before advancing INTO ready
+  const advanceBlockedNoColorKey = nextPhase?.key === REQUIRES_COLOR_KEY_BEFORE && !order.color_key
+  // Must have photo before advancing OUT OF ready (or any finished phase)
+  const advanceBlockedNoPhoto = isFinished && !order.facility_floor_photo_url
 
   return (
     <>
@@ -291,16 +300,61 @@ function OrderDrawer({
             )}
           </div>
 
-          {/* ── Hold at Facility toggle ── */}
-          {isReadyOrLater && (
+          {/* ── Placement Photo — required for ALL finished orders ── */}
+          {isFinished && (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Placement Photo</p>
+                {!order.facility_floor_photo_url && (
+                  <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-red-500 text-white uppercase tracking-wide">Required</span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 leading-snug">
+                Photograph the finished bags and their location — floor or storage — so the driver has a reference on arrival.
+              </p>
+
+              {order.facility_floor_photo_url ? (
+                <div className="space-y-2">
+                  <img src={order.facility_floor_photo_url} alt="Placement" className="w-full rounded-xl border border-gray-200 object-cover max-h-48" />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full text-xs font-bold text-gray-500 border border-gray-200 bg-white py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    📷 Replace Photo
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-red-300 hover:border-red-400 bg-red-50 rounded-xl py-5 text-sm text-red-400 hover:text-red-500 transition-colors font-semibold"
+                >
+                  {uploadingPhoto ? (
+                    <><span className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> Uploading…</>
+                  ) : (
+                    <>📷 Take placement photo (required)</>
+                  )}
+                </button>
+              )}
+              <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} />
+            </div>
+          )}
+
+          {/* ── Floor vs Storage decision ── */}
+          {isFinished && (
             <div className={`rounded-xl border shadow-sm p-4 ${order.hold_at_facility ? "bg-emerald-50 border-emerald-200" : "bg-white border-gray-100"}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-bold text-[#0D2240]">📍 Hold at Facility Floor</p>
+                  <p className="text-sm font-bold text-[#0D2240]">
+                    {order.hold_at_facility ? "📍 Kept on Facility Floor" : "📦 Send to Storage"}
+                  </p>
                   <p className="text-xs text-gray-500 mt-0.5 leading-snug">
-                    Keep this order in the facility floor area instead of sending to storage.
-                    {urgency.label === "Today" && <span className="text-red-500 font-semibold"> Delivery is today — recommended.</span>}
-                    {urgency.label === "Tomorrow" && <span className="text-amber-600 font-semibold"> Delivery is tomorrow — consider holding.</span>}
+                    {order.hold_at_facility
+                      ? "Staying on the facility floor temp space. Apply color key sticker only."
+                      : <>Sending to remote storage. Apply color key sticker <strong>+ second marker sticker</strong> (color TBD).</>
+                    }
+                    {!order.hold_at_facility && urgency.label === "Today" && <span className="text-red-500 font-semibold ml-1">Delivery is today — recommend floor.</span>}
+                    {!order.hold_at_facility && urgency.label === "Tomorrow" && <span className="text-amber-600 font-semibold ml-1">Delivery is tomorrow — consider floor.</span>}
                   </p>
                 </div>
                 <button
@@ -312,36 +366,13 @@ function OrderDrawer({
                 </button>
               </div>
 
-              {/* Floor photo section — only shown when held */}
-              {order.hold_at_facility && (
-                <div className="mt-4 space-y-3">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Floor Placement Photo</p>
-                  <p className="text-xs text-gray-500">Photograph the bags and their floor location so the driver can reference it on arrival.</p>
-
-                  {order.facility_floor_photo_url ? (
-                    <div className="space-y-2">
-                      <img src={order.facility_floor_photo_url} alt="Floor placement" className="w-full rounded-xl border border-gray-200 object-cover max-h-48" />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full text-xs font-bold text-gray-500 border border-gray-200 bg-white py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        📷 Replace Photo
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingPhoto}
-                      className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 hover:border-[#E8726A] rounded-xl py-5 text-sm text-gray-400 hover:text-[#E8726A] transition-colors font-semibold"
-                    >
-                      {uploadingPhoto ? (
-                        <><span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" /> Uploading…</>
-                      ) : (
-                        <>📷 Tap to photograph placement</>
-                      )}
-                    </button>
-                  )}
-                  <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} />
+              {/* Second marker sticker — shown only when going to storage, TBD color */}
+              {!order.hold_at_facility && (
+                <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
+                  <span className="text-amber-500 shrink-0 mt-0.5">🏷️</span>
+                  <p className="text-xs text-amber-700 leading-snug">
+                    <strong>Second marker sticker required</strong> for orders going to remote storage. Color TBD — apply alongside the color key sticker so the driver can identify this as a storage order.
+                  </p>
                 </div>
               )}
             </div>
@@ -356,16 +387,32 @@ function OrderDrawer({
 
           {/* Advance phase */}
           {nextPhase ? (
-            <button
-              onClick={handleAdvance} disabled={moving}
-              className="w-full flex items-center justify-center gap-2 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-sm py-3.5 rounded-xl transition-colors shadow-sm"
-            >
-              {moving ? (
-                <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Moving…</span>
-              ) : (
-                <>Move to {nextPhase.icon} {nextPhase.label} →</>
+            <>
+              {advanceBlockedNoColorKey && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-center space-y-1">
+                  <p className="text-red-600 font-bold text-sm">🏷️ Color key required to mark as Ready</p>
+                  <p className="text-red-400 text-xs">Assign a color key sticker before moving to {nextPhase.label}.</p>
+                </div>
               )}
-            </button>
+              {!advanceBlockedNoColorKey && advanceBlockedNoPhoto && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-center space-y-1">
+                  <p className="text-red-600 font-bold text-sm">📷 Photo required to advance</p>
+                  <p className="text-red-400 text-xs">Take the placement photo before moving this order further.</p>
+                </div>
+              )}
+              {!advanceBlockedNoColorKey && !advanceBlockedNoPhoto && (
+                <button
+                  onClick={handleAdvance} disabled={moving}
+                  className="w-full flex items-center justify-center gap-2 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-sm py-3.5 rounded-xl transition-colors shadow-sm"
+                >
+                  {moving ? (
+                    <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Moving…</span>
+                  ) : (
+                    <>Move to {nextPhase.icon} {nextPhase.label} →</>
+                  )}
+                </button>
+              )}
+            </>
           ) : (
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-center">
               <p className="text-emerald-600 font-bold text-sm">✅ Final phase — ready to close out</p>
@@ -636,7 +683,17 @@ export function FacilityBoard({ initialGrouped, facilities, selectedFacilityId, 
                             />
                           )}
                           {/* Hold pin */}
-                          {order.hold_at_facility && <span title="Held at facility" className="text-emerald-500 text-xs shrink-0">📍</span>}
+                          {order.hold_at_facility && (
+                            <span title="Held at facility floor" className="text-emerald-500 text-xs shrink-0">📍</span>
+                          )}
+                          {/* Missing photo warning — all finished orders */}
+                          {FINISHED_PHASES.has(order.phase) && !order.facility_floor_photo_url && (
+                            <span title="Placement photo required" className="text-red-500 text-xs shrink-0">📷</span>
+                          )}
+                          {/* Missing color key warning — all finished orders */}
+                          {FINISHED_PHASES.has(order.phase) && !order.color_key && (
+                            <span title="Color key sticker required" className="text-red-500 text-xs shrink-0">🏷️</span>
+                          )}
                           {/* Unweighed dot */}
                           {!order.actual_weight_lbs && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Not weighed" />}
                         </div>
