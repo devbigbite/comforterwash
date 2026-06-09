@@ -13,13 +13,18 @@ export interface BoardOrder {
   customer_name: string
   service_type: string
   num_bags: number
+  folded_bag_count: number | null
   phase: string
   phase_updated_at: string | null
   assigned_facility_id: string | null
   actual_weight_lbs: number | null
   status: string
   pickup_date: string
+  delivery_date: string
   created_at: string
+  hold_at_facility: boolean
+  color_key: string | null
+  facility_floor_photo_url: string | null
 }
 
 // ── Get all orders for the facility board ─────────────────────────────────────
@@ -30,7 +35,7 @@ export async function getFacilityBoardOrders(facilityId?: string): Promise<Recor
 
   let query = supabase
     .from("bookings")
-    .select("id, short_code, customer_name, service_type, num_bags, phase, phase_updated_at, assigned_facility_id, actual_weight_lbs, status, pickup_date, created_at")
+    .select("id, short_code, customer_name, service_type, num_bags, folded_bag_count, phase, phase_updated_at, assigned_facility_id, actual_weight_lbs, status, pickup_date, delivery_date, created_at, hold_at_facility, color_key, facility_floor_photo_url")
     .eq("location_id", locationId)
     .not("phase", "in", '("booked","delivered","cancelled")')
     .order("phase_updated_at", { ascending: true })
@@ -140,6 +145,47 @@ export interface FacilitySummary {
   id: string
   name: string
   address: string | null
+}
+
+// ── Update facility floor details (hold, color key, photo, folded bag count) ──
+
+export async function updateFacilityDetails(
+  bookingId: string,
+  updates: {
+    hold_at_facility?: boolean
+    color_key?: string | null
+    facility_floor_photo_url?: string | null
+    folded_bag_count?: number | null
+  }
+): Promise<{ error?: string }> {
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+
+  const { error } = await supabase
+    .from("bookings")
+    .update(updates)
+    .eq("id", bookingId)
+    .eq("location_id", locationId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/admin/facility")
+  revalidatePath(`/admin/orders/${bookingId}`)
+  return {}
+}
+
+// ── Get signed upload URL for floor photo (Supabase Storage) ─────────────────
+
+export async function getFloorPhotoUploadUrl(bookingId: string): Promise<{ url?: string; path?: string; error?: string }> {
+  const supabase = createAdminClient()
+  const path = `floor-photos/${bookingId}-${Date.now()}.jpg`
+
+  const { data, error } = await supabase.storage
+    .from("worker-docs")
+    .createSignedUploadUrl(path)
+
+  if (error) return { error: error.message }
+  return { url: data.signedUrl, path }
 }
 
 export async function getActiveFacilities(): Promise<FacilitySummary[]> {
