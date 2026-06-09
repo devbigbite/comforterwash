@@ -14,6 +14,10 @@ const ROLE_BADGE: Record<string, string> = {
   driver:   "bg-[#0D2240]/10 text-[#0D2240]",
   operator: "bg-purple-100 text-purple-700",
 }
+const ROLE_LABEL: Record<string, string> = {
+  driver:   "Driver",
+  operator: "Washing Operator",
+}
 
 export default async function WorkersPage({
   searchParams,
@@ -94,7 +98,7 @@ export default async function WorkersPage({
                     </span>
                     {w.roles?.map((r: string) => (
                       <span key={r} className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${ROLE_BADGE[r] ?? "bg-gray-100 text-gray-500"}`}>
-                        {r}
+                        {ROLE_LABEL[r] ?? r}
                       </span>
                     ))}
                   </div>

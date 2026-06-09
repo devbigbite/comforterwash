@@ -11,19 +11,30 @@ export async function submitApplication(formData: FormData) {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const roles: string[] = []
-  if (formData.get("role_driver") === "on") roles.push("driver")
-  if (formData.get("role_operator") === "on") roles.push("operator")
+  if (formData.get("role_driver") === "on")            roles.push("driver")
+  if (formData.get("role_washing_operator") === "on")   roles.push("operator")
+  // combo role: "Washing Operator / Driver" adds both
+  if (formData.get("role_combo") === "on") {
+    if (!roles.includes("driver"))   roles.push("driver")
+    if (!roles.includes("operator")) roles.push("operator")
+  }
+
+  const icSignature = formData.get("ic_signature") as string | null
+  const icRole      = formData.get("ic_role") as string | null
 
   const { error } = await supabase.from("workers").insert({
-    location_id: locationId,
-    name:        formData.get("name") as string,
-    email:       formData.get("email") as string,
-    phone:       formData.get("phone") as string,
-    address:     formData.get("address") as string,
+    location_id:              locationId,
+    name:                     formData.get("name") as string,
+    email:                    formData.get("email") as string,
+    phone:                    formData.get("phone") as string,
+    address:                  formData.get("address") as string,
     roles,
-    has_vehicle: formData.get("has_vehicle") === "on",
-    experience:  formData.get("experience") as string,
-    status:      "pending",
+    has_vehicle:              formData.get("has_vehicle") === "on",
+    experience:               formData.get("experience") as string,
+    status:                   "pending",
+    ic_agreement_signature:   icSignature || null,
+    ic_agreement_signed_at:   icSignature ? new Date().toISOString() : null,
+    ic_agreement_role:        icRole || null,
   })
 
   if (error) {
@@ -204,4 +215,58 @@ export async function issuePayout(formData: FormData) {
   revalidatePath("/admin/workers")
   revalidatePath(`/admin/workers/${workerId}`)
   return { success: true, amountCents }
+}
+
+// ── Worker Documents ──────────────────────────────────────────────────────────
+export async function addWorkerDocument(formData: FormData) {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+
+  const { error } = await supabase.from("worker_documents").insert({
+    worker_id:     formData.get("worker_id") as string,
+    location_id:   locationId,
+    document_type: formData.get("document_type") as string,
+    file_name:     formData.get("file_name") as string,
+    external_url:  (formData.get("external_url") as string) || null,
+    notes:         (formData.get("notes") as string) || null,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath(`/admin/workers/${formData.get("worker_id")}`)
+  return { success: true }
+}
+
+export async function deleteWorkerDocument(documentId: string, workerId: string) {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  await supabase.from("worker_documents").delete().eq("id", documentId)
+  revalidatePath(`/admin/workers/${workerId}`)
+}
+
+// ── Worker Mileage Reports ────────────────────────────────────────────────────
+export async function addMileageReport(formData: FormData) {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+
+  const { error } = await supabase.from("worker_mileage_reports").insert({
+    worker_id:   formData.get("worker_id") as string,
+    location_id: locationId,
+    report_date: formData.get("report_date") as string,
+    description: formData.get("description") as string,
+    miles:       parseFloat(formData.get("miles") as string || "0"),
+    notes:       (formData.get("notes") as string) || null,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath(`/admin/workers/${formData.get("worker_id")}`)
+  return { success: true }
+}
+
+export async function deleteMileageReport(reportId: string, workerId: string) {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  await supabase.from("worker_mileage_reports").delete().eq("id", reportId)
+  revalidatePath(`/admin/workers/${workerId}`)
 }
