@@ -205,31 +205,46 @@ function getMinTurnaround(pickupDate: Date, routes: Route[], defaultGap = 2): nu
 
 /**
  * Returns the earliest delivery date given a pickup date and active routes.
- * Uses the minimum turnaround_days from the routes serving the pickup date,
- * then finds the next date where isDeliveryDay is true.
+ *
+ * Turnaround rules (next-day model):
+ *   Mon–Fri pickup → next calendar day minimum (turnaround_days should be 1)
+ *   Saturday pickup → Monday (skip Sunday; 2 days minimum)
+ *   Sunday pickup   → Tuesday (2 days; Sunday pickups not active but safe fallback)
+ *
+ * The route's turnaround_days is respected as a minimum floor, but the
+ * Saturday→Monday skip always applies so deliveries never land on Sunday.
  */
 export function getEarliestRouteDelivery(pickup: Date, routes: Route[]): Date {
-  const minGap = getMinTurnaround(pickup, routes)
+  const minGap    = getMinTurnaround(pickup, routes)
+  const pickupDay = pickup.getDay() // 0=Sun, 6=Sat
+
+  // Saturday pickup must skip Sunday → Monday at minimum
+  // Sunday pickup (edge case) → Tuesday at minimum
+  let gap = minGap
+  if (pickupDay === 6) gap = Math.max(gap, 2)       // Sat → Mon
+  else if (pickupDay === 0) gap = Math.max(gap, 2)   // Sun → Tue
+  else gap = Math.max(gap, 1)                         // Mon–Fri → next day
 
   if (routes.length === 0) {
-    // No routes yet — fall back to old Mon/Tue/Wed logic
     const d = new Date(pickup)
-    d.setDate(d.getDate() + minGap)
-    while ([0, 4, 5, 6].includes(d.getDay())) d.setDate(d.getDate() + 1)
+    d.setDate(d.getDate() + gap)
+    if (d.getDay() === 0) d.setDate(d.getDate() + 1) // never Sunday
     return d
   }
 
   const d = new Date(pickup)
   d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() + minGap)
+  d.setDate(d.getDate() + gap)
+  if (d.getDay() === 0) d.setDate(d.getDate() + 1)   // never start search on Sunday
 
   for (let i = 0; i < 60; i++) {
-    if (isDeliveryDay(d, routes)) return new Date(d)
+    if (d.getDay() !== 0 && isDeliveryDay(d, routes)) return new Date(d)
     d.setDate(d.getDate() + 1)
   }
 
   // Absolute fallback
   const fallback = new Date(pickup)
-  fallback.setDate(fallback.getDate() + minGap)
+  fallback.setDate(fallback.getDate() + gap)
+  if (fallback.getDay() === 0) fallback.setDate(fallback.getDate() + 1)
   return fallback
 }

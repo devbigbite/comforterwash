@@ -143,7 +143,7 @@ export default async function RoutesPage() {
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">
                 Turnaround Days <span className="font-normal">(pickup → delivery gap)</span>
               </label>
-              <input name="turnaround_days" type="number" min="1" max="14" defaultValue="3"
+              <input name="turnaround_days" type="number" min="1" max="14" defaultValue="1"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#E8726A]" />
             </div>
             <div>

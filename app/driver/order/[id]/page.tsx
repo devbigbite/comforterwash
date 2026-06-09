@@ -319,6 +319,101 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
           )}
         </div>
 
+        {/* ── Facility specs — shown when order is finished and ready for pickup ── */}
+        {(booking.color_key || booking.facility_floor_photo_url || booking.folded_bag_count || booking.hold_at_facility != null) &&
+         ["ready","staged","ready_at_warehouse","out_for_delivery"].some(s => booking.status === s || (bags ?? []).some(b => b.status === s)) && (() => {
+          const COLOR_HEX: Record<string, string> = {
+            red:"#ef4444", blue:"#3b82f6", sky:"#38bdf8", green:"#22c55e",
+            lime:"#84cc16", pink:"#f472b6", hotpink:"#ec4899",
+            orange:"#f97316", yellow:"#eab308", purple:"#a855f7",
+          }
+          const COLOR_LABEL: Record<string, string> = {
+            red:"Red", blue:"Blue", sky:"Sky Blue", green:"Green",
+            lime:"Lime", pink:"Pink", hotpink:"Hot Pink",
+            orange:"Orange", yellow:"Yellow", purple:"Purple",
+          }
+          const hex = booking.color_key ? (COLOR_HEX[booking.color_key] ?? "#d1d5db") : null
+          const foldedCount = booking.folded_bag_count ?? bags?.length ?? 0
+          const pickedUpCount = bags?.length ?? 0
+          return (
+            <div className="rounded-2xl overflow-hidden border-2 border-[#0D2240] shadow-sm">
+              <div className="bg-[#0D2240] px-4 py-3 flex items-center gap-2">
+                <span className="text-xl">🏭</span>
+                <div>
+                  <p className="text-white font-extrabold text-sm uppercase tracking-wide">Facility Specs</p>
+                  <p className="text-white/60 text-xs">Set by the washing operator — use to locate this order</p>
+                </div>
+              </div>
+              <div className="bg-white p-4 space-y-4">
+
+                {/* Location */}
+                <div className={`rounded-xl px-4 py-3 flex items-center gap-3 ${booking.hold_at_facility ? "bg-emerald-50 border border-emerald-200" : "bg-amber-50 border border-amber-200"}`}>
+                  <span className="text-2xl">{booking.hold_at_facility ? "📍" : "📦"}</span>
+                  <div>
+                    <p className={`font-extrabold text-sm ${booking.hold_at_facility ? "text-emerald-700" : "text-amber-700"}`}>
+                      {booking.hold_at_facility ? "On facility floor" : "At remote storage"}
+                    </p>
+                    <p className={`text-xs mt-0.5 ${booking.hold_at_facility ? "text-emerald-600" : "text-amber-600"}`}>
+                      {booking.hold_at_facility
+                        ? "Look for this order in the floor temp area — color key sticker only."
+                        : "Pick up from remote storage — look for color key sticker + second marker sticker."}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Color key sticker */}
+                {hex && (
+                  <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+                    <span className="w-8 h-8 rounded-full shrink-0 shadow-md ring-2 ring-white" style={{ background: hex }} />
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Color Key Sticker</p>
+                      <p className="text-[#0D2240] font-extrabold text-base">{COLOR_LABEL[booking.color_key!]}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bag count */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100 text-center">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Picked Up</p>
+                    <p className="text-[#0D2240] font-extrabold text-xl">{pickedUpCount}</p>
+                    <p className="text-gray-400 text-[10px]">bags</p>
+                  </div>
+                  <div className={`rounded-xl px-3 py-2.5 border text-center ${foldedCount !== pickedUpCount ? "bg-purple-50 border-purple-200" : "bg-gray-50 border-gray-100"}`}>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Folded</p>
+                    <p className={`font-extrabold text-xl ${foldedCount !== pickedUpCount ? "text-purple-600" : "text-[#0D2240]"}`}>{foldedCount}</p>
+                    <p className="text-gray-400 text-[10px]">bags{foldedCount !== pickedUpCount ? " ← use this count" : ""}</p>
+                  </div>
+                </div>
+                {foldedCount !== pickedUpCount && (
+                  <p className="text-xs text-purple-600 font-semibold bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                    ⚠️ Folded count differs from pickup — deliver <strong>{foldedCount} bag{foldedCount !== 1 ? "s" : ""}</strong> to the customer.
+                  </p>
+                )}
+
+                {/* Placement photo */}
+                {booking.facility_floor_photo_url && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Placement Photo</p>
+                    <img
+                      src={booking.facility_floor_photo_url}
+                      alt="Facility placement"
+                      className="w-full rounded-xl border border-gray-200 object-cover max-h-56 shadow-sm"
+                    />
+                    <p className="text-xs text-gray-500 text-center">Use this photo to locate the order</p>
+                  </div>
+                )}
+                {!booking.facility_floor_photo_url && (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    ⚠️ No placement photo yet — ask the operator before heading out.
+                  </p>
+                )}
+
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Interactive driver actions (pickup / dropoff / delivery) */}
         <DriverOrderClient
           bookingId={booking.id}
