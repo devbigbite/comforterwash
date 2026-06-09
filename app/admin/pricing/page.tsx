@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { getPricingConfig, setPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, type ServiceOption } from "@/app/actions/service-options"
 import { isSaleActive } from "@/lib/service-option-utils"
@@ -25,7 +25,26 @@ function OptionsSection({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<Partial<ServiceOption>>(BLANK_OPTION(type))
   const [busy, setBusy] = useState(false)
+  const [dragOver, setDragOver] = useState<string | null>(null)
+  const dragId = React.useRef<string | null>(null)
 
+  async function handleDrop(targetId: string) {
+    const fromId = dragId.current
+    if (!fromId || fromId === targetId) { setDragOver(null); return }
+    const from = options.findIndex(o => o.id === fromId)
+    const to   = options.findIndex(o => o.id === targetId)
+    if (from === -1 || to === -1) { setDragOver(null); return }
+    const reordered = [...options]
+    const [moved] = reordered.splice(from, 1)
+    reordered.splice(to, 0, moved)
+    setDragOver(null)
+    dragId.current = null
+    // Persist new sort_order values
+    await Promise.all(
+      reordered.map((opt, i) => upsertServiceOption({ ...opt, sort_order: i }))
+    )
+    onRefresh()
+  }
 
   async function save() {
     if (!draft.name?.trim()) return
@@ -179,9 +198,24 @@ function OptionsSection({
         {options.map(opt => {
           const saleOn = isSaleActive(opt)
           return (
-            <div key={opt.id} className={`py-3 ${!opt.enabled ? "opacity-50" : ""}`}>
+            <div key={opt.id}
+              draggable={editingId !== opt.id}
+              onDragStart={() => { dragId.current = opt.id }}
+              onDragOver={e => { e.preventDefault(); setDragOver(opt.id) }}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={() => handleDrop(opt.id)}
+              onDragEnd={() => { dragId.current = null; setDragOver(null) }}
+              className={`py-3 transition-colors ${!opt.enabled ? "opacity-50" : ""} ${dragOver === opt.id ? "bg-blue-50 rounded-xl" : ""}`}>
               {editingId === opt.id ? draftForm : (
                 <div className="flex items-center gap-3">
+                  {/* Drag handle */}
+                  <div className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0 select-none" title="Drag to reorder">
+                    <svg width="14" height="20" viewBox="0 0 14 20" fill="currentColor">
+                      <circle cx="4" cy="4" r="1.5"/><circle cx="10" cy="4" r="1.5"/>
+                      <circle cx="4" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/>
+                      <circle cx="4" cy="16" r="1.5"/><circle cx="10" cy="16" r="1.5"/>
+                    </svg>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-[#0D2240]">{opt.name}</span>
@@ -313,7 +347,7 @@ export default function PricingPage() {
 
   if (!config) {
     return (
-      <div className="min-h-screen bg-[#f8faff] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-gray-400 text-sm">Loading pricing…</div>
       </div>
     )

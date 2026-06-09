@@ -104,7 +104,7 @@ export default async function DispatchPage({
     : format(parseISO(selectedDate), "EEEE, MMMM d, yyyy")
 
   return (
-    <div className="min-h-screen bg-[#f7f8fb]">
+    <div className="min-h-screen">
       <div className="mx-auto max-w-6xl px-4 py-8">
 
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">

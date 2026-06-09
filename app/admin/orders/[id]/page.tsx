@@ -227,7 +227,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f8fb]">
+    <div className="min-h-screen">
       <div className="mx-auto max-w-4xl px-4 py-10">
 
         {/* Header */}

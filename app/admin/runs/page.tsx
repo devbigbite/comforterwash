@@ -156,7 +156,7 @@ export default function RunsPage() {
   const completedCount = runs.filter(r => r.status === "completed").length
 
   return (
-    <div className="min-h-screen bg-[#f7f8fb]">
+    <div className="min-h-screen">
       <div className="mx-auto max-w-4xl px-4 py-8">
 
         {/* Header */}

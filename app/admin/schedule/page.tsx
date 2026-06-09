@@ -407,18 +407,18 @@ export default function AdminSchedulePage() {
             </div>
 
             {/* Stats bar */}
-            <div className="flex items-center gap-6 bg-[#0D2240] rounded-2xl px-5 py-3.5 mb-4">
+            <div className="flex items-center gap-6 bg-white border border-gray-200 rounded-2xl px-5 py-3.5 mb-4 shadow-sm">
               <div>
-                <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Shifts</p>
-                <p className="text-white font-extrabold text-xl">{shifts.length}</p>
+                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Shifts</p>
+                <p className="text-[#0D2240] font-extrabold text-xl">{shifts.length}</p>
               </div>
               <div>
-                <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Scheduled Hours</p>
-                <p className="text-white font-extrabold text-xl">{totalScheduledHours.toFixed(1)}h</p>
+                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Scheduled Hours</p>
+                <p className="text-[#0D2240] font-extrabold text-xl">{totalScheduledHours.toFixed(1)}h</p>
               </div>
               <div>
-                <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Staff</p>
-                <p className="text-white font-extrabold text-xl">{allScheduleWorkers.length}</p>
+                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Staff</p>
+                <p className="text-[#0D2240] font-extrabold text-xl">{allScheduleWorkers.length}</p>
               </div>
               <div className="ml-auto">
                 <button
@@ -817,16 +817,16 @@ export default function AdminSchedulePage() {
 
           {/* Grand total banner */}
           {!tsLoading && hasWages && grandPayCents > 0 && (
-            <div className="bg-[#0D2240] rounded-2xl px-5 py-4 mb-4 flex items-center justify-between">
+            <div className="bg-white border border-gray-200 rounded-2xl px-5 py-4 mb-4 flex items-center justify-between shadow-sm" style={{ borderTop: "3px solid #059669" }}>
               <div>
-                <p className="text-white/50 text-xs font-bold uppercase tracking-widest">Total Payroll</p>
-                <p className="text-white font-extrabold text-3xl mt-0.5">
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Total Payroll</p>
+                <p className="text-[#0D2240] font-extrabold text-3xl mt-0.5">
                   ${(grandPayCents / 100).toFixed(2)}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-white/40 text-xs">{Object.keys(totals).length} workers</p>
-                <p className="text-white/40 text-xs">
+                <p className="text-gray-400 text-xs">{Object.keys(totals).length} workers</p>
+                <p className="text-gray-400 text-xs">
                   {formatDuration(Object.values(totals).reduce((s, t) => s + t.mins, 0))} total
                 </p>
               </div>

@@ -171,18 +171,18 @@ export default async function AdminHub() {
         {/* ── Stats row ────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: "Total Orders", value: stats.total, icon: <Package className="h-5 w-5 text-[#1e3a8a]" />, bg: "#eff6ff" },
-            { label: "Pending", value: stats.pending, icon: <Clock className="h-5 w-5 text-yellow-500" />, bg: "#fefce8" },
-            { label: "In Progress", value: stats.inProgress, icon: <TruckIcon className="h-5 w-5 text-blue-500" />, bg: "#eff6ff" },
-            { label: "Delivered", value: stats.completed, icon: <CheckCircle2 className="h-5 w-5 text-green-500" />, bg: "#f0fdf4" },
+            { label: "Total Orders", value: stats.total, href: "/admin/search", icon: <Package className="h-5 w-5 text-[#1e3a8a]" />, bg: "#eff6ff" },
+            { label: "Pending", value: stats.pending, href: "/admin/dispatch?status=pending", icon: <Clock className="h-5 w-5 text-yellow-500" />, bg: "#fefce8" },
+            { label: "In Progress", value: stats.inProgress, href: "/admin/dispatch?status=in_progress", icon: <TruckIcon className="h-5 w-5 text-blue-500" />, bg: "#eff6ff" },
+            { label: "Delivered", value: stats.completed, href: "/admin/search?status=delivered", icon: <CheckCircle2 className="h-5 w-5 text-green-500" />, bg: "#f0fdf4" },
           ].map((s) => (
-            <div key={s.label} className="bg-white rounded-2xl shadow-sm px-5 py-4 flex items-center gap-4 border border-gray-100">
+            <a key={s.label} href={s.href} className="bg-white rounded-2xl shadow-sm px-5 py-4 flex items-center gap-4 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all group">
               <div className="rounded-xl p-2.5" style={{ background: s.bg }}>{s.icon}</div>
               <div>
-                <div className="text-2xl font-bold text-[#0D2240]">{s.value}</div>
+                <div className="text-2xl font-bold text-[#0D2240] group-hover:text-[#1e3a8a] transition-colors">{s.value}</div>
                 <div className="text-xs text-gray-400 mt-0.5">{s.label}</div>
               </div>
-            </div>
+            </a>
           ))}
         </div>
 

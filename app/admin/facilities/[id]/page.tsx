@@ -82,7 +82,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
   const totalMachines = groups?.reduce((sum, g) => sum + (g.machines?.length ?? 0), 0) ?? 0
 
   return (
-    <div className="min-h-screen bg-[#f7f8fb]">
+    <div className="min-h-screen">
       <div className="mx-auto max-w-4xl px-4 py-10">
 
         {/* Header */}

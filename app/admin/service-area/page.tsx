@@ -7,7 +7,7 @@ export default async function ServiceAreaPage() {
   const polygon = await getServiceAreaPolygon()
 
   return (
-    <div className="min-h-screen bg-[#f7f8fb]">
+    <div className="min-h-screen">
       <div className="mx-auto max-w-5xl px-4 py-10">
 
         <div className="flex items-center justify-between mb-8">

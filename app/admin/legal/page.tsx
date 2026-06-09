@@ -154,7 +154,7 @@ export default function LegalPagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-[1400px] mx-auto px-4 py-8">
         {/* Page header */}
         <div className="mb-6 flex items-start justify-between">

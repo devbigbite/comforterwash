@@ -54,7 +54,7 @@ export default async function ZipCodesPage() {
   const activeCount = areas?.filter((a) => a.active).length ?? 0
 
   return (
-    <div className="min-h-screen bg-[#f7f8fb]">
+    <div className="min-h-screen">
       <div className="mx-auto max-w-3xl px-4 py-10">
 
         {/* Header */}
