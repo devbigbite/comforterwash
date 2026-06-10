@@ -137,6 +137,7 @@ export default async function AdminHub() {
       primaryHref: "/admin/workers",
       links: [
         { label: "Workers", href: "/admin/workers" },
+        { label: "Hiring", href: "/admin/hiring" },
         { label: "Schedule", href: "/admin/schedule" },
         { label: "Staff Clock", href: "/staff" },
         { label: "Driver App →", href: "/driver", external: true },

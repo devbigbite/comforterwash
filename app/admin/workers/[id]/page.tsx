@@ -6,7 +6,7 @@ import {
   createStripeConnectAccount, syncStripeStatus, issuePayout, updatePayRates,
   addWorkerDocument, deleteWorkerDocument, addMileageReport, deleteMileageReport,
 } from "@/app/actions/workers"
-import { setWorkerPin, clearWorkerPin } from "@/app/actions/staff"
+import { setWorkerPin, clearWorkerPin, setWorkerLang } from "@/app/actions/staff"
 import { createClient } from "@/lib/supabase/client"
 
 type Worker = {
@@ -29,6 +29,7 @@ type Worker = {
   ic_agreement_signature: string | null
   ic_agreement_signed_at: string | null
   ic_agreement_role: string | null
+  lang: string | null
   created_at: string
 }
 
@@ -94,6 +95,8 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
   const [newPin, setNewPin]       = useState("")
   const [pinMsg, setPinMsg]       = useState<{ type: "ok" | "err"; text: string } | null>(null)
   const [pinSaving, setPinSaving] = useState(false)
+  const [workerLang, setWorkerLang_] = useState<"en" | "es">("en")
+  const [langSaving, setLangSaving]  = useState(false)
 
   // Payout form state
   const [payType, setPayType] = useState("delivery")
@@ -135,6 +138,7 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
       supabase.from("worker_mileage_reports").select("*").eq("worker_id", workerId).order("report_date", { ascending: false }),
     ]).then(([{ data: w }, { data: p }, { data: d }, { data: m }]) => {
       setWorker(w)
+      setWorkerLang_((w?.lang ?? "en") as "en" | "es")
       setPayouts(p ?? [])
       setDocuments(d ?? [])
       setMileageReports(m ?? [])
@@ -408,6 +412,30 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
             {pinMsg.text}
           </p>
         )}
+      </div>
+
+      {/* App Language */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h2 className="font-extrabold text-[#0D2240] text-base mb-1">App Language</h2>
+        <p className="text-xs text-gray-400 mb-4">Language shown in driver/operator apps when this worker logs in with their PIN.</p>
+        <div className="flex gap-2">
+          {(["en", "es"] as const).map(l => (
+            <button key={l} type="button"
+              onClick={async () => {
+                if (l === workerLang || langSaving) return
+                setLangSaving(true)
+                setWorkerLang_(l)
+                await setWorkerLang(workerId, l)
+                setLangSaving(false)
+              }}
+              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors ${
+                workerLang === l ? "bg-[#0D2240] text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}>
+              {l === "en" ? "🇺🇸 English" : "🇲🇽 Español"}
+              {langSaving && workerLang === l && <span className="ml-1 opacity-60">…</span>}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Pay Rates */}

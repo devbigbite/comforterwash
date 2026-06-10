@@ -90,17 +90,27 @@ export async function clearWorkerPin(workerName: string) {
   return { success: true }
 }
 
+/** Set a worker's app language preference (admin). */
+export async function setWorkerLang(workerId: string, lang: "en" | "es") {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  const { error } = await supabase.from("workers").update({ lang }).eq("id", workerId)
+  if (error) return { error: "Failed to update language" }
+  revalidatePath("/admin/workers")
+  return { success: true }
+}
+
 /** Verify a worker's PIN. Returns true if correct or if no PIN is set yet. */
-export async function verifyWorkerPin(workerName: string, pin: string): Promise<{ valid: boolean; noPinSet: boolean }> {
+export async function verifyWorkerPin(workerName: string, pin: string): Promise<{ valid: boolean; noPinSet: boolean; lang: string }> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("workers")
-    .select("clock_pin")
+    .select("clock_pin, lang")
     .eq("name", workerName)
     .single()
-  if (!data) return { valid: false, noPinSet: false }
-  if (!data.clock_pin) return { valid: true, noPinSet: true }   // no PIN set — allow through
-  return { valid: data.clock_pin === pin, noPinSet: false }
+  if (!data) return { valid: false, noPinSet: false, lang: "en" }
+  if (!data.clock_pin) return { valid: true, noPinSet: true, lang: data.lang ?? "en" }
+  return { valid: data.clock_pin === pin, noPinSet: false, lang: data.lang ?? "en" }
 }
 
 /**
@@ -111,17 +121,17 @@ export async function verifyWorkerPin(workerName: string, pin: string): Promise<
 export async function verifyWorkerPinForRole(
   role: "driver" | "operator",
   pin: string
-): Promise<{ id: string; name: string } | null> {
+): Promise<{ id: string; name: string; lang: string } | null> {
   if (!/^\d{4}$/.test(pin)) return null
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("workers")
-    .select("id, name, clock_pin")
+    .select("id, name, clock_pin, lang")
     .eq("status", "active")
   if (!data) return null
   const match = data.find((w: { clock_pin: string | null }) => w.clock_pin === pin)
   if (!match) return null
-  return { id: match.id, name: match.name }
+  return { id: match.id, name: match.name, lang: match.lang ?? "en" }
 }
 
 // ── Schedule checking ─────────────────────────────────────────────────────────

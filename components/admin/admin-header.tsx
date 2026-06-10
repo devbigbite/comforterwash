@@ -1,5 +1,6 @@
 import { LogOut, ChevronDown } from "lucide-react"
 import { logoutAction } from "@/app/admin/login/actions"
+import { AdminLangToggle } from "@/components/admin/admin-lang-toggle"
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 
@@ -152,6 +153,11 @@ export function AdminHeader() {
           )
         )}
       </nav>
+
+      {/* Language toggle */}
+      <div className="flex items-center px-3 shrink-0">
+        <AdminLangToggle />
+      </div>
 
       {/* Sign out */}
       <div className="flex items-center pl-4 border-l border-white/10 ml-4 shrink-0">

@@ -3,11 +3,14 @@
 import { useState, useEffect, useRef, createContext, useContext } from "react"
 import { verifyWorkerPinForRole } from "@/app/actions/staff"
 import { checkIsAdmin } from "@/app/admin/login/actions"
+import { getTranslations } from "@/lib/i18n"
+import type { Locale } from "@/lib/i18n"
 
 // ── Worker session context — so child pages can read who is logged in ─────────
 interface WorkerSession {
   workerId: string
   workerName: string
+  lang: Locale
 }
 
 const WorkerCtx = createContext<WorkerSession | null>(null)
@@ -15,6 +18,23 @@ const WorkerCtx = createContext<WorkerSession | null>(null)
 /** Returns the currently logged-in worker for this station session, or null. */
 export function useWorkerSession(): WorkerSession | null {
   return useContext(WorkerCtx)
+}
+
+/**
+ * Returns a translation function for a given namespace, using the logged-in
+ * worker's language preference. Falls back to English if no session is active.
+ *
+ * @example
+ *   const t = useWorkerT("driver")
+ *   t("title")  // → "Driver Station" or "Estación del Conductor"
+ */
+export function useWorkerT(ns: string) {
+  const session = useContext(WorkerCtx)
+  const lang: Locale = session?.lang ?? "en"
+  const dict = getTranslations(lang)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const section = (dict as any)[ns] as Record<string, string> | undefined
+  return (key: string): string => section?.[key] ?? key
 }
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
@@ -78,7 +98,8 @@ export function PinGate({ role, children }: PinGateProps) {
     const worker = await verifyWorkerPinForRole(role, entered)
     setLoading(false)
     if (worker) {
-      const s = { workerId: worker.id, workerName: worker.name }
+      const lang = (worker.lang ?? "en") as Locale
+      const s: WorkerSession = { workerId: worker.id, workerName: worker.name, lang }
       saveSession(role, s)
       setWelcome(true)
       setTimeout(() => {
@@ -86,7 +107,8 @@ export function PinGate({ role, children }: PinGateProps) {
         setWelcome(false)
       }, 1200)
     } else {
-      setError("PIN not recognised — check with your manager")
+      // Show error in both languages since we don't know who this is yet
+      setError("PIN not recognised — PIN incorrecto")
       setShake(true)
       setTimeout(() => setShake(false), 600)
       setPin(["", "", "", ""])
@@ -126,6 +148,9 @@ export function PinGate({ role, children }: PinGateProps) {
 
   // ── Unlocked: render children with session context + switch button ────────
   if (session) {
+    const pillT = getTranslations(session.lang)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pinT = (pillT as any).pin as Record<string, string>
     return (
       <WorkerCtx.Provider value={session}>
         <div className="relative">
@@ -137,8 +162,8 @@ export function PinGate({ role, children }: PinGateProps) {
                 className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur transition-colors"
               >
                 <span>👑</span>
-                Owner view
-                <span className="text-white/40 font-normal">· ← admin</span>
+                {pinT?.owner_view ?? "Owner view"}
+                <span className="text-white/40 font-normal">· {pinT?.back_admin ?? "← admin"}</span>
               </a>
             ) : (
               <button
@@ -149,7 +174,7 @@ export function PinGate({ role, children }: PinGateProps) {
                   {session.workerName.charAt(0).toUpperCase()}
                 </span>
                 {session.workerName}
-                <span className="text-white/40 font-normal">· switch</span>
+                <span className="text-white/40 font-normal">· {pinT?.switch ?? "switch"}</span>
               </button>
             )}
           </div>
@@ -166,13 +191,15 @@ export function PinGate({ role, children }: PinGateProps) {
         <div className="w-24 h-24 rounded-3xl bg-[#E8726A] flex items-center justify-center text-5xl mx-auto mb-6 animate-bounce">
           👋
         </div>
-        <h1 className="text-white font-extrabold text-3xl text-center">Welcome!</h1>
-        <p className="text-white/60 text-lg text-center mt-2">Loading station…</p>
+        <h1 className="text-white font-extrabold text-3xl text-center">
+          Welcome! / ¡Bienvenido!
+        </h1>
+        <p className="text-white/60 text-lg text-center mt-2">Loading station… / Cargando…</p>
       </div>
     )
   }
 
-  // ── PIN entry screen ──────────────────────────────────────────────────────
+  // ── PIN entry screen — bilingual (we don't know the worker's lang yet) ────
   return (
     <div className="min-h-screen bg-[#0D2240] flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-xs">
@@ -180,8 +207,12 @@ export function PinGate({ role, children }: PinGateProps) {
           {LOCK_ICON[role]}
         </div>
 
-        <h1 className="text-white font-extrabold text-2xl text-center mb-1">{ROLE_LABEL[role]}</h1>
-        <p className="text-white/40 text-sm text-center mb-10">Enter your personal 4-digit PIN</p>
+        <h1 className="text-white font-extrabold text-2xl text-center mb-1">
+          {role === "driver" ? "Driver Station / Estación del Conductor" : "Operator Station / Estación del Operador"}
+        </h1>
+        <p className="text-white/40 text-sm text-center mb-10">
+          Enter your 4-digit PIN · Ingresa tu PIN de 4 dígitos
+        </p>
 
         <div className={`flex justify-center gap-4 mb-6 transition-all ${shake ? "animate-shake" : ""}`}>
           {pin.map((digit, i) => (
@@ -212,11 +243,11 @@ export function PinGate({ role, children }: PinGateProps) {
           disabled={loading || pin.join("").length < 4}
           className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors"
         >
-          {loading ? "Checking…" : "Enter Station"}
+          {loading ? "Checking… / Verificando…" : "Enter Station · Entrar"}
         </button>
 
         <p className="text-white/20 text-xs text-center mt-6">
-          PIN not working? Ask your manager to check it in the admin workers page.
+          PIN not working? / ¿PIN no funciona? — Ask your manager · Consulta con tu supervisor
         </p>
 
         {isAdmin && (

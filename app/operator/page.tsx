@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { PinGate } from "@/components/pin-gate"
+import { PinGate, useWorkerT } from "@/components/pin-gate"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import type { TransportRun } from "@/app/actions/transport-runs"
 
@@ -25,14 +25,7 @@ interface Facility {
   name: string
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  at_warehouse: "At Warehouse",
-  at_facility:  "At Facility",
-  in_washer:    "In Washer",
-  in_dryer:     "In Dryer",
-  folded:       "Folded",
-  ready:        "Ready",
-}
+// STATUS_LABEL is now built dynamically from t() inside the component
 
 const STATUS_DOT: Record<string, string> = {
   at_warehouse: "bg-amber-400",
@@ -44,6 +37,17 @@ const STATUS_DOT: Record<string, string> = {
 }
 
 export default function OperatorHome() {
+  const t = useWorkerT("operator")
+
+  const STATUS_LABEL: Record<string, string> = {
+    at_warehouse: t("status_at_warehouse"),
+    at_facility:  t("status_at_facility"),
+    in_washer:    t("status_in_washer"),
+    in_dryer:     t("status_in_dryer"),
+    folded:       t("status_folded"),
+    ready:        t("status_ready"),
+  }
+
   const [code, setCode] = useState("")
   const [lookupLoading, setLookupLoading] = useState(false)
   const [error, setError] = useState("")
@@ -111,7 +115,7 @@ export default function OperatorHome() {
 
   async function lookup() {
     const cleaned = code.trim().replace(/\D/g, "")
-    if (cleaned.length < 4) { setError("Enter at least 4 digits"); return }
+    if (cleaned.length < 4) { setError(t("enter_digits")); return }
     setLookupLoading(true)
     setError("")
     const supabase = createClient()
@@ -128,7 +132,7 @@ export default function OperatorHome() {
       .limit(1)
       .maybeSingle()
     setLookupLoading(false)
-    if (!byId) { setError("Order not found. Check the number on the bag label."); return }
+    if (!byId) { setError(t("not_found")); return }
     router.push(`/operator/order/${byId.id}`)
   }
 
@@ -156,7 +160,7 @@ export default function OperatorHome() {
         <div className="w-16 h-16 rounded-3xl bg-[#E8726A] flex items-center justify-center text-3xl mx-auto mb-4">
           🏭
         </div>
-        <h1 className="text-3xl font-extrabold text-white mb-1">Operator Station</h1>
+        <h1 className="text-3xl font-extrabold text-white mb-1">{t("title")}</h1>
         <p className="text-white/50 text-sm">Laundry processing · Wash · Dry · Fold</p>
       </div>
 
@@ -164,7 +168,7 @@ export default function OperatorHome() {
 
         {queueLoading && (
           <div className="text-center py-4">
-            <p className="text-white/30 text-sm">Loading…</p>
+            <p className="text-white/30 text-sm">{t("loading")}</p>
           </div>
         )}
 
@@ -172,7 +176,7 @@ export default function OperatorHome() {
         {!queueLoading && toFacilityRuns.length > 0 && (
           <div>
             <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">
-              🏭 Transport to Facility ({toFacilityRuns.length})
+              🏭 {t("transport_to_facility")} ({toFacilityRuns.length})
             </p>
             <div className="space-y-2">
               {toFacilityRuns.map(run => (
@@ -187,13 +191,13 @@ export default function OperatorHome() {
                         🏭 {run.facility_name ?? "Facility"} run
                       </p>
                       <p className="text-white/50 text-xs mt-0.5">
-                        {run.order_ids.length} order{run.order_ids.length !== 1 ? "s" : ""} · Warehouse → Facility
+                        {run.order_ids.length} {run.order_ids.length !== 1 ? t("orders") : t("order_singular")} · {t("transport_to_facility")}
                       </p>
                       {run.notes && (
                         <p className="text-white/30 text-xs mt-0.5 truncate">{run.notes}</p>
                       )}
                     </div>
-                    <span className="text-purple-300 font-bold text-xs shrink-0">EXECUTE →</span>
+                    <span className="text-purple-300 font-bold text-xs shrink-0">{t("execute_arrow")}</span>
                   </div>
                 </button>
               ))}
@@ -204,7 +208,7 @@ export default function OperatorHome() {
         {!queueLoading && toWarehouseRuns.length > 0 && (
           <div>
             <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">
-              🏪 Return to Warehouse ({toWarehouseRuns.length})
+              🏪 {t("transport_to_warehouse")} ({toWarehouseRuns.length})
             </p>
             <div className="space-y-2">
               {toWarehouseRuns.map(run => (
@@ -219,13 +223,13 @@ export default function OperatorHome() {
                         🏪 {run.facility_name ?? "Facility"} → Warehouse
                       </p>
                       <p className="text-white/50 text-xs mt-0.5">
-                        {run.order_ids.length} order{run.order_ids.length !== 1 ? "s" : ""} · Facility → Warehouse
+                        {run.order_ids.length} {run.order_ids.length !== 1 ? t("orders") : t("order_singular")} · {t("transport_to_warehouse")}
                       </p>
                       {run.notes && (
                         <p className="text-white/30 text-xs mt-0.5 truncate">{run.notes}</p>
                       )}
                     </div>
-                    <span className="text-amber-300 font-bold text-xs shrink-0">EXECUTE →</span>
+                    <span className="text-amber-300 font-bold text-xs shrink-0">{t("execute_arrow")}</span>
                   </div>
                 </button>
               ))}
@@ -242,7 +246,7 @@ export default function OperatorHome() {
               onChange={e => setSelectedFacilityId(e.target.value)}
               className="flex-1 bg-transparent text-white text-sm font-semibold outline-none appearance-none cursor-pointer"
             >
-              <option value="" className="bg-[#0D2240]">All Facilities</option>
+              <option value="" className="bg-[#0D2240]">{t("all_facilities")}</option>
               {facilities.map(f => (
                 <option key={f.id} value={f.id} className="bg-[#0D2240]">{f.name}</option>
               ))}
@@ -272,7 +276,7 @@ export default function OperatorHome() {
                       </div>
                       <p className="text-white/40 text-xs">
                         {o.service_type === "wash_fold" ? "Wash & Fold" : "Comforter"} ·{" "}
-                        {o.bags_at_facility}/{o.bags_total} bags ·{" "}
+                        {o.bags_at_facility}/{o.bags_total} {t("bags")} ·{" "}
                         {STATUS_LABEL[o.most_advanced_status] ?? o.most_advanced_status}
                       </p>
                     </div>
@@ -290,24 +294,15 @@ export default function OperatorHome() {
         {!queueLoading && filteredQueue.length === 0 && pendingRuns.length === 0 && (
           <div className="bg-white/5 rounded-2xl px-5 py-5 text-center">
             <p className="text-2xl mb-2">🧺</p>
-            <p className="text-white/50 text-sm font-semibold">
-              {selectedFacilityId && queue.length > 0
-                ? "No bags at this facility right now."
-                : "No bags in queue right now."}
-            </p>
-            <p className="text-white/30 text-xs mt-1 leading-relaxed">
-              {selectedFacilityId && queue.length > 0
-                ? <>Try switching to &ldquo;All Facilities&rdquo; to see the full queue.</>
-                : <>When a transport run arrives, bags will appear here ready to process.<br />Use the lookup below to find a specific order by its bag label code.</>
-              }
-            </p>
+            <p className="text-white/50 text-sm font-semibold">{t("nothing_today")}</p>
+            <p className="text-white/30 text-xs mt-1 leading-relaxed">{t("nothing_sub")}</p>
           </div>
         )}
 
         {/* Manual lookup */}
         <div className="bg-white rounded-3xl p-5 shadow-2xl">
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-            Find an order
+            {t("find_order")}
           </label>
 
           <input
@@ -353,7 +348,7 @@ export default function OperatorHome() {
             onClick={lookup}
             disabled={lookupLoading || code.length < 4}
             className="w-full mt-3 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors">
-            {lookupLoading ? "Looking up…" : "Find Order →"}
+            {lookupLoading ? t("looking_up") : t("find_order_btn")}
           </button>
 
           <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
@@ -366,10 +361,10 @@ export default function OperatorHome() {
 
         <div className="text-center space-y-2">
           <div>
-            <a href="/staff" className="text-white/40 text-xs hover:text-white/60 transition-colors font-semibold">🕐 Clock In / Out</a>
+            <a href="/staff" className="text-white/40 text-xs hover:text-white/60 transition-colors font-semibold">{t("clock_link")}</a>
           </div>
           <div>
-            <a href="/driver" className="text-white/20 text-xs hover:text-white/40 transition-colors">Switch to Driver view</a>
+            <a href="/driver" className="text-white/20 text-xs hover:text-white/40 transition-colors">{t("switch_driver")}</a>
           </div>
         </div>
       </div>

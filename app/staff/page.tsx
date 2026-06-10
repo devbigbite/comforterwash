@@ -13,21 +13,9 @@ import {
   getTimeSheet,
 } from "@/app/actions/staff"
 import { minutesBetween, formatDuration } from "@/lib/staff-utils"
+import { getTranslations } from "@/lib/i18n"
+import type { Locale } from "@/lib/i18n"
 import type { ActiveWorker, TimePunch, ScheduleWarning } from "@/app/actions/staff"
-
-const ROLE_LABELS: Record<string, string> = {
-  driver:   "🚐 Driver",
-  operator: "🏭 Operator",
-  admin:    "⚙️ Admin",
-}
-
-const FLAG_LABELS: Record<string, { label: string; color: string }> = {
-  unscheduled: { label: "Not scheduled today", color: "text-red-300" },
-  early_in:    { label: "Clocking in early",   color: "text-amber-300" },
-  late_in:     { label: "Clocking in late",     color: "text-amber-300" },
-  early_out:   { label: "Clocking out early",   color: "text-amber-300" },
-  late_out:    { label: "Clocking out late",    color: "text-amber-300" },
-}
 
 type Step = "select" | "pin" | "warning" | "ready"
 
@@ -150,6 +138,14 @@ function PunchEditModal({ punch, workers, onClose, onSaved }: {
 }
 
 // ── Admin Panel ───────────────────────────────────────────────────────────────
+const ADMIN_FLAG_LABELS: Record<string, { label: string; color: string }> = {
+  unscheduled: { label: "Not scheduled today", color: "text-red-300" },
+  early_in:    { label: "Clocking in early",   color: "text-amber-300" },
+  late_in:     { label: "Clocking in late",     color: "text-amber-300" },
+  early_out:   { label: "Clocking out early",   color: "text-amber-300" },
+  late_out:    { label: "Clocking out late",    color: "text-amber-300" },
+}
+
 function AdminPanel({ workers }: { workers: ActiveWorker[] }) {
   const [open, setOpen]                 = useState(false)
   const [punches, setPunches]           = useState<TimePunch[]>([])
@@ -273,8 +269,8 @@ function AdminPanel({ workers }: { workers: ActiveWorker[] }) {
                           </p>
                         )}
                         {p.schedule_flag && (
-                          <p className={`text-xs mt-0.5 ${FLAG_LABELS[p.schedule_flag]?.color ?? "text-amber-300"}`}>
-                            ⚠ {FLAG_LABELS[p.schedule_flag]?.label ?? p.schedule_flag}
+                          <p className={`text-xs mt-0.5 ${ADMIN_FLAG_LABELS[p.schedule_flag]?.color ?? "text-amber-300"}`}>
+                            ⚠ {ADMIN_FLAG_LABELS[p.schedule_flag]?.label ?? p.schedule_flag}
                             {p.flag_minutes ? ` (${p.flag_minutes}m)` : ""}
                           </p>
                         )}
@@ -317,6 +313,17 @@ export default function StaffClockPage() {
   const [pin, setPin]           = useState("")
   const [pinError, setPinError] = useState("")
   const [warning, setWarning]   = useState<ScheduleWarning | null>(null)
+  const [lang, setLang]         = useState<Locale>("en")
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sc = (getTranslations(lang) as any).staff_clock as Record<string, string>
+  const t = (key: string) => sc?.[key] ?? key
+
+  const ROLE_LABELS: Record<string, string> = {
+    driver:   t("role_driver"),
+    operator: t("role_operator"),
+    admin:    t("role_admin"),
+  }
 
   useEffect(() => {
     getActiveWorkers().then(list => { setWorkers(list); setLoading(false) })
@@ -354,9 +361,10 @@ export default function StaffClockPage() {
   }
   function handlePinDelete() { setPin(p => p.slice(0, -1)); setPinError("") }
   async function handlePinSubmit(p: string) {
-    const { valid, noPinSet: noPin } = await verifyWorkerPin(selectedName, p)
-    if (noPin) { setStep("ready"); return }
-    if (!valid) { setPin(""); setPinError("Incorrect PIN. Try again."); return }
+    const result = await verifyWorkerPin(selectedName, p)
+    if (result.noPinSet) { setStep("ready"); return }
+    if (!result.valid) { setPin(""); setPinError(t("pin_wrong")); return }
+    setLang((result.lang ?? "en") as Locale)
     setStep("ready")
   }
 
@@ -394,33 +402,40 @@ export default function StaffClockPage() {
 
   return (
     <div className="min-h-screen bg-[#0D2240] flex flex-col">
-      <div className="px-4 pt-10 pb-6 text-center">
+      <div className="px-4 pt-10 pb-6 text-center relative">
+        {/* EN/ES toggle — top-right, visible before PIN (lang unknown) */}
+        <button
+          onClick={() => setLang(l => l === "en" ? "es" : "en")}
+          className="absolute top-3 right-3 text-white/40 hover:text-white/70 text-xs font-bold px-3 py-1.5 rounded-full border border-white/20 hover:border-white/40 transition-colors"
+        >
+          {t("language_toggle")}
+        </button>
         <div className="w-16 h-16 rounded-3xl bg-[#E8726A] flex items-center justify-center text-3xl mx-auto mb-4">🕐</div>
-        <h1 className="text-3xl font-extrabold text-white mb-1">Staff Clock</h1>
-        <p className="text-white/50 text-sm">WashFold Orlando</p>
+        <h1 className="text-3xl font-extrabold text-white mb-1">{t("title")}</h1>
+        <p className="text-white/50 text-sm">{t("subtitle")}</p>
       </div>
 
       <div className="px-4 space-y-4 pb-16 max-w-sm mx-auto w-full">
-        {loading && <div className="text-center py-8"><p className="text-white/30 text-sm">Loading…</p></div>}
+        {loading && <div className="text-center py-8"><p className="text-white/30 text-sm">{t("checking")}</p></div>}
 
         {!loading && (
           <>
             <div className="bg-white rounded-2xl p-4">
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Your Name</label>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">{t("select_worker")}</label>
               <select value={selectedName}
                 onChange={e => {
                   setSelectedName(e.target.value); setPin(""); setPinError("")
                   setStep(e.target.value ? "pin" : "select"); setError(null); setDone(null); setWarning(null)
                 }}
                 className="w-full border-2 border-gray-200 focus:border-[#0D2240] rounded-xl px-3 py-2.5 text-[#0D2240] font-semibold text-sm outline-none transition-colors bg-white appearance-none cursor-pointer">
-                <option value="">— Select your name —</option>
+                <option value="">— {t("select_worker")} —</option>
                 {workers.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
               </select>
             </div>
 
             {selectedName && availableRoles.length > 1 && !openPunch && step !== "warning" && (
               <div className="bg-white rounded-2xl p-4">
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Role Today</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">{lang === "es" ? "Rol de Hoy" : "Role Today"}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {availableRoles.map(role => (
                     <button key={role} type="button" onClick={() => setSelectedRole(role)}
@@ -434,7 +449,7 @@ export default function StaffClockPage() {
 
             {selectedName && step === "pin" && (
               <div className="bg-white rounded-2xl p-5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center mb-4">Enter Your PIN</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center mb-4">{t("enter_pin")}</p>
                 <div className="flex justify-center gap-4 mb-5">
                   {[0,1,2,3].map(i => (
                     <div key={i} className={`w-4 h-4 rounded-full transition-all ${i < pin.length ? "bg-[#0D2240] scale-110" : "bg-gray-200"}`} />
@@ -459,26 +474,26 @@ export default function StaffClockPage() {
                 {openPunch ? (
                   <>
                     <div className="text-center">
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Currently Clocked In</p>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{t("already_in")}</p>
                       <p className="text-[#0D2240] font-extrabold text-2xl">{formatDuration(netMinutes)}</p>
-                      <p className="text-gray-400 text-xs mt-0.5">since {fmtLocal(openPunch.clocked_in_at)}</p>
+                      <p className="text-gray-400 text-xs mt-0.5">{t("clocked_in_at")} {fmtLocal(openPunch.clocked_in_at)}</p>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Break time (minutes)</label>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{t("break_minutes")}</label>
                       <input type="number" min="0" value={breakMinutes} onChange={e => setBreakMinutes(e.target.value)}
                         className="w-full border-2 border-gray-200 rounded-xl px-3 py-2 text-sm text-[#0D2240] font-semibold outline-none" />
                     </div>
                     <button onClick={() => handleClockOut()} disabled={submitting}
                       className="w-full bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-extrabold py-4 rounded-2xl transition-colors">
-                      {submitting ? "…" : "Clock Out"}
+                      {submitting ? "…" : t("clock_out")}
                     </button>
                   </>
                 ) : (
                   <>
-                    <p className="text-center text-xs font-bold text-gray-400 uppercase tracking-widest">Ready to clock in as {selectedRole}</p>
+                    <p className="text-center text-xs font-bold text-gray-400 uppercase tracking-widest">{t("not_in")} — {ROLE_LABELS[selectedRole] ?? selectedRole}</p>
                     <button onClick={() => handleClockIn()} disabled={submitting}
                       className="w-full bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white font-extrabold py-4 rounded-2xl transition-colors">
-                      {submitting ? "…" : "Clock In"}
+                      {submitting ? "…" : t("clock_in")}
                     </button>
                   </>
                 )}
@@ -496,10 +511,10 @@ export default function StaffClockPage() {
                 </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => { setStep("select"); setWarning(null); setSelectedName(""); setPin("") }}
-                    className="flex-1 py-3 rounded-xl font-bold text-sm bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">Cancel</button>
+                    className="flex-1 py-3 rounded-xl font-bold text-sm bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">{t("warning_cancel")}</button>
                   <button type="button" onClick={() => openPunch ? handleClockOut(true) : handleClockIn(true)} disabled={submitting}
                     className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#0D2240] text-white hover:bg-[#1a3a5c] transition-colors disabled:opacity-50">
-                    {submitting ? "…" : "Confirm Anyway"}
+                    {submitting ? "…" : t("warning_proceed")}
                   </button>
                 </div>
               </div>
@@ -508,7 +523,7 @@ export default function StaffClockPage() {
             {done && (
               <div className="bg-green-50 border border-green-200 rounded-2xl px-5 py-4 text-center">
                 <p className="text-green-700 font-bold text-sm">
-                  {done === "in" ? "✅ Clocked in — have a great shift!" : "👋 Clocked out — see you next time!"}
+                  {done === "in" ? `✅ ${t("success_in")}` : `👋 ${t("success_out")}`}
                 </p>
               </div>
             )}
