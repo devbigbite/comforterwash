@@ -26,11 +26,11 @@ export default async function SearchPage({
 
   let query = supabase
     .from("bookings")
-    .select("id, created_at, customer_name, customer_email, customer_phone, customer_address, pickup_date, delivery_date, status, service_type, total_amount, num_comforters, comforter_size")
+    .select("id, short_code, created_at, customer_name, customer_email, customer_phone, customer_address, pickup_date, delivery_date, status, service_type, customer_final_cents, num_comforters, comforter_size")
     .order("created_at", { ascending: false })
     .limit(50)
 
-  if (q) query = query.ilike("id", `${q}%`)
+  if (q) query = query.ilike("short_code", `%${q}%`)
   if (name) query = query.ilike("customer_name", `%${name}%`)
   if (phone) query = query.ilike("customer_phone", `%${phone}%`)
   if (year) query = query.gte("created_at", `${year}-01-01`).lte("created_at", `${year}-12-31T23:59:59`)
@@ -129,7 +129,7 @@ export default async function SearchPage({
                 {results.map((b) => (
                   <tr key={b.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-mono text-xs font-bold text-[#0D2240]">
-                      {b.id.slice(0, 8).toUpperCase()}
+                      {b.short_code?.toUpperCase() ?? b.id.slice(0, 8).toUpperCase()}
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-semibold text-[#0D2240]">{b.customer_name}</p>
@@ -141,7 +141,7 @@ export default async function SearchPage({
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{b.pickup_date}</td>
                     <td className="px-4 py-3 font-semibold text-[#0D2240]">
-                      ${((b.total_amount ?? 0) / 100).toFixed(2)}
+                      ${((b.customer_final_cents ?? 0) / 100).toFixed(2)}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${STATUS_BADGE[b.status] ?? "bg-gray-100 text-gray-500"}`}>
