@@ -1,8 +1,100 @@
 "use client"
 
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { submitApplication } from "@/app/actions/workers"
+
+// ── Translations ──────────────────────────────────────────────────────────────
+
+const T = {
+  en: {
+    hiring:        "We're Hiring",
+    hero_title:    "Join the WashFold Team",
+    hero_sub:      "Wash & fold, drive deliveries, or both. Flexible hours, competitive pay, and weekly direct deposit via Stripe.",
+    back:          "← Back to site",
+    role_driver_title: "Driver",
+    role_driver_sub:   "Pickup & delivery routes. Pay per order + mileage.",
+    role_op_title: "Washing Operator",
+    role_op_sub:   "Wash & fold at partner facilities. Paid hourly + mileage.",
+    role_both_title: "Both",
+    role_both_sub:   "Do both roles for maximum earning flexibility.",
+    your_info:     "Your Information",
+    name_label:    "Full Name",
+    email_label:   "Email Address",
+    phone_label:   "Phone Number",
+    address_label: "Your Address",
+    role_label:    "I want to work as...",
+    role_driver:   "Driver",
+    role_op:       "Washing Operator",
+    role_both:     "Washing Operator / Driver",
+    role_driver_sub2: "Pickup & delivery",
+    role_op_sub2:     "Wash & fold at facilities",
+    role_both_sub2:   "Both roles — max flexibility",
+    vehicle:       "Yes, I have a reliable vehicle for deliveries",
+    exp_label:     "Relevant Experience",
+    exp_optional:  "(optional)",
+    exp_placeholder: "Tell us about any relevant experience — delivery, laundry, customer service, etc.",
+    ic_title:      "Independent Contractor Agreement",
+    ic_sub:        "read and sign to continue",
+    ic_scroll:     "⬇ Scroll to the bottom to read the full agreement",
+    ic_agree:      "I have read and agree to the Independent Contractor Agreement above. I understand I am an independent contractor, not an employee.",
+    ic_sign_label: "Sign below — type your full legal name",
+    ic_signed:     "Agreement signed as",
+    err_role:      "Please select a role.",
+    err_ic:        "Please read and sign the Independent Contractor Agreement.",
+    submit:        "Submit Application →",
+    submitting:    "Submitting…",
+    fine_print:    "By submitting you agree to a background check as part of our onboarding process. Pay is issued weekly via Stripe direct deposit.",
+    success_title: "Application Received!",
+    success_sub:   "Thanks for applying to join the WashFold Orlando team. We'll review your application and reach out within 2–3 business days.",
+    back_home:     "Back to Home",
+  },
+  es: {
+    hiring:        "Estamos Contratando",
+    hero_title:    "Únete al Equipo de WashFold",
+    hero_sub:      "Lava y dobla, haz entregas, o ambas cosas. Horario flexible, pago competitivo y depósito directo semanal vía Stripe.",
+    back:          "← Volver al sitio",
+    role_driver_title: "Conductor",
+    role_driver_sub:   "Rutas de recogida y entrega. Pago por orden + millas.",
+    role_op_title: "Operador de Lavandería",
+    role_op_sub:   "Lavar y doblar en instalaciones asociadas. Pago por hora + millas.",
+    role_both_title: "Ambos",
+    role_both_sub:   "Ambos roles para máxima flexibilidad de ingresos.",
+    your_info:     "Tu Información",
+    name_label:    "Nombre Completo",
+    email_label:   "Correo Electrónico",
+    phone_label:   "Número de Teléfono",
+    address_label: "Tu Dirección",
+    role_label:    "Quiero trabajar como...",
+    role_driver:   "Conductor",
+    role_op:       "Operador de Lavandería",
+    role_both:     "Operador de Lavandería / Conductor",
+    role_driver_sub2: "Recogida y entrega",
+    role_op_sub2:     "Lavar y doblar en instalaciones",
+    role_both_sub2:   "Ambos roles — máxima flexibilidad",
+    vehicle:       "Sí, tengo un vehículo confiable para entregas",
+    exp_label:     "Experiencia Relevante",
+    exp_optional:  "(opcional)",
+    exp_placeholder: "Cuéntanos sobre tu experiencia relevante — entregas, lavandería, servicio al cliente, etc.",
+    ic_title:      "Acuerdo de Contratista Independiente",
+    ic_sub:        "lee y firma para continuar",
+    ic_scroll:     "⬇ Desplázate hasta el final para leer el acuerdo completo",
+    ic_agree:      "He leído y acepto el Acuerdo de Contratista Independiente anterior. Entiendo que soy un contratista independiente, no un empleado.",
+    ic_sign_label: "Firma abajo — escribe tu nombre legal completo",
+    ic_signed:     "Acuerdo firmado como",
+    err_role:      "Por favor selecciona un rol.",
+    err_ic:        "Por favor lee y firma el Acuerdo de Contratista Independiente.",
+    submit:        "Enviar Solicitud →",
+    submitting:    "Enviando…",
+    fine_print:    "Al enviar, aceptas una verificación de antecedentes como parte de nuestro proceso de incorporación. El pago se realiza semanalmente mediante depósito directo vía Stripe.",
+    success_title: "¡Solicitud Recibida!",
+    success_sub:   "Gracias por aplicar para unirte al equipo de WashFold Orlando. Revisaremos tu solicitud y nos comunicaremos en 2–3 días hábiles.",
+    back_home:     "Volver al Inicio",
+  },
+} as const
+
+type Lang = keyof typeof T
 
 // ── IC Agreement text per role ─────────────────────────────────────────────────
 const IC_AGREEMENT = {
@@ -119,6 +211,10 @@ const ROLE_LABELS: Record<NonNullable<Role>, string> = {
 }
 
 export default function ApplyPage() {
+  const searchParams = useSearchParams()
+  const lang: Lang = searchParams.get("lang") === "es" ? "es" : "en"
+  const t = T[lang]
+
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle")
   const [errorMsg, setErrorMsg] = useState("")
   const [selectedRole, setSelectedRole] = useState<Role>(null)
@@ -141,12 +237,12 @@ export default function ApplyPage() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!selectedRole) {
-      setErrorMsg("Please select a role.")
+      setErrorMsg(t.err_role)
       setStatus("error")
       return
     }
     if (!icValid) {
-      setErrorMsg("Please read and sign the Independent Contractor Agreement.")
+      setErrorMsg(t.err_ic)
       setStatus("error")
       return
     }
@@ -169,12 +265,10 @@ export default function ApplyPage() {
       <main className="min-h-screen bg-[#f7f8fb] flex items-center justify-center px-4">
         <div className="max-w-md w-full text-center">
           <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center text-4xl mx-auto mb-6">✓</div>
-          <h1 className="text-2xl font-extrabold text-[#0D2240] mb-2">Application Received!</h1>
-          <p className="text-gray-500 text-sm leading-relaxed mb-6">
-            Thanks for applying to join the WashFold Orlando team. We'll review your application and reach out within 2–3 business days.
-          </p>
+          <h1 className="text-2xl font-extrabold text-[#0D2240] mb-2">{t.success_title}</h1>
+          <p className="text-gray-500 text-sm leading-relaxed mb-6">{t.success_sub}</p>
           <Link href="/" className="inline-block bg-[#0D2240] text-white font-bold px-8 py-3 rounded-full text-sm uppercase tracking-wide hover:bg-[#1a3a5c] transition-colors">
-            Back to Home
+            {t.back_home}
           </Link>
         </div>
       </main>
@@ -191,7 +285,7 @@ export default function ApplyPage() {
             Wash<span className="text-[#E8726A]">Fold</span>
           </Link>
           <Link href="/" className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors">
-            ← Back to site
+            {t.back}
           </Link>
         </div>
       </header>
@@ -199,12 +293,10 @@ export default function ApplyPage() {
       {/* Hero */}
       <div className="bg-[#0D2240] py-10 text-center px-4">
         <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 mb-3">
-          <span className="text-white font-bold text-sm uppercase tracking-wide">We're Hiring</span>
+          <span className="text-white font-bold text-sm uppercase tracking-wide">{t.hiring}</span>
         </div>
-        <h1 className="text-3xl font-extrabold text-white mb-2">Join the WashFold Team</h1>
-        <p className="text-white/60 text-sm max-w-md mx-auto">
-          Wash & fold, drive deliveries, or both. Flexible hours, competitive pay, and weekly direct deposit via Stripe.
-        </p>
+        <h1 className="text-3xl font-extrabold text-white mb-2">{t.hero_title}</h1>
+        <p className="text-white/60 text-sm max-w-md mx-auto">{t.hero_sub}</p>
       </div>
 
       <div className="mx-auto max-w-xl px-4 py-10">
@@ -213,58 +305,58 @@ export default function ApplyPage() {
         <div className="grid grid-cols-3 gap-3 mb-8">
           <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center">
             <div className="text-2xl mb-2">🚐</div>
-            <h3 className="font-extrabold text-[#0D2240] text-xs uppercase tracking-wide mb-1">Driver</h3>
-            <p className="text-[11px] text-gray-400 leading-relaxed">Pickup & delivery routes. Pay per order + mileage.</p>
+            <h3 className="font-extrabold text-[#0D2240] text-xs uppercase tracking-wide mb-1">{t.role_driver_title}</h3>
+            <p className="text-[11px] text-gray-400 leading-relaxed">{t.role_driver_sub}</p>
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center">
             <div className="text-2xl mb-2">🧺</div>
-            <h3 className="font-extrabold text-[#0D2240] text-xs uppercase tracking-wide mb-1">Washing Operator</h3>
-            <p className="text-[11px] text-gray-400 leading-relaxed">Wash & fold at partner facilities. Paid hourly + mileage.</p>
+            <h3 className="font-extrabold text-[#0D2240] text-xs uppercase tracking-wide mb-1">{t.role_op_title}</h3>
+            <p className="text-[11px] text-gray-400 leading-relaxed">{t.role_op_sub}</p>
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center">
             <div className="text-2xl mb-2">🚐🧺</div>
-            <h3 className="font-extrabold text-[#0D2240] text-xs uppercase tracking-wide mb-1">Both</h3>
-            <p className="text-[11px] text-gray-400 leading-relaxed">Do both roles for maximum earning flexibility.</p>
+            <h3 className="font-extrabold text-[#0D2240] text-xs uppercase tracking-wide mb-1">{t.role_both_title}</h3>
+            <p className="text-[11px] text-gray-400 leading-relaxed">{t.role_both_sub}</p>
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-            <h2 className="font-extrabold text-[#0D2240] text-lg">Your Information</h2>
+            <h2 className="font-extrabold text-[#0D2240] text-lg">{t.your_info}</h2>
 
             <div>
-              <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">Full Name *</label>
+              <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.name_label} *</label>
               <input name="name" required placeholder="Jane Smith"
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A]" />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">Email Address *</label>
+              <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.email_label} *</label>
               <input name="email" type="email" required placeholder="jane@example.com"
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A]" />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">Phone Number *</label>
+              <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.phone_label} *</label>
               <input name="phone" type="tel" required placeholder="(407) 555-0100"
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A]" />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">Your Address *</label>
+              <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.address_label} *</label>
               <input name="address" required placeholder="123 Oak St, Orlando FL 32827"
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A]" />
             </div>
 
             {/* Role selection */}
             <div>
-              <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-3">I want to work as... *</label>
+              <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-3">{t.role_label} *</label>
               <div className="space-y-2">
                 {([
-                  { key: "driver",   emoji: "🚐", label: "Driver",                    sub: "Pickup & delivery" },
-                  { key: "operator", emoji: "🧺", label: "Washing Operator",           sub: "Wash & fold at facilities" },
-                  { key: "combo",    emoji: "🚐🧺", label: "Washing Operator / Driver", sub: "Both roles — max flexibility" },
+                  { key: "driver",   emoji: "🚐",   label: t.role_driver, sub: t.role_driver_sub2 },
+                  { key: "operator", emoji: "🧺",   label: t.role_op,     sub: t.role_op_sub2 },
+                  { key: "combo",    emoji: "🚐🧺", label: t.role_both,   sub: t.role_both_sub2 },
                 ] as const).map((r) => (
                   <label key={r.key}
                     className={`flex items-center gap-3 border-2 rounded-xl px-4 py-3 cursor-pointer transition-all ${
@@ -295,17 +387,17 @@ export default function ApplyPage() {
               <div>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" name="has_vehicle" className="w-4 h-4 accent-[#E8726A]" />
-                  <span className="text-sm text-gray-600">Yes, I have a reliable vehicle for deliveries</span>
+                  <span className="text-sm text-gray-600">{t.vehicle}</span>
                 </label>
               </div>
             )}
 
             <div>
               <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">
-                Relevant Experience <span className="text-gray-400 font-normal normal-case">(optional)</span>
+                {t.exp_label} <span className="text-gray-400 font-normal normal-case">{t.exp_optional}</span>
               </label>
               <textarea name="experience" rows={3}
-                placeholder="Tell us about any relevant experience — delivery, laundry, customer service, etc."
+                placeholder={t.exp_placeholder}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A] resize-none" />
             </div>
           </div>
@@ -316,8 +408,8 @@ export default function ApplyPage() {
               <div className="flex items-center gap-2">
                 <span className="text-lg">📄</span>
                 <div>
-                  <h2 className="font-extrabold text-[#0D2240] text-base">Independent Contractor Agreement</h2>
-                  <p className="text-xs text-gray-400">{ROLE_LABELS[selectedRole]} — read and sign to continue</p>
+                  <h2 className="font-extrabold text-[#0D2240] text-base">{t.ic_title}</h2>
+                  <p className="text-xs text-gray-400">{ROLE_LABELS[selectedRole]} — {t.ic_sub}</p>
                 </div>
               </div>
 
@@ -336,7 +428,7 @@ export default function ApplyPage() {
 
               {!icRead && (
                 <p className="text-xs text-amber-600 font-semibold flex items-center gap-1.5">
-                  <span>⬇</span> Scroll to the bottom to read the full agreement
+                  {t.ic_scroll}
                 </p>
               )}
 
@@ -349,15 +441,13 @@ export default function ApplyPage() {
                       onChange={(e) => setIcAgreed(e.target.checked)}
                       className="mt-0.5 w-4 h-4 accent-[#E8726A] shrink-0"
                     />
-                    <span className="text-sm text-gray-700 leading-snug">
-                      I have read and agree to the Independent Contractor Agreement above. I understand I am an independent contractor, not an employee.
-                    </span>
+                    <span className="text-sm text-gray-700 leading-snug">{t.ic_agree}</span>
                   </label>
 
                   {icAgreed && (
                     <div>
                       <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">
-                        Sign below — type your full legal name *
+                        {t.ic_sign_label} *
                       </label>
                       <input
                         type="text"
@@ -369,7 +459,7 @@ export default function ApplyPage() {
                       />
                       {icSignature.trim().length > 1 && (
                         <p className="text-xs text-green-600 font-semibold mt-1.5 flex items-center gap-1">
-                          ✓ Agreement signed as &ldquo;{icSignature.trim()}&rdquo; — {new Date().toLocaleDateString()}
+                          ✓ {t.ic_signed} &ldquo;{icSignature.trim()}&rdquo; — {new Date().toLocaleDateString()}
                         </p>
                       )}
                     </div>
@@ -389,13 +479,10 @@ export default function ApplyPage() {
             type="submit"
             disabled={status === "submitting" || (selectedRole !== null && !icValid)}
             className="w-full bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold py-4 rounded-xl text-sm uppercase tracking-wide transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            {status === "submitting" ? "Submitting…" : "Submit Application →"}
+            {status === "submitting" ? t.submitting : t.submit}
           </button>
 
-          <p className="text-xs text-gray-400 text-center leading-relaxed">
-            By submitting you agree to a background check as part of our onboarding process.
-            Pay is issued weekly via Stripe direct deposit.
-          </p>
+          <p className="text-xs text-gray-400 text-center leading-relaxed">{t.fine_print}</p>
         </form>
       </div>
     </main>
