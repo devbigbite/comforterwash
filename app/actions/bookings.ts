@@ -315,4 +315,29 @@ export async function getUpcomingDates() {
 
   const { data: pickupDates, error: pickupError } = await supabase
     .from("bookings")
-    .select("pickup
+    .select("pickup_date")
+    .eq("location_id", locationId)
+    .gte("pickup_date", today)
+    .in("status", ["confirmed", "pending"])
+    .order("pickup_date", { ascending: true })
+
+  const { data: deliveryDates, error: deliveryError } = await supabase
+    .from("bookings")
+    .select("delivery_date")
+    .eq("location_id", locationId)
+    .gte("delivery_date", today)
+    .in("status", ["in_progress", "out_for_delivery"])
+    .order("delivery_date", { ascending: true })
+
+  if (pickupError || deliveryError) {
+    console.error("[v0] Error fetching dates:", pickupError || deliveryError)
+    throw new Error("Failed to fetch dates")
+  }
+
+  const allDates = new Set([
+    ...(pickupDates?.map((d) => d.pickup_date) || []),
+    ...(deliveryDates?.map((d) => d.delivery_date) || []),
+  ])
+
+  return Array.from(allDates).sort()
+}

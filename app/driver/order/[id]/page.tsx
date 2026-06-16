@@ -108,6 +108,7 @@ async function confirmDropoff(formData: FormData) {
 
   const supabase = createAdminClient()
 
+  // Look up booking to get locked-in rate for customer billing
   const { data: bk } = await supabase
     .from("bookings")
     .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents")
@@ -118,6 +119,7 @@ async function confirmDropoff(formData: FormData) {
     ?? DEFAULT_RATE_CENTS[bk?.service_type ?? "wash_fold"]
     ?? 250
 
+  // Calculate customer billing (facility cost calculated later when facility is assigned)
   const customerChargeLbs  = Math.max(weightLbs, CUSTOMER_MIN_LBS)
   const customerFinalCents = customerChargeLbs * ratePerLbCents
 
@@ -155,6 +157,7 @@ async function confirmDropoff(formData: FormData) {
     })
   }
 
+  // Trigger Stripe capture
   try {
     if (bk?.service_type === "wash_fold" && bk.stripe_payment_intent_id && bk.pre_auth_cents) {
       await capturePayment(bookingId)
@@ -229,7 +232,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
 
   const { data: bags } = await supabase.from("order_bags").select("*").eq("booking_id", id).order("bag_number")
 
-  // Colors already claimed by other orders on the same pickup date — used to warn driver of conflicts
+  // Colors already claimed by other orders on the same pickup date
   const { data: sameDay } = await supabase
     .from("bookings")
     .select("color_key")
@@ -471,6 +474,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
                 <div key={bag.id} className="rounded-xl border border-gray-100 p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-bold text-[#0D2240] font-mono text-sm">B{bag.bag_number}</span>
+                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_COLOR[bag.status] ?? "bg-gray-100 text-gray-400"}`}>
                       {STATUS_LABEL[bag.status] ?? bag.status}
                     </span>
                   </div>

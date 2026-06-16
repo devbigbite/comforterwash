@@ -689,4 +689,34 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                         </span>
                       )}
                       {event.machines && (
-                        <span className="text-x
+                        <span className="text-xs bg-[#E8726A]/10 text-[#E8726A] px-2 py-0.5 rounded-full font-bold">
+                          {(event.machines as { name: string }).name}
+                        </span>
+                      )}
+                    </div>
+                    {event.photo_url && (
+                      <a href={event.photo_url} target="_blank" rel="noreferrer" className="block mt-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={event.photo_url}
+                          alt="Pickup photo"
+                          className="rounded-xl border border-gray-100 max-h-48 max-w-xs object-cover hover:opacity-90 transition-opacity"
+                        />
+                      </a>
+                    )}
+                    {event.notes && !event.photo_url && <p className="text-sm text-gray-500 mt-0.5">{event.notes}</p>}
+                    <p className="text-xs text-gray-300 mt-1">
+                      {format(new Date(event.created_at), "MMM d, h:mm a")}
+                      {event.created_by && event.created_by !== "system" && ` · ${event.created_by}`}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  )
+}
