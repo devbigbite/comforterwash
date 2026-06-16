@@ -496,4 +496,25 @@ export default function DriverOrderClient({
                 <div className={`rounded-xl overflow-hidden border-2 ${deliveryPhotoErr ? "border-red-400" : hasDeliveryPhoto ? "border-green-400" : "border-gray-200"}`}>
                   <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
                     eventType="photo_customer_delivery" label="📷 Photo at Customer — Delivery"
-                    
+                    onPhotoUploaded={() => { setHasDeliveryPhoto(true); setDeliveryPhotoErr(false) }} />
+                  <PhotoRequired taken={hasDeliveryPhoto} error={deliveryPhotoErr} />
+                </div>
+                <button onClick={handleDelivered} disabled={submitting === "delivered"}
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-extrabold py-4 rounded-2xl text-base transition-colors">
+                  {submitting === "delivered" ? "Confirming…" : "🎉 Confirm Delivered to Customer"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {allDone && (
+        <div className="bg-green-50 border-2 border-green-300 rounded-2xl p-6 text-center">
+          <p className="text-green-700 font-extrabold text-xl">🎉 Order Complete</p>
+          <p className="text-green-600 text-sm mt-1">All bags delivered successfully.</p>
+        </div>
+      )}
+    </div>
+  )
+}

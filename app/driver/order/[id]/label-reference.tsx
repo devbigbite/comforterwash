@@ -111,4 +111,35 @@ export default function LabelReference({ orderCode, customerName, customerAddres
           {/* Per-bag codes */}
           <div className="flex flex-wrap gap-2 mt-2">
             {bags.map(bag => (
- 
+              <span key={bag.id}
+                className="text-[#E8726A] font-bold font-mono text-sm bg-white/10 rounded-lg px-2 py-0.5">
+                {orderCode} · B{bag.bag_number}
+              </span>
+            ))}
+          </div>
+          <p className="text-white/30 text-xs mt-1.5 truncate">{customerName}</p>
+          {color && (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="w-4 h-4 rounded-full ring-1 ring-white/20 shrink-0"
+                style={{ background: color.hex }} />
+              <span className="text-white/50 text-[10px] font-bold uppercase tracking-wide">{color.label} sticker</span>
+            </div>
+          )}
+        </div>
+        <button
+          onClick={() => { setActiveBag(0); setFullscreen(true) }}
+          className="shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-white/10 hover:bg-white/20 transition-colors gap-1"
+          aria-label="Fullscreen label view"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+            <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+            <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+            <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+          </svg>
+          <span className="text-white/40 text-[9px] font-bold uppercase tracking-wide">Full</span>
+        </button>
+      </div>
+    </div>
+  )
+}

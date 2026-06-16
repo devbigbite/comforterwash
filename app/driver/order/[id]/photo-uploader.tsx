@@ -120,4 +120,7 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
           <p className="text-sm text-gray-400">No photos yet.</p>
           <p className="text-xs text-gray-300 mt-0.5">Tap "+ Add Photo" to take a pickup photo.</p>
         </div>
-     
+      )}
+    </div>
+  )
+}

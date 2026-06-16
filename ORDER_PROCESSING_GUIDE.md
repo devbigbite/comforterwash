@@ -378,4 +378,171 @@ Before placing folded clothes into the bag, check if anything needs to go in wit
 
 ---
 
-## STEP 10 — Floor vs. Storage 
+## STEP 10 — Floor vs. Storage Decision
+
+**Who does it:** Operator  
+**When:** Immediately after the order is marked Ready  
+**Where:** Facility Board order drawer
+
+Every finished order needs a location decision — where does it physically sit until the driver picks it up?
+
+### Option A — Hold at Facility (Floor)
+
+Toggle the **Hold at Facility** switch **ON**.
+
+- Order stays in the floor holding area at the facility
+- Driver will come directly to the facility to pick it up
+- **Sticker requirement:** color key sticker only
+- The card will show a 📍 hold pin icon on the board
+
+### Option B — Remote Storage
+
+Toggle the **Hold at Facility** switch **OFF**.
+
+- Order goes to remote/off-site storage
+- Driver must go to the storage location to retrieve it
+- **Sticker requirement:** color key sticker + **second marker sticker** (storage identifier color TBD — apply alongside the color key so the driver can immediately identify this as a storage-bound order)
+- The order drawer will show an amber reminder: *"Second marker sticker required"*
+
+> **Saturday pickups:** Decision pending on whether Saturday pickups automatically go to storage (since Sunday is off) or stay on the floor. Until decided, use your judgment and toggle accordingly.
+
+---
+
+## STEP 11 — Driver Loads and Runs the Delivery Route
+
+**Who does it:** Driver  
+**Where:** Driver App → today's job list
+
+The driver opens the app and reviews all jobs assigned for the day. Jobs will show as either **Floor** (bags at the facility) or **Storage** (bags at the off-site storage location). The driver runs two separate loading stages before starting deliveries.
+
+---
+
+### Stage 1 — Storage Run (First)
+
+1. Review the job list — identify all orders marked as **Storage** (📦 icon)
+2. Load the vehicle with any items already at the facility that are going to storage (if the operator has handed them off)
+3. **Drive to the off-site storage location**
+4. Drop off the storage-bound orders — place them in their designated area
+5. Return to the facility
+
+> Storage orders go first so the driver returns to the facility with an empty vehicle, ready for the full delivery load.
+
+---
+
+### Stage 2 — Facility Load (Second)
+
+1. Back at the facility, review all remaining jobs — these are the **Floor** orders ready for delivery
+2. For each order, open the order detail in the app — the **Facility Specs** panel shows:
+   - 📍 Floor or 📦 Storage label — confirms where this bag is
+   - Colored circle + color name — which sticker to look for
+   - Placement photo — visual reference to locate the exact bag(s)
+   - Folded bag count — how many bags to load (⚠️ shown if different from original pickup count)
+3. Locate each order's bag(s) using the color sticker and placement photo
+4. Verify the bag count against what the app shows
+5. Load all delivery orders into the vehicle, keeping each order's bags together
+6. Once fully loaded, mark each order as **Out for Delivery** in the app
+7. Begin the delivery route
+
+---
+
+## STEP 12 — Driver Delivers to the Customer
+
+**Who does it:** Driver  
+**Where:** Driver App
+
+On delivery day:
+
+1. Driver opens the app — sees all deliveries assigned for the day
+2. Navigates to each customer's address
+3. Finds a suitable, safe spot to leave the bags (door, porch, covered area, etc.)
+4. Places all bags for the order together in that spot
+5. **Takes a photo** of the bags in their delivery spot — the photo must show:
+   - All bags clearly
+   - The delivery location (door, porch, etc.)
+   - The color key sticker visible on the bags
+6. Marks the order as **Delivered** in the app
+   - Status moves to `delivered`
+   - The delivery photo is **saved to the customer's viewable order record** — they can see it in their account and tracking page
+   - Customer receives a delivery notification
+   - Order is closed out
+
+> **Customer does not need to be home.** Per our terms of service, bags will be left in a suitable location at the delivery address whether or not the customer is present. The delivery photo serves as confirmation of placement.
+
+---
+
+### If the Customer Was Not Home for Pickup
+
+> **Customer does not need to be home for pickup either.** The agreement is that clothes will be left outside (door, porch, agreed spot) at the scheduled time.
+
+**If the clothes are not outside when the driver arrives:**
+
+1. Driver does not wait — makes note of the situation in the app
+2. Driver submits a **no-clothes report** in the app (notes field on the order)
+3. Admin is notified — contacts the customer
+4. A **revisit fee** applies for any return pickup trip required
+5. Admin reschedules the pickup and processes the fee before the next attempt
+
+> The revisit fee exists because a failed pickup wastes a scheduled route slot. Customers agree to this when booking.
+
+---
+
+## STEP 13 — Admin Closes Out / Follows Up
+
+**Who does it:** Admin  
+**Where:** `/admin/orders` or `/admin/search`
+
+After delivery:
+- Verify the correct status shows as `delivered`
+- Review final amount — if weight was entered at drop-off, confirm the price reflects it
+- Check for any tip recorded
+- Flag any issue orders (damaged items, wrong bag count, customer complaint) for follow-up
+
+If a customer reports a problem:
+- Go to `/admin/search` → search by name, phone, or short code
+- Open the order → review the full event log (every status change is time-stamped)
+- The floor placement photo is on record — can be used to verify what was delivered
+
+---
+
+## QUICK REFERENCE — Full Status Flow
+
+```
+Booking placed  →  confirmed  →  picked_up  →  in_progress  →  delivered
+```
+
+## QUICK REFERENCE — Facility Phase Flow
+
+```
+intake → washing → drying → folding → [color key + bag count + photo] → ready → staged → out_for_delivery
+```
+
+## QUICK REFERENCE — Who Does What
+
+| Task | Role | Where |
+|---|---|---|
+| Review & confirm new orders | Admin | `/admin/dispatch` |
+| Assign driver to order | Admin | `/admin/dispatch` — order card |
+| Reschedule an order | Admin | `/admin/dispatch` → Reschedule... |
+| Check who is clocked in | Admin | `/admin/schedule` → Right Now |
+| Add/edit routes | Admin | `/admin/routes` |
+| Approve new workers | Admin | `/admin/workers` → Pending tab |
+| Add worker to schedule | Admin | `/admin/schedule` → Schedule tab |
+| Pick up laundry | Driver | `/driver` |
+| Drop off at facility | Driver | `/driver` |
+| Deliver to customer | Driver | `/driver` |
+| Move order through phases | Operator | `/operator` |
+| Assign color key | Operator | `/operator` (Facility Board) |
+| Take placement photo | Operator | `/operator` (Facility Board) |
+| Set Floor vs Storage | Operator | `/operator` (Facility Board) |
+
+## STAFF APP ACCESS
+
+| App | URL | Login method |
+|---|---|---|
+| Admin | `/admin` | Admin password |
+| Driver | `/driver` | 4-digit PIN |
+| Operator | `/operator` | 4-digit PIN |
+| Staff Clock (in/out) | `/staff` | 4-digit PIN |
+| Test all 3 side-by-side | `/admin/test` | Auto-seeds test workers |
+
+> **PINs are set by admin** at `/admin/workers` → click the worker → set PIN. The worker uses this PIN every time they open their app.
