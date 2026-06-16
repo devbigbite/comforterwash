@@ -604,5 +604,72 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                     {weightAlreadySet && (
                       <>
                         <input type="hidden" name="weight_lbs" value={String(weightOnFile)} />
-                        <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs text-blue-700 font-semibold">
-                          ⚖️ Weight on file: {weightOnFile} lbs (entered by {booking.weight_entere
+                          ⚖️ Weight on file: {weightOnFile} lbs (entered by {booking.weight_entered_by ?? "driver"})
+                        </div>
+                      </>
+                    )}
+
+                    {step.needsMachine && (
+                      <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
+                          {step.next === "in_washer" ? "Select Washer" : "Select Dryer"}
+                        </label>
+                        <select name="machineId" required
+                          className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
+                          <option value="">— choose machine —</option>
+                          {allFacilities?.map((fac) => {
+                            const machineType = step.next === "in_washer" ? "washer" : "dryer"
+                            const groups = (fac.machine_groups as Array<{
+                              id: string; name: string; type: string
+                              machines: Array<{ id: string; name: string; status: string }>
+                            }>)?.filter(g => g.type === machineType) ?? []
+                            if (groups.every(g => !g.machines?.length)) return null
+                            return (
+                              <optgroup key={fac.id} label={fac.name}>
+                                {groups.flatMap(g =>
+                                  g.machines?.filter(m => m.status === "active").map(m => (
+                                    <option key={m.id} value={m.id}>{m.name} — {g.name}</option>
+                                  )) ?? []
+                                )}
+                              </optgroup>
+                            )
+                          })}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Notes for folding step */}
+                    {step.needsFoldingNotes && (
+                      <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
+                          Folding Notes (optional)
+                        </label>
+                        <textarea
+                          name="folding_notes"
+                          rows={2}
+                          placeholder="Any issues with this bag? Items needing special attention?"
+                          className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] resize-none"
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Your Name</label>
+                      <input name="operatorName" type="text" placeholder="Your name"
+                        className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]" />
+                    </div>
+
+                    <button type="submit"
+                      className={`w-full text-white font-extrabold py-4 rounded-2xl text-base transition-colors ${step.color}`}>
+                      → {step.action}
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
