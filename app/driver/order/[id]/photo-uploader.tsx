@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 interface Props {
   bookingId: string
   action: (formData: FormData) => Promise<void>
-  onPhotoUploaded?: () => void
+  onPhotoUploaded?: (url?: string) => void
   eventType?: string
   label?: string
 }
@@ -47,7 +47,7 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
     setPhotos((prev) => [...prev, publicUrl])
     setUploading(false)
     if (inputRef.current) inputRef.current.value = ""
-    onPhotoUploaded?.()
+    onPhotoUploaded?.(publicUrl)
 
     // Record in DB via server action
     const fd = new FormData()
@@ -120,7 +120,4 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
           <p className="text-sm text-gray-400">No photos yet.</p>
           <p className="text-xs text-gray-300 mt-0.5">Tap "+ Add Photo" to take a pickup photo.</p>
         </div>
-      )}
-    </div>
-  )
-}
+     

@@ -41,6 +41,7 @@ export function DispatchOrderCard({
   booking: b,
   type,
   date,
+  drivers = [],
   assignDriverAction,
   rescheduleAction,
   cancelAction,
@@ -48,6 +49,7 @@ export function DispatchOrderCard({
   booking: DispatchBooking
   type: "pickup" | "delivery"
   date: string
+  drivers?: { id: string; name: string; email: string }[]
   assignDriverAction: (fd: FormData) => Promise<void>
   rescheduleAction: (fd: FormData) => Promise<void>
   cancelAction: (fd: FormData) => Promise<void>
@@ -60,7 +62,7 @@ export function DispatchOrderCard({
 
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const [driverInput, setDriverInput] = useState("")
+  const [selectedDriverEmail, setSelectedDriverEmail] = useState("")
   const [toast, setToast] = useState<string | null>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
 
@@ -74,7 +76,7 @@ export function DispatchOrderCard({
     const fd = new FormData(e.currentTarget)
     startTransition(async () => {
       await assignDriverAction(fd)
-      setDriverInput("")
+      setSelectedDriverEmail("")
       showToast("Driver assigned")
     })
   }
@@ -150,19 +152,35 @@ export function DispatchOrderCard({
         <form onSubmit={handleAssign} className="flex gap-1.5 flex-1 min-w-[180px]">
           <input type="hidden" name="bookingId" value={b.id} />
           <input type="hidden" name="date" value={date} />
-          <input
-            type="email"
-            name="driverEmail"
-            placeholder="driver@email.com"
-            required
-            disabled={!synced || isPending}
-            value={driverInput}
-            onChange={e => setDriverInput(e.target.value)}
-            className="flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-[#0D2240] placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#E8726A]/40 disabled:opacity-40 disabled:cursor-not-allowed"
-          />
+          <input type="hidden" name="driverEmail" value={selectedDriverEmail} />
+          {drivers.length > 0 ? (
+            <select
+              required
+              disabled={!synced || isPending}
+              value={selectedDriverEmail}
+              onChange={e => setSelectedDriverEmail(e.target.value)}
+              className="flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-[#0D2240] bg-white focus:outline-none focus:ring-1 focus:ring-[#E8726A]/40 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <option value="">Select driver...</option>
+              {drivers.map(d => (
+                <option key={d.id} value={d.email}>{d.name}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="email"
+              name="driverEmail"
+              placeholder="driver@email.com"
+              required
+              disabled={!synced || isPending}
+              value={selectedDriverEmail}
+              onChange={e => setSelectedDriverEmail(e.target.value)}
+              className="flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-[#0D2240] placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#E8726A]/40 disabled:opacity-40 disabled:cursor-not-allowed"
+            />
+          )}
           <button
             type="submit"
-            disabled={!synced || isPending}
+            disabled={!synced || isPending || !selectedDriverEmail}
             className="rounded-lg bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-[10px] px-2.5 py-1.5 transition-colors whitespace-nowrap"
           >
             {isPending ? "..." : "Assign"}

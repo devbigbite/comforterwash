@@ -205,7 +205,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const customerFinalCents = booking.customer_final_cents as number | null
   const facilityCostCents = booking.facility_cost_cents as number | null
   const preAuthCents = booking.pre_auth_cents as number | null
-  const actualWeightLbs = booking.actual_weight_lbs as number | null
+  const actualWeightLbs  = booking.actual_weight_lbs as number | null
+  const foldedWeightLbs  = booking.folded_weight_lbs != null ? parseFloat(String(booking.folded_weight_lbs)) : null
+  const weightDiscrepancy = (actualWeightLbs && foldedWeightLbs)
+    ? Math.abs(foldedWeightLbs - actualWeightLbs)
+    : null
+  const weightFlagged    = weightDiscrepancy !== null && weightDiscrepancy >= 4
 
   // Has billing been calculated?
   const billingCalculated = !!(customerFinalCents && facilityCostCents !== null)
@@ -229,6 +234,22 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   return (
     <div className="min-h-screen">
       <div className="mx-auto max-w-4xl px-4 py-10">
+
+        {/* Weight discrepancy flag */}
+        {weightFlagged && (
+          <div className="mb-6 bg-red-600 rounded-2xl px-5 py-4 flex items-start gap-3">
+            <span className="text-2xl shrink-0">🚨</span>
+            <div>
+              <p className="text-white font-extrabold text-base uppercase tracking-wide">Weight Discrepancy — Action Required</p>
+              <p className="text-white/90 text-sm mt-1">
+                Intake: <span className="font-bold">{actualWeightLbs} lbs</span> · Folded: <span className="font-bold">{foldedWeightLbs} lbs</span> · Difference: <span className="font-bold">{weightDiscrepancy!.toFixed(1)} lbs</span>
+              </p>
+              <p className="text-white/70 text-xs mt-1">
+                A 4+ lb difference was detected between intake and folded weights. Verify no items are missing before this order goes out for delivery. Contact the operator and check the facility.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -668,34 +689,4 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                         </span>
                       )}
                       {event.machines && (
-                        <span className="text-xs bg-[#E8726A]/10 text-[#E8726A] px-2 py-0.5 rounded-full font-bold">
-                          {(event.machines as { name: string }).name}
-                        </span>
-                      )}
-                    </div>
-                    {event.photo_url && (
-                      <a href={event.photo_url} target="_blank" rel="noreferrer" className="block mt-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={event.photo_url}
-                          alt="Pickup photo"
-                          className="rounded-xl border border-gray-100 max-h-48 max-w-xs object-cover hover:opacity-90 transition-opacity"
-                        />
-                      </a>
-                    )}
-                    {event.notes && !event.photo_url && <p className="text-sm text-gray-500 mt-0.5">{event.notes}</p>}
-                    <p className="text-xs text-gray-300 mt-1">
-                      {format(new Date(event.created_at), "MMM d, h:mm a")}
-                      {event.created_by && event.created_by !== "system" && ` · ${event.created_by}`}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-      </div>
-    </div>
-  )
-}
+                        <span className="text-x

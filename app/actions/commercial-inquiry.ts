@@ -9,6 +9,20 @@ const TO     = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
 export async function submitCommercialInquiry(
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
+  // Spam guards
+  const honeypot  = (formData.get("_company") as string) ?? ""
+  const loadedAt  = parseInt((formData.get("_loaded_at") as string) ?? "0", 10)
+  const elapsed   = Date.now() - loadedAt
+
+  if (honeypot.length > 0) {
+    // Bot filled the hidden field — silently succeed so the bot doesn't retry
+    return { success: true }
+  }
+  if (loadedAt > 0 && elapsed < 3000) {
+    // Submitted in under 3 seconds — almost certainly a bot
+    return { success: false, error: "Please take a moment to review your information before submitting." }
+  }
+
   const businessName   = (formData.get("business_name") as string)?.trim()
   const contact        = (formData.get("contact") as string)?.trim()
   const email          = (formData.get("email") as string)?.trim()

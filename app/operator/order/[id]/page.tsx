@@ -159,12 +159,32 @@ async function advanceBag(formData: FormData) {
 
 async function completeOrderFolding(formData: FormData) {
   "use server"
-  const bookingId = formData.get("bookingId") as string
-  const operatorName = (formData.get("operatorName") as string) || "operator"
-  const foldedCount = formData.get("folded_count") as string
+  const bookingId       = formData.get("bookingId") as string
+  const operatorName    = (formData.get("operatorName") as string) || "operator"
+  const foldedCount     = formData.get("folded_count") as string
   const completionNotes = (formData.get("completion_notes") as string | null)?.trim() || null
+  const foldedWeightLbs = parseFloat(formData.get("folded_weight_lbs") as string)
 
   const supabase = createAdminClient()
+
+  // Fetch intake weight for discrepancy check
+  const { data: bk } = await supabase
+    .from("bookings")
+    .select("actual_weight_lbs")
+    .eq("id", bookingId)
+    .single()
+
+  const intakeWeight  = bk?.actual_weight_lbs ? parseFloat(String(bk.actual_weight_lbs)) : null
+  const weightDiff    = (intakeWeight !== null && !isNaN(foldedWeightLbs))
+    ? Math.abs(foldedWeightLbs - intakeWeight)
+    : null
+  const weightFlagged = weightDiff !== null && weightDiff >= 4
+
+  // Save folded weight + flag on booking
+  await supabase.from("bookings").update({
+    folded_weight_lbs: !isNaN(foldedWeightLbs) ? foldedWeightLbs : null,
+    ...(weightFlagged ? { notes: `⚠️ WEIGHT FLAG: Intake ${intakeWeight} lbs vs folded ${foldedWeightLbs} lbs (${weightDiff.toFixed(1)} lb difference). Verify no items missing.` } : {}),
+  }).eq("id", bookingId)
 
   // Advance all folded bags to ready
   await supabase.from("order_bags")
@@ -174,12 +194,14 @@ async function completeOrderFolding(formData: FormData) {
 
   const noteParts = [
     `${foldedCount} bag${parseInt(foldedCount) !== 1 ? "s" : ""} confirmed folded`,
+    !isNaN(foldedWeightLbs) ? `Folded weight: ${foldedWeightLbs} lbs` : null,
+    weightFlagged ? `⚠️ WEIGHT DISCREPANCY: ${weightDiff!.toFixed(1)} lbs vs intake — verify items` : null,
     completionNotes ? `Notes: ${completionNotes}` : null,
   ].filter(Boolean).join(" · ")
 
   await supabase.from("order_events").insert({
     booking_id: bookingId,
-    event_type: "order_folding_complete",
+    event_type: weightFlagged ? "weight_discrepancy_flagged" : "order_folding_complete",
     notes: noteParts,
     created_by: operatorName,
   })
@@ -242,7 +264,10 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
   const operatorDone = allStatuses.every(s => ["ready", "out_for_delivery", "delivered"].includes(s))
   const notArrived = allStatuses.every(s => ["pending", "picked_up"].includes(s))
   const isOwnOperator = !facility || facility.processing_mode === "own_operator"
-  const weightOnFile = booking.actual_weight_lbs as number | null
+  const weightOnFile   = booking.actual_weight_lbs as number | null
+  const foldedWeight   = booking.folded_weight_lbs != null ? parseFloat(String(booking.folded_weight_lbs)) : null
+  const weightDiff     = (weightOnFile && foldedWeight) ? Math.abs(foldedWeight - weightOnFile) : null
+  const weightFlagged  = weightDiff !== null && weightDiff >= 4
 
   // Margin warning: facility minimum > actual weight
   const facilityMin = facility?.minimum_lbs ?? 0
@@ -271,6 +296,23 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+
+        {/* Weight discrepancy flag */}
+        {weightFlagged && (
+          <div className="bg-red-600 rounded-2xl px-5 py-4 flex items-start gap-3">
+            <span className="text-2xl shrink-0">🚨</span>
+            <div>
+              <p className="text-white font-extrabold text-base uppercase tracking-wide">Weight Discrepancy — Verify Items</p>
+              <p className="text-white/80 text-sm mt-1">
+                Intake: <span className="font-bold">{weightOnFile} lbs</span> · Folded: <span className="font-bold">{foldedWeight} lbs</span> · Difference: <span className="font-bold">{weightDiff!.toFixed(1)} lbs</span>
+              </p>
+              <p className="text-white/70 text-xs mt-1">
+                A difference of 4+ lbs may indicate missing items. Check folding area and cart before releasing this order. Notify admin.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Order summary + weight info */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
           <div className="grid grid-cols-3 gap-3 text-center text-sm">
@@ -401,6 +443,28 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
               {/* Completion form */}
               <form action={completeOrderFolding} className="space-y-3">
                 <input type="hidden" name="bookingId" value={booking.id} />
+
+                {/* Folded weight — compared against intake weight */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
+                    Folded Weight (lbs) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    name="folded_weight_lbs"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    placeholder="0.0"
+                    required
+                    className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] font-mono focus:outline-none focus:border-yellow-400"
+                  />
+                  {weightOnFile && (
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      Intake weight: <span className="font-bold text-gray-600">{weightOnFile} lbs</span>
+                      {" "}· A difference of 4+ lbs will raise a flag
+                    </p>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -541,72 +605,4 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                       <>
                         <input type="hidden" name="weight_lbs" value={String(weightOnFile)} />
                         <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs text-blue-700 font-semibold">
-                          ⚖️ Weight on file: {weightOnFile} lbs (entered by {booking.weight_entered_by ?? "driver"})
-                        </div>
-                      </>
-                    )}
-
-                    {step.needsMachine && (
-                      <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
-                          {step.next === "in_washer" ? "Select Washer" : "Select Dryer"}
-                        </label>
-                        <select name="machineId" required
-                          className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
-                          <option value="">— choose machine —</option>
-                          {allFacilities?.map((fac) => {
-                            const machineType = step.next === "in_washer" ? "washer" : "dryer"
-                            const groups = (fac.machine_groups as Array<{
-                              id: string; name: string; type: string
-                              machines: Array<{ id: string; name: string; status: string }>
-                            }>)?.filter(g => g.type === machineType) ?? []
-                            if (groups.every(g => !g.machines?.length)) return null
-                            return (
-                              <optgroup key={fac.id} label={fac.name}>
-                                {groups.flatMap(g =>
-                                  g.machines?.filter(m => m.status === "active").map(m => (
-                                    <option key={m.id} value={m.id}>{m.name} — {g.name}</option>
-                                  )) ?? []
-                                )}
-                              </optgroup>
-                            )
-                          })}
-                        </select>
-                      </div>
-                    )}
-
-                    {/* Notes for folding step */}
-                    {step.needsFoldingNotes && (
-                      <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
-                          Folding Notes (optional)
-                        </label>
-                        <textarea
-                          name="folding_notes"
-                          rows={2}
-                          placeholder="Any issues with this bag? Items needing special attention?"
-                          className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] resize-none"
-                        />
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Your Name</label>
-                      <input name="operatorName" type="text" placeholder="Your name"
-                        className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]" />
-                    </div>
-
-                    <button type="submit"
-                      className={`w-full text-white font-extrabold py-4 rounded-2xl text-base transition-colors ${step.color}`}>
-                      → {step.action}
-                    </button>
-                  </form>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
+                          ⚖️ Weight on file: {weightOnFile} lbs (entered by {booking.weight_entere

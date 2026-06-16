@@ -59,6 +59,15 @@ export default async function DispatchPage({
 
   const supabase = createAdminClient()
 
+  const { data: activeDrivers } = await supabase
+    .from("workers")
+    .select("id, name, email")
+    .eq("status", "active")
+    .contains("roles", ["driver"])
+    .order("name")
+
+  const drivers = (activeDrivers ?? []) as { id: string; name: string; email: string }[]
+
   const { data: pickups } = await supabase
     .from("bookings")
     .select(`
@@ -148,6 +157,7 @@ export default async function DispatchPage({
                 <div className="space-y-3">
                   {pickupAM.map(b => (
                     <DispatchOrderCard key={b.id} booking={b} type="pickup" date={selectedDate}
+                      drivers={drivers}
                       assignDriverAction={assignDriverAction}
                       rescheduleAction={rescheduleAction}
                       cancelAction={cancelAction} />
@@ -161,6 +171,7 @@ export default async function DispatchPage({
                 <div className="space-y-3">
                   {pickupPM.map(b => (
                     <DispatchOrderCard key={b.id} booking={b} type="pickup" date={selectedDate}
+                      drivers={drivers}
                       assignDriverAction={assignDriverAction}
                       rescheduleAction={rescheduleAction}
                       cancelAction={cancelAction} />
@@ -176,6 +187,7 @@ export default async function DispatchPage({
                 <div className="space-y-3">
                   {pickupOther.map(b => (
                     <DispatchOrderCard key={b.id} booking={b} type="pickup" date={selectedDate}
+                      drivers={drivers}
                       assignDriverAction={assignDriverAction}
                       rescheduleAction={rescheduleAction}
                       cancelAction={cancelAction} />
@@ -202,6 +214,7 @@ export default async function DispatchPage({
                 <div className="space-y-3">
                   {deliveryAM.map(b => (
                     <DispatchOrderCard key={b.id} booking={b} type="delivery" date={selectedDate}
+                      drivers={drivers}
                       assignDriverAction={assignDriverAction}
                       rescheduleAction={rescheduleAction}
                       cancelAction={cancelAction} />
@@ -215,6 +228,7 @@ export default async function DispatchPage({
                 <div className="space-y-3">
                   {deliveryPM.map(b => (
                     <DispatchOrderCard key={b.id} booking={b} type="delivery" date={selectedDate}
+                      drivers={drivers}
                       assignDriverAction={assignDriverAction}
                       rescheduleAction={rescheduleAction}
                       cancelAction={cancelAction} />
@@ -230,6 +244,7 @@ export default async function DispatchPage({
                 <div className="space-y-3">
                   {deliveryOther.map(b => (
                     <DispatchOrderCard key={b.id} booking={b} type="delivery" date={selectedDate}
+                      drivers={drivers}
                       assignDriverAction={assignDriverAction}
                       rescheduleAction={rescheduleAction}
                       cancelAction={cancelAction} />

@@ -47,8 +47,30 @@ function generateShortCode(): string {
   return String(Math.floor(Math.random() * 900000) + 100000)
 }
 
+const COLOR_ROTATION = [
+  "red", "blue", "sky", "green", "lime",
+  "pink", "hotpink", "orange", "yellow", "purple",
+]
+
+/** Pick the next color key not already used on the same pickup date. */
+async function pickColorKey(
+  supabase: ReturnType<typeof createAdminClient>,
+  pickupDate: string,
+): Promise<string> {
+  const { data } = await supabase
+    .from("bookings")
+    .select("color_key")
+    .eq("pickup_date", pickupDate)
+    .not("color_key", "is", null)
+  const taken = new Set((data ?? []).map((b: { color_key: string | null }) => b.color_key).filter(Boolean))
+  return COLOR_ROTATION.find(c => !taken.has(c)) ?? COLOR_ROTATION[taken.size % COLOR_ROTATION.length]
+}
+
 export async function createBooking(data: BookingData) {
-  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const supabase   = createAdminClient()
+  const locationId = await getLocationId()
+  const pickupDateStr = toDateString(data.pickupDate)
+  const colorKey   = await pickColorKey(supabase, pickupDateStr)
 
   // Attach user_id if the customer is logged in
   let userId: string | null = null
@@ -67,7 +89,7 @@ export async function createBooking(data: BookingData) {
       customer_email: data.customerEmail,
       customer_phone: data.customerPhone,
       customer_address: data.customerAddress,
-      pickup_date: toDateString(data.pickupDate),
+      pickup_date: pickupDateStr,
       pickup_time_window: data.pickupTimeWindow,
       delivery_date: toDateString(data.deliveryDate),
       delivery_time_window: data.deliveryTimeWindow,
@@ -92,6 +114,7 @@ export async function createBooking(data: BookingData) {
       detergent: data.detergent ?? null,
       extras: data.extras ?? null,
       comforter_sizes: data.comforterSizes ?? null,
+      color_key: colorKey,
     })
     .select()
     .single()
@@ -292,29 +315,4 @@ export async function getUpcomingDates() {
 
   const { data: pickupDates, error: pickupError } = await supabase
     .from("bookings")
-    .select("pickup_date")
-    .eq("location_id", locationId)
-    .gte("pickup_date", today)
-    .in("status", ["confirmed", "pending"])
-    .order("pickup_date", { ascending: true })
-
-  const { data: deliveryDates, error: deliveryError } = await supabase
-    .from("bookings")
-    .select("delivery_date")
-    .eq("location_id", locationId)
-    .gte("delivery_date", today)
-    .in("status", ["in_progress", "out_for_delivery"])
-    .order("delivery_date", { ascending: true })
-
-  if (pickupError || deliveryError) {
-    console.error("[v0] Error fetching dates:", pickupError || deliveryError)
-    throw new Error("Failed to fetch dates")
-  }
-
-  const allDates = new Set([
-    ...(pickupDates?.map((d) => d.pickup_date) || []),
-    ...(deliveryDates?.map((d) => d.delivery_date) || []),
-  ])
-
-  return Array.from(allDates).sort()
-}
+    .select("pickup

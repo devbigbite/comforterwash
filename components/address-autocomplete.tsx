@@ -70,6 +70,8 @@ export function AddressAutocomplete({
     function init() {
       if (!inputRef.current || acRef.current) return
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!(window as any).google?.maps?.places?.Autocomplete) return
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ac = new (window as any).google.maps.places.Autocomplete(inputRef.current, {
         types: ["address"],
         componentRestrictions: { country: "us" },
@@ -125,6 +127,7 @@ export function AddressAutocomplete({
         src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}
         strategy="afterInteractive"
         onLoad={onScriptLoad}
+        onError={() => { /* script failed to load — input remains functional as plain text */ }}
       />
       {/*
         Uncontrolled input (defaultValue, not value) so React never fights

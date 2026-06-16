@@ -1,6 +1,7 @@
 import { LogOut, ChevronDown } from "lucide-react"
 import { logoutAction } from "@/app/admin/login/actions"
 import { AdminLangToggle } from "@/components/admin/admin-lang-toggle"
+import { getAdminLang } from "@/app/actions/admin-lang"
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 
@@ -9,89 +10,89 @@ type NavItem =
   | { type: "link"; href: string; label: string }
   | { type: "dropdown"; label: string; items: NavLink[] }
 
-const NAV_ITEMS: NavItem[] = [
-  {
-    type: "link",
-    href: "/admin/dispatch",
-    label: "Dispatch",
-  },
-  {
-    type: "link",
-    href: "/admin/search",
-    label: "Search",
-  },
-  {
-    type: "dropdown",
-    label: "Customers",
-    items: [
-      { href: "/admin/subscriptions", label: "Subscriptions" },
-      { href: "/admin/plans",         label: "Monthly Plans" },
-    ],
-  },
-  {
-    type: "dropdown",
-    label: "Logistics",
-    items: [
-      { href: "/admin/facility",      label: "🏭 Facility Board" },
-      { href: "/admin/runs",         label: "Facility Transfers" },
-      { href: "/admin/routes",       label: "Delivery Routes" },
-      { href: "/admin/routing",      label: "Route Optimizer" },
-      { href: "/admin/facilities",   label: "Facilities" },
-      { href: "/admin/zip-codes",    label: "Zip Codes" },
-      { href: "/admin/service-area", label: "Area Map" },
-      { href: "/admin/holidays",     label: "Holidays" },
-    ],
-  },
-  {
-    type: "dropdown",
-    label: "Finance",
-    items: [
-      { href: "/admin/reports", label: "Reports" },
-      { href: "/admin/pricing", label: "Pricing" },
-      { href: "/admin/tips",    label: "Tips" },
-    ],
-  },
-  {
-    type: "dropdown",
-    label: "Content",
-    items: [
-      { href: "/admin/promos",    label: "Promotions" },
-      { href: "/admin/images",    label: "Site Images" },
-      { href: "/admin/templates", label: "Email Templates" },
-      { href: "/admin/faq",       label: "FAQ Editor" },
-      { href: "/admin/docs",      label: "Docs & FAQ" },
-    ],
-  },
-  {
-    type: "link",
-    href: "/admin/settings",
-    label: "Settings",
-  },
-  {
-    type: "dropdown",
-    label: "Staff",
-    items: [
-      { href: "/admin/workers",  label: "Workers" },
-      { href: "/admin/schedule", label: "Schedule" },
-      { href: "/staff",          label: "Staff Clock" },
-      { href: "/driver",         label: "Driver App →", external: true },
-      { href: "/operator",       label: "Operator App →", external: true },
-    ],
-  },
-]
+function buildNav(lang: "en" | "es"): NavItem[] {
+  const es = lang === "es"
+  return [
+    {
+      type: "link",
+      href: "/admin/dispatch",
+      label: es ? "Despacho" : "Dispatch",
+    },
+    {
+      type: "link",
+      href: "/admin/search",
+      label: es ? "Buscar" : "Search",
+    },
+    {
+      type: "dropdown",
+      label: es ? "Clientes" : "Customers",
+      items: [
+        { href: "/admin/subscriptions", label: es ? "Suscripciones" : "Subscriptions" },
+        { href: "/admin/plans",         label: es ? "Planes Mensuales" : "Monthly Plans" },
+      ],
+    },
+    {
+      type: "dropdown",
+      label: es ? "Logística" : "Logistics",
+      items: [
+        { href: "/admin/facility",      label: es ? "🏭 Tablero de Instalación" : "🏭 Facility Board" },
+        { href: "/admin/runs",          label: es ? "Transferencias" : "Facility Transfers" },
+        { href: "/admin/routes",        label: es ? "Rutas de Entrega" : "Delivery Routes" },
+        { href: "/admin/routing",       label: es ? "Optimizador de Rutas" : "Route Optimizer" },
+        { href: "/admin/facilities",    label: es ? "Instalaciones" : "Facilities" },
+        { href: "/admin/zip-codes",     label: es ? "Códigos Postales" : "Zip Codes" },
+        { href: "/admin/service-area",  label: es ? "Mapa de Área" : "Area Map" },
+        { href: "/admin/holidays",      label: es ? "Días Festivos" : "Holidays" },
+      ],
+    },
+    {
+      type: "dropdown",
+      label: es ? "Finanzas" : "Finance",
+      items: [
+        { href: "/admin/reports", label: es ? "Reportes" : "Reports" },
+        { href: "/admin/pricing", label: es ? "Precios" : "Pricing" },
+        { href: "/admin/tips",    label: es ? "Propinas" : "Tips" },
+      ],
+    },
+    {
+      type: "dropdown",
+      label: es ? "Contenido" : "Content",
+      items: [
+        { href: "/admin/promos",    label: es ? "Promociones" : "Promotions" },
+        { href: "/admin/images",    label: es ? "Imágenes del Sitio" : "Site Images" },
+        { href: "/admin/templates", label: es ? "Plantillas de Email" : "Email Templates" },
+        { href: "/admin/faq",       label: es ? "Editor de FAQ" : "FAQ Editor" },
+        { href: "/admin/docs",      label: es ? "Docs y FAQ" : "Docs & FAQ" },
+      ],
+    },
+    {
+      type: "link",
+      href: "/admin/settings",
+      label: es ? "Configuración" : "Settings",
+    },
+    {
+      type: "dropdown",
+      label: es ? "Personal" : "Staff",
+      items: [
+        { href: "/admin/workers",  label: es ? "Trabajadores" : "Workers" },
+        { href: "/admin/schedule", label: es ? "Horario" : "Schedule" },
+        { href: "/staff",          label: es ? "Reloj del Personal" : "Staff Clock" },
+        { href: "/driver",         label: es ? "App Conductor →" : "Driver App →", external: true },
+        { href: "/operator",       label: es ? "App Operador →" : "Operator App →", external: true },
+      ],
+    },
+  ]
+}
 
 // ── Dropdown component ────────────────────────────────────────────────────────
 
 function Dropdown({ label, items }: { label: string; items: NavLink[] }) {
   return (
     <div className="relative group">
-      {/* Trigger */}
       <button className="flex items-center gap-1 text-white/60 hover:text-white text-sm font-medium transition-colors py-1 whitespace-nowrap">
         {label}
         <ChevronDown className="h-3.5 w-3.5 opacity-60 transition-transform duration-150 group-hover:rotate-180" />
       </button>
-
-      {/* Dropdown panel — pt-2 fills the gap so hover isn't lost */}
       <div className="absolute top-full left-0 pt-2 hidden group-hover:block z-50">
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 min-w-[170px] overflow-hidden">
           {items.map((item) => (
@@ -115,7 +116,10 @@ function Dropdown({ label, items }: { label: string; items: NavLink[] }) {
 
 // ── Header ────────────────────────────────────────────────────────────────────
 
-export function AdminHeader() {
+export async function AdminHeader() {
+  const lang = await getAdminLang()
+  const navItems = buildNav(lang)
+
   return (
     <header className="bg-[#0D2240] px-6 py-0 flex items-stretch min-h-[52px]">
       {/* Logo */}
@@ -139,7 +143,7 @@ export function AdminHeader() {
 
       {/* Nav */}
       <nav className="flex items-center gap-5 flex-1 flex-wrap">
-        {NAV_ITEMS.map((item, i) =>
+        {navItems.map((item, i) =>
           item.type === "link" ? (
             <a
               key={i}
@@ -156,7 +160,7 @@ export function AdminHeader() {
 
       {/* Language toggle */}
       <div className="flex items-center px-3 shrink-0">
-        <AdminLangToggle />
+        <AdminLangToggle lang={lang} />
       </div>
 
       {/* Sign out */}

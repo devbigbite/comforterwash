@@ -5,10 +5,26 @@ import PhotoUploader from "./photo-uploader"
 
 interface Bag { id: string; bag_number: number; label_code: string; status: string }
 
+const COLORS = [
+  { key: "red",     label: "Red",      hex: "#ef4444" },
+  { key: "blue",    label: "Blue",     hex: "#3b82f6" },
+  { key: "sky",     label: "Sky Blue", hex: "#38bdf8" },
+  { key: "green",   label: "Green",    hex: "#22c55e" },
+  { key: "lime",    label: "Lime",     hex: "#84cc16" },
+  { key: "pink",    label: "Pink",     hex: "#f472b6" },
+  { key: "hotpink", label: "Hot Pink", hex: "#ec4899" },
+  { key: "orange",  label: "Orange",   hex: "#f97316" },
+  { key: "yellow",  label: "Yellow",   hex: "#eab308" },
+  { key: "purple",  label: "Purple",   hex: "#a855f7" },
+]
+
 interface Props {
   bookingId: string
   bags: Bag[]
   estimatedLbs: number
+  takenColors?: string[]
+  existingColorKey?: string | null
+  dropoffLocation?: "warehouse" | "facility"
   allPending: boolean
   allPickedUp: boolean
   somePickedUp: boolean
@@ -38,6 +54,8 @@ function PhotoRequired({ taken, error }: { taken: boolean; error: boolean }) {
 
 export default function DriverOrderClient({
   bookingId, bags, estimatedLbs,
+  takenColors = [], existingColorKey,
+  dropoffLocation = "warehouse",
   allPending, allPickedUp, somePickedUp,
   allAtWarehouse, allAtFacility,
   allReady, allReadyAtWarehouse,
@@ -49,10 +67,12 @@ export default function DriverOrderClient({
   const isPickupDay   = pickupDate  === today
   const isDeliveryDay = deliveryDate === today
 
-  const [driverName, setDriverName]       = useState("")
-  const [nameError, setNameError]         = useState(false)
-  const [submitting, setSubmitting]       = useState<string | null>(null)
+  const [driverName, setDriverName]         = useState("")
+  const [nameError, setNameError]           = useState(false)
+  const [submitting, setSubmitting]         = useState<string | null>(null)
   const [actualBagCount, setActualBagCount] = useState(bags.length)
+  const [selectedColor, setSelectedColor]   = useState<string>(existingColorKey ?? "")
+  const [colorError, setColorError]         = useState(false)
 
   // Per-bag weights for dropoff
   const [bagWeights, setBagWeights]   = useState<string[]>(() => bags.map(() => ""))
@@ -60,10 +80,13 @@ export default function DriverOrderClient({
   const allSlotsWeighed = bagWeights.length > 0 && bagWeights.every(w => parseFloat(w) > 0)
 
   // Photo checkpoints
+  const [weightError, setWeightError] = useState(false)
+
   const [hasCustomerPickupPhoto,   setHasCustomerPickupPhoto]   = useState(false)
   const [customerPickupPhotoErr,   setCustomerPickupPhotoErr]   = useState(false)
   const [hasWarehouseDropoffPhoto, setHasWarehouseDropoffPhoto] = useState(false)
   const [warehouseDropoffPhotoErr, setWarehouseDropoffPhotoErr] = useState(false)
+  const [floorPhotoUrl,            setFloorPhotoUrl]            = useState<string | null>(null)
   const [hasWarehousePickupPhoto,  setHasWarehousePickupPhoto]  = useState(false)
   const [warehousePickupPhotoErr,  setWarehousePickupPhotoErr]  = useState(false)
   const [hasDeliveryPhoto,         setHasDeliveryPhoto]         = useState(false)
@@ -94,25 +117,31 @@ export default function DriverOrderClient({
   async function handlePickup() {
     let valid = requireName()
     if (!hasCustomerPickupPhoto) { setCustomerPickupPhotoErr(true); valid = false }
+    if (!selectedColor) { setColorError(true); valid = false }
     if (!valid) return
     setSubmitting("pickup")
     const fd = new FormData()
     fd.append("bookingId",      bookingId)
     fd.append("driverName",     driverName.trim())
     fd.append("actualBagCount", String(actualBagCount))
+    fd.append("colorKey",       selectedColor)
     await confirmPickup(fd)
     setSubmitting(null)
   }
 
   async function handleDropoff(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!requireName()) return
-    if (!hasWarehouseDropoffPhoto) { setWarehouseDropoffPhotoErr(true); return }
-    if (!allSlotsWeighed || totalWeight <= 0) return
+    let valid = requireName()
+    if (!hasWarehouseDropoffPhoto) { setWarehouseDropoffPhotoErr(true); valid = false }
+    if (!allSlotsWeighed || totalWeight <= 0) { setWeightError(true); valid = false }
+    if (!valid) return
+    setWeightError(false)
     setSubmitting("dropoff")
     const fd = new FormData(e.currentTarget)
-    fd.set("driverName", driverName.trim())
-    fd.set("weightLbs",  totalWeight.toFixed(1))
+    fd.set("driverName",       driverName.trim())
+    fd.set("weightLbs",        totalWeight.toFixed(1))
+    fd.set("dropoffLocation",  dropoffLocation)
+    if (floorPhotoUrl) fd.set("floorPhotoUrl", floorPhotoUrl)
     await confirmDropoff(fd)
     setSubmitting(null)
   }
@@ -217,6 +246,42 @@ export default function DriverOrderClient({
                   <PhotoRequired taken={hasCustomerPickupPhoto} error={customerPickupPhotoErr} />
                 </div>
 
+                {/* Color key — pre-assigned, driver just matches */}
+                {(() => {
+                  const color = COLORS.find(c => c.key === selectedColor)
+                  if (!color) return (
+                    <div className="rounded-xl p-4 border-2 border-red-400 bg-red-50">
+                      <p className="text-xs font-bold text-red-600 uppercase tracking-wide">⚠ No color assigned</p>
+                      <p className="text-xs text-red-500 mt-1">Contact dispatch — this order has no color key assigned.</p>
+                    </div>
+                  )
+                  return (
+                    <div className="rounded-xl overflow-hidden border-2 border-gray-200">
+                      {/* Header */}
+                      <div className="px-4 pt-4 pb-3" style={{ background: color.hex + "18" }}>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Color Key Sticker</p>
+                        {/* Big swatch + label */}
+                        <div className="flex items-center gap-4">
+                          <span className="w-16 h-16 rounded-2xl shadow-md ring-4 ring-white shrink-0"
+                            style={{ background: color.hex }} />
+                          <div>
+                            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Use the</p>
+                            <p className="font-black text-[#0D2240] leading-none" style={{ fontSize: "clamp(1.6rem, 7vw, 2.2rem)" }}>
+                              {color.label.toUpperCase()}
+                            </p>
+                            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">sticker</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 px-4 py-2.5 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">
+                          Apply <span className="font-bold" style={{ color: color.hex }}>{color.label}</span> stickers to all {bags.length} bag{bags.length !== 1 ? "s" : ""} in this order. Each order uses a unique color.
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 {/* Bag count confirmation */}
                 <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
                   <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-3">
@@ -253,27 +318,46 @@ export default function DriverOrderClient({
               </div>
             )}
 
-            {/* Step 2: Weigh + drop at warehouse */}
-            {(allPickedUp || somePickedUp) && !allAtWarehouse && (
+            {/* Step 2: Weigh + drop */}
+            {(allPickedUp || somePickedUp) && !allAtWarehouse && !allAtFacility && (
               <form onSubmit={handleDropoff} className="space-y-4">
                 <div>
-                  <p className="text-sm font-extrabold text-[#0D2240] mb-0.5">Step 2 — Weigh &amp; drop at warehouse</p>
-                  <p className="text-xs text-gray-500">Weigh each bag at the warehouse scale, take a photo, then confirm.</p>
+                  <p className="text-sm font-extrabold text-[#0D2240] mb-0.5">
+                    Step 2 — Weigh &amp; drop at {dropoffLocation === "facility" ? "facility" : "warehouse"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Weigh each bag, take a photo showing where you placed them, then confirm. <span className="font-bold text-[#E8726A]">Weighing is required.</span>
+                  </p>
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
-                  <span className="text-lg shrink-0">🏪</span>
+                <div className={`rounded-xl px-4 py-3 flex items-start gap-2 ${dropoffLocation === "facility" ? "bg-purple-50 border border-purple-200" : "bg-amber-50 border border-amber-200"}`}>
+                  <span className="text-lg shrink-0">{dropoffLocation === "facility" ? "🏭" : "🏪"}</span>
                   <div>
-                    <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">Drop-off: WashFold Warehouse</p>
-                    <p className="text-xs text-amber-700 mt-0.5">Leave bags here — a transport run will move them to the laundry facility.</p>
+                    <p className={`text-xs font-bold uppercase tracking-wide ${dropoffLocation === "facility" ? "text-purple-800" : "text-amber-800"}`}>
+                      Drop-off: {dropoffLocation === "facility" ? "Laundry Facility" : "WashFold Warehouse"}
+                    </p>
+                    <p className={`text-xs mt-0.5 ${dropoffLocation === "facility" ? "text-purple-700" : "text-amber-700"}`}>
+                      {dropoffLocation === "facility"
+                        ? "Leave bags at the facility — processing starts here."
+                        : "Leave bags here — a transport run will move them to the laundry facility."}
+                    </p>
                   </div>
                 </div>
 
+                {/* Floor photo — internal only */}
                 <div className={`rounded-xl overflow-hidden border-2 ${warehouseDropoffPhotoErr ? "border-red-400" : hasWarehouseDropoffPhoto ? "border-green-400" : "border-gray-200"}`}>
                   <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
-                    eventType="photo_facility_dropoff" label="📷 Photo at Warehouse"
-                    onPhotoUploaded={() => { setHasWarehouseDropoffPhoto(true); setWarehouseDropoffPhotoErr(false) }} />
+                    eventType="photo_facility_dropoff"
+                    label={`📷 Photo — where you placed the bags (internal)`}
+                    onPhotoUploaded={(url?: string) => {
+                      setHasWarehouseDropoffPhoto(true)
+                      setWarehouseDropoffPhotoErr(false)
+                      if (url) setFloorPhotoUrl(url)
+                    }} />
                   <PhotoRequired taken={hasWarehouseDropoffPhoto} error={warehouseDropoffPhotoErr} />
+                  {hasWarehouseDropoffPhoto && (
+                    <p className="text-[10px] text-gray-400 px-3 pb-2">🔒 Internal only — not visible to customer</p>
+                  )}
                 </div>
 
                 <div>
@@ -314,11 +398,18 @@ export default function DriverOrderClient({
                   </div>
                   <input type="hidden" name="bookingId" value={bookingId} />
                   <input type="hidden" name="weightLbs" value={totalWeight.toFixed(1)} />
+                  {weightError && (
+                    <p className="text-red-500 text-xs font-semibold mt-2">⚠ Enter weight for all bags before confirming — weighing is required</p>
+                  )}
                 </div>
 
-                <button type="submit" disabled={submitting === "dropoff" || !allSlotsWeighed || totalWeight <= 0}
+                <button type="submit" disabled={submitting === "dropoff"}
                   className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-extrabold py-4 rounded-2xl text-base transition-colors">
-                  {submitting === "dropoff" ? "Saving…" : `🏪 Confirm Warehouse Drop-off · ${totalWeight > 0 ? totalWeight.toFixed(1) + " lbs" : "enter weights"}`}
+                  {submitting === "dropoff"
+                    ? "Saving…"
+                    : dropoffLocation === "facility"
+                      ? `🏭 Confirm Facility Drop-off · ${totalWeight > 0 ? totalWeight.toFixed(1) + " lbs" : "enter weights"}`
+                      : `🏪 Confirm Warehouse Drop-off · ${totalWeight > 0 ? totalWeight.toFixed(1) + " lbs" : "enter weights"}`}
                 </button>
               </form>
             )}
@@ -405,25 +496,4 @@ export default function DriverOrderClient({
                 <div className={`rounded-xl overflow-hidden border-2 ${deliveryPhotoErr ? "border-red-400" : hasDeliveryPhoto ? "border-green-400" : "border-gray-200"}`}>
                   <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
                     eventType="photo_customer_delivery" label="📷 Photo at Customer — Delivery"
-                    onPhotoUploaded={() => { setHasDeliveryPhoto(true); setDeliveryPhotoErr(false) }} />
-                  <PhotoRequired taken={hasDeliveryPhoto} error={deliveryPhotoErr} />
-                </div>
-                <button onClick={handleDelivered} disabled={submitting === "delivered"}
-                  className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-extrabold py-4 rounded-2xl text-base transition-colors">
-                  {submitting === "delivered" ? "Confirming…" : "🎉 Confirm Delivered to Customer"}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {allDone && (
-        <div className="bg-green-50 border-2 border-green-300 rounded-2xl p-6 text-center">
-          <p className="text-green-700 font-extrabold text-xl">🎉 Order Complete</p>
-          <p className="text-green-600 text-sm mt-1">All bags delivered successfully.</p>
-        </div>
-      )}
-    </div>
-  )
-}
+                    

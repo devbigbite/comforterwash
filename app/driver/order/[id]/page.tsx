@@ -40,6 +40,7 @@ async function confirmPickup(formData: FormData) {
   const bookingId      = formData.get("bookingId") as string
   const driverName     = (formData.get("driverName") as string) || "driver"
   const actualBagCount = parseInt(formData.get("actualBagCount") as string, 10)
+  const colorKey       = (formData.get("colorKey") as string) || null
   const supabase       = createAdminClient()
 
   // Fetch existing bags so we can reconcile the count
@@ -87,26 +88,26 @@ async function confirmPickup(formData: FormData) {
   })
 
   await supabase.from("bookings").update({
-    status:   "picked_up",
-    num_bags: isNaN(actualBagCount) ? bookedCount : actualBagCount,
+    status:    "picked_up",
+    num_bags:  isNaN(actualBagCount) ? bookedCount : actualBagCount,
+    ...(colorKey ? { color_key: colorKey } : {}),
   }).eq("id", bookingId)
 
   revalidatePath(`/driver/order/${bookingId}`)
 }
 
-// ── Batch: drop-off at WAREHOUSE + weight entry ───────────────────────────────
-// Driver weighs and drops bags at the static warehouse.
-// Facility assignment happens later when a transport run is executed.
+// ── Batch: drop-off at WAREHOUSE or FACILITY + weight entry ──────────────────
 async function confirmDropoff(formData: FormData) {
   "use server"
-  const bookingId  = formData.get("bookingId") as string
-  const weightLbs  = parseFloat(formData.get("weightLbs") as string)
-  const driverName = (formData.get("driverName") as string) || "driver"
+  const bookingId       = formData.get("bookingId") as string
+  const weightLbs       = parseFloat(formData.get("weightLbs") as string)
+  const driverName      = (formData.get("driverName") as string) || "driver"
+  const dropoffLocation = (formData.get("dropoffLocation") as string) || "warehouse"
+  const floorPhotoUrl   = (formData.get("floorPhotoUrl") as string) || null
   if (isNaN(weightLbs) || weightLbs <= 0) return
 
   const supabase = createAdminClient()
 
-  // Look up booking to get locked-in rate for customer billing
   const { data: bk } = await supabase
     .from("bookings")
     .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents")
@@ -117,39 +118,49 @@ async function confirmDropoff(formData: FormData) {
     ?? DEFAULT_RATE_CENTS[bk?.service_type ?? "wash_fold"]
     ?? 250
 
-  // Calculate customer billing (facility cost calculated later when facility is assigned)
   const customerChargeLbs  = Math.max(weightLbs, CUSTOMER_MIN_LBS)
   const customerFinalCents = customerChargeLbs * ratePerLbCents
 
-  // Update booking — status at_warehouse, weight + billing locked in
+  const newStatus     = dropoffLocation === "facility" ? "at_facility" : "at_warehouse"
+  const eventType     = dropoffLocation === "facility" ? "dropped_at_facility" : "dropped_at_warehouse"
+  const locationLabel = dropoffLocation === "facility" ? "facility" : "warehouse"
+
   await supabase.from("bookings").update({
-    actual_weight_lbs:    weightLbs,
-    customer_final_cents: customerFinalCents,
-    weight_entered_by:    driverName,
-    weight_entered_at:    new Date().toISOString(),
-    status:               "at_warehouse",
-    // Note: assigned_facility_id set later by transport run
+    actual_weight_lbs:      weightLbs,
+    customer_final_cents:   customerFinalCents,
+    weight_entered_by:      driverName,
+    weight_entered_at:      new Date().toISOString(),
+    status:                 newStatus,
+    ...(floorPhotoUrl ? { facility_floor_photo_url: floorPhotoUrl } : {}),
   }).eq("id", bookingId)
 
-  // Advance all picked_up bags to at_warehouse
-  await supabase.from("order_bags").update({ status: "at_warehouse" })
+  await supabase.from("order_bags").update({ status: newStatus })
     .eq("booking_id", bookingId).eq("status", "picked_up")
 
-  // Event log
   await supabase.from("order_events").insert({
-    booking_id:  bookingId,
-    event_type:  "dropped_at_warehouse",
-    notes:       `Weight: ${weightLbs} lbs · Customer billed: ${customerChargeLbs} lbs ($${(customerFinalCents / 100).toFixed(2)})`,
-    created_by:  driverName,
+    booking_id: bookingId,
+    event_type: eventType,
+    notes:      `Weight: ${weightLbs} lbs · Customer billed: ${customerChargeLbs} lbs ($${(customerFinalCents / 100).toFixed(2)}) · Dropped at ${locationLabel}`,
+    created_by: driverName,
   })
 
-  // Trigger Stripe capture for wash-fold — we have the weight, capture now
+  // Internal-only floor photo (excluded from customer-visible events)
+  if (floorPhotoUrl) {
+    await supabase.from("order_events").insert({
+      booking_id: bookingId,
+      event_type: "photo_facility_dropoff",
+      photo_url:  floorPhotoUrl,
+      notes:      `[Internal] Bags placed at ${locationLabel} — location photo`,
+      created_by: driverName,
+    })
+  }
+
   try {
     if (bk?.service_type === "wash_fold" && bk.stripe_payment_intent_id && bk.pre_auth_cents) {
       await capturePayment(bookingId)
     }
   } catch (err) {
-    console.error("[stripe] Capture failed after warehouse dropoff:", err)
+    console.error("[stripe] Capture failed after dropoff:", err)
   }
 
   revalidatePath(`/driver/order/${bookingId}`)
@@ -218,6 +229,15 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
 
   const { data: bags } = await supabase.from("order_bags").select("*").eq("booking_id", id).order("bag_number")
 
+  // Colors already claimed by other orders on the same pickup date — used to warn driver of conflicts
+  const { data: sameDay } = await supabase
+    .from("bookings")
+    .select("color_key")
+    .eq("pickup_date", booking.pickup_date)
+    .neq("id", id)
+    .not("color_key", "is", null)
+  const takenColors = (sameDay ?? []).map(b => b.color_key as string).filter(Boolean)
+
   const orderCode         = booking.short_code ?? booking.id.slice(0, 6).toUpperCase()
   const allStatuses       = bags?.map(b => b.status) ?? []
   const allPending        = allStatuses.every(s => s === "pending")
@@ -269,6 +289,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
           customerName={booking.customer_name}
           customerAddress={booking.customer_address ?? ""}
           bags={(bags ?? []).map(b => ({ id: b.id, bag_number: b.bag_number, label_code: b.label_code }))}
+          colorKey={booking.color_key ?? null}
         />
 
         {/* Order at a glance */}
@@ -419,6 +440,9 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
           bookingId={booking.id}
           bags={bags ?? []}
           estimatedLbs={estimatedLbs}
+          takenColors={takenColors}
+          existingColorKey={booking.color_key ?? null}
+          dropoffLocation={(booking.assigned_facility_id ? "facility" : "warehouse") as "warehouse" | "facility"}
           allPending={allPending}
           allPickedUp={allPickedUp}
           somePickedUp={somePickedUp}
@@ -448,20 +472,4 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-bold text-[#0D2240] font-mono text-sm">B{bag.bag_number}</span>
                     <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_COLOR[bag.status] ?? "bg-gray-100 text-gray-400"}`}>
-                      {STATUS_LABEL[bag.status] ?? bag.status}
-                    </span>
-                  </div>
-                  <div className="flex gap-0.5">
-                    {ALL_STATUSES.map((_, i) => (
-                      <div key={i} className={`flex-1 h-1 rounded-full ${i <= idx ? "bg-[#E8726A]" : "bg-gray-100"}`} />
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+                     

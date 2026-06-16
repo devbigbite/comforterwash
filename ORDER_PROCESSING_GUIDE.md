@@ -102,11 +102,11 @@ Go to the full order detail: click **View order** on the card, or go to `/admin/
 
 From the order detail page:
 - Review service details, address, dates
-- Change status from **Pending → Confirmed** — this sends the customer a confirmation notification
-- Verify the address is in a covered zip code
-- Verify pickup/delivery dates align with an active route
+- **Verify the address is in a covered zip code** — check against the active service area at `/admin/zip-codes`
+- **Verify pickup/delivery dates align with an active route** — confirm both dates fall on Mon, Wed, or Fri with the 9:00 AM – 3:00 PM window
+- Once both checks pass, change status from **Pending → Confirmed** — this sends the customer a confirmation notification
 
-> If the address or dates look wrong, you can edit from this page or contact the customer.
+> If the address or dates look wrong, you can edit from this page or contact the customer before confirming.
 
 ---
 
@@ -132,21 +132,24 @@ Once in Shipday, the order will appear in the driver's Shipday app as a stop on 
 **Who does it:** Admin  
 **Where:** `/admin/dispatch` — directly on each order card
 
+> **You can do this step ahead of time.** Driver assignment does not require the driver to be clocked in or available at that moment. It is common to pre-plan and assign all orders the day before a route runs.
+
 Once the order is in Shipday (green badge), you can assign a specific driver:
 
 1. Find the order card on the Dispatch Board
-2. In the bottom action bar of the card, type the **driver's email address** into the "driver@email.com" field
+2. In the bottom action bar of the card, select a driver from the **dropdown** — it lists all active (hired) drivers by name
 3. Click **Assign**
 4. A confirmation toast ("Driver assigned") confirms it went through
-5. The driver will now see this stop in their Shipday app
+5. The driver will see this stop in their Shipday app when they open it on route day
 
-> The driver's email must match their account in Shipday. If assignment fails with a note about "carrier may not exist," the driver is not yet registered in Shipday — contact them to complete setup.
+> If the driver does not appear in the dropdown, they may not yet be approved in the system. Go to `/admin/workers` → Pending tab → Approve them first.  
+> If assignment fails with a note about "carrier may not exist," the driver is approved in WashFold but not yet registered in Shipday — contact them to complete their Shipday setup.
 
 **Assigning multiple orders to the same driver:**  
-Repeat the process for each order card. All orders assigned to the same driver email will be grouped into one route in Shipday.
+Repeat the process for each order card. All orders assigned to the same driver will be grouped into one route in Shipday.
 
 **Changing a driver after assignment:**  
-Type a different email and hit Assign again. This overwrites the previous assignment in Shipday.
+Select a different driver from the dropdown and hit Assign again. This overwrites the previous assignment in Shipday.
 
 ---
 
@@ -155,16 +158,16 @@ Type a different email and hit Assign again. This overwrites the previous assign
 If a driver calls out, is late, or is unavailable for their shift:
 
 ### Option A — Reassign to a Different Driver
-On each of their order cards on the Dispatch Board, type the replacement driver's email and click **Assign**. This instantly redirects the stops in Shipday to the new driver.
+On each of their order cards on the Dispatch Board, select the replacement driver from the dropdown and click **Assign**. This instantly redirects the stops in Shipday to the new driver.
 
 ### Option B — Reschedule the Orders
-If no coverage is available for the time window:
+If no coverage is available:
 1. On each order card, click **Reschedule...**
 2. A popover appears — change the date and/or time window
 3. Click **Update + Shipday** — this updates the booking AND updates Shipday simultaneously
 4. WashFold notifies the customer of the date change
 
-> Pick a date that has an active route in the same area. Check `/admin/routes` if unsure which days cover which zip codes.
+> Reschedule to the next available route day — pickups and deliveries only run **Monday, Wednesday, and Friday**, 9:00 AM – 3:00 PM.
 
 ### Option C — Remove from Routing Temporarily
 If you need to hold an order while figuring out coverage:
@@ -182,37 +185,46 @@ Go to `/admin/schedule` → **Right Now** tab — shows everyone who is clocked 
 **Who does it:** Driver  
 **Where:** `/driver` — enter PIN → see today's assigned stops
 
-On pickup day, the driver:
-1. Opens the Driver App (`/driver`), enters their 4-digit PIN
-2. Sees their assigned pickups for the day, each with customer name, address, time window
-3. Navigates to each address (app links to maps)
-4. At the customer's door, collects all laundry bags
-5. In the app, opens the order → marks it **Picked Up**
-   - System status moves to `picked_up`
-   - Event logged with timestamp
-6. Continues to next stop
+On pickup day, the driver opens the Driver App (`/driver`), enters their 4-digit PIN, and sees all assigned pickups for the day with customer name, address, and time window.
 
-> If a customer is not home or can't be reached, the driver should note it in the app. Admin can then contact the customer and reschedule.
+**At each stop, the driver follows this sequence:**
+
+1. **Navigate to the address** — the app links directly to maps
+2. **Locate the bags** — find where the customer left them (door, porch, etc.)
+3. **Verify bag count** — compare what is physically there against what the customer noted in the order. If the count differs, adjust the number in the app before confirming. This is recorded automatically
+4. **Check the assigned color key** — the app displays a pre-assigned color for this order (e.g., "Use the BLUE sticker"). The system automatically assigns a unique color per order for that day — no manual selection needed
+5. **Create the labels** — write the order code and bag number on the assigned-color sticker for each bag (e.g., `WF004 · B1`, `WF004 · B2`). The app shows the label reference in large text — tap **Full** to expand it bag by bag, including the color reminder
+6. **Apply stickers** — place each sticker visibly on the outside of the correct bag
+7. **Take a photo** — photograph all bags with stickers clearly visible. This is **required** — the app blocks confirmation without it. The photo is saved to the customer's order record
+8. **Load the vehicle** — keep all bags for the same order together
+9. **Confirm Pickup** in the app — status moves to `picked_up`, the customer receives an SMS notification, and the driver proceeds to the next stop
+
+> If a customer is not home or the bags are not out, note it in the app and contact admin. Admin will reach out to the customer and reschedule.
+
+> **Color key rule:** The system pre-assigns a unique color per order at booking time, cycling through 10 colors (Red, Blue, Sky Blue, Green, Lime, Pink, Hot Pink, Orange, Yellow, Purple) to avoid duplicates on the same pickup day. The driver simply matches the sticker to the color shown — no decision needed.
 
 ---
 
-## STEP 7 — Driver Drops Off at the Facility (Warehouse Transfer)
+## STEP 7 — Driver Drops Off at Warehouse or Facility
 
 **Who does it:** Driver  
 **Where:** Driver App → order detail
 
-After completing all pickups, the driver brings the bags to the facility/warehouse:
+After completing all pickups, the driver brings the bags to the drop-off point indicated in the app (warehouse or facility, depending on the route).
 
-1. Driver arrives at the facility
-2. For each order, opens the order in the app
-3. Optionally enters bag weight (used for pricing adjustments)
-4. Marks the order as **Dropped at Warehouse** / advances to in-transit
-   - System status moves to `in_progress`
-   - Phase is set to `intake` — the order now appears on the Facility Board
+**At the drop-off point, the driver follows this sequence:**
+
+1. **Arrive at the drop-off location** — the app shows whether this order goes to the **Warehouse** or directly to the **Facility**
+2. **Place the bags** — set them in the designated area, keeping each order's bags together (use color key to identify)
+3. **Weigh each bag** — enter the weight per bag on the scale. **This is required** — the app will not allow confirmation without weights entered for all bags. Weight locks in final customer billing
+4. **Take a location photo** — photograph the bags in the spot where you placed them (e.g., intake shelf, floor area). This photo is **internal only** — it is not visible to the customer, but is recorded for operational control
+5. **Confirm Drop-off** — tap **Confirm Warehouse Drop-off** (or **Confirm Facility Drop-off**). Status moves to `at_warehouse` or `at_facility`. The order now appears on the Facility Board for the operator
 
 At this point, **the order is in the operator's hands**.
 
-> The Facility Board at `/admin/facility` will now show the order in the **Intake** column.
+> The Facility Board at `/admin/facility` will show the order in the **Intake** column once dropped.
+
+> **Warehouse vs. Facility:** Most routes currently go through the WashFold Warehouse first, then a transport run moves bags to the laundry facility. If a route drops directly at the facility, the app will show "Facility" as the drop-off destination.
 
 ---
 
@@ -222,194 +234,148 @@ At this point, **the order is in the operator's hands**.
 **Where:** `/operator` (Operator App) — enter PIN  
 **Also visible to Admin at:** `/admin/facility`
 
-The Facility Board shows all active orders in columns by phase. The operator physically moves laundry through the facility, and advances each order in the app to match.
+The Facility Board shows all active orders in columns by phase. The operator physically moves laundry through the facility and advances each order in the app to match.
 
-### Phase Sequence
-
-| Phase | What Physically Happens | How to Advance |
-|---|---|---|
-| 📥 **Intake** | Order received, verified, count checked | Operator opens card → Advance |
-| 🫧 **Washing** | Bags loaded into washers | Operator opens card → Advance |
-| 💨 **Drying** | Transfer to dryers | Operator opens card → Advance |
-| 👕 **Folding** | Items folded, counted, rebagged | Operator opens card → Advance |
-
-**To advance a phase:**
-1. Open the order card on the Facility Board
-2. Review details (customer name, service type, bag count)
-3. Tap the **Advance → [Next Phase]** button at the bottom of the drawer
-4. Phase moves forward — card moves to the next column
-
-**Same-color warning:** The board will show a ⚠️ warning if two adjacent orders in the same phase column have the same color key assigned. This means the stickers would be confusing side-by-side. The operator should reassign one order's color key to resolve the conflict before advancing.
+**To advance a phase:** open the order card on the Facility Board → review details → tap **Advance → [Next Phase]** at the bottom of the drawer → card moves to the next column.
 
 ---
 
-## STEP 9 — Finishing: Color Key, Bag Count, and Floor Photo
+### 📥 Phase 1 — Intake
+
+1. Receive the bags from the driver drop-off
+2. Locate the order on the Facility Board — find it by **order code** and **color key sticker** on the bags
+3. Verify the **bag count** matches what is recorded in the app. If there is a discrepancy, note it before advancing
+4. Confirm the **color key sticker** is visible and legible on each bag — this is how the order is tracked throughout the facility
+5. Advance the order to **Washing** in the app
+
+---
+
+### 🫧 Phase 2 — Washing
+
+1. Open the bags and load the contents into the washer(s)
+2. **Select and record which washer(s) you are using** in the app — this is required for tracking
+3. Set the appropriate wash cycle for the service type (wash & fold, wash only, etc.)
+4. Start the machines
+5. Advance the order to **Drying** in the app once washing is complete
+
+---
+
+### 💨 Phase 3 — Drying
+
+1. Transfer items from the washer(s) to the dryer(s)
+2. **Select and record which dryer(s) you are using** in the app — required for tracking
+3. Set the appropriate dry cycle
+4. Start the machines
+5. Once dry, **transfer everything into a laundry cart** — do not ball or bunch the items, lay them loosely to avoid wrinkles
+6. **Roll the cart next to the folding table** and advance the order to **Folding** in the app
+
+---
+
+### 👕 Phase 4 — Folding
+
+1. Work from the cart at the folding table
+2. Fold each item individually and **set it aside in a flat stack** — do not bag yet
+3. If the customer sent their clothes in a **reusable fabric laundry bag**, that bag must have been washed in the load — fold it and set it aside with the rest to be included
+4. Continue until all items in the cart are folded and stacked
+5. Before bagging, check for any **inserts** to include: promo cards, thank-you notes, gifts, or any material designated for this customer (see Step 9A)
+6. Once everything is folded, stacked, and inserts are ready, **bag all items together**
+7. Use the original bags (or replacement bags if needed), keeping the order together
+8. Do not seal yet — labeling and the final check happen in Step 9
+
+> Fold everything before bagging. This keeps the workflow clean and avoids re-handling.
+
+---
+
+**Same-color warning:** The board shows a ⚠️ warning if two orders in the same phase column share a color key. The operator should flag this to admin — one order's color sticker may need to be re-labeled to avoid confusion during delivery pickup.
+
+---
+
+## STEP 9 — Finishing: Label, Pack, Count, and Placement Photo
 
 **Who does it:** Operator  
-**When:** After Folding is complete, before marking Ready  
+**When:** After all items are folded and stacked, before closing the bags  
 **This step is MANDATORY for every order**
 
-### A) Assign a Color Key Sticker
+---
 
-1. Open the order card → find the **Color Key** selector (10 colored circles)
-2. Pick a color that is:
-   - Not already used by an adjacent order in the same column (⚠️ warning shows if conflict)
-   - Matches one of the 10 physical label roll colors you have in stock: Red, Blue, Sky Blue, Green, Lime, Pink, Hot Pink, Orange, Yellow, Purple
-3. Tap the circle to assign it
-4. Physically apply the matching label sticker to the outside of the bag(s)
+### A) Check for Inserts Before Closing the Bags
 
-> ❌ The system will **block advancing to Ready** if no color key is assigned. This is enforced — there is no workaround.
+Before placing folded clothes into the bag, check if anything needs to go in with them:
 
-### B) Enter Folded Bag Count
+- **Cards, promos, or gifts** — include any promotional card, thank-you note, gift item, or promotional material designated for this customer
+- **Customer's own laundry bag** — if the customer sent their clothes in a reusable fabric laundry bag, that bag must have been washed along with the rest of the load. Fold it and place it **inside the plastic delivery bag** with the clean clothes before sealing
+
+> Do not return an unwashed fabric bag. It came in dirty — it goes back clean.
+
+---
+
+### B) Apply the Color Key Sticker and Label
+
+1. Open the order card in the app — the **assigned color key is displayed** (e.g., "BLUE")
+2. Write the **order number and bag number** on a sticker of that color for each bag — format: `11765-1`, `11765-2`, etc.
+3. **Physically apply the sticker** to the outside of each bag, visibly. One labeled sticker per bag
+
+> The color was pre-assigned by the system at booking time. The same color used at pickup is reused here so the driver and operator can track the order consistently from start to finish.
+
+> ❌ The system will **block advancing to Ready** if no color key is confirmed. This is enforced.
+
+---
+
+### C) Pack and Seal the Bags
+
+1. Place the folded stack into the bag(s)
+2. Include any inserts (cards, promos, gifts, washed fabric bag) — see section A above
+3. **Vacuum the bag** — insert the portable vacuum nozzle and extract excess air until the bag compresses around the clothes
+4. **Tie the bag shut** — knot it securely after vacuuming
+5. Keep all bags for the same order together
+
+> Vacuuming removes excess air and keeps the package compact and clean for delivery.
+
+---
+
+### D) Weigh the Sealed Bags
+
+1. Place the tied, sealed bag(s) on the scale — weigh the complete order (all bags combined)
+2. **Enter the folded weight in the app**
+3. The app will automatically compare this weight against the intake weight recorded when the driver dropped off:
+   - ✅ **Within 4 lbs** — normal, proceed
+   - 🚨 **4 lbs or more difference** — the app raises a **red flag**. Stop and verify before proceeding:
+     - Check that all items from the bag(s) were processed and rebagged
+     - Check the folding area and cart for any items left behind
+     - If items are confirmed missing, note it in the app and notify admin immediately
+     - Admin will contact the customer before the order goes out for delivery
+
+> A weight discrepancy of 4+ lbs likely means something was left behind. This must be resolved before the order is marked Ready.
+
+---
+
+### F) Enter the Folded Bag Count
 
 - In the order drawer, enter how many bags the laundry was packed into after folding
-- This may be different from the original pickup bag count (customer brought 3 bags, but folded it all fits into 2)
-- The driver's app will show a warning if folded count ≠ pickup count, so they know how many bags to look for
-
-### C) Take the Placement Photo
-
-1. Place the finished, labeled bag(s) in their spot on the facility floor (or on the shelf)
-2. In the order drawer, tap the **📷 Take Photo** button
-3. The camera opens — photograph the bags clearly, including the color sticker
-4. Photo is uploaded and saved to the order
-5. This photo appears directly on the driver's screen when they come to collect — they use it to visually locate the bags without guessing
-
-> ❌ The system will **block advancing out of Ready/Staged** if no floor photo exists. Must be done before the order can move further.
+- This may differ from the original pickup count (customer brought 3 bags, folded it fits into 2 — that is normal)
+- The driver's app will show the folded bag count when collecting, so they know exactly how many bags to look for
 
 ---
 
-## STEP 10 — Floor vs. Storage Decision
+### G) Place the Order and Take the Placement Photo
 
-**Who does it:** Operator  
-**When:** Immediately after the order is marked Ready  
-**Where:** Facility Board order drawer
+**If the order stays at the facility (floor holding):**
 
-Every finished order needs a location decision — where does it physically sit until the driver picks it up?
+1. Place the sealed, labeled bag(s) in the floor holding area
+2. In the order drawer, confirm the destination is set to **Hold at Facility** (toggle ON)
+3. Tap the **📷 Take Photo** button — photograph the bags in their spot with the **color key sticker clearly visible**
+4. Photo is saved and appears on the driver's screen when they come to collect
 
-### Option A — Hold at Facility (Floor)
+**If the order is going to off-site storage:**
 
-Toggle the **Hold at Facility** switch **ON**.
+1. Apply the **additional storage marker sticker** alongside the color key sticker on each bag — this is the secondary identifier that tells the driver this bag came from storage
+2. Place the bags in the designated off-storage area
+3. In the order drawer, toggle **Hold at Facility OFF** — this marks the order as going to remote storage
+4. Tap the **📷 Take Photo** button — photograph the bags in their storage spot with **both stickers visible** (color key + storage marker)
+5. Photo is saved to the order
 
-- Order stays in the floor holding area at the facility
-- Driver will come directly to the facility to pick it up
-- **Sticker requirement:** color key sticker only
-- The card will show a 📍 hold pin icon on the board
-
-### Option B — Remote Storage
-
-Toggle the **Hold at Facility** switch **OFF**.
-
-- Order goes to remote/off-site storage
-- Driver must go to the storage location to retrieve it
-- **Sticker requirement:** color key sticker + **second marker sticker** (storage identifier color TBD — apply alongside the color key so the driver can immediately identify this as a storage-bound order)
-- The order drawer will show an amber reminder: *"Second marker sticker required"*
-
-> **Saturday pickups:** Decision pending on whether Saturday pickups automatically go to storage (since Sunday is off) or stay on the floor. Until decided, use your judgment and toggle accordingly.
+> ❌ The system will **block advancing out of Ready** if no placement photo exists. This is enforced regardless of destination (floor or storage).
 
 ---
 
-## STEP 11 — Driver Views Specs and Collects the Order
-
-**Who does it:** Driver  
-**Where:** Driver App → order detail page
-
-When an order reaches **Ready** or **Staged** status, the driver's app shows a **Facility Specs** panel on the order detail page. This panel shows everything the operator set:
-
-| What the driver sees | What it means |
-|---|---|
-| 📍 Floor or 📦 Storage label | Where to go to find this order |
-| Colored circle + color name | Which sticker to look for |
-| Placement photo | Visual reference — use this to locate the exact bags |
-| Folded bag count | How many bags to pick up (⚠️ warning if different from original pickup count) |
-
-**Driver collection steps:**
-1. Arrives at the facility (or storage location, depending on the toggle)
-2. Opens the order in the app — looks at the color circle and placement photo
-3. Finds the correct bags (matching color sticker)
-4. Counts bags — verifies against folded bag count shown in app
-5. Loads bags into vehicle
-6. Marks order as **Out for Delivery** in the app
-   - Phase moves to `out_for_delivery`
-   - Delivery countdown starts
-
----
-
-## STEP 12 — Driver Delivers to the Customer
-
-**Who does it:** Driver  
-**Where:** Driver App
-
-On delivery day:
-
-1. Driver opens the app — sees all deliveries assigned for the day
-2. Navigates to each customer's address
-3. Drops off the bags at the door (or hands to customer)
-4. Marks the order as **Delivered** in the app
-   - Status moves to `delivered`
-   - Customer receives a delivery notification
-   - Order disappears from the active board
-
-> If the customer is not home: leave the bags in a safe spot if authorized, or note in the app and contact admin. Admin can mark the delivery manually from the order detail page if needed.
-
----
-
-## STEP 13 — Admin Closes Out / Follows Up
-
-**Who does it:** Admin  
-**Where:** `/admin/orders` or `/admin/search`
-
-After delivery:
-- Verify the correct status shows as `delivered`
-- Review final amount — if weight was entered at drop-off, confirm the price reflects it
-- Check for any tip recorded
-- Flag any issue orders (damaged items, wrong bag count, customer complaint) for follow-up
-
-If a customer reports a problem:
-- Go to `/admin/search` → search by name, phone, or short code
-- Open the order → review the full event log (every status change is time-stamped)
-- The floor placement photo is on record — can be used to verify what was delivered
-
----
-
-## QUICK REFERENCE — Full Status Flow
-
-```
-Booking placed  →  confirmed  →  picked_up  →  in_progress  →  delivered
-```
-
-## QUICK REFERENCE — Facility Phase Flow
-
-```
-intake → washing → drying → folding → [color key + bag count + photo] → ready → staged → out_for_delivery
-```
-
-## QUICK REFERENCE — Who Does What
-
-| Task | Role | Where |
-|---|---|---|
-| Review & confirm new orders | Admin | `/admin/dispatch` |
-| Assign driver to order | Admin | `/admin/dispatch` — order card |
-| Reschedule an order | Admin | `/admin/dispatch` → Reschedule... |
-| Check who is clocked in | Admin | `/admin/schedule` → Right Now |
-| Add/edit routes | Admin | `/admin/routes` |
-| Approve new workers | Admin | `/admin/workers` → Pending tab |
-| Add worker to schedule | Admin | `/admin/schedule` → Schedule tab |
-| Pick up laundry | Driver | `/driver` |
-| Drop off at facility | Driver | `/driver` |
-| Deliver to customer | Driver | `/driver` |
-| Move order through phases | Operator | `/operator` |
-| Assign color key | Operator | `/operator` (Facility Board) |
-| Take placement photo | Operator | `/operator` (Facility Board) |
-| Set Floor vs Storage | Operator | `/operator` (Facility Board) |
-
-## STAFF APP ACCESS
-
-| App | URL | Login method |
-|---|---|---|
-| Admin | `/admin` | Admin password |
-| Driver | `/driver` | 4-digit PIN |
-| Operator | `/operator` | 4-digit PIN |
-| Staff Clock (in/out) | `/staff` | 4-digit PIN |
-| Test all 3 side-by-side | `/admin/test` | Auto-seeds test workers |
-
-> **PINs are set by admin** at `/admin/workers` → click the worker → set PIN. The worker uses this PIN every time they open their app.
+## STEP 10 — Floor vs. Storage 

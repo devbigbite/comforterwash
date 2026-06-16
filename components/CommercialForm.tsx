@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect, useRef } from "react"
 import { submitCommercialInquiry } from "@/app/actions/commercial-inquiry"
 
 const BUSINESS_TYPES = [
@@ -23,11 +23,17 @@ export function CommercialForm() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedType, setSelectedType] = useState("")
+  const loadedAtRef = useRef<number>(0)
+
+  useEffect(() => {
+    loadedAtRef.current = Date.now()
+  }, [])
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     const formData = new FormData(e.currentTarget)
+    formData.set("_loaded_at", String(loadedAtRef.current))
     startTransition(async () => {
       const result = await submitCommercialInquiry(formData)
       if (result.success) {
@@ -52,6 +58,11 @@ export function CommercialForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Honeypot — hidden from real users, bots fill it in */}
+      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}>
+        <label htmlFor="_company">Company</label>
+        <input id="_company" name="_company" type="text" tabIndex={-1} autoComplete="off" />
+      </div>
       {/* Row 1: Business Name + Owner/Manager */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
