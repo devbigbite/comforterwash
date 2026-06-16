@@ -471,5 +471,20 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
                 <div key={bag.id} className="rounded-xl border border-gray-100 p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-bold text-[#0D2240] font-mono text-sm">B{bag.bag_number}</span>
-                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_COLOR[bag.status] ?? "bg-gray-100 text-gray-400"}`}>
-                     
+                      {STATUS_LABEL[bag.status] ?? bag.status}
+                    </span>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {ALL_STATUSES.map((_, i) => (
+                      <div key={i} className={`flex-1 h-1 rounded-full ${i <= idx ? "bg-[#E8726A]" : "bg-gray-100"}`} />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
