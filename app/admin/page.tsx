@@ -14,6 +14,7 @@ import {
   TruckIcon,
   CheckCircle2,
   ChevronRight,
+  Briefcase,
 } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -145,6 +146,19 @@ export default async function AdminHub() {
       ],
     },
     {
+      id: "commercial",
+      label: "Commercial Sales",
+      description: "Pitch templates, prospect pipeline, and proposal generation for commercial accounts.",
+      color: "#0f766e",
+      bg: "#f0fdfa",
+      icon: <Briefcase className="h-7 w-7" style={{ color: "#0f766e" }} />,
+      primaryHref: "/super-admin/outreach",
+      links: [
+        { label: "Pitch Templates", href: "/super-admin/outreach" },
+        { label: "Pipeline", href: "/super-admin/outreach?tab=pipeline" },
+      ],
+    },
+    {
       id: "settings",
       label: "Settings",
       description: "Platform configuration, legal docs, and system settings.",
@@ -253,6 +267,7 @@ export default async function AdminHub() {
               { label: "Promotions", href: "/admin/promos", icon: "🎟️" },
               { label: "Workers", href: "/admin/workers", icon: "👷" },
               { label: "Route Optimizer", href: "/admin/routing", icon: "🗺️" },
+              { label: "Commercial Sales", href: "/super-admin/outreach", icon: "💼" },
               { label: "Settings", href: "/admin/settings", icon: "⚙️" },
             ].map((item) => (
               <a
