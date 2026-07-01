@@ -20,6 +20,11 @@ function buildNav(lang: "en" | "es"): NavItem[] {
     },
     {
       type: "link",
+      href: "/admin/orders",
+      label: es ? "Órdenes" : "Orders",
+    },
+    {
+      type: "link",
       href: "/admin/search",
       label: es ? "Buscar" : "Search",
     },
@@ -170,10 +175,4 @@ export async function AdminHeader() {
             type="submit"
             className="flex items-center gap-1.5 text-white/40 hover:text-white text-sm transition-colors"
           >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </form>
-      </div>
-    </header>
-  )
-}
+         
