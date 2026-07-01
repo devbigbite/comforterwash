@@ -4,8 +4,9 @@ import { useState } from "react"
 import Link from "next/link"
 import {
   PitchTemplate, ServiceItem, ValueProp, PricingRow,
-  updatePitchTemplate, SEGMENT_LABELS,
-} from "@/app/actions/outreach"
+  SEGMENT_LABELS,
+} from "@/app/actions/outreach-types"
+import { updatePitchTemplate } from "@/app/actions/outreach"
 
 export default function PitchEditorClient({ template: initial }: { template: PitchTemplate }) {
   const [t, setT] = useState(initial)
@@ -287,8 +288,4 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
-      {children}
-    </div>
-  )
-}
+      <label className="block text-xs font-medium text-slate-500 mb-1">{lab
