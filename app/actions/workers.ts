@@ -244,6 +244,7 @@ export async function deleteWorkerDocument(documentId: string, workerId: string)
   revalidatePath(`/admin/workers/${workerId}`)
 }
 
+
 // ── Create worker manually (admin) ───────────────────────────────────────────
 export async function createWorkerManually(formData: FormData) {
   await requireAdmin()
@@ -271,4 +272,33 @@ export async function createWorkerManually(formData: FormData) {
     return { error: error.message }
   }
 
-  revalidatePath("/admin/wor
+  revalidatePath("/admin/workers")
+  return { success: true }
+}
+
+// ── Worker Mileage Reports ────────────────────────────────────────────────────
+export async function addMileageReport(formData: FormData) {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+
+  const { error } = await supabase.from("worker_mileage_reports").insert({
+    worker_id:   formData.get("worker_id") as string,
+    location_id: locationId,
+    report_date: formData.get("report_date") as string,
+    description: formData.get("description") as string,
+    miles:       parseFloat(formData.get("miles") as string || "0"),
+    notes:       (formData.get("notes") as string) || null,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath(`/admin/workers/${formData.get("worker_id")}`)
+  return { success: true }
+}
+
+export async function deleteMileageReport(reportId: string, workerId: string) {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  await supabase.from("worker_mileage_reports").delete().eq("id", reportId)
+  revalidatePath(`/admin/workers/${workerId}`)
+}
