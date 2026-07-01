@@ -369,12 +369,6 @@ export default function OperatorHome() {
             {lookupLoading ? t("looking_up") : t("find_order_btn")}
           </button>
 
-          <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
-            <span className="text-sm mt-0.5">📷</span>
-            <p className="text-[11px] text-gray-400 leading-relaxed">
-              <strong className="text-gray-500">Using a barcode scanner?</strong> It will auto-fill the number and submit.
-            </p>
-          </div>
         </div>
 
         <div className="text-center space-y-2">
