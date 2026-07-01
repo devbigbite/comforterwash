@@ -249,14 +249,13 @@ export async function deleteWorkerDocument(documentId: string, workerId: string)
 export async function createWorkerManually(formData: FormData) {
   await requireAdmin()
 
-  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const supabase = createAdminClient()
 
   const roles: string[] = []
   if (formData.get("role_driver") === "on")    roles.push("driver")
   if (formData.get("role_operator") === "on")  roles.push("operator")
 
   const { error } = await supabase.from("workers").insert({
-    location_id:  locationId,
     name:         formData.get("name") as string,
     email:        formData.get("email") as string,
     phone:        (formData.get("phone") as string) || null,
