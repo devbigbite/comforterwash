@@ -244,29 +244,31 @@ export async function deleteWorkerDocument(documentId: string, workerId: string)
   revalidatePath(`/admin/workers/${workerId}`)
 }
 
-// ── Worker Mileage Reports ────────────────────────────────────────────────────
-export async function addMileageReport(formData: FormData) {
+// ── Create worker manually (admin) ───────────────────────────────────────────
+export async function createWorkerManually(formData: FormData) {
   await requireAdmin()
-  const supabase = createAdminClient()
-  const locationId = await getLocationId()
 
-  const { error } = await supabase.from("worker_mileage_reports").insert({
-    worker_id:   formData.get("worker_id") as string,
-    location_id: locationId,
-    report_date: formData.get("report_date") as string,
-    description: formData.get("description") as string,
-    miles:       parseFloat(formData.get("miles") as string || "0"),
-    notes:       (formData.get("notes") as string) || null,
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+
+  const roles: string[] = []
+  if (formData.get("role_driver") === "on")    roles.push("driver")
+  if (formData.get("role_operator") === "on")  roles.push("operator")
+
+  const { error } = await supabase.from("workers").insert({
+    location_id:  locationId,
+    name:         formData.get("name") as string,
+    email:        formData.get("email") as string,
+    phone:        (formData.get("phone") as string) || null,
+    address:      (formData.get("address") as string) || null,
+    roles,
+    has_vehicle:  formData.get("has_vehicle") === "on",
+    experience:   (formData.get("experience") as string) || null,
+    status:       "approved",
   })
 
-  if (error) return { error: error.message }
-  revalidatePath(`/admin/workers/${formData.get("worker_id")}`)
-  return { success: true }
-}
+  if (error) {
+    if (error.code === "23505") return { error: "A worker with that email already exists." }
+    return { error: error.message }
+  }
 
-export async function deleteMileageReport(reportId: string, workerId: string) {
-  await requireAdmin()
-  const supabase = createAdminClient()
-  await supabase.from("worker_mileage_reports").delete().eq("id", reportId)
-  revalidatePath(`/admin/workers/${workerId}`)
-}
+  revalidatePath("/admin/wor

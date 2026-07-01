@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { approveWorker, rejectWorker, updatePayRates, createStripeConnectAccount } from "@/app/actions/workers"
 import { WorkerPinManager } from "./worker-pin-manager"
+import { CreateWorkerModal } from "./create-worker-modal"
 import Link from "next/link"
 
 const STATUS_BADGE: Record<string, string> = {
@@ -57,10 +58,13 @@ export default async function WorkersPage({
           <h1 className="text-2xl font-extrabold text-[#0D2240]">Workers</h1>
           <p className="text-sm text-gray-400">Drivers &amp; Operators — applications, pay rates, Stripe payouts</p>
         </div>
-        <a href="/apply" target="_blank"
-          className="text-xs font-bold text-[#E8726A] border border-[#E8726A] px-4 py-2 rounded-full hover:bg-[#fdf6f3] transition-colors uppercase tracking-wide">
-          View Apply Page ↗
-        </a>
+        <div className="flex items-center gap-3">
+          <CreateWorkerModal />
+          <a href="/apply" target="_blank"
+            className="text-xs font-bold text-[#E8726A] border border-[#E8726A] px-4 py-2 rounded-full hover:bg-[#fdf6f3] transition-colors uppercase tracking-wide">
+            View Apply Page ↗
+          </a>
+        </div>
       </div>
 
       {/* Tabs */}
