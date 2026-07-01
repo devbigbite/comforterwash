@@ -28,6 +28,8 @@ interface Facility {
 // STATUS_LABEL is now built dynamically from t() inside the component
 
 const STATUS_DOT: Record<string, string> = {
+  confirmed:    "bg-gray-400",
+  picked_up:    "bg-blue-400",
   at_warehouse: "bg-amber-400",
   at_facility:  "bg-purple-400",
   in_washer:    "bg-cyan-400",
@@ -69,30 +71,46 @@ export default function OperatorHome() {
       setFacilities(facilityList ?? [])
       setPendingRuns(runs)
 
-      // Bags currently in the operator zone — include at_warehouse so they appear in queue
+      // 1. Bookings in processing statuses (even without bags scanned yet)
+      const { data: activeBookings } = await supabase
+        .from("bookings")
+        .select("id, short_code, customer_name, service_type, delivery_date, status, num_bags, facility_processing_mode, assigned_facility_id")
+        .in("status", ["picked_up", "in_progress", "confirmed"])
+        .not("facility_processing_mode", "eq", "partner_attendant")
+        .order("delivery_date")
+
+      // 2. Bags already scanned into the processing loop
       const { data: bags } = await supabase
         .from("order_bags")
         .select("booking_id, status")
         .in("status", ["at_warehouse", "at_facility", "in_washer", "in_dryer", "folded"])
 
-      if (!bags?.length) { setQueueLoading(false); return }
-
-      const bookingIds = [...new Set(bags.map(b => b.booking_id))]
-
-      const { data: bookings } = await supabase
-        .from("bookings")
-        .select("id, short_code, customer_name, service_type, delivery_date, status, num_bags, facility_processing_mode, assigned_facility_id")
-        .in("id", bookingIds)
-        .not("facility_processing_mode", "eq", "partner_attendant")
-        .order("delivery_date")
-
-      if (!bookings) { setQueueLoading(false); return }
-
       const STATUS_ORDER = ["at_warehouse", "at_facility", "in_washer", "in_dryer", "folded", "ready"]
-      const enriched: WorkOrder[] = bookings.map(b => {
-        const orderBags = bags.filter(bag => bag.booking_id === b.id)
+
+      // Merge: start with active bookings, then add any bag-only bookings not already included
+      const bagBookingIds = [...new Set((bags ?? []).map(b => b.booking_id))]
+      const activeIds = new Set((activeBookings ?? []).map(b => b.id))
+      const extraBagIds = bagBookingIds.filter(id => !activeIds.has(id))
+
+      let extraBookings: typeof activeBookings = []
+      if (extraBagIds.length > 0) {
+        const { data } = await supabase
+          .from("bookings")
+          .select("id, short_code, customer_name, service_type, delivery_date, status, num_bags, facility_processing_mode, assigned_facility_id")
+          .in("id", extraBagIds)
+          .not("facility_processing_mode", "eq", "partner_attendant")
+        extraBookings = data ?? []
+      }
+
+      const allBookings = [...(activeBookings ?? []), ...extraBookings]
+      if (!allBookings.length) { setQueueLoading(false); return }
+
+      const enriched: WorkOrder[] = allBookings.map(b => {
+        const orderBags = (bags ?? []).filter(bag => bag.booking_id === b.id)
         const statuses = orderBags.map(bag => bag.status)
-        const mostAdvanced = [...statuses].sort((a, z) => STATUS_ORDER.indexOf(z) - STATUS_ORDER.indexOf(a))[0]
+        const mostAdvanced = statuses.length
+          ? [...statuses].sort((a, z) => STATUS_ORDER.indexOf(z) - STATUS_ORDER.indexOf(a))[0]
+          : b.status  // fall back to booking status if no bags scanned yet
         return {
           id: b.id,
           short_code: b.short_code ?? null,
