@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { PinGate, useWorkerT } from "@/components/pin-gate"
+import { PinGate, useWorkerT, useWorkerSession } from "@/components/pin-gate"
+import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import type { TransportRun } from "@/app/actions/transport-runs"
 
@@ -19,14 +20,23 @@ interface RouteOrder {
   num_bags: number
 }
 
+const SERVICE_LABEL: Record<string, string> = {
+  comforter_wash: "Comforter Wash",
+  wash_fold:      "Wash & Fold",
+  wash_only:      "Wash Only",
+}
+
 export default function DriverHome() {
   const t = useWorkerT("driver")
-  const [code, setCode] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [pickups, setPickups] = useState<RouteOrder[]>([])
-  const [deliveries, setDeliveries] = useState<RouteOrder[]>([])
-  const [pendingRuns, setPendingRuns] = useState<TransportRun[]>([])
+  const session = useWorkerSession()
+
+  const [showKeypad, setShowKeypad]     = useState(false)
+  const [code, setCode]                 = useState("")
+  const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState("")
+  const [pickups, setPickups]           = useState<RouteOrder[]>([])
+  const [deliveries, setDeliveries]     = useState<RouteOrder[]>([])
+  const [pendingRuns, setPendingRuns]   = useState<TransportRun[]>([])
   const [routeLoading, setRouteLoading] = useState(true)
   const router = useRouter()
 
@@ -35,7 +45,6 @@ export default function DriverHome() {
   useEffect(() => {
     async function loadData() {
       const supabase = createClient()
-
       const [
         { data: todayPickups },
         { data: todayDeliveries },
@@ -55,7 +64,6 @@ export default function DriverHome() {
           .order("delivery_date"),
         getPendingRunsForRole("driver"),
       ])
-
       setPickups(todayPickups ?? [])
       setDeliveries(todayDeliveries ?? [])
       setPendingRuns(runs)
@@ -66,85 +74,157 @@ export default function DriverHome() {
 
   async function lookup() {
     const cleaned = code.trim().replace(/\D/g, "")
-    if (cleaned.length < 4) { setError(t("enter_digits")); return }
+    if (cleaned.length < 4) { setError("Enter at least 4 digits"); return }
     setLoading(true)
     setError("")
     const supabase = createClient()
     const { data: byCode } = await supabase
-      .from("bookings")
-      .select("id")
-      .eq("short_code", cleaned)
-      .maybeSingle()
+      .from("bookings").select("id").eq("short_code", cleaned).maybeSingle()
     if (byCode) { router.push(`/driver/order/${byCode.id}`); return }
     const { data: byId } = await supabase
-      .from("bookings")
-      .select("id")
-      .ilike("id", `${cleaned}%`)
-      .limit(1)
-      .maybeSingle()
+      .from("bookings").select("id").ilike("id", `${cleaned}%`).limit(1).maybeSingle()
     setLoading(false)
-    if (!byId) { setError(t("not_found")); return }
+    if (!byId) { setError("Order not found"); return }
     router.push(`/driver/order/${byId.id}`)
-  }
-
-  function handleScannerInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const digits = e.target.value.replace(/\D/g, "").slice(0, 6)
-    setCode(digits)
-    setError("")
-  }
-  function handleScannerKey(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" && code.length >= 4) lookup()
   }
 
   const toFacilityRuns  = pendingRuns.filter(r => r.run_type === "to_facility")
   const toWarehouseRuns = pendingRuns.filter(r => r.run_type === "to_warehouse")
+  const totalTasks = pickups.length + deliveries.length + pendingRuns.length
 
   return (
     <PinGate role="driver">
     <div className="min-h-screen bg-[#0D2240]">
+
       {/* Header */}
-      <div className="px-4 pt-10 pb-6 text-center">
-        <div className="w-16 h-16 rounded-3xl bg-[#E8726A] flex items-center justify-center text-3xl mx-auto mb-4">
-          🚐
+      <div className="px-5 pt-8 pb-5 flex items-center justify-between">
+        <div>
+          <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Driver Station</p>
+          <h1 className="text-2xl font-extrabold text-white mt-0.5">
+            {session?.workerName ? `Hi, ${session.workerName.split(" ")[0]} 👋` : "Your Route"}
+          </h1>
+          <p className="text-white/40 text-sm mt-0.5">
+            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+          </p>
         </div>
-        <h1 className="text-3xl font-extrabold text-white mb-1">{t("title")}</h1>
-        <p className="text-white/50 text-sm">WashFold Orlando · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}</p>
+        <RoleSwitcher currentRole="driver" />
       </div>
 
-      <div className="px-4 space-y-4 pb-10 max-w-sm mx-auto">
+      <div className="px-4 pb-10 max-w-lg mx-auto space-y-4">
 
         {routeLoading && (
-          <div className="text-center py-4">
-            <p className="text-white/30 text-sm">{t("loading")}</p>
+          <div className="text-center py-12">
+            <p className="text-white/30 text-sm animate-pulse">Loading your route…</p>
           </div>
         )}
 
-        {/* ── Pending transport runs ──────────────────────────── */}
+        {!routeLoading && totalTasks === 0 && (
+          <div className="bg-white/5 rounded-2xl p-8 text-center mt-4">
+            <p className="text-4xl mb-3">✅</p>
+            <p className="text-white font-bold text-lg">No stops today</p>
+            <p className="text-white/40 text-sm mt-1">Check back later or use the order lookup below.</p>
+          </div>
+        )}
+
+        {/* ── PICKUPS ── */}
+        {!routeLoading && pickups.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <span className="text-lg">📦</span>
+              <p className="text-white font-extrabold text-base">Pickups today</p>
+              <span className="ml-auto bg-blue-500/30 text-blue-300 text-xs font-bold px-2 py-0.5 rounded-full">
+                {pickups.length} stop{pickups.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {pickups.map((o, i) => (
+                <button key={o.id} onClick={() => router.push(`/driver/order/${o.id}`)}
+                  className="w-full bg-blue-500/15 border border-blue-500/25 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      {/* Stop number + action */}
+                      <p className="text-blue-300 text-xs font-bold uppercase tracking-wide mb-1">
+                        Stop {i + 1} · Pick up
+                      </p>
+                      {/* Address — most important */}
+                      <p className="text-white font-bold text-base leading-tight">{o.customer_address}</p>
+                      {/* Customer + details */}
+                      <p className="text-white/60 text-sm mt-1">{o.customer_name}</p>
+                      <p className="text-white/40 text-xs mt-0.5">
+                        {SERVICE_LABEL[o.service_type] ?? o.service_type}
+                        {o.num_bags > 0 && ` · ${o.num_bags} bag${o.num_bags !== 1 ? "s" : ""}`}
+                      </p>
+                    </div>
+                    <div className="shrink-0 flex flex-col items-end gap-2">
+                      <span className="text-white/30 font-mono text-xs">
+                        {o.short_code?.toUpperCase() ?? o.id.slice(0,5).toUpperCase()}
+                      </span>
+                      <span className="text-white/60 text-xl">→</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── DELIVERIES ── */}
+        {!routeLoading && deliveries.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <span className="text-lg">🚚</span>
+              <p className="text-white font-extrabold text-base">Deliveries today</p>
+              <span className="ml-auto bg-green-500/30 text-green-300 text-xs font-bold px-2 py-0.5 rounded-full">
+                {deliveries.length} stop{deliveries.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {deliveries.map((o, i) => (
+                <button key={o.id} onClick={() => router.push(`/driver/order/${o.id}`)}
+                  className="w-full bg-green-500/15 border border-green-500/25 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-green-300 text-xs font-bold uppercase tracking-wide mb-1">
+                        Stop {i + 1} · Deliver
+                      </p>
+                      <p className="text-white font-bold text-base leading-tight">{o.customer_address}</p>
+                      <p className="text-white/60 text-sm mt-1">{o.customer_name}</p>
+                      <p className="text-white/40 text-xs mt-0.5">
+                        {SERVICE_LABEL[o.service_type] ?? o.service_type}
+                        {o.num_bags > 0 && ` · ${o.num_bags} bag${o.num_bags !== 1 ? "s" : ""}`}
+                      </p>
+                    </div>
+                    <div className="shrink-0 flex flex-col items-end gap-2">
+                      <span className="text-white/30 font-mono text-xs">
+                        {o.short_code?.toUpperCase() ?? o.id.slice(0,5).toUpperCase()}
+                      </span>
+                      <span className="text-white/60 text-xl">→</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── FACILITY RUNS ── */}
         {!routeLoading && toFacilityRuns.length > 0 && (
           <div>
-            <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">
-              🏭 {t("transport_to_facility")} ({toFacilityRuns.length})
-            </p>
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <span className="text-lg">🏭</span>
+              <p className="text-white font-extrabold text-base">Facility drop-offs</p>
+            </div>
             <div className="space-y-2">
               {toFacilityRuns.map(run => (
-                <button
-                  key={run.id}
-                  onClick={() => router.push(`/driver/run/${run.id}`)}
-                  className="w-full bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-2xl p-4 text-left transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-bold text-sm">
-                        🏭 {run.facility_name ?? t("facility_run")} run
-                      </p>
-                      <p className="text-white/50 text-xs mt-0.5">
-                        {run.order_ids.length} {run.order_ids.length !== 1 ? t("orders") : t("order_singular")} · {t("warehouse_to_facility")}
-                      </p>
-                      {run.notes && (
-                        <p className="text-white/30 text-xs mt-0.5 truncate">{run.notes}</p>
-                      )}
+                <button key={run.id} onClick={() => router.push(`/driver/run/${run.id}`)}
+                  className="w-full bg-purple-500/15 border border-purple-500/25 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-purple-300 text-xs font-bold uppercase tracking-wide mb-1">Drop off at facility</p>
+                      <p className="text-white font-bold">{run.facility_name ?? "Facility"}</p>
+                      <p className="text-white/40 text-xs mt-0.5">{run.order_ids.length} orders</p>
                     </div>
-                    <span className="text-purple-300 font-bold text-xs shrink-0">{t("execute_arrow")}</span>
+                    <span className="text-white/60 text-xl">→</span>
                   </div>
                 </button>
               ))}
@@ -154,29 +234,21 @@ export default function DriverHome() {
 
         {!routeLoading && toWarehouseRuns.length > 0 && (
           <div>
-            <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">
-              🏪 {t("return_to_warehouse")} ({toWarehouseRuns.length})
-            </p>
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <span className="text-lg">🏪</span>
+              <p className="text-white font-extrabold text-base">Warehouse returns</p>
+            </div>
             <div className="space-y-2">
               {toWarehouseRuns.map(run => (
-                <button
-                  key={run.id}
-                  onClick={() => router.push(`/driver/run/${run.id}`)}
-                  className="w-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-2xl p-4 text-left transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-bold text-sm">
-                        🏪 {run.facility_name ?? t("facility_run")} → {t("return_to_warehouse")}
-                      </p>
-                      <p className="text-white/50 text-xs mt-0.5">
-                        {run.order_ids.length} {run.order_ids.length !== 1 ? t("orders") : t("order_singular")} · {t("facility_to_warehouse")}
-                      </p>
-                      {run.notes && (
-                        <p className="text-white/30 text-xs mt-0.5 truncate">{run.notes}</p>
-                      )}
+                <button key={run.id} onClick={() => router.push(`/driver/run/${run.id}`)}
+                  className="w-full bg-amber-500/15 border border-amber-500/25 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-amber-300 text-xs font-bold uppercase tracking-wide mb-1">Return to warehouse</p>
+                      <p className="text-white font-bold">{run.facility_name ?? "Facility"} → Warehouse</p>
+                      <p className="text-white/40 text-xs mt-0.5">{run.order_ids.length} orders</p>
                     </div>
-                    <span className="text-amber-300 font-bold text-xs shrink-0">{t("execute_arrow")}</span>
+                    <span className="text-white/60 text-xl">→</span>
                   </div>
                 </button>
               ))}
@@ -184,155 +256,58 @@ export default function DriverHome() {
           </div>
         )}
 
-        {/* ── Today's pickups ─────────────────────────────────── */}
-        {!routeLoading && pickups.length > 0 && (
-          <div>
-            <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">📦 {t("todays_pickups")} ({pickups.length})</p>
-            <div className="space-y-2">
-              {pickups.map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => router.push(`/driver/order/${o.id}`)}
-                  className="w-full bg-white/10 hover:bg-white/15 rounded-2xl p-4 text-left transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-bold text-sm truncate">{o.customer_name}</p>
-                      <p className="text-white/40 text-xs truncate mt-0.5">{o.customer_address}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-white/60 font-mono text-xs tracking-widest">{o.short_code ?? o.id.slice(0, 5).toUpperCase()}</span>
-                      <p className="text-white/30 text-xs mt-0.5">{o.num_bags} {o.num_bags !== 1 ? t("bags") : t("bag")}</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* ── Find by number (hidden by default) ── */}
+        <div className="pt-2">
+          <button onClick={() => setShowKeypad(v => !v)}
+            className="w-full text-white/30 text-sm py-3 hover:text-white/50 transition-colors text-center">
+            {showKeypad ? "▲ Hide" : "🔢 Find order by number"}
+          </button>
 
-        {/* ── Ready to deliver ────────────────────────────────── */}
-        {!routeLoading && deliveries.length > 0 && (
-          <div>
-            <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">🎉 {t("ready_to_deliver")} ({deliveries.length})</p>
-            <div className="space-y-2">
-              {deliveries.map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => router.push(`/driver/order/${o.id}`)}
-                  className="w-full bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded-2xl p-4 text-left transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-bold text-sm truncate">{o.customer_name}</p>
-                      <p className="text-white/40 text-xs truncate mt-0.5">{o.customer_address}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-white/60 font-mono text-xs tracking-widest">{o.short_code ?? o.id.slice(0, 5).toUpperCase()}</span>
-                      <p className="text-green-400 text-xs font-bold mt-0.5">{t("ready_badge")}</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!routeLoading && pickups.length === 0 && deliveries.length === 0 && pendingRuns.length === 0 && (
-          <div className="bg-white/5 rounded-2xl px-5 py-5 text-center">
-            <p className="text-2xl mb-2">🚐</p>
-            <p className="text-white/50 text-sm font-semibold">{t("nothing_today")}</p>
-            <p className="text-white/30 text-xs mt-1 leading-relaxed whitespace-pre-line">
-              {t("nothing_sub")}
-            </p>
-          </div>
-        )}
-
-        {/* ── Internal Transfer ────────────────────────────────── */}
-        <div>
-          <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-2">🔄 {t("internal_transfer")}</p>
-          <button
-            onClick={() => router.push("/driver/transfer")}
-            className="w-full bg-[#1a3a5c] hover:bg-[#224a70] border border-white/10 rounded-2xl p-4 text-left transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-white font-extrabold text-sm">{t("storage_facility")}</p>
-                <p className="text-white/40 text-xs mt-0.5">{t("storage_sub")}</p>
+          {showKeypad && (
+            <div className="bg-white rounded-3xl p-5 shadow-2xl mt-2">
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+                Enter order number
+              </label>
+              <div className={`w-full rounded-2xl border-2 px-4 py-3 mb-1 text-center transition-colors ${error ? "border-red-300 bg-red-50" : code.length > 0 ? "border-[#E8726A]" : "border-gray-200"}`}>
+                {code.length > 0
+                  ? <span className="text-3xl font-mono font-bold text-[#0D2240] tracking-[0.4em]">{code}</span>
+                  : <span className="text-xl font-mono text-gray-300 tracking-widest">_ _ _ _ _ _</span>
+                }
               </div>
-              <span className="text-white/40 font-bold text-sm shrink-0">{t("start_arrow")}</span>
-            </div>
-          </button>
-        </div>
-
-        {/* Manual lookup */}
-        <div className="bg-white rounded-3xl p-5 shadow-2xl">
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-            {t("find_order")}
-          </label>
-
-          <input
-            type="text" aria-hidden="true" tabIndex={-1}
-            value={code} onChange={handleScannerInput} onKeyDown={handleScannerKey}
-            className="sr-only" autoComplete="off" />
-
-          <div className={`w-full rounded-2xl border-2 px-4 py-3 mb-1 text-center transition-colors ${error ? "border-red-300 bg-red-50" : code.length > 0 ? "border-[#E8726A]" : "border-gray-200"}`}>
-            {code.length > 0 ? (
-              <span className="text-3xl font-mono font-bold text-[#0D2240] tracking-[0.4em]">{code}</span>
-            ) : (
-              <span className="text-xl font-mono text-gray-300 tracking-widest">_ _ _ _ _ _</span>
-            )}
-          </div>
-          {error && <p className="text-sm text-red-500 font-medium mb-2 text-center">{error}</p>}
-
-          <div className="grid grid-cols-3 gap-2 mt-3">
-            {["1","2","3","4","5","6","7","8","9"].map(n => (
-              <button key={n} type="button"
-                onClick={() => { if (code.length < 6) { setCode(c => c + n); setError("") } }}
-                className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">
-                {n}
+              {error && <p className="text-sm text-red-500 font-medium mb-2 text-center">{error}</p>}
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {["1","2","3","4","5","6","7","8","9"].map(n => (
+                  <button key={n} type="button"
+                    onClick={() => { if (code.length < 6) { setCode(c => c + n); setError("") } }}
+                    className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">
+                    {n}
+                  </button>
+                ))}
+                <button type="button" onClick={() => { setCode(""); setError("") }}
+                  className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 text-gray-400 font-bold text-sm transition-colors select-none">CLR</button>
+                <button type="button" onClick={() => { if (code.length < 6) { setCode(c => c + "0"); setError("") } }}
+                  className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">0</button>
+                <button type="button" onClick={() => { setCode(c => c.slice(0, -1)); setError("") }}
+                  className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 text-gray-500 font-bold text-xl transition-colors select-none">⌫</button>
+              </div>
+              <button onClick={lookup} disabled={loading || code.length < 4}
+                className="w-full mt-3 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors">
+                {loading ? "Looking up…" : "Find Order →"}
               </button>
-            ))}
-            <button type="button"
-              onClick={() => { setCode(""); setError("") }}
-              className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 active:bg-red-100 text-gray-400 font-bold text-sm transition-colors select-none">
-              CLR
-            </button>
-            <button type="button"
-              onClick={() => { if (code.length < 6) { setCode(c => c + "0"); setError("") } }}
-              className="h-14 rounded-2xl bg-gray-100 hover:bg-gray-200 active:bg-[#E8726A] active:text-white text-[#0D2240] font-extrabold text-2xl transition-colors select-none">
-              0
-            </button>
-            <button type="button"
-              onClick={() => { setCode(c => c.slice(0, -1)); setError("") }}
-              className="h-14 rounded-2xl bg-gray-50 hover:bg-gray-100 active:bg-amber-100 text-gray-500 font-bold text-xl transition-colors select-none">
-              ⌫
-            </button>
-          </div>
-
-          <button
-            onClick={lookup}
-            disabled={loading || code.length < 4}
-            className="w-full mt-3 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors">
-            {loading ? t("looking_up") : t("find_order_btn")}
-          </button>
-
-          <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
-            <span className="text-sm mt-0.5">📷</span>
-            <p className="text-[11px] text-gray-400 leading-relaxed">
-              <strong className="text-gray-500">{t("scanner_tip_title")}</strong> {t("scanner_tip_sub")}
-            </p>
-          </div>
+            </div>
+          )}
         </div>
 
-        <div className="text-center space-y-2">
-          <div>
-            <a href="/staff" className="text-white/40 text-xs hover:text-white/60 transition-colors font-semibold">{t("clock_link")}</a>
-          </div>
-          <div>
-            <a href="/operator" className="text-white/20 text-xs hover:text-white/40 transition-colors">{t("switch_operator")}</a>
-          </div>
+        {/* ── Footer ── */}
+        <div className="text-center space-y-2 pt-2">
+          <a href="/staff" className="block text-white/30 text-xs hover:text-white/50 transition-colors font-semibold">
+            ⏱ Clock In / Out
+          </a>
+          <a href="/operator" className="block text-white/20 text-xs hover:text-white/40 transition-colors">
+            Switch to Operator view
+          </a>
         </div>
+
       </div>
     </div>
     </PinGate>

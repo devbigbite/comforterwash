@@ -89,6 +89,18 @@ export function CreateWorkerModal() {
                 />
               </div>
 
+              {/* Shipday email — for driver dispatch sync */}
+              <div>
+                <label className="text-[10px] text-gray-400 uppercase tracking-wide font-bold block mb-1">
+                  Shipday Email <span className="text-gray-300 normal-case font-normal">(drivers only — must match Shipday account)</span>
+                </label>
+                <input
+                  name="shipday_email" type="email"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#0D2240]"
+                  placeholder="driver@email.com"
+                />
+              </div>
+
               {/* Roles */}
               <div>
                 <label className="text-[10px] text-gray-400 uppercase tracking-wide font-bold block mb-2">Roles *</label>

@@ -121,17 +121,17 @@ export async function verifyWorkerPin(workerName: string, pin: string): Promise<
 export async function verifyWorkerPinForRole(
   role: "driver" | "operator",
   pin: string
-): Promise<{ id: string; name: string; lang: string } | null> {
+): Promise<{ id: string; name: string; lang: string; roles: string[] } | null> {
   if (!/^\d{4}$/.test(pin)) return null
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("workers")
-    .select("id, name, clock_pin, lang")
+    .select("id, name, clock_pin, lang, roles")
     .eq("status", "active")
   if (!data) return null
   const match = data.find((w: { clock_pin: string | null }) => w.clock_pin === pin)
   if (!match) return null
-  return { id: match.id, name: match.name, lang: match.lang ?? "en" }
+  return { id: match.id, name: match.name, lang: match.lang ?? "en", roles: match.roles ?? [] }
 }
 
 // ── Schedule checking ─────────────────────────────────────────────────────────

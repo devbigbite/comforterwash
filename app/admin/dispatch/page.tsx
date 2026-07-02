@@ -2,23 +2,71 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { format, parseISO } from "date-fns"
 import { revalidatePath } from "next/cache"
 import { reschedulePickup, rescheduleDelivery, assignDriver, cancelShipdayOrders } from "@/app/actions/shipday"
-import { DispatchOrderCard } from "@/components/admin/DispatchOrderCard"
-import type { DispatchBooking as Booking } from "@/components/admin/DispatchOrderCard"
-import { DispatchDateNav } from "@/components/admin/DispatchDateNav"
+import { SeedDispatchButton } from "@/components/admin/SeedDispatchButton"
+import { DispatchBoard } from "@/components/admin/DispatchBoard"
+import { OperatorDispatch } from "@/components/admin/OperatorDispatch"
+import { TransferRunsPanel } from "@/components/admin/TransferRunsPanel"
+import { AerialView } from "@/components/admin/AerialView"
+import type { AerialOrder } from "@/types/dispatch"
+import { getTransportRuns } from "@/app/actions/transport-runs"
+import type { TransportRun } from "@/app/actions/transport-runs"
+
+// ─── Server Actions ───────────────────────────────────────────────────────────
 
 async function assignDriverAction(formData: FormData) {
   "use server"
-  const bookingId = formData.get("bookingId") as string
-  const driverEmail = formData.get("driverEmail") as string
-  const date = formData.get("date") as string
-  const supabase = createAdminClient()
+  const bookingId   = formData.get("bookingId")   as string
+  const driverEmail = formData.get("driverEmail")  as string
+  const driverId    = formData.get("driverId")     as string
+  const date        = formData.get("date")         as string
+  const supabase    = createAdminClient()
+
   const { ok } = await assignDriver(bookingId, driverEmail)
+  await supabase.from("bookings").update({ assigned_driver_id: driverId || null }).eq("id", bookingId)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "driver_assigned",
     notes: ok
       ? `Driver assigned in Shipday: ${driverEmail}`
-      : `Driver assignment attempted (${driverEmail}) -- carrier may not exist in Shipday`,
+      : `Driver assignment attempted (${driverEmail}) — carrier may not exist in Shipday`,
+    created_by: "admin",
+  })
+  revalidatePath(`/admin/dispatch?date=${date}`)
+}
+
+async function unassignDriverAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const date      = formData.get("date")      as string
+  const supabase  = createAdminClient()
+  await supabase.from("bookings").update({ assigned_driver_id: null }).eq("id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "driver_unassigned",
+    notes: "Driver unassigned by dispatcher",
+    created_by: "admin",
+  })
+  revalidatePath(`/admin/dispatch?date=${date}`)
+}
+
+async function assignRunDriverAction(runId: string, driverName: string) {
+  "use server"
+  const supabase = createAdminClient()
+  await supabase.from("transport_runs").update({ assigned_to: driverName }).eq("id", runId)
+  revalidatePath("/admin/dispatch")
+}
+
+async function assignOperatorAction(formData: FormData) {
+  "use server"
+  const bookingId   = formData.get("bookingId")   as string
+  const operatorId  = formData.get("operatorId")  as string
+  const date        = formData.get("date")         as string
+  const supabase    = createAdminClient()
+  await supabase.from("bookings").update({ assigned_operator_id: operatorId || null }).eq("id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "operator_assigned",
+    notes: operatorId ? `Operator assigned: ${operatorId}` : "Operator unassigned",
     created_by: "admin",
   })
   revalidatePath(`/admin/dispatch?date=${date}`)
@@ -26,11 +74,11 @@ async function assignDriverAction(formData: FormData) {
 
 async function rescheduleAction(formData: FormData) {
   "use server"
-  const bookingId = formData.get("bookingId") as string
-  const type = formData.get("type") as string
-  const newDate = formData.get("newDate") as string
-  const newWindow = formData.get("newWindow") as string
-  const currentDate = formData.get("currentDate") as string
+  const bookingId   = formData.get("bookingId")   as string
+  const type        = formData.get("type")         as string
+  const newDate     = formData.get("newDate")      as string
+  const newWindow   = formData.get("newWindow")    as string
+  const currentDate = formData.get("currentDate")  as string
   if (type === "pickup") {
     await reschedulePickup(bookingId, newDate, newWindow)
   } else {
@@ -42,94 +90,132 @@ async function rescheduleAction(formData: FormData) {
 async function cancelAction(formData: FormData) {
   "use server"
   const bookingId = formData.get("bookingId") as string
-  const date = formData.get("date") as string
+  const date      = formData.get("date")      as string
   await cancelShipdayOrders(bookingId)
   revalidatePath(`/admin/dispatch?date=${date}`)
 }
 
+// ─── Page ────────────────────────────────────────────────────────────────────
+
 export default async function DispatchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>
+  searchParams: Promise<{ tab?: string }>
 }) {
-  const { date: dateParam } = await searchParams
-  // Use Eastern Time so "today" matches Orlando's date, not UTC
+  const { tab: tabParam } = await searchParams
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
-  const selectedDate = dateParam ?? today
+  const activeTab = tabParam === "operators" ? "operators" : tabParam === "transfers" ? "transfers" : tabParam === "aerial" ? "aerial" : "drivers"
 
   const supabase = createAdminClient()
 
+  // Workers
   const { data: activeDrivers } = await supabase
     .from("workers")
-    .select("id, name, email")
+    .select("id, name, shipday_email")
     .eq("status", "active")
     .contains("roles", ["driver"])
     .order("name")
 
-  const drivers = (activeDrivers ?? []) as { id: string; name: string; email: string }[]
+  const { data: activeOperators } = await supabase
+    .from("workers")
+    .select("id, name")
+    .eq("status", "active")
+    .contains("roles", ["operator"])
+    .order("name")
 
-  const { data: pickups } = await supabase
+  const { data: facilities } = await supabase
+    .from("facilities")
+    .select("id, name")
+    .order("name")
+
+  const drivers   = (activeDrivers   ?? []) as { id: string; name: string; shipday_email: string | null }[]
+  const operators = (activeOperators ?? []) as { id: string; name: string }[]
+
+  // DRIVER-relevant orders — all statuses that require a driver action:
+  // confirmed       → pick up from customer → bring to facility
+  // picked_up       → en route to facility (driver has it)
+  // at_warehouse    → storage warehouse, driver needs to bring to facility
+  // ready           → folded at facility, driver delivers or transfers to warehouse
+  // out_for_delivery→ driver delivering to customer
+  // Transfer statuses (ready, at_warehouse, ready_at_warehouse) are handled via transport runs tab
+  const DRIVER_STATUSES = ["confirmed", "picked_up", "out_for_delivery"]
+
+  const { data: driverOrders } = await supabase
     .from("bookings")
     .select(`
       id, short_code, customer_name, customer_address, customer_phone,
       pickup_date, pickup_time_window, delivery_date, delivery_time_window,
       service_type, num_bags, num_comforters, status,
       shipday_pickup_order_id, shipday_delivery_order_id,
-      assigned_facility:facilities!assigned_facility_id(name)
+      assigned_driver_id, assigned_operator_id,
+      assigned_facility:facilities!assigned_facility_id(id, name)
     `)
-    .eq("pickup_date", selectedDate)
+    .in("status", DRIVER_STATUSES)
+    .order("pickup_date")
+
+  // Pending transport runs for transfer tab
+  const transportRuns = await getTransportRuns(["pending"]) as TransportRun[]
+
+  // Split for stats
+  const pickups         = (driverOrders ?? []).filter(b => ["confirmed", "picked_up"].includes(b.status)) as DispatchBooking[]
+  const deliveries      = (driverOrders ?? []).filter(b => b.status === "out_for_delivery") as DispatchBooking[]
+  const allDriverOrders = (driverOrders ?? []) as DispatchBooking[]
+
+  // All active orders for aerial view
+  const { data: aerialData } = await supabase
+    .from("bookings")
+    .select(`
+      id, short_code, customer_name, service_type, num_bags, num_comforters, status,
+      assigned_facility:facilities!assigned_facility_id(name),
+      assigned_driver:workers!assigned_driver_id(name)
+    `)
     .not("status", "in", '("delivered","cancelled")')
-    .order("pickup_time_window")
+    .order("created_at", { ascending: false })
 
-  const { data: deliveries } = await supabase
+  const aerialOrders = (aerialData ?? []) as AerialOrder[]
+  const aerialOrdersById = Object.fromEntries(aerialOrders.map(o => [o.id, o]))
+
+  // In-progress orders for operator dispatch (at facility)
+  const { data: facilityOrders } = await supabase
     .from("bookings")
     .select(`
-      id, short_code, customer_name, customer_address, customer_phone,
-      pickup_date, pickup_time_window, delivery_date, delivery_time_window,
-      service_type, num_bags, num_comforters, status,
-      shipday_pickup_order_id, shipday_delivery_order_id,
-      assigned_facility:facilities!assigned_facility_id(name)
+      id, short_code, customer_name, service_type, num_bags, num_comforters, status,
+      assigned_operator_id,
+      assigned_facility:facilities!assigned_facility_id(id, name)
     `)
-    .eq("delivery_date", selectedDate)
-    .in("status", ["in_progress", "out_for_delivery", "picked_up"])
-    .order("delivery_time_window")
+    .in("status", ["in_progress", "picked_up"])
+    .not("assigned_facility_id", "is", null)
+    .order("customer_name")
 
-  const allPickups = (pickups ?? []) as Booking[]
-  const allDeliveries = (deliveries ?? []) as Booking[]
+  // allPickups / allDeliveries / allDriverOrders already set above
+  const allFacilityOrders = (facilityOrders ?? []) as FacilityOrder[]
 
-  const pickupAM    = allPickups.filter(b => b.pickup_time_window === "9am-1pm")
-  const pickupPM    = allPickups.filter(b => b.pickup_time_window === "3pm-7pm")
-  const pickupOther = allPickups.filter(b => b.pickup_time_window !== "9am-1pm" && b.pickup_time_window !== "3pm-7pm")
-  const deliveryAM    = allDeliveries.filter(b => b.delivery_time_window === "9am-1pm")
-  const deliveryPM    = allDeliveries.filter(b => b.delivery_time_window === "3pm-7pm")
-  const deliveryOther = allDeliveries.filter(b => b.delivery_time_window !== "9am-1pm" && b.delivery_time_window !== "3pm-7pm")
-
-  const totalSynced = [...allPickups, ...allDeliveries].filter(
+  const totalSynced = allDriverOrders.filter(
     b => b.shipday_pickup_order_id || b.shipday_delivery_order_id
   ).length
 
-  const displayDate = selectedDate === today
-    ? `Today -- ${format(parseISO(selectedDate), "EEEE, MMMM d")}`
-    : format(parseISO(selectedDate), "EEEE, MMMM d, yyyy")
+  const displayDate = `Today — ${format(parseISO(today), "EEEE, MMMM d, yyyy")}`
 
   return (
-    <div className="min-h-screen">
-      <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-7xl px-4 py-6">
 
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-extrabold text-[#0D2240]">Dispatch</h1>
             <p className="text-sm text-gray-400 mt-0.5">{displayDate}</p>
           </div>
-          <DispatchDateNav selectedDate={selectedDate} today={today} />
+          <SeedDispatchButton />
         </div>
 
-        <div className="grid grid-cols-4 gap-3 mb-8">
+        {/* Stats row */}
+        <div className="grid grid-cols-4 gap-3 mb-6">
           {[
-            { label: "Pickups", value: allPickups.length, color: "text-[#E8726A]" },
-            { label: "Deliveries", value: allDeliveries.length, color: "text-blue-600" },
-            { label: "Total Stops", value: allPickups.length + allDeliveries.length, color: "text-[#0D2240]" },
-            { label: "Synced w/ Shipday", value: totalSynced, color: totalSynced > 0 ? "text-green-600" : "text-amber-500" },
+            { label: "Pickups",     value: pickups.length,           color: "text-[#E8726A]"  },
+            { label: "Transfers",   value: transportRuns.length,      color: "text-amber-500"  },
+            { label: "Deliveries",  value: deliveries.length,         color: "text-blue-600"   },
+            { label: "At Facility", value: allFacilityOrders.length,  color: "text-purple-600" },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
               <p className={`text-3xl font-extrabold ${color}`}>{value}</p>
@@ -138,124 +224,107 @@ export default async function DispatchPage({
           ))}
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-2">
-
-          <section>
-            <h2 className="font-extrabold text-[#0D2240] text-base mb-4 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#E8726A] inline-block" />
-              Pickups
-              <span className="text-gray-400 font-normal text-sm">({allPickups.length})</span>
-            </h2>
-            {allPickups.length === 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-                <p className="text-gray-400 text-sm">No pickups scheduled for this day.</p>
-              </div>
-            )}
-            {pickupAM.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">9AM - 1PM</p>
-                <div className="space-y-3">
-                  {pickupAM.map(b => (
-                    <DispatchOrderCard key={b.id} booking={b} type="pickup" date={selectedDate}
-                      drivers={drivers}
-                      assignDriverAction={assignDriverAction}
-                      rescheduleAction={rescheduleAction}
-                      cancelAction={cancelAction} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {pickupPM.length > 0 && (
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">3PM - 7PM</p>
-                <div className="space-y-3">
-                  {pickupPM.map(b => (
-                    <DispatchOrderCard key={b.id} booking={b} type="pickup" date={selectedDate}
-                      drivers={drivers}
-                      assignDriverAction={assignDriverAction}
-                      rescheduleAction={rescheduleAction}
-                      cancelAction={cancelAction} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {pickupOther.length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
-                  {pickupOther[0].pickup_time_window || "Unscheduled"}
-                </p>
-                <div className="space-y-3">
-                  {pickupOther.map(b => (
-                    <DispatchOrderCard key={b.id} booking={b} type="pickup" date={selectedDate}
-                      drivers={drivers}
-                      assignDriverAction={assignDriverAction}
-                      rescheduleAction={rescheduleAction}
-                      cancelAction={cancelAction} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-
-          <section>
-            <h2 className="font-extrabold text-[#0D2240] text-base mb-4 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
-              Deliveries
-              <span className="text-gray-400 font-normal text-sm">({allDeliveries.length})</span>
-            </h2>
-            {allDeliveries.length === 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-                <p className="text-gray-400 text-sm">No deliveries scheduled for this day.</p>
-              </div>
-            )}
-            {deliveryAM.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">9AM - 1PM</p>
-                <div className="space-y-3">
-                  {deliveryAM.map(b => (
-                    <DispatchOrderCard key={b.id} booking={b} type="delivery" date={selectedDate}
-                      drivers={drivers}
-                      assignDriverAction={assignDriverAction}
-                      rescheduleAction={rescheduleAction}
-                      cancelAction={cancelAction} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {deliveryPM.length > 0 && (
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">3PM - 7PM</p>
-                <div className="space-y-3">
-                  {deliveryPM.map(b => (
-                    <DispatchOrderCard key={b.id} booking={b} type="delivery" date={selectedDate}
-                      drivers={drivers}
-                      assignDriverAction={assignDriverAction}
-                      rescheduleAction={rescheduleAction}
-                      cancelAction={cancelAction} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {deliveryOther.length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
-                  {deliveryOther[0].delivery_time_window || "Unscheduled"}
-                </p>
-                <div className="space-y-3">
-                  {deliveryOther.map(b => (
-                    <DispatchOrderCard key={b.id} booking={b} type="delivery" date={selectedDate}
-                      drivers={drivers}
-                      assignDriverAction={assignDriverAction}
-                      rescheduleAction={rescheduleAction}
-                      cancelAction={cancelAction} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 bg-white rounded-xl border border-gray-100 shadow-sm p-1 w-fit">
+          {[
+            { id: "aerial",    label: "🗺️ Aerial View" },
+            { id: "drivers",   label: "🚗 Driver Routes" },
+            { id: "transfers", label: "📦 Transfer Runs" },
+            { id: "operators", label: "🏭 Operator Assignments" },
+          ].map(t => (
+            <a
+              key={t.id}
+              href={`?tab=${t.id}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                activeTab === t.id
+                  ? "bg-[#0D2240] text-white"
+                  : "text-gray-400 hover:text-[#0D2240]"
+              }`}
+            >
+              {t.label}
+            </a>
+          ))}
         </div>
+
+        {/* Aerial view tab */}
+        {activeTab === "aerial" && (
+          <AerialView
+            orders={aerialOrders}
+            runs={transportRuns}
+            allOrdersById={aerialOrdersById}
+          />
+        )}
+
+        {/* Driver tab */}
+        {activeTab === "drivers" && (
+          <DispatchBoard
+            date={today}
+            pickups={allDriverOrders}
+            deliveries={[]}
+            drivers={drivers}
+            assignDriverAction={assignDriverAction}
+            unassignDriverAction={unassignDriverAction}
+            rescheduleAction={rescheduleAction}
+            cancelAction={cancelAction}
+          />
+        )}
+
+        {/* Transfers tab */}
+        {activeTab === "transfers" && (
+          <TransferRunsPanel
+            runs={transportRuns}
+            drivers={drivers}
+            assignRunDriverAction={assignRunDriverAction}
+          />
+        )}
+
+        {/* Operator tab */}
+        {activeTab === "operators" && (
+          <OperatorDispatch
+            date={today}
+            orders={allFacilityOrders}
+            operators={operators}
+            facilities={(facilities ?? []) as { id: string; name: string }[]}
+            assignOperatorAction={assignOperatorAction}
+          />
+        )}
+
       </div>
     </div>
   )
+}
+
+// ─── Types (shared with client components) ───────────────────────────────────
+
+export type DispatchBooking = {
+  id: string
+  short_code: string | null
+  customer_name: string
+  customer_address: string
+  customer_phone: string
+  pickup_date: string
+  pickup_time_window: string
+  delivery_date: string
+  delivery_time_window: string
+  service_type: string
+  num_bags: number | null
+  num_comforters: number | null
+  status: string
+  shipday_pickup_order_id: number | null
+  shipday_delivery_order_id: number | null
+  assigned_driver_id: string | null
+  assigned_operator_id: string | null
+  assigned_facility: { id: string; name: string } | null
+}
+
+export type FacilityOrder = {
+  id: string
+  short_code: string | null
+  customer_name: string
+  service_type: string
+  num_bags: number | null
+  num_comforters: number | null
+  status: string
+  assigned_operator_id: string | null
+  assigned_facility: { id: string; name: string } | null
 }
