@@ -18,17 +18,6 @@ const SERVICE_EMOJI: Record<string, string> = {
 // The 4 physical stations an operator moves between
 const LANES = [
   {
-    key:      "needs_checkin",
-    label:    "Needs Check-In",
-    emoji:    "📥",
-    statuses: ["picked_up"],
-    action:   "Tap to scan bags in",
-    bg:       "bg-blue-50",
-    border:   "border-blue-200",
-    dot:      "bg-blue-500",
-    text:     "text-blue-700",
-  },
-  {
     key:      "needs_loading",
     label:    "Needs Loading",
     emoji:    "🧺",

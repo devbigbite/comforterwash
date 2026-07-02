@@ -23,7 +23,7 @@ export async function getOperatorQueue(): Promise<OperatorOrder[]> {
   const { data: bookings } = await supabase
     .from("bookings")
     .select("id, short_code, customer_name, service_type, status, num_bags, facility_processing_mode, assigned_facility_id")
-    .in("status", ["picked_up", "in_progress"])
+    .in("status", ["in_progress"])
     .or("facility_processing_mode.is.null,facility_processing_mode.neq.partner_attendant")
 
   if (!bookings?.length) return []
