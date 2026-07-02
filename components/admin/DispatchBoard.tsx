@@ -12,20 +12,22 @@ const SERVICE_LABELS: Record<string, string> = {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  confirmed:        "bg-[#E8726A]/15 text-[#E8726A]",
-  picked_up:        "bg-purple-100 text-purple-700",
-  at_warehouse:     "bg-amber-100 text-amber-700",
-  ready:            "bg-teal-100 text-teal-700",
-  out_for_delivery: "bg-green-100 text-green-700",
+  confirmed:          "bg-[#E8726A]/15 text-[#E8726A]",
+  picked_up:          "bg-purple-100 text-purple-700",
+  at_warehouse:       "bg-amber-100 text-amber-700",
+  ready:              "bg-teal-100 text-teal-700",
+  ready_at_warehouse: "bg-indigo-100 text-indigo-700",
+  out_for_delivery:   "bg-green-100 text-green-700",
 }
 
 // What action a driver needs to take
-const DRIVER_ACTION: Record<string, string> = {
-  confirmed:        "📦 Pick up from customer",
-  picked_up:        "🚗 En route to facility",
-  at_warehouse:     "🏭 Transfer: Warehouse → Facility",
-  ready:            "✅ Ready — deliver or warehouse",
-  out_for_delivery: "🚚 Deliver to customer",
+const DRIVER_ACTION: Record<string, { label: string; arrow: string }> = {
+  confirmed:          { label: "Pick up from customer",       arrow: "→ Facility"   },
+  picked_up:          { label: "En route to facility",        arrow: "🚗"           },
+  at_warehouse:       { label: "Transfer: Warehouse → Facility", arrow: "→ Facility" },
+  ready:              { label: "Transfer: Facility → Warehouse", arrow: "→ Warehouse" },
+  ready_at_warehouse: { label: "Deliver to customer",         arrow: "→ Customer"   },
+  out_for_delivery:   { label: "Deliver to customer",         arrow: "→ Customer"   },
 }
 
 // ─── Mini order card for kanban ───────────────────────────────────────────────
@@ -114,16 +116,24 @@ function KanbanCard({
         </div>
         <p className="font-semibold text-[#0D2240] text-xs truncate">{b.customer_name}</p>
         <p className="text-[10px] text-gray-400 truncate mt-0.5">{b.customer_address}</p>
-        <p className="text-[9px] font-bold mt-1 text-[#0D2240]/60">
-          {DRIVER_ACTION[b.status] ?? b.status}
-          {(() => {
-            const d = b.status === "out_for_delivery" ? b.delivery_date : b.pickup_date
-            if (!d) return ""
-            if (isToday(parseISO(d))) return " · Today"
-            if (isTomorrow(parseISO(d))) return " · Tomorrow"
-            return " · " + format(parseISO(d), "MMM d")
-          })()}
-        </p>
+        {(() => {
+          const action = DRIVER_ACTION[b.status]
+          const d = ["out_for_delivery","ready_at_warehouse"].includes(b.status) ? b.delivery_date : b.pickup_date
+          let dateLabel = ""
+          if (d) {
+            if (isToday(parseISO(d))) dateLabel = " · Today"
+            else if (isTomorrow(parseISO(d))) dateLabel = " · Tomorrow"
+            else dateLabel = " · " + format(parseISO(d), "MMM d")
+          }
+          return action ? (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="text-[9px] font-bold text-[#0D2240]/50">{action.label}{dateLabel}</span>
+              <span className="text-[9px] font-black text-[#E8726A] ml-auto border border-[#E8726A]/30 bg-[#E8726A]/5 px-1.5 py-0.5 rounded">
+                {action.arrow}
+              </span>
+            </div>
+          ) : null
+        })()}
         <div className="flex items-center gap-2 mt-1.5">
           <span className="text-[9px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded">
             {SERVICE_LABELS[b.service_type] ?? b.service_type}

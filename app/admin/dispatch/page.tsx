@@ -125,7 +125,7 @@ export default async function DispatchPage({
   // at_warehouse    → storage warehouse, driver needs to bring to facility
   // ready           → folded at facility, driver delivers or transfers to warehouse
   // out_for_delivery→ driver delivering to customer
-  const DRIVER_STATUSES = ["confirmed", "picked_up", "at_warehouse", "ready", "out_for_delivery"]
+  const DRIVER_STATUSES = ["confirmed", "picked_up", "at_warehouse", "ready", "ready_at_warehouse", "out_for_delivery"]
 
   const { data: driverOrders } = await supabase
     .from("bookings")
@@ -142,7 +142,7 @@ export default async function DispatchPage({
 
   // Split for stats
   const pickups   = (driverOrders ?? []).filter(b => ["confirmed", "picked_up"].includes(b.status)) as DispatchBooking[]
-  const transfers = (driverOrders ?? []).filter(b => ["at_warehouse", "ready"].includes(b.status)) as DispatchBooking[]
+  const transfers = (driverOrders ?? []).filter(b => ["at_warehouse", "ready", "ready_at_warehouse"].includes(b.status)) as DispatchBooking[]
   const deliveries = (driverOrders ?? []).filter(b => b.status === "out_for_delivery") as DispatchBooking[]
   const allDriverOrders = (driverOrders ?? []) as DispatchBooking[]
 
