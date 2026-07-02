@@ -261,8 +261,9 @@ export async function createWorkerManually(formData: FormData) {
     phone:        (formData.get("phone") as string) || null,
     address:      (formData.get("address") as string) || null,
     roles,
-    has_vehicle:  formData.get("has_vehicle") === "on",
-    experience:   (formData.get("experience") as string) || null,
+    has_vehicle:    formData.get("has_vehicle") === "on",
+    experience:     (formData.get("experience") as string) || null,
+    shipday_email:  (formData.get("shipday_email") as string) || null,
     status:       "approved",
   })
 
