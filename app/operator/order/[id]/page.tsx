@@ -302,7 +302,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <Link href="/operator" className="text-white/60 text-sm">← Orders</Link>
           <div className="text-center">
-            <p className="text-white font-extrabold font-mono text-lg">{orderCode}</p>
+            <p className="text-white font-extrabold text-lg tracking-wide">{orderCode}</p>
             <p className="text-white/50 text-xs">{booking.customer_name}</p>
           </div>
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
@@ -333,18 +333,21 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
 
         {/* Order summary + weight info */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-          <div className="grid grid-cols-3 gap-3 text-center text-sm">
+          {/* Bags — hero number */}
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-xs">Service</p>
-              <p className="font-bold text-[#0D2240]">{booking.service_type === "wash_fold" ? "W&F" : "Comforter"}</p>
+              <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">Total Bags</p>
+              <p className="text-4xl font-extrabold text-[#0D2240] leading-none mt-0.5">{bags?.length ?? 0}</p>
             </div>
-            <div>
-              <p className="text-gray-400 text-xs">Bags</p>
-              <p className="font-bold text-[#0D2240]">{bags?.length ?? 0}</p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs">Delivery</p>
-              <p className="font-bold text-[#0D2240]">{booking.delivery_date}</p>
+            <div className="text-right space-y-1">
+              <div>
+                <p className="text-gray-400 text-xs">Service</p>
+                <p className="font-semibold text-[#0D2240] text-sm">{booking.service_type === "wash_fold" ? "Wash & Fold" : booking.service_type === "comforter_wash" ? "Comforter" : booking.service_type}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs">Delivery</p>
+                <p className="font-semibold text-[#0D2240] text-sm">{booking.delivery_date}</p>
+              </div>
             </div>
           </div>
 
@@ -554,7 +557,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                   <span className="text-white font-extrabold text-lg font-mono">B{bag.bag_number}</span>
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-[#0D2240] font-mono">{bag.label_code}</p>
+                  <p className="font-bold text-[#0D2240] text-sm">{bag.label_code}</p>
                   <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full mt-0.5 ${STATUS_COLOR[bag.status] ?? "bg-gray-100 text-gray-400"}`}>
                     {STATUS_LABEL[bag.status] ?? bag.status}
                   </span>
