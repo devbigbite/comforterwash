@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useState, useEffect, useRef } from "react"
 import {
   getActiveWorkers,
@@ -299,6 +300,7 @@ function AdminPanel({ workers }: { workers: ActiveWorker[] }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function StaffClockPage() {
   const [workers, setWorkers]           = useState<ActiveWorker[]>([])
+  const router = useRouter()
   const [selectedName, setSelectedName] = useState("")
   const [selectedRole, setSelectedRole] = useState("")
   const [openPunch, setOpenPunch]       = useState<TimePunch | null>(null)
@@ -379,7 +381,14 @@ export default function StaffClockPage() {
     if (!result) return
     if ("error" in result && result.error) { setError(result.error); return }
     if ("scheduleWarning" in result && result.scheduleWarning) { setWarning(result.scheduleWarning); setStep("warning"); return }
-    if ("punch" in result) { setOpenPunch(result.punch ?? null); setElapsedMins(0); setWarning(null); setDone("in"); setTimeout(() => setDone(null), 3500) }
+    if ("punch" in result) {
+      setOpenPunch(result.punch ?? null); setElapsedMins(0); setWarning(null); setDone("in")
+      setTimeout(() => {
+        if (selectedRole === "operator") router.push("/operator")
+        else if (selectedRole === "driver") router.push("/driver")
+        else setDone(null)
+      }, 1500)
+    }
   }
 
   async function handleClockOut(confirmed = false) {
