@@ -2,23 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { PinGate, useWorkerSession } from "@/components/pin-gate"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
+import { getOperatorQueue } from "@/app/actions/operator-queue"
 import type { TransportRun } from "@/app/actions/transport-runs"
-
-interface WorkOrder {
-  id: string
-  short_code: string | null
-  customer_name: string
-  service_type: string
-  status: string
-  bags_at_facility: number
-  bags_total: number
-  most_advanced_status: string
-  assigned_facility_id: string | null
-}
+import type { OperatorOrder } from "@/app/actions/operator-queue"
 
 const SERVICE_EMOJI: Record<string, string> = {
   comforter_wash: "🛏",
@@ -85,89 +74,35 @@ const LANES = [
   },
 ]
 
-// Orders not yet arrived (driver confirmed but not dropped off yet)
-const INCOMING_STATUSES = ["confirmed"]
-// Orders that show in the "Needs Check-In" lane (arrived, no bags scanned yet)
-const CHECKIN_STATUSES = ["picked_up"]
+// Statuses that mean "physically at the facility, needs operator action"
+// confirmed/incoming orders are excluded — operators only see what's in their hands
 
 export default function OperatorHome() {
   const session = useWorkerSession()
   const router  = useRouter()
 
-  const [queue,        setQueue]        = useState<WorkOrder[]>([])
-  const [pendingRuns,  setPendingRuns]  = useState<TransportRun[]>([])
-  const [loading,      setLoading]      = useState(true)
-  const [showIncoming, setShowIncoming] = useState(false)
+  const [queue,       setQueue]       = useState<OperatorOrder[]>([])
+  const [pendingRuns, setPendingRuns] = useState<TransportRun[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [, setShowIncoming]           = useState(false) // kept for TS, section removed
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient()
-
-      const [{ data: facilityList }, runs] = await Promise.all([
-        supabase.from("facilities").select("id, name").eq("active", true),
+      const [orders, runs] = await Promise.all([
+        getOperatorQueue(),
         getPendingRunsForRole("operator"),
       ])
+      setQueue(orders)
       setPendingRuns(runs)
-
-      const { data: activeBookings } = await supabase
-        .from("bookings")
-        .select("id, short_code, customer_name, service_type, status, num_bags, facility_processing_mode, assigned_facility_id")
-        .in("status", ["picked_up", "in_progress", "confirmed"])
-        .or("facility_processing_mode.is.null,facility_processing_mode.neq.partner_attendant")
-
-      const { data: bags } = await supabase
-        .from("order_bags")
-        .select("booking_id, status")
-        .in("status", ["at_facility", "in_washer", "in_dryer", "folded", "ready"])
-
-      const STATUS_ORDER = ["at_facility", "in_washer", "in_dryer", "folded", "ready"]
-      const bagBookingIds = [...new Set((bags ?? []).map(b => b.booking_id))]
-      const activeIds = new Set((activeBookings ?? []).map(b => b.id))
-      const extraIds = bagBookingIds.filter(id => !activeIds.has(id))
-
-      let extraBookings: typeof activeBookings = []
-      if (extraIds.length > 0) {
-        const { data } = await supabase
-          .from("bookings")
-          .select("id, short_code, customer_name, service_type, status, num_bags, facility_processing_mode, assigned_facility_id")
-          .in("id", extraIds)
-          .not("facility_processing_mode", "eq", "partner_attendant")
-        extraBookings = data ?? []
-      }
-
-      const all = [...(activeBookings ?? []), ...extraBookings]
-
-      const enriched: WorkOrder[] = all.map(b => {
-        const orderBags = (bags ?? []).filter(bag => bag.booking_id === b.id)
-        const statuses  = orderBags.map(bag => bag.status)
-        const mostAdv   = statuses.length
-          ? [...statuses].sort((a, z) => STATUS_ORDER.indexOf(z) - STATUS_ORDER.indexOf(a))[0]
-          : b.status
-        // Use bag-derived status if bags exist; fall back to booking status only if no bags
-        const effectiveStatus = statuses.length > 0 ? mostAdv : b.status
-        return {
-          id:                   b.id,
-          short_code:           b.short_code ?? null,
-          customer_name:        b.customer_name,
-          service_type:         b.service_type,
-          status:               b.status,
-          bags_at_facility:     orderBags.length,
-          bags_total:           b.num_bags ?? orderBags.length,
-          most_advanced_status: effectiveStatus,
-          assigned_facility_id: b.assigned_facility_id ?? null,
-        }
-      })
-
-      setQueue(enriched)
       setLoading(false)
     }
     load()
   }, [])
 
   const laneOrders = (statuses: string[]) =>
-    queue.filter(o => statuses.includes(o.most_advanced_status))
+    queue.filter(o => statuses.includes(o.effective_status))
 
-  const incoming = queue.filter(o => INCOMING_STATUSES.includes(o.most_advanced_status))
+  const incoming = queue.filter(o => INCOMING_STATUSES.includes(o.effective_status))
   const toFacilityRuns  = pendingRuns.filter(r => r.run_type === "to_facility")
   const toWarehouseRuns = pendingRuns.filter(r => r.run_type === "to_warehouse")
 
@@ -267,7 +202,7 @@ export default function OperatorHome() {
                           {o.short_code ?? o.id.slice(0, 6).toUpperCase()}
                         </p>
                         <p className="text-gray-400 text-[11px]">
-                          {o.bags_at_facility}/{o.bags_total} bags
+                          {o.bags_total} bag{o.bags_total !== 1 ? "s" : ""}
                         </p>
                       </div>
                     </button>
@@ -278,7 +213,7 @@ export default function OperatorHome() {
           })}
 
           {/* ── All clear ── */}
-          {!loading && activeCount === 0 && pendingRuns.length === 0 && incoming.length === 0 && (
+          {!loading && activeCount === 0 && pendingRuns.length === 0 && (
             <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center shadow-sm">
               <p className="text-4xl mb-3">✅</p>
               <p className="text-[#0D2240] font-bold text-lg">All stations clear!</p>
@@ -286,8 +221,8 @@ export default function OperatorHome() {
             </div>
           )}
 
-          {/* ── Incoming (awareness, collapsible) ── */}
-          {!loading && incoming.length > 0 && (
+          {/* ── REMOVED: incoming orders hidden — operators only see what's physically here ── */}
+          {false && incoming.length > 0 && (
             <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
               <button
                 onClick={() => setShowIncoming(v => !v)}

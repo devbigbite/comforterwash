@@ -1,0 +1,64 @@
+"use server"
+
+import { createAdminClient } from "@/lib/supabase/admin"
+
+export interface OperatorOrder {
+  id: string
+  short_code: string | null
+  customer_name: string
+  service_type: string
+  status: string
+  bags_scanned: number
+  bags_total: number
+  effective_status: string  // derived from most advanced bag status, or booking status
+  assigned_facility_id: string | null
+}
+
+const STATUS_ORDER = ["at_facility", "in_washer", "in_dryer", "folded", "ready"]
+
+export async function getOperatorQueue(): Promise<OperatorOrder[]> {
+  const supabase = createAdminClient()
+
+  // Fetch all active bookings (not partner_attendant)
+  const { data: bookings } = await supabase
+    .from("bookings")
+    .select("id, short_code, customer_name, service_type, status, num_bags, facility_processing_mode, assigned_facility_id")
+    .in("status", ["picked_up", "in_progress"])
+    .or("facility_processing_mode.is.null,facility_processing_mode.neq.partner_attendant")
+
+  if (!bookings?.length) return []
+
+  // Fetch all bags for these bookings using admin client (bypasses RLS)
+  const bookingIds = bookings.map(b => b.id)
+  const { data: bags } = await supabase
+    .from("order_bags")
+    .select("booking_id, status")
+    .in("booking_id", bookingIds)
+
+  return bookings.map(b => {
+    const orderBags   = (bags ?? []).filter(bag => bag.booking_id === b.id)
+    const bagStatuses = orderBags.map(bag => bag.status)
+
+    // Most advanced bag status (furthest along in the pipeline)
+    const mostAdv = bagStatuses.length > 0
+      ? [...bagStatuses].sort((a, z) => STATUS_ORDER.indexOf(z) - STATUS_ORDER.indexOf(a))[0]
+      : null
+
+    // Only count bags that are actively in processing stations
+    const scanned = orderBags.filter(bag =>
+      ["at_facility", "in_washer", "in_dryer", "folded", "ready"].includes(bag.status)
+    ).length
+
+    return {
+      id:                   b.id,
+      short_code:           b.short_code ?? null,
+      customer_name:        b.customer_name,
+      service_type:         b.service_type,
+      status:               b.status,
+      bags_scanned:         scanned,
+      bags_total:           b.num_bags ?? orderBags.length,
+      effective_status:     mostAdv ?? b.status,  // fall back to booking status if no bags
+      assigned_facility_id: b.assigned_facility_id ?? null,
+    }
+  })
+}
