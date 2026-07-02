@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { useWorkerSession } from "@/components/pin-gate"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import { getDriverQueue } from "@/app/actions/driver-queue"
@@ -21,7 +20,18 @@ const SERVICE_LABEL: Record<string, string> = {
 }
 
 export default function DriverHome() {
-  const session = useWorkerSession()
+  const [session, setSession] = useState<{ workerId: string; workerName: string } | null>(null)
+
+  const [sessionChecked, setSessionChecked] = useState(false)
+
+  // Read session directly from localStorage (no PinGate context needed)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("washfold_driver_worker")
+      if (raw) setSession(JSON.parse(raw))
+    } catch {}
+    setSessionChecked(true)
+  }, [])
 
   const [showKeypad, setShowKeypad]     = useState(false)
   const [code, setCode]                 = useState("")
@@ -30,7 +40,7 @@ export default function DriverHome() {
   const [pickups, setPickups]           = useState<RouteOrder[]>([])
   const [deliveries, setDeliveries]     = useState<RouteOrder[]>([])
   const [pendingRuns, setPendingRuns]   = useState<TransportRun[]>([])
-  const [routeLoading, setRouteLoading] = useState(true)
+  const [routeLoading, setRouteLoading] = useState(false)
   const router = useRouter()
 
   const workerId = session?.workerId ?? null
@@ -100,14 +110,14 @@ export default function DriverHome() {
 
       <div className="px-4 pb-10 max-w-lg mx-auto space-y-4">
 
-        {routeLoading && (
+        {(!sessionChecked || routeLoading) && (
           <div className="text-center py-12">
             <p className="text-white/30 text-sm animate-pulse">Loading your route…</p>
           </div>
         )}
 
         {/* ── Driver picker when no session ── */}
-        {!routeLoading && !workerId && (
+        {sessionChecked && !routeLoading && !workerId && (
           <div className="bg-white/5 rounded-2xl p-6 mt-4">
             <p className="text-white font-bold mb-3">Who are you?</p>
             <div className="space-y-2">
@@ -128,7 +138,7 @@ export default function DriverHome() {
           </div>
         )}
 
-        {!routeLoading && !!workerId && totalTasks === 0 && (
+        {sessionChecked && !routeLoading && !!workerId && totalTasks === 0 && (
           <div className="bg-white/5 rounded-2xl p-8 text-center mt-4">
             <p className="text-4xl mb-3">✅</p>
             <p className="text-white font-bold text-lg">No stops today</p>
