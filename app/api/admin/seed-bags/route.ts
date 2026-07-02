@@ -65,4 +65,9 @@ export async function POST() {
     if (error) {
       results.push({ short_code: booking.short_code, error: error.message })
     } else {
-      resu
+      results.push({ short_code: booking.short_code, created: bags.length })
+    }
+  }
+
+  return NextResponse.json({ results })
+}
