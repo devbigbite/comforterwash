@@ -2,23 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { PinGate, useWorkerT, useWorkerSession } from "@/components/pin-gate"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
+import { getDriverQueue } from "@/app/actions/driver-queue"
 import type { TransportRun } from "@/app/actions/transport-runs"
+import type { DriverOrder } from "@/app/actions/driver-queue"
 
-interface RouteOrder {
-  id: string
-  short_code: string | null
-  customer_name: string
-  customer_address: string
-  pickup_date: string
-  delivery_date: string
-  status: string
-  service_type: string
-  num_bags: number
-}
+type RouteOrder = DriverOrder
 
 const SERVICE_LABEL: Record<string, string> = {
   comforter_wash: "Comforter Wash",
@@ -40,41 +31,23 @@ export default function DriverHome() {
   const [routeLoading, setRouteLoading] = useState(true)
   const router = useRouter()
 
-  const today = new Date().toISOString().split("T")[0]
-
   useEffect(() => {
-    if (!session) return  // wait for PinGate session
+    if (!session) return
     async function loadData() {
-      const supabase = createClient()
-      const driverId = session.workerId
-      const [
-        { data: todayPickups },
-        { data: todayDeliveries },
-        runs,
-      ] = await Promise.all([
-        supabase
-          .from("bookings")
-          .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
-          .eq("pickup_date", today)
-          .in("status", ["confirmed", "picked_up"])
-          .eq("assigned_driver_id", driverId)
-          .order("pickup_date"),
-        supabase
-          .from("bookings")
-          .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
-          .eq("delivery_date", today)
-          .in("status", ["ready", "ready_at_warehouse", "out_for_delivery"])
-          .eq("assigned_driver_id", driverId)
-          .order("delivery_date"),
-        getPendingRunsForRole("driver"),
-      ])
-      setPickups(todayPickups ?? [])
-      setDeliveries(todayDeliveries ?? [])
-      setPendingRuns(runs)
-      setRouteLoading(false)
+      try {
+        const [queue, runs] = await Promise.all([
+          getDriverQueue(session.workerId),
+          getPendingRunsForRole("driver"),
+        ])
+        setPickups(queue.pickups)
+        setDeliveries(queue.deliveries)
+        setPendingRuns(runs)
+      } finally {
+        setRouteLoading(false)
+      }
     }
     loadData()
-  }, [today, session])
+  }, [session])
 
   async function lookup() {
     const cleaned = code.trim().replace(/\D/g, "")
