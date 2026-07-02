@@ -582,22 +582,19 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                     <input type="hidden" name="bookingId" value={booking.id} />
                     <input type="hidden" name="nextStatus" value={step.next} />
 
-                    {/* Weight entry */}
+                    {/* Weight fallback — driver should have entered this at pickup */}
                     {needsWeightEntry && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                        <label className="block text-xs font-bold text-amber-700 uppercase tracking-wide mb-1.5">
-                          ⚖️ Enter Weight (lbs) *
-                        </label>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-gray-400 whitespace-nowrap shrink-0">⚖️ Weight (lbs)</label>
                         <input
                           name="weight_lbs"
                           type="number"
                           step="0.1"
                           min="0.1"
-                          required
                           placeholder="e.g. 22.5"
-                          className="w-full rounded-xl border-2 border-amber-300 px-3 py-2.5 text-sm text-[#0D2240] font-mono focus:outline-none focus:border-[#E8726A] bg-white"
+                          className="w-28 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-[#0D2240] font-mono focus:outline-none focus:border-gray-400"
                         />
-
+                        <span className="text-[10px] text-gray-300">usually pre-filled by driver</span>
                       </div>
                     )}
 
@@ -615,7 +612,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
                           {step.next === "in_washer" ? "Select Washer" : "Select Dryer"}
                         </label>
-                        <select name="machineId" required
+                        <select name="machineId"
                           className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
                           <option value="">— choose machine —</option>
                           {allFacilities?.map((fac) => {
