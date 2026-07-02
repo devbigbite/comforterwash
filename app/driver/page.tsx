@@ -43,8 +43,10 @@ export default function DriverHome() {
   const today = new Date().toISOString().split("T")[0]
 
   useEffect(() => {
+    if (!session) return  // wait for PinGate session
     async function loadData() {
       const supabase = createClient()
+      const driverId = session.workerId
       const [
         { data: todayPickups },
         { data: todayDeliveries },
@@ -54,13 +56,15 @@ export default function DriverHome() {
           .from("bookings")
           .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
           .eq("pickup_date", today)
-          .in("status", ["confirmed", "pending"])
+          .in("status", ["confirmed", "picked_up"])
+          .eq("assigned_driver_id", driverId)
           .order("pickup_date"),
         supabase
           .from("bookings")
           .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
           .eq("delivery_date", today)
-          .eq("status", "ready_at_warehouse")
+          .in("status", ["ready", "ready_at_warehouse", "out_for_delivery"])
+          .eq("assigned_driver_id", driverId)
           .order("delivery_date"),
         getPendingRunsForRole("driver"),
       ])
@@ -70,7 +74,7 @@ export default function DriverHome() {
       setRouteLoading(false)
     }
     loadData()
-  }, [today])
+  }, [today, session])
 
   async function lookup() {
     const cleaned = code.trim().replace(/\D/g, "")
