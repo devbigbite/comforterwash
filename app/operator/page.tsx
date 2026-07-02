@@ -75,7 +75,7 @@ export default function OperatorHome() {
         .from("bookings")
         .select("id, short_code, customer_name, service_type, delivery_date, status, num_bags, facility_processing_mode, assigned_facility_id")
         .in("status", ["picked_up", "in_progress", "confirmed"])
-        .not("facility_processing_mode", "eq", "partner_attendant")
+        .or("facility_processing_mode.is.null,facility_processing_mode.neq.partner_attendant")
         .order("delivery_date")
 
       // 2. Bags already scanned into the processing loop
