@@ -45,6 +45,22 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 const ALL_STATUSES = ["pending", "picked_up", "at_facility", "in_washer", "in_dryer", "folded", "ready", "out_for_delivery", "delivered"]
+
+const PROGRESS_STEPS: { key: string; label: string }[] = [
+  { key: "picked_up",  label: "Picked Up" },
+  { key: "at_facility",label: "At Facility" },
+  { key: "in_washer",  label: "In Washer" },
+  { key: "in_dryer",   label: "In Dryer" },
+  { key: "folded",     label: "Folded" },
+  { key: "ready",      label: "Ready" },
+]
+const PROGRESS_STEPS_WASH_ONLY: { key: string; label: string }[] = [
+  { key: "picked_up",  label: "Picked Up" },
+  { key: "at_facility",label: "At Facility" },
+  { key: "in_washer",  label: "In Washer" },
+  { key: "in_dryer",   label: "In Dryer" },
+  { key: "ready",      label: "Ready" },
+]
 const CUSTOMER_MIN_LBS = 20
 const DEFAULT_RATE_CENTS: Record<string, number> = {
   wash_fold:  250,
@@ -545,25 +561,35 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                 </div>
               </div>
 
-              {/* Progress bar */}
-              <div className="px-4 py-2">
-                <div className="flex gap-0.5">
-                  {ALL_STATUSES.map((s, i) => (
-                    <div key={s} className={`flex-1 h-1.5 rounded-full transition-colors ${
-                      i <= currentIdx
-                        ? ["at_facility","in_washer","in_dryer","folded"].includes(s)
-                          ? "bg-[#E8726A]"
-                          : "bg-gray-300"
-                        : "bg-gray-100"
-                    }`} />
-                  ))}
-                </div>
-                <div className="flex justify-between text-[8px] text-gray-300 mt-0.5 px-0.5">
-                  <span>Driver</span>
-                  <span>Operator</span>
-                  <span>Driver</span>
-                </div>
-              </div>
+              {/* Step chips */}
+              {(() => {
+                const steps = isWashOnly ? PROGRESS_STEPS_WASH_ONLY : PROGRESS_STEPS
+                const currentStepIdx = steps.findIndex(s => s.key === bag.status)
+                return (
+                  <div className="px-4 py-3 flex items-center gap-1 overflow-x-auto no-scrollbar">
+                    {steps.map((step, i) => {
+                      const done    = i < currentStepIdx
+                      const current = i === currentStepIdx
+                      return (
+                        <div key={step.key} className="flex items-center gap-1 shrink-0">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap transition-all ${
+                            current
+                              ? "bg-[#E8726A] text-white"
+                              : done
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-100 text-gray-400"
+                          }`}>
+                            {done ? "✓ " : ""}{step.label}
+                          </span>
+                          {i < steps.length - 1 && (
+                            <span className={`text-[10px] ${done ? "text-green-400" : "text-gray-200"}`}>→</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
 
               {/* Action */}
               <div className="p-4 pt-2">
