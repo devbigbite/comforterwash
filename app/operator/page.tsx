@@ -32,7 +32,7 @@ const LANES = [
     key:      "needs_checkin",
     label:    "Needs Check-In",
     emoji:    "📥",
-    statuses: ["picked_up", "in_progress"],
+    statuses: ["picked_up"],
     action:   "Tap to scan bags in",
     bg:       "bg-blue-50",
     border:   "border-blue-200",
@@ -85,8 +85,10 @@ const LANES = [
   },
 ]
 
-// Orders not yet arrived at facility (driver hasn't dropped off yet)
+// Orders not yet arrived (driver confirmed but not dropped off yet)
 const INCOMING_STATUSES = ["confirmed"]
+// Orders that show in the "Needs Check-In" lane (arrived, no bags scanned yet)
+const CHECKIN_STATUSES = ["picked_up"]
 
 export default function OperatorHome() {
   const session = useWorkerSession()
@@ -141,6 +143,8 @@ export default function OperatorHome() {
         const mostAdv   = statuses.length
           ? [...statuses].sort((a, z) => STATUS_ORDER.indexOf(z) - STATUS_ORDER.indexOf(a))[0]
           : b.status
+        // Use bag-derived status if bags exist; fall back to booking status only if no bags
+        const effectiveStatus = statuses.length > 0 ? mostAdv : b.status
         return {
           id:                   b.id,
           short_code:           b.short_code ?? null,
@@ -149,7 +153,7 @@ export default function OperatorHome() {
           status:               b.status,
           bags_at_facility:     orderBags.length,
           bags_total:           b.num_bags ?? orderBags.length,
-          most_advanced_status: mostAdv,
+          most_advanced_status: effectiveStatus,
           assigned_facility_id: b.assigned_facility_id ?? null,
         }
       })
