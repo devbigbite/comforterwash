@@ -5,6 +5,9 @@ import { reschedulePickup, rescheduleDelivery, assignDriver, cancelShipdayOrders
 import { SeedDispatchButton } from "@/components/admin/SeedDispatchButton"
 import { DispatchBoard } from "@/components/admin/DispatchBoard"
 import { OperatorDispatch } from "@/components/admin/OperatorDispatch"
+import { TransferRunsPanel } from "@/components/admin/TransferRunsPanel"
+import { getTransportRuns } from "@/app/actions/transport-runs"
+import type { TransportRun } from "@/app/actions/transport-runs"
 
 // ─── Server Actions ───────────────────────────────────────────────────────────
 
@@ -42,6 +45,13 @@ async function unassignDriverAction(formData: FormData) {
     created_by: "admin",
   })
   revalidatePath(`/admin/dispatch?date=${date}`)
+}
+
+async function assignRunDriverAction(runId: string, driverName: string) {
+  "use server"
+  const supabase = createAdminClient()
+  await supabase.from("transport_runs").update({ assigned_to: driverName }).eq("id", runId)
+  revalidatePath("/admin/dispatch")
 }
 
 async function assignOperatorAction(formData: FormData) {
@@ -92,7 +102,7 @@ export default async function DispatchPage({
 }) {
   const { tab: tabParam } = await searchParams
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
-  const activeTab = tabParam === "operators" ? "operators" : "drivers"
+  const activeTab = tabParam === "operators" ? "operators" : tabParam === "transfers" ? "transfers" : "drivers"
 
   const supabase = createAdminClient()
 
@@ -125,7 +135,8 @@ export default async function DispatchPage({
   // at_warehouse    → storage warehouse, driver needs to bring to facility
   // ready           → folded at facility, driver delivers or transfers to warehouse
   // out_for_delivery→ driver delivering to customer
-  const DRIVER_STATUSES = ["confirmed", "picked_up", "at_warehouse", "ready", "ready_at_warehouse", "out_for_delivery"]
+  // Transfer statuses (ready, at_warehouse, ready_at_warehouse) are handled via transport runs tab
+  const DRIVER_STATUSES = ["confirmed", "picked_up", "out_for_delivery"]
 
   const { data: driverOrders } = await supabase
     .from("bookings")
@@ -142,9 +153,12 @@ export default async function DispatchPage({
 
   // Split for stats
   const pickups   = (driverOrders ?? []).filter(b => ["confirmed", "picked_up"].includes(b.status)) as DispatchBooking[]
-  const transfers = (driverOrders ?? []).filter(b => ["at_warehouse", "ready", "ready_at_warehouse"].includes(b.status)) as DispatchBooking[]
+  const transfers = transportRuns.length > 0 ? transportRuns : [] // shown in transfers tab
   const deliveries = (driverOrders ?? []).filter(b => b.status === "out_for_delivery") as DispatchBooking[]
   const allDriverOrders = (driverOrders ?? []) as DispatchBooking[]
+
+  // Pending transport runs for transfer tab
+  const transportRuns = await getTransportRuns(["pending"]) as TransportRun[]
 
   // In-progress orders for operator dispatch (at facility)
   const { data: facilityOrders } = await supabase
@@ -184,7 +198,7 @@ export default async function DispatchPage({
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
             { label: "Pickups",     value: pickups.length,           color: "text-[#E8726A]"  },
-            { label: "Transfers",   value: transfers.length,          color: "text-amber-500"  },
+            { label: "Transfers",   value: transportRuns.length,      color: "text-amber-500"  },
             { label: "Deliveries",  value: deliveries.length,         color: "text-blue-600"   },
             { label: "At Facility", value: allFacilityOrders.length,  color: "text-purple-600" },
           ].map(({ label, value, color }) => (
@@ -199,6 +213,7 @@ export default async function DispatchPage({
         <div className="flex gap-1 mb-6 bg-white rounded-xl border border-gray-100 shadow-sm p-1 w-fit">
           {[
             { id: "drivers",   label: "🚗 Driver Routes" },
+            { id: "transfers", label: "📦 Transfer Runs" },
             { id: "operators", label: "🏭 Operator Assignments" },
           ].map(t => (
             <a
@@ -226,6 +241,15 @@ export default async function DispatchPage({
             unassignDriverAction={unassignDriverAction}
             rescheduleAction={rescheduleAction}
             cancelAction={cancelAction}
+          />
+        )}
+
+        {/* Transfers tab */}
+        {activeTab === "transfers" && (
+          <TransferRunsPanel
+            runs={transportRuns}
+            drivers={drivers}
+            assignRunDriverAction={assignRunDriverAction}
           />
         )}
 
