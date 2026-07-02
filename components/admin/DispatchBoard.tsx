@@ -22,12 +22,12 @@ const STATUS_COLOR: Record<string, string> = {
 
 // What action a driver needs to take
 const DRIVER_ACTION: Record<string, { label: string; arrow: string }> = {
-  confirmed:          { label: "Pick up from customer",       arrow: "→ Facility"   },
-  picked_up:          { label: "En route to facility",        arrow: "🚗"           },
-  at_warehouse:       { label: "Transfer: Warehouse → Facility", arrow: "→ Facility" },
-  ready:              { label: "Transfer: Facility → Warehouse", arrow: "→ Warehouse" },
-  ready_at_warehouse: { label: "Deliver to customer",         arrow: "→ Customer"   },
-  out_for_delivery:   { label: "Deliver to customer",         arrow: "→ Customer"   },
+  confirmed:          { label: "Pick up from customer",    arrow: "→ Facility or Warehouse" },
+  picked_up:          { label: "En route",                 arrow: "🚗"                      },
+  at_warehouse:       { label: "Warehouse → Facility",     arrow: "→ Facility"              },
+  ready:              { label: "Ready at facility",        arrow: "→ Customer or Warehouse" },
+  ready_at_warehouse: { label: "Ready at warehouse",       arrow: "→ Customer"              },
+  out_for_delivery:   { label: "Out for delivery",         arrow: "→ Customer"              },
 }
 
 // ─── Mini order card for kanban ───────────────────────────────────────────────
