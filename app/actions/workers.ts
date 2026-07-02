@@ -292,7 +292,9 @@ export async function addMileageReport(formData: FormData) {
   })
 
   if (error) return { error: error.message }
-  revalidatePath(`/admin/workers/${formData.get("worker_id")}
+  revalidatePath(`/admin/workers/${formData.get("worker_id") as string}`)
+  return { success: true }
+}
 
 // ── Update worker roles ───────────────────────────────────────────────────────
 export async function updateWorkerRoles(formData: FormData) {

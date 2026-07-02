@@ -443,10 +443,7 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <h2 className="font-extrabold text-[#0D2240] text-base mb-1">Roles</h2>
         <p className="text-xs text-gray-400 mb-4">Toggle the functions this worker can perform.</p>
-        <form action={async (fd: FormData) => {
-          "use server"
-          await updateWorkerRoles(fd)
-        }} className="space-y-3">
+        <form action={updateWorkerRoles} className="space-y-3">
           <input type="hidden" name="workerId" value={worker.id} />
           <label className="flex items-center gap-3 cursor-pointer select-none">
             <input
