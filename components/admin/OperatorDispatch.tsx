@@ -10,7 +10,19 @@ const SERVICE_LABELS: Record<string, string> = {
   comforter_wash: "Comforter",
 }
 
-function OrderRow({
+const STATUS_COLOR: Record<string, string> = {
+  in_progress: "bg-[#E8726A]/15 text-[#E8726A]",
+  picked_up:   "bg-blue-100 text-blue-700",
+  at_facility: "bg-cyan-100 text-cyan-700",
+  in_washer:   "bg-orange-100 text-orange-700",
+  in_dryer:    "bg-yellow-100 text-yellow-700",
+  folded:      "bg-green-100 text-green-700",
+  ready:       "bg-teal-100 text-teal-700",
+}
+
+// ─── Kanban card ─────────────────────────────────────────────────────────────
+
+function OperatorCard({
   order,
   operators,
   date,
@@ -21,13 +33,12 @@ function OrderRow({
   date: string
   assignOperatorAction: (fd: FormData) => Promise<void>
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [toast, setToast] = useState<string | null>(null)
 
   const code = order.short_code ?? order.id.slice(0, 6).toUpperCase()
   const bags = order.num_bags ?? order.num_comforters ?? 1
-  const assignedOp = operators.find(o => o.id === order.assigned_operator_id)
 
   function assign(operatorId: string) {
     const fd = new FormData()
@@ -36,61 +47,49 @@ function OrderRow({
     fd.set("date", date)
     startTransition(async () => {
       await assignOperatorAction(fd)
-      setExpanded(false)
+      setOpen(false)
       setToast(operatorId ? "Assigned ✓" : "Removed")
       setTimeout(() => setToast(null), 2500)
     })
   }
 
   return (
-    <div className="border-b border-gray-100 last:border-0 relative">
+    <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible">
       {toast && (
-        <div className="absolute right-4 top-3 z-10 bg-[#0D2240] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-30 bg-[#0D2240] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
           {toast}
         </div>
       )}
 
-      {/* Row */}
+      {/* Card body */}
       <button
         type="button"
-        onClick={() => setExpanded(o => !o)}
-        className="w-full text-left px-5 py-3.5 flex items-center gap-4 hover:bg-gray-50 transition-colors"
+        onClick={() => setOpen(o => !o)}
+        className="w-full text-left px-3 py-2.5"
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-black font-mono text-[#0D2240] text-sm">{code}</span>
-            <span className="text-[10px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded">
-              {SERVICE_LABELS[order.service_type] ?? order.service_type}
-            </span>
-            <span className="text-[10px] text-gray-400">{bags} bag{bags !== 1 ? "s" : ""}</span>
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-              order.status === "in_progress" ? "bg-[#E8726A]/15 text-[#E8726A]"
-              : order.status === "picked_up"  ? "bg-blue-100 text-blue-600"
-              : "bg-gray-100 text-gray-400"
-            }`}>{order.status?.replace(/_/g, " ")}</span>
-          </div>
-          <p className="text-xs text-gray-500 mt-0.5">{order.customer_name}</p>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="font-black font-mono text-[#0D2240] text-xs">{code}</span>
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_COLOR[order.status] ?? "bg-gray-100 text-gray-500"}`}>
+            {order.status?.replace(/_/g, " ")}
+          </span>
         </div>
-
-        <div className="shrink-0 flex items-center gap-2">
-          {assignedOp ? (
-            <span className="text-xs font-bold bg-[#E8726A] text-white px-3 py-1 rounded-full">
-              {assignedOp.name}
-            </span>
-          ) : (
-            <span className="text-xs font-semibold text-gray-300 border border-dashed border-gray-200 px-3 py-1 rounded-full">
-              Unassigned
-            </span>
-          )}
-          <span className={`text-gray-300 text-xs transition-transform ${expanded ? "rotate-180" : ""}`}>▼</span>
+        <p className="font-semibold text-[#0D2240] text-xs truncate">{order.customer_name}</p>
+        {order.assigned_facility && (
+          <p className="text-[10px] text-gray-400 truncate mt-0.5">📍 {order.assigned_facility.name}</p>
+        )}
+        <div className="flex items-center gap-2 mt-1.5">
+          <span className="text-[9px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded">
+            {SERVICE_LABELS[order.service_type] ?? order.service_type}
+          </span>
+          <span className="text-[9px] text-gray-400">{bags} bag{bags !== 1 ? "s" : ""}</span>
         </div>
       </button>
 
-      {/* Expanded operator picker */}
-      {expanded && (
-        <div className="px-5 pb-4 pt-1 bg-gray-50 border-t border-gray-100">
-          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest mb-2">Assign operator</p>
-          <div className="flex flex-wrap gap-2">
+      {/* Assign panel */}
+      {open && (
+        <div className="border-t border-gray-100 bg-gray-50 rounded-b-xl px-3 py-2.5 space-y-2">
+          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Assign operator</p>
+          <div className="grid gap-1">
             {operators.map(op => {
               const isAssigned = op.id === order.assigned_operator_id
               return (
@@ -99,10 +98,10 @@ function OrderRow({
                   type="button"
                   disabled={isPending}
                   onClick={() => assign(isAssigned ? "" : op.id)}
-                  className={`text-sm font-bold px-4 py-2 rounded-xl border transition-all disabled:opacity-50 ${
+                  className={`w-full text-left text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
                     isAssigned
-                      ? "bg-[#E8726A] text-white border-[#E8726A] shadow-sm"
-                      : "bg-white text-[#0D2240] border-gray-200 hover:border-[#E8726A] hover:bg-[#E8726A]/5"
+                      ? "bg-[#E8726A] text-white border-[#E8726A]"
+                      : "bg-white text-[#0D2240] border-gray-200 hover:border-[#E8726A] hover:bg-red-50"
                   }`}
                 >
                   {isAssigned ? "✓ " : ""}{op.name}
@@ -110,7 +109,17 @@ function OrderRow({
               )
             })}
           </div>
-          <Link href={`/admin/orders/${order.id}`} className="block mt-3 text-[10px] text-gray-400 hover:text-[#0D2240] font-semibold">
+          {order.assigned_operator_id && (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => assign("")}
+              className="w-full text-[10px] text-red-400 hover:text-red-600 font-semibold py-1 transition-colors disabled:opacity-50"
+            >
+              Remove operator assignment
+            </button>
+          )}
+          <Link href={`/admin/orders/${order.id}`} className="block text-center text-[10px] text-gray-400 hover:text-[#0D2240] font-semibold pt-0.5">
             View full order →
           </Link>
         </div>
@@ -119,11 +128,73 @@ function OrderRow({
   )
 }
 
+// ─── Operator column ──────────────────────────────────────────────────────────
+
+function OperatorColumn({
+  operator,
+  orders,
+  allOperators,
+  date,
+  assignOperatorAction,
+}: {
+  operator: { id: string; name: string } | null  // null = Unassigned
+  orders: FacilityOrder[]
+  allOperators: { id: string; name: string }[]
+  date: string
+  assignOperatorAction: (fd: FormData) => Promise<void>
+}) {
+  const isUnassigned = operator === null
+
+  return (
+    <div className={`flex flex-col min-w-[220px] max-w-[260px] rounded-2xl border ${
+      isUnassigned ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white"
+    } shadow-sm overflow-hidden flex-shrink-0`}>
+
+      {/* Column header */}
+      <div className={`px-3 py-3 border-b ${isUnassigned ? "border-amber-200" : "border-gray-100"}`}>
+        <div className="flex items-center gap-2">
+          <span className={`text-sm font-black ${isUnassigned ? "text-amber-700" : "text-[#0D2240]"}`}>
+            {isUnassigned ? "Unassigned" : operator!.name}
+          </span>
+          <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${
+            isUnassigned ? "bg-amber-200 text-amber-700" : "bg-gray-100 text-gray-500"
+          }`}>{orders.length}</span>
+        </div>
+        {!isUnassigned && (
+          <p className="text-[10px] text-gray-400 mt-0.5">
+            {orders.length} order{orders.length !== 1 ? "s" : ""} assigned
+          </p>
+        )}
+      </div>
+
+      {/* Cards */}
+      <div className="p-2 flex-1 overflow-y-auto max-h-[70vh] space-y-1.5">
+        {orders.length === 0 && (
+          <p className="text-center text-[10px] text-gray-300 py-6">
+            {isUnassigned ? "All assigned 🎉" : "Nothing assigned yet"}
+          </p>
+        )}
+        {orders.map(order => (
+          <OperatorCard
+            key={order.id}
+            order={order}
+            operators={allOperators}
+            date={date}
+            assignOperatorAction={assignOperatorAction}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function OperatorDispatch({
   date,
   orders,
   operators,
-  facilities,
+  facilities: _unused,
   assignOperatorAction,
 }: {
   date: string
@@ -132,106 +203,38 @@ export function OperatorDispatch({
   facilities: { id: string; name: string }[]
   assignOperatorAction: (fd: FormData) => Promise<void>
 }) {
-  // Group by facility
-  const byFacility: Record<string, { facility: { id: string; name: string }; orders: FacilityOrder[] }> = {}
-  for (const order of orders) {
-    const fac = order.assigned_facility
-    if (!fac) continue
-    if (!byFacility[fac.id]) byFacility[fac.id] = { facility: fac, orders: [] }
-    byFacility[fac.id].orders.push(order)
-  }
-  const unrouted = orders.filter(o => !o.assigned_facility)
+  const unassigned = orders.filter(o => !o.assigned_operator_id)
 
   return (
-    <div className="space-y-5">
+    <div>
+      <div className="flex gap-4 overflow-x-auto pb-4">
+        {/* Unassigned pool */}
+        <OperatorColumn
+          operator={null}
+          orders={unassigned}
+          allOperators={operators}
+          date={date}
+          assignOperatorAction={assignOperatorAction}
+        />
 
-      {orders.length === 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center shadow-sm">
-          <p className="text-gray-400 text-sm">No orders currently at a facility.</p>
-        </div>
-      )}
-
-      {Object.values(byFacility).map(({ facility, orders: facOrders }) => {
-        const assignedOpIds = [...new Set(facOrders.map(o => o.assigned_operator_id).filter(Boolean) as string[])]
-
-        return (
-          <div key={facility.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-
-            {/* Facility header */}
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-4 flex-wrap bg-gray-50">
-              <div className="flex-1 min-w-0 flex items-center gap-2.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#E8726A] shrink-0" />
-                <div>
-                  <h3 className="font-extrabold text-[#0D2240] text-base">{facility.name}</h3>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    {facOrders.length} order{facOrders.length !== 1 ? "s" : ""} in process
-                  </p>
-                </div>
-              </div>
-
-              {assignedOpIds.length > 0 && (
-                <div className="flex gap-2 flex-wrap">
-                  {assignedOpIds.map(opId => {
-                    const op = operators.find(o => o.id === opId)
-                    return op ? (
-                      <span key={opId} className="text-xs bg-[#E8726A] text-white font-bold px-3 py-1 rounded-full">
-                        {op.name}
-                      </span>
-                    ) : null
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Order rows */}
-            <div>
-              {facOrders.map(order => (
-                <OrderRow
-                  key={order.id}
-                  order={order}
-                  operators={operators}
-                  date={date}
-                  assignOperatorAction={assignOperatorAction}
-                />
-              ))}
-            </div>
-          </div>
-        )
-      })}
-
-      {/* Unrouted */}
-      {unrouted.length > 0 && (
-        <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-amber-100 bg-amber-50 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0" />
-            <div>
-              <h3 className="font-extrabold text-amber-700 text-base">No Facility Assigned</h3>
-              <p className="text-[10px] text-amber-500 mt-0.5">
-                {unrouted.length} order{unrouted.length !== 1 ? "s" : ""} need a facility
-              </p>
-            </div>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {unrouted.map(order => {
-              const code = order.short_code ?? order.id.slice(0, 6).toUpperCase()
-              const bags = order.num_bags ?? order.num_comforters ?? 1
-              return (
-                <div key={order.id} className="px-5 py-3 flex items-center gap-3">
-                  <span className="font-black font-mono text-[#0D2240] text-sm">{code}</span>
-                  <span className="text-xs text-gray-500">{order.customer_name}</span>
-                  <span className="text-[10px] text-gray-400">{bags} bag{bags !== 1 ? "s" : ""}</span>
-                  <Link href={`/admin/orders/${order.id}`} className="ml-auto text-[10px] text-[#E8726A] font-bold hover:underline">
-                    Assign facility →
-                  </Link>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+        {/* One column per operator */}
+        {operators.map(op => {
+          const mine = orders.filter(o => o.assigned_operator_id === op.id)
+          return (
+            <OperatorColumn
+              key={op.id}
+              operator={op}
+              orders={mine}
+              allOperators={operators}
+              date={date}
+              assignOperatorAction={assignOperatorAction}
+            />
+          )
+        })}
+      </div>
 
       {operators.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
+        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
           No active operators. Add workers with the "operator" role in{" "}
           <a href="/admin/workers" className="font-bold underline">Workers</a>.
         </div>
