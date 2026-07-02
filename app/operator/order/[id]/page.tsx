@@ -4,6 +4,7 @@ import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import PhotoUploader from "./photo-uploader"
 import { WorkerNameInput } from "./worker-name-input"
+import { FoldingForm } from "./folding-form"
 
 const STATUS_LABEL: Record<string, string> = {
   pending:          "Pending",
@@ -461,31 +462,25 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                 </p>
               )}
 
-              {/* Output bag count — at folding step */}
-              {step.needsOutputBags && (
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
-                    How many bags are packed for delivery?
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input name="output_bags" type="number" min="1" defaultValue={pickupBagCount}
-                      className="w-24 rounded-xl border-2 border-gray-200 px-3 py-2.5 text-xl font-extrabold text-[#0D2240] text-center focus:outline-none focus:border-[#E8726A]" />
-                    <p className="text-xs text-gray-400">bags out<br /><span className="text-gray-300">(picked up: {pickupBagCount})</span></p>
-                  </div>
-                </div>
+              {/* Non-folding steps: normal submit */}
+              {!step.needsOutputBags && (
+                <button type="submit"
+                  className={`w-full text-white font-extrabold py-4 rounded-2xl text-base transition-colors ${step.buttonColor}`}>
+                  → {step.action}
+                </button>
               )}
-
-              {/* Folding photo */}
-              {currentStage === "folded" && (
-                <PhotoUploader bookingId={booking.id} action={recordFoldingPhoto}
-                  label="📷 Folding Photo (required)" emptyHint="Take a photo of the packed bags before handoff." compact />
-              )}
-
-              <button type="submit"
-                className={`w-full text-white font-extrabold py-4 rounded-2xl text-base transition-colors ${step.buttonColor}`}>
-                → {step.action}
-              </button>
             </form>
+
+            {/* Folding step: use client component that gates on photo */}
+            {step.needsOutputBags && (
+              <FoldingForm
+                bookingId={booking.id}
+                pickupBagCount={pickupBagCount}
+                buttonColor={step.buttonColor}
+                advanceOrder={advanceOrder}
+                recordFoldingPhoto={recordFoldingPhoto}
+              />
+            )}
           </div>
         )}
 

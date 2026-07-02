@@ -9,6 +9,7 @@ interface Props {
   label?: string
   emptyHint?: string
   compact?: boolean
+  onPhotoUploaded?: () => void
 }
 
 export default function PhotoUploader({
@@ -17,6 +18,7 @@ export default function PhotoUploader({
   label = "📷 Photos",
   emptyHint = "Tap \"+ Add Photo\" to take a photo.",
   compact = false,
+  onPhotoUploaded,
 }: Props) {
   const [uploading, setUploading] = useState(false)
   const [photos, setPhotos] = useState<string[]>([])
@@ -52,6 +54,7 @@ export default function PhotoUploader({
     setPhotos((prev) => [...prev, publicUrl])
     setUploading(false)
     if (inputRef.current) inputRef.current.value = ""
+    onPhotoUploaded?.()
 
     const fd = new FormData()
     fd.append("bookingId", bookingId)
