@@ -27,16 +27,16 @@ interface Facility {
 }
 
 // Plain-English labels for what needs to happen NEXT
-const NEXT_ACTION: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  confirmed:    { label: "Awaiting pickup",      color: "text-gray-400",   bg: "bg-gray-500/10",    dot: "bg-gray-400" },
-  picked_up:    { label: "Needs check-in",       color: "text-blue-300",   bg: "bg-blue-500/15",    dot: "bg-blue-400" },
-  in_progress:  { label: "Being processed",      color: "text-purple-300", bg: "bg-purple-500/15",  dot: "bg-purple-400" },
-  at_warehouse: { label: "Ready to send out",    color: "text-amber-300",  bg: "bg-amber-500/15",   dot: "bg-amber-400" },
-  at_facility:  { label: "Load into washer",     color: "text-cyan-300",   bg: "bg-cyan-500/15",    dot: "bg-cyan-400" },
-  in_washer:    { label: "Move to dryer",        color: "text-orange-300", bg: "bg-orange-500/15",  dot: "bg-orange-400" },
-  in_dryer:     { label: "Ready to fold",        color: "text-yellow-300", bg: "bg-yellow-500/15",  dot: "bg-yellow-400" },
-  folded:       { label: "Mark ready for pickup",color: "text-green-300",  bg: "bg-green-500/15",   dot: "bg-green-400" },
-  ready:        { label: "Done — awaiting driver",color: "text-green-400", bg: "bg-green-500/20",   dot: "bg-green-400" },
+const NEXT_ACTION: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
+  confirmed:    { label: "Awaiting pickup",       color: "text-gray-500",   bg: "bg-gray-50",      border: "border-gray-200",   dot: "bg-gray-400" },
+  picked_up:    { label: "Needs check-in",        color: "text-blue-600",   bg: "bg-blue-50",      border: "border-blue-200",   dot: "bg-blue-500" },
+  in_progress:  { label: "Being processed",       color: "text-purple-600", bg: "bg-purple-50",    border: "border-purple-200", dot: "bg-purple-500" },
+  at_warehouse: { label: "Ready to send out",     color: "text-amber-600",  bg: "bg-amber-50",     border: "border-amber-200",  dot: "bg-amber-500" },
+  at_facility:  { label: "Load into washer",      color: "text-cyan-700",   bg: "bg-cyan-50",      border: "border-cyan-200",   dot: "bg-cyan-500" },
+  in_washer:    { label: "Move to dryer",         color: "text-orange-600", bg: "bg-orange-50",    border: "border-orange-200", dot: "bg-orange-500" },
+  in_dryer:     { label: "Ready to fold",         color: "text-yellow-700", bg: "bg-yellow-50",    border: "border-yellow-300", dot: "bg-yellow-500" },
+  folded:       { label: "Mark ready for pickup", color: "text-green-700",  bg: "bg-green-50",     border: "border-green-200",  dot: "bg-green-500" },
+  ready:        { label: "Done — awaiting driver",color: "text-green-700",  bg: "bg-green-50",     border: "border-green-300",  dot: "bg-green-500" },
 }
 
 const SERVICE_LABEL: Record<string, string> = {
@@ -164,41 +164,49 @@ export default function OperatorHome() {
 
   return (
     <PinGate role="operator">
-    <div className="min-h-screen bg-[#0D2240]">
+    <div className="min-h-screen bg-gray-50">
 
       {/* Header */}
-      <div className="px-5 pt-8 pb-5 flex items-center justify-between">
+      <div className="bg-white border-b border-gray-100 px-5 pt-6 pb-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div>
-          <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Operator Station</p>
-          <h1 className="text-2xl font-extrabold text-white mt-0.5">
+          <p className="text-[#E8726A] text-xs font-bold uppercase tracking-widest">Operator Station</p>
+          <h1 className="text-xl font-extrabold text-[#0D2240] mt-0.5">
             {session?.workerName ? `Hi, ${session.workerName.split(" ")[0]} 👋` : "Today's Queue"}
           </h1>
         </div>
-        <RoleSwitcher currentRole="operator" />
+        <div className="flex items-center gap-2">
+          <RoleSwitcher currentRole="operator" />
+          <button
+            onClick={() => { localStorage.removeItem("washfold_operator_worker"); window.location.href = "/staff" }}
+            className="text-xs text-gray-400 hover:text-red-500 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-full transition-colors font-medium"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
 
       <div className="px-4 pb-10 max-w-lg mx-auto space-y-3">
 
         {queueLoading && (
           <div className="text-center py-12">
-            <p className="text-white/30 text-sm animate-pulse">Loading your queue…</p>
+            <p className="text-gray-300 text-sm animate-pulse">Loading your queue…</p>
           </div>
         )}
 
         {/* ── Transport runs ── */}
         {!queueLoading && toFacilityRuns.length > 0 && (
           <div>
-            <p className="text-white/40 text-[11px] font-bold uppercase tracking-widest mb-2 px-1">
+            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-2 px-1">
               🚐 Runs to facility ({toFacilityRuns.length})
             </p>
             <div className="space-y-2">
               {toFacilityRuns.map(run => (
                 <button key={run.id} onClick={() => router.push(`/operator/run/${run.id}`)}
-                  className="w-full bg-purple-500/20 border border-purple-500/30 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
+                  className="w-full bg-purple-50 border border-purple-200 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-white font-bold">🏭 {run.facility_name ?? "Facility"} run</p>
-                      <p className="text-purple-300 text-sm mt-0.5">{run.order_ids.length} orders · tap to execute</p>
+                      <p className="text-[#0D2240] font-bold">🏭 {run.facility_name ?? "Facility"} run</p>
+                      <p className="text-purple-600 text-sm mt-0.5">{run.order_ids.length} orders · tap to execute</p>
                     </div>
                     <span className="text-2xl">→</span>
                   </div>
@@ -210,17 +218,17 @@ export default function OperatorHome() {
 
         {!queueLoading && toWarehouseRuns.length > 0 && (
           <div>
-            <p className="text-white/40 text-[11px] font-bold uppercase tracking-widest mb-2 px-1">
+            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-2 px-1">
               🏪 Returns to warehouse ({toWarehouseRuns.length})
             </p>
             <div className="space-y-2">
               {toWarehouseRuns.map(run => (
                 <button key={run.id} onClick={() => router.push(`/operator/run/${run.id}`)}
-                  className="w-full bg-amber-500/20 border border-amber-500/30 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
+                  className="w-full bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-white font-bold">🏪 {run.facility_name ?? "Facility"} → Warehouse</p>
-                      <p className="text-amber-300 text-sm mt-0.5">{run.order_ids.length} orders · tap to execute</p>
+                      <p className="text-[#0D2240] font-bold">🏪 {run.facility_name ?? "Facility"} → Warehouse</p>
+                      <p className="text-amber-600 text-sm mt-0.5">{run.order_ids.length} orders · tap to execute</p>
                     </div>
                     <span className="text-2xl">→</span>
                   </div>
@@ -232,23 +240,23 @@ export default function OperatorHome() {
 
         {/* ── Facility filter ── */}
         {!queueLoading && facilities.length > 1 && (
-          <div className="bg-white/8 rounded-2xl px-4 py-3 flex items-center gap-3">
+          <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3 flex items-center gap-3">
             <span className="text-sm">🏭</span>
             <select value={selectedFacilityId} onChange={e => setSelectedFacilityId(e.target.value)}
-              className="flex-1 bg-transparent text-white text-sm font-semibold outline-none appearance-none cursor-pointer">
-              <option value="" className="bg-[#0D2240]">All facilities</option>
+              className="flex-1 bg-transparent text-[#0D2240] text-sm font-semibold outline-none appearance-none cursor-pointer">
+              <option value="">All facilities</option>
               {facilities.map(f => (
-                <option key={f.id} value={f.id} className="bg-[#0D2240]">{f.name}</option>
+                <option key={f.id} value={f.id}>{f.name}</option>
               ))}
             </select>
-            <span className="text-white/40 text-xs">▼</span>
+            <span className="text-gray-400 text-xs">▼</span>
           </div>
         )}
 
         {/* ── Work queue ── */}
         {!queueLoading && sortedQueue.length > 0 && (
           <div>
-            <p className="text-white/40 text-[11px] font-bold uppercase tracking-widest mb-2 px-1">
+            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-2 px-1">
               Orders to process ({sortedQueue.length})
             </p>
             <div className="space-y-2">
@@ -257,7 +265,7 @@ export default function OperatorHome() {
                 const isReady = o.most_advanced_status === "ready"
                 return (
                   <button key={o.id} onClick={() => router.push(`/operator/order/${o.id}`)}
-                    className={`w-full ${next.bg} border border-white/10 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform`}>
+                    className={`w-full ${next.bg} border ${next.border} rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-sm`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         {/* Next action — the headline */}
@@ -266,19 +274,19 @@ export default function OperatorHome() {
                           <p className={`font-bold text-sm ${next.color}`}>{next.label}</p>
                         </div>
                         {/* Customer + service — secondary */}
-                        <p className="text-white font-semibold truncate">{o.customer_name}</p>
-                        <p className="text-white/40 text-xs mt-0.5">
+                        <p className="text-[#0D2240] font-semibold truncate">{o.customer_name}</p>
+                        <p className="text-gray-400 text-xs mt-0.5">
                           {SERVICE_LABEL[o.service_type] ?? o.service_type}
                           {o.bags_total > 0 && ` · ${o.bags_at_facility}/${o.bags_total} bags`}
                           {o.delivery_date && ` · Due ${o.delivery_date}`}
                         </p>
                       </div>
                       <div className="shrink-0 flex flex-col items-end gap-1">
-                        <span className="text-white/30 font-mono text-xs">
+                        <span className="text-gray-300 font-mono text-xs">
                           {o.short_code?.toUpperCase() ?? o.id.slice(0, 5).toUpperCase()}
                         </span>
                         {!isReady && (
-                          <span className="text-white/60 text-lg">→</span>
+                          <span className="text-gray-400 text-lg">→</span>
                         )}
                         {isReady && (
                           <span className="text-green-400 text-xs font-bold">✓ Done</span>
@@ -294,17 +302,17 @@ export default function OperatorHome() {
 
         {/* ── Empty state ── */}
         {!queueLoading && sortedQueue.length === 0 && pendingRuns.length === 0 && (
-          <div className="bg-white/5 rounded-2xl p-8 text-center mt-4">
+          <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center mt-4 shadow-sm">
             <p className="text-4xl mb-3">✅</p>
-            <p className="text-white font-bold text-lg">All caught up!</p>
-            <p className="text-white/40 text-sm mt-1">No orders waiting for processing right now.</p>
+            <p className="text-[#0D2240] font-bold text-lg">All caught up!</p>
+            <p className="text-gray-400 text-sm mt-1">No orders waiting for processing right now.</p>
           </div>
         )}
 
         {/* ── Find by number (secondary) ── */}
         <div className="pt-2">
           <button onClick={() => setShowKeypad(v => !v)}
-            className="w-full text-white/30 text-sm py-3 hover:text-white/50 transition-colors text-center">
+            className="w-full text-gray-400 text-sm py-3 hover:text-gray-600 transition-colors text-center">
             {showKeypad ? "▲ Hide" : "🔢 Find order by number"}
           </button>
 
@@ -348,10 +356,10 @@ export default function OperatorHome() {
 
         {/* ── Footer links ── */}
         <div className="text-center space-y-2 pt-2">
-          <a href="/staff" className="block text-white/30 text-xs hover:text-white/50 transition-colors font-semibold">
+          <a href="/staff" className="block text-gray-400 text-xs hover:text-gray-600 transition-colors font-semibold">
             ⏱ Clock In / Out
           </a>
-          <a href="/driver" className="block text-white/20 text-xs hover:text-white/40 transition-colors">
+          <a href="/driver" className="block text-gray-300 text-xs hover:text-gray-500 transition-colors">
             Switch to Driver view
           </a>
         </div>
