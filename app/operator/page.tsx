@@ -29,6 +29,17 @@ const SERVICE_EMOJI: Record<string, string> = {
 // The 4 physical stations an operator moves between
 const LANES = [
   {
+    key:      "needs_checkin",
+    label:    "Needs Check-In",
+    emoji:    "📥",
+    statuses: ["picked_up", "in_progress"],
+    action:   "Tap to scan bags in",
+    bg:       "bg-blue-50",
+    border:   "border-blue-200",
+    dot:      "bg-blue-500",
+    text:     "text-blue-700",
+  },
+  {
     key:      "needs_loading",
     label:    "Needs Loading",
     emoji:    "🧺",
@@ -74,8 +85,8 @@ const LANES = [
   },
 ]
 
-// Orders waiting to arrive (driver hasn't delivered yet) — separate awareness section
-const INCOMING_STATUSES = ["picked_up", "confirmed"]
+// Orders not yet arrived at facility (driver hasn't dropped off yet)
+const INCOMING_STATUSES = ["confirmed"]
 
 export default function OperatorHome() {
   const session = useWorkerSession()
