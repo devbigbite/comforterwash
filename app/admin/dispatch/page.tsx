@@ -130,7 +130,7 @@ export default async function DispatchPage({
       assigned_driver_id, assigned_operator_id,
       assigned_facility:facilities!assigned_facility_id(id, name)
     `)
-    .in("status", ["confirmed"])
+    .eq("status", "confirmed")
     .gte("pickup_date", today)
     .order("pickup_date")
     .order("pickup_time_window")
@@ -146,7 +146,7 @@ export default async function DispatchPage({
       assigned_driver_id, assigned_operator_id,
       assigned_facility:facilities!assigned_facility_id(id, name)
     `)
-    .in("status", ["in_progress", "out_for_delivery", "picked_up"])
+    .eq("status", "out_for_delivery")
     .order("delivery_date")
     .order("delivery_time_window")
 
@@ -188,8 +188,8 @@ export default async function DispatchPage({
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
-            { label: "Pickups",         value: allPickups.length,    color: "text-[#E8726A]"  },
-            { label: "Deliveries",      value: allDeliveries.length, color: "text-blue-600"   },
+            { label: "Pending Pickups", value: allPickups.length,    color: "text-[#E8726A]"  },
+            { label: "Ready Deliveries", value: allDeliveries.length, color: "text-blue-600"   },
             { label: "At Facility",     value: allFacilityOrders.length, color: "text-purple-600" },
             { label: "Synced w/ Shipday", value: totalSynced,        color: totalSynced > 0 ? "text-green-600" : "text-amber-500" },
           ].map(({ label, value, color }) => (
