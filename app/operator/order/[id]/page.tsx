@@ -561,35 +561,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                 </div>
               </div>
 
-              {/* Step chips */}
-              {(() => {
-                const steps = isWashOnly ? PROGRESS_STEPS_WASH_ONLY : PROGRESS_STEPS
-                const currentStepIdx = steps.findIndex(s => s.key === bag.status)
-                return (
-                  <div className="px-4 py-3 flex items-center gap-1 overflow-x-auto no-scrollbar">
-                    {steps.map((step, i) => {
-                      const done    = i < currentStepIdx
-                      const current = i === currentStepIdx
-                      return (
-                        <div key={step.key} className="flex items-center gap-1 shrink-0">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap transition-all ${
-                            current
-                              ? "bg-[#E8726A] text-white"
-                              : done
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-100 text-gray-400"
-                          }`}>
-                            {done ? "✓ " : ""}{step.label}
-                          </span>
-                          {i < steps.length - 1 && (
-                            <span className={`text-[10px] ${done ? "text-green-400" : "text-gray-200"}`}>→</span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })()}
+
 
               {/* Action */}
               <div className="p-4 pt-2">
