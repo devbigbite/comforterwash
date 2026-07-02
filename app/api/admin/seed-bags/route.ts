@@ -56,8 +56,6 @@ export async function POST() {
         bag_number: i + 1,
         label_code: `${prefix}-${booking.short_code?.replace("WF-", "")}-B${i + 1}`,
         status: bagStatus,
-        scanned_at_facility: ["at_facility","in_washer","in_dryer","folded","ready","delivered"].includes(bagStatus)
-          ? new Date().toISOString() : null,
       }
     })
 
