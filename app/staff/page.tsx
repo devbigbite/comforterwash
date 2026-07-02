@@ -383,6 +383,11 @@ export default function StaffClockPage() {
     if ("scheduleWarning" in result && result.scheduleWarning) { setWarning(result.scheduleWarning); setStep("warning"); return }
     if ("punch" in result) {
       setOpenPunch(result.punch ?? null); setElapsedMins(0); setWarning(null); setDone("in")
+      // Pre-save PinGate session so worker skips the second PIN screen
+      if (workerObj && (selectedRole === "operator" || selectedRole === "driver")) {
+        const session = { workerId: workerObj.id, workerName: workerObj.name, lang: "en", roles: workerObj.roles }
+        localStorage.setItem("washfold_" + selectedRole + "_worker", JSON.stringify(session))
+      }
       setTimeout(() => {
         if (selectedRole === "operator") router.push("/operator")
         else if (selectedRole === "driver") router.push("/driver")
