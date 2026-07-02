@@ -345,7 +345,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                 <p className="font-semibold text-[#0D2240] text-sm">{booking.service_type === "wash_fold" ? "Wash & Fold" : booking.service_type === "comforter_wash" ? "Comforter" : booking.service_type}</p>
               </div>
               <div>
-                <p className="text-gray-400 text-xs">Delivery</p>
+                <p className="text-gray-400 text-xs">Need ready by</p>
                 <p className="font-semibold text-[#0D2240] text-sm">{booking.delivery_date}</p>
               </div>
             </div>
@@ -600,12 +600,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                     )}
 
                     {weightAlreadySet && (
-                      <>
-                        <input type="hidden" name="weight_lbs" value={String(weightOnFile)} />
-                        <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs text-blue-700 font-semibold">
-                          ⚖️ Weight on file: {weightOnFile} lbs (entered by {booking.weight_entered_by ?? "driver"})
-                        </div>
-                      </>
+                      <input type="hidden" name="weight_lbs" value={String(weightOnFile)} />
                     )}
 
                     {step.needsMachine && (
