@@ -71,3 +71,21 @@ export async function POST() {
 
   return NextResponse.json({ results })
 }
+
+export async function GET() {
+  const res = await POST()
+  const data = await res.json()
+  const rows = data.results?.map((r: Record<string,unknown>) =>
+    `<tr><td style="padding:4px 12px;border-bottom:1px solid #eee">${r.short_code}</td>` +
+    `<td style="padding:4px 12px;border-bottom:1px solid #eee;color:${r.error ? 'red' : r.skipped ? '#888' : 'green'}">${r.error ?? (r.skipped ? 'skipped (already had bags)' : `✓ created ${r.created} bags`)}</td></tr>`
+  ).join("") ?? ""
+  const html = `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:32px;max-width:600px">
+    <h2>✅ Bag Seeding Complete</h2>
+    <table style="border-collapse:collapse;width:100%"><thead><tr>
+      <th style="text-align:left;padding:4px 12px;border-bottom:2px solid #ccc">Order</th>
+      <th style="text-align:left;padding:4px 12px;border-bottom:2px solid #ccc">Result</th>
+    </tr></thead><tbody>${rows}</tbody></table>
+    <br><a href="/operator">Go to Operator →</a>
+  </body></html>`
+  return new Response(html, { headers: { "Content-Type": "text/html" } })
+}
