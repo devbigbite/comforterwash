@@ -2,7 +2,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { format, parseISO } from "date-fns"
 import { revalidatePath } from "next/cache"
 import { reschedulePickup, rescheduleDelivery, assignDriver, cancelShipdayOrders } from "@/app/actions/shipday"
-import { DispatchDateNav } from "@/components/admin/DispatchDateNav"
 import { SeedDispatchButton } from "@/components/admin/SeedDispatchButton"
 import { DispatchBoard } from "@/components/admin/DispatchBoard"
 import { OperatorDispatch } from "@/components/admin/OperatorDispatch"
@@ -89,11 +88,10 @@ async function cancelAction(formData: FormData) {
 export default async function DispatchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; tab?: string }>
+  searchParams: Promise<{ tab?: string }>
 }) {
-  const { date: dateParam, tab: tabParam } = await searchParams
+  const { tab: tabParam } = await searchParams
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
-  const selectedDate = dateParam ?? today
   const activeTab = tabParam === "operators" ? "operators" : "drivers"
 
   const supabase = createAdminClient()
@@ -121,7 +119,7 @@ export default async function DispatchPage({
   const drivers   = (activeDrivers   ?? []) as { id: string; name: string; shipday_email: string | null }[]
   const operators = (activeOperators ?? []) as { id: string; name: string }[]
 
-  // Bookings for this date (pickups)
+  // All active pickups (not yet picked up)
   const { data: pickups } = await supabase
     .from("bookings")
     .select(`
@@ -132,11 +130,12 @@ export default async function DispatchPage({
       assigned_driver_id, assigned_operator_id,
       assigned_facility:facilities!assigned_facility_id(id, name)
     `)
-    .eq("pickup_date", selectedDate)
-    .not("status", "in", '("delivered","cancelled")')
+    .in("status", ["confirmed"])
+    .gte("pickup_date", today)
+    .order("pickup_date")
     .order("pickup_time_window")
 
-  // Bookings for this date (deliveries)
+  // All active deliveries (in progress, out for delivery)
   const { data: deliveries } = await supabase
     .from("bookings")
     .select(`
@@ -147,8 +146,8 @@ export default async function DispatchPage({
       assigned_driver_id, assigned_operator_id,
       assigned_facility:facilities!assigned_facility_id(id, name)
     `)
-    .eq("delivery_date", selectedDate)
     .in("status", ["in_progress", "out_for_delivery", "picked_up"])
+    .order("delivery_date")
     .order("delivery_time_window")
 
   // In-progress orders for operator dispatch (at facility)
@@ -171,9 +170,7 @@ export default async function DispatchPage({
     b => b.shipday_pickup_order_id || b.shipday_delivery_order_id
   ).length
 
-  const displayDate = selectedDate === today
-    ? `Today — ${format(parseISO(selectedDate), "EEEE, MMMM d")}`
-    : format(parseISO(selectedDate), "EEEE, MMMM d, yyyy")
+  const displayDate = `Today — ${format(parseISO(today), "EEEE, MMMM d, yyyy")}`
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -185,10 +182,7 @@ export default async function DispatchPage({
             <h1 className="text-2xl font-extrabold text-[#0D2240]">Dispatch</h1>
             <p className="text-sm text-gray-400 mt-0.5">{displayDate}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <SeedDispatchButton />
-            <DispatchDateNav selectedDate={selectedDate} today={today} />
-          </div>
+          <SeedDispatchButton />
         </div>
 
         {/* Stats row */}
@@ -214,7 +208,7 @@ export default async function DispatchPage({
           ].map(t => (
             <a
               key={t.id}
-              href={`?date=${selectedDate}&tab=${t.id}`}
+              href={`?tab=${t.id}`}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
                 activeTab === t.id
                   ? "bg-[#0D2240] text-white"
@@ -229,7 +223,7 @@ export default async function DispatchPage({
         {/* Driver tab */}
         {activeTab === "drivers" && (
           <DispatchBoard
-            date={selectedDate}
+            date={today}
             pickups={allPickups}
             deliveries={allDeliveries}
             drivers={drivers}
@@ -243,7 +237,7 @@ export default async function DispatchPage({
         {/* Operator tab */}
         {activeTab === "operators" && (
           <OperatorDispatch
-            date={selectedDate}
+            date={today}
             orders={allFacilityOrders}
             operators={operators}
             facilities={(facilities ?? []) as { id: string; name: string }[]}

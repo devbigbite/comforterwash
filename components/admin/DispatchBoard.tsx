@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { format, parseISO, isToday, isTomorrow } from "date-fns"
 import Link from "next/link"
 import type { DispatchBooking } from "@/app/admin/dispatch/page"
 
@@ -100,10 +101,20 @@ function KanbanCard({
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_COLOR[b.status] ?? "bg-gray-100 text-gray-500"}`}>
             {b.status?.replace(/_/g, " ")}
           </span>
-          <span className="ml-auto text-[9px] font-bold text-gray-400 border border-gray-200 rounded px-1">{windowBadge}</span>
         </div>
         <p className="font-semibold text-[#0D2240] text-xs truncate">{b.customer_name}</p>
         <p className="text-[10px] text-gray-400 truncate mt-0.5">{b.customer_address}</p>
+        <p className="text-[9px] font-bold mt-1 text-blue-500">
+          {type === "pickup" ? "📦 Pickup" : "🚚 Delivery"}{" "}
+          {(() => {
+            const d = type === "pickup" ? b.pickup_date : b.delivery_date
+            if (!d) return ""
+            if (isToday(parseISO(d))) return "· Today"
+            if (isTomorrow(parseISO(d))) return "· Tomorrow"
+            return "· " + format(parseISO(d), "MMM d")
+          })()}
+          {" · "}{type === "pickup" ? b.pickup_time_window : b.delivery_time_window}
+        </p>
         <div className="flex items-center gap-2 mt-1.5">
           <span className="text-[9px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded">
             {SERVICE_LABELS[b.service_type] ?? b.service_type}
@@ -210,43 +221,59 @@ function DriverColumn({
         )}
       </div>
 
-      {/* Cards */}
-      <div className="p-2 space-y-2 flex-1 overflow-y-auto max-h-[70vh]">
+      {/* Cards — grouped by date */}
+      <div className="p-2 flex-1 overflow-y-auto max-h-[70vh]">
         {total === 0 && (
           <p className="text-center text-[10px] text-gray-300 py-6">
             {isUnassigned ? "All assigned 🎉" : "Nothing assigned yet"}
           </p>
         )}
-        {pickups.length > 0 && (
-          <div className="space-y-1.5">
-            {pickups.length > 0 && deliveries.length > 0 && (
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest px-1">Pickups</p>
-            )}
-            {pickups.map(b => (
-              <KanbanCard key={b.id} booking={b} type="pickup" date={date}
-                drivers={drivers} currentDriverId={b.assigned_driver_id}
-                assignDriverAction={assignDriverAction}
-                unassignDriverAction={unassignDriverAction}
-                rescheduleAction={rescheduleAction}
-                cancelAction={cancelAction} />
-            ))}
-          </div>
-        )}
-        {deliveries.length > 0 && (
-          <div className="space-y-1.5 mt-2">
-            {pickups.length > 0 && deliveries.length > 0 && (
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest px-1">Deliveries</p>
-            )}
-            {deliveries.map(b => (
-              <KanbanCard key={b.id} booking={b} type="delivery" date={date}
-                drivers={drivers} currentDriverId={b.assigned_driver_id}
-                assignDriverAction={assignDriverAction}
-                unassignDriverAction={unassignDriverAction}
-                rescheduleAction={rescheduleAction}
-                cancelAction={cancelAction} />
-            ))}
-          </div>
-        )}
+        {(() => {
+          // Merge pickups + deliveries, tag each with type, sort by date
+          const all = [
+            ...pickups.map(b => ({ ...b, _type: "pickup" as const })),
+            ...deliveries.map(b => ({ ...b, _type: "delivery" as const })),
+          ].sort((a, b) => {
+            const da = a._type === "pickup" ? a.pickup_date : a.delivery_date
+            const db = b._type === "pickup" ? b.pickup_date : b.delivery_date
+            return (da ?? "").localeCompare(db ?? "")
+          })
+
+          // Group by date
+          const groups: Record<string, typeof all> = {}
+          for (const item of all) {
+            const d = item._type === "pickup" ? item.pickup_date : item.delivery_date
+            const key = d ?? "unknown"
+            if (!groups[key]) groups[key] = []
+            groups[key].push(item)
+          }
+
+          return Object.entries(groups).map(([dateKey, items]) => {
+            let label = dateKey
+            try {
+              const parsed = parseISO(dateKey)
+              if (isToday(parsed)) label = "Today"
+              else if (isTomorrow(parsed)) label = "Tomorrow"
+              else label = format(parsed, "EEE, MMM d")
+            } catch {}
+
+            return (
+              <div key={dateKey} className="mb-3">
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest px-1 mb-1.5">{label}</p>
+                <div className="space-y-1.5">
+                  {items.map(b => (
+                    <KanbanCard key={b.id + b._type} booking={b} type={b._type} date={date}
+                      drivers={drivers} currentDriverId={b.assigned_driver_id}
+                      assignDriverAction={assignDriverAction}
+                      unassignDriverAction={unassignDriverAction}
+                      rescheduleAction={rescheduleAction}
+                      cancelAction={cancelAction} />
+                  ))}
+                </div>
+              </div>
+            )
+          })
+        })()}
       </div>
     </div>
   )
