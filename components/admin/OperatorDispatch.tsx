@@ -9,6 +9,11 @@ const SERVICE_LABELS: Record<string, string> = {
   comforter_wash: "Comforter",
 }
 
+const STATUS_STYLE: Record<string, string> = {
+  in_progress: "bg-[#E8726A]/20 text-[#E8726A] border border-[#E8726A]/30",
+  picked_up:   "bg-blue-500/20 text-blue-300 border border-blue-400/30",
+}
+
 export function OperatorDispatch({
   date,
   orders,
@@ -50,38 +55,42 @@ export function OperatorDispatch({
     byFacility[fac.id].orders.push(order)
   }
 
-  // Orders without a facility assigned
   const unrouted = orders.filter(o => !o.assigned_facility)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
 
       {orders.length === 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-          <p className="text-gray-400 text-sm">No orders currently at a facility for this date.</p>
+        <div className="bg-[#0D2240] rounded-2xl border border-white/10 p-10 text-center">
+          <p className="text-white/40 text-sm">No orders currently at a facility.</p>
         </div>
       )}
 
-      {/* Per-facility sections */}
       {Object.values(byFacility).map(({ facility, orders: facOrders }) => {
-        // Which operators are assigned to any order at this facility today
-        const assignedOpIds = new Set(facOrders.map(o => o.assigned_operator_id).filter(Boolean))
+        const assignedOpIds = [...new Set(facOrders.map(o => o.assigned_operator_id).filter(Boolean) as string[])]
 
         return (
-          <div key={facility.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <h3 className="font-extrabold text-[#0D2240] text-base">{facility.name}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{facOrders.length} order{facOrders.length !== 1 ? "s" : ""} in process</p>
+          <div key={facility.id} className="bg-[#0D2240] rounded-2xl border border-white/10 shadow-lg overflow-hidden">
+
+            {/* Facility header */}
+            <div className="px-5 py-4 border-b border-white/10 flex items-center gap-4 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#E8726A] shrink-0" />
+                  <h3 className="font-extrabold text-white text-base">{facility.name}</h3>
+                </div>
+                <p className="text-xs text-white/40 mt-0.5 ml-4">
+                  {facOrders.length} order{facOrders.length !== 1 ? "s" : ""} in process
+                </p>
               </div>
 
-              {/* Operators working this facility */}
-              {assignedOpIds.size > 0 && (
+              {/* Active operators at this facility */}
+              {assignedOpIds.length > 0 && (
                 <div className="flex gap-2 flex-wrap">
-                  {[...assignedOpIds].map(opId => {
+                  {assignedOpIds.map(opId => {
                     const op = operators.find(o => o.id === opId)
                     return op ? (
-                      <span key={opId} className="text-xs bg-purple-100 text-purple-700 font-bold px-2.5 py-1 rounded-full">
+                      <span key={opId} className="text-xs bg-[#E8726A]/20 text-[#E8726A] border border-[#E8726A]/30 font-bold px-2.5 py-1 rounded-full">
                         {op.name}
                       </span>
                     ) : null
@@ -90,40 +99,40 @@ export function OperatorDispatch({
               )}
             </div>
 
-            <div className="divide-y divide-gray-50">
+            {/* Order rows */}
+            <div className="divide-y divide-white/5">
               {facOrders.map(order => {
                 const code = order.short_code ?? order.id.slice(0, 6).toUpperCase()
                 const bags = order.num_bags ?? order.num_comforters ?? 1
                 const assignedOp = operators.find(o => o.id === order.assigned_operator_id)
 
                 return (
-                  <div key={order.id} className="px-5 py-3 flex items-center gap-3 flex-wrap relative">
+                  <div key={order.id} className="px-5 py-3.5 flex items-center gap-4 flex-wrap relative hover:bg-white/5 transition-colors">
                     {toasts[order.id] && (
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-[#0D2240] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-[#E8726A] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
                         {toasts[order.id]}
                       </div>
                     )}
 
+                    {/* Order info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-black font-mono text-[#0D2240] text-sm">{code}</span>
-                        <span className="text-[10px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-black font-mono text-white text-sm">{code}</span>
+                        <span className="text-[10px] bg-white/10 text-white/60 font-bold px-1.5 py-0.5 rounded">
                           {SERVICE_LABELS[order.service_type] ?? order.service_type}
                         </span>
-                        <span className="text-[10px] text-gray-400">{bags} bag{bags !== 1 ? "s" : ""}</span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-1 ${
-                          order.status === "in_progress" ? "bg-orange-100 text-orange-700"
-                          : order.status === "picked_up" ? "bg-purple-100 text-purple-700"
-                          : "bg-gray-100 text-gray-500"
-                        }`}>{order.status?.replace(/_/g, " ")}</span>
+                        <span className="text-[10px] text-white/40">{bags} bag{bags !== 1 ? "s" : ""}</span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_STYLE[order.status] ?? "bg-white/10 text-white/50"}`}>
+                          {order.status?.replace(/_/g, " ")}
+                        </span>
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{order.customer_name}</p>
+                      <p className="text-xs text-white/50 mt-0.5">{order.customer_name}</p>
                     </div>
 
-                    {/* Operator assignment dropdown */}
-                    <div className="flex items-center gap-2">
+                    {/* Operator assignment */}
+                    <div className="flex items-center gap-2 shrink-0">
                       {assignedOp && (
-                        <span className="text-[10px] bg-purple-50 text-purple-700 font-bold px-2 py-1 rounded-full border border-purple-200">
+                        <span className="text-[10px] bg-[#E8726A]/20 text-[#E8726A] border border-[#E8726A]/30 font-bold px-2 py-1 rounded-full">
                           {assignedOp.name}
                         </span>
                       )}
@@ -131,11 +140,13 @@ export function OperatorDispatch({
                         disabled={isPending || operators.length === 0}
                         value={order.assigned_operator_id ?? ""}
                         onChange={e => handleAssign(order.id, e.target.value)}
-                        className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-[#0D2240] bg-white focus:outline-none focus:ring-1 focus:ring-purple-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="rounded-lg border border-white/20 bg-white/10 text-white px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#E8726A]/50 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        <option value="">Assign operator...</option>
+                        <option value="" className="bg-[#0D2240]">
+                          {assignedOp ? "Reassign..." : "Assign operator..."}
+                        </option>
                         {operators.map(op => (
-                          <option key={op.id} value={op.id}>{op.name}</option>
+                          <option key={op.id} value={op.id} className="bg-[#0D2240]">{op.name}</option>
                         ))}
                       </select>
                       {order.assigned_operator_id && (
@@ -143,7 +154,8 @@ export function OperatorDispatch({
                           type="button"
                           disabled={isPending}
                           onClick={() => handleAssign(order.id, "")}
-                          className="text-[10px] text-red-400 hover:text-red-600 font-semibold disabled:opacity-40"
+                          className="text-white/30 hover:text-[#E8726A] font-bold text-sm transition-colors disabled:opacity-40"
+                          title="Remove assignment"
                         >
                           ✕
                         </button>
@@ -157,23 +169,28 @@ export function OperatorDispatch({
         )
       })}
 
-      {/* Unrouted (no facility) */}
+      {/* Unrouted orders */}
       {unrouted.length > 0 && (
-        <div className="bg-amber-50 rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-amber-200">
-            <h3 className="font-extrabold text-amber-700 text-base">No Facility Assigned</h3>
-            <p className="text-xs text-amber-600 mt-0.5">{unrouted.length} order{unrouted.length !== 1 ? "s" : ""} need a facility</p>
+        <div className="bg-[#0D2240] rounded-2xl border border-amber-400/30 shadow-lg overflow-hidden">
+          <div className="px-5 py-4 border-b border-amber-400/20">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+              <h3 className="font-extrabold text-amber-400 text-base">No Facility Assigned</h3>
+            </div>
+            <p className="text-xs text-amber-400/60 mt-0.5 ml-4">
+              {unrouted.length} order{unrouted.length !== 1 ? "s" : ""} need a facility
+            </p>
           </div>
-          <div className="divide-y divide-amber-100">
+          <div className="divide-y divide-white/5">
             {unrouted.map(order => {
               const code = order.short_code ?? order.id.slice(0, 6).toUpperCase()
               const bags = order.num_bags ?? order.num_comforters ?? 1
               return (
                 <div key={order.id} className="px-5 py-3 flex items-center gap-3">
-                  <span className="font-black font-mono text-amber-800 text-sm">{code}</span>
-                  <span className="text-xs text-amber-700">{order.customer_name}</span>
-                  <span className="text-[10px] text-amber-500">{bags} bag{bags !== 1 ? "s" : ""}</span>
-                  <a href={`/admin/orders/${order.id}`} className="ml-auto text-[10px] text-amber-600 font-bold underline">
+                  <span className="font-black font-mono text-amber-400 text-sm">{code}</span>
+                  <span className="text-xs text-white/60">{order.customer_name}</span>
+                  <span className="text-[10px] text-white/30">{bags} bag{bags !== 1 ? "s" : ""}</span>
+                  <a href={`/admin/orders/${order.id}`} className="ml-auto text-[10px] text-[#E8726A] font-bold hover:underline">
                     Assign facility →
                   </a>
                 </div>
@@ -184,7 +201,7 @@ export function OperatorDispatch({
       )}
 
       {operators.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
+        <div className="bg-[#0D2240] border border-amber-400/30 rounded-xl p-4 text-sm text-amber-400">
           No active operators found. Add workers with the "operator" role in{" "}
           <a href="/admin/workers" className="font-bold underline">Workers</a>.
         </div>
