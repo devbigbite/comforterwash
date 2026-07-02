@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { PinGate, useWorkerT, useWorkerSession } from "@/components/pin-gate"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
@@ -31,12 +32,14 @@ export default function DriverHome() {
   const [routeLoading, setRouteLoading] = useState(true)
   const router = useRouter()
 
+  const workerId = session?.workerId ?? null
+
   useEffect(() => {
-    if (!session) return
+    if (!workerId) return
     async function loadData() {
       try {
         const [queue, runs] = await Promise.all([
-          getDriverQueue(session.workerId),
+          getDriverQueue(workerId),
           getPendingRunsForRole("driver"),
         ])
         setPickups(queue.pickups)
@@ -47,7 +50,7 @@ export default function DriverHome() {
       }
     }
     loadData()
-  }, [session])
+  }, [workerId])
 
   async function lookup() {
     const cleaned = code.trim().replace(/\D/g, "")
