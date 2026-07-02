@@ -6,6 +6,7 @@ import { SeedDispatchButton } from "@/components/admin/SeedDispatchButton"
 import { DispatchBoard } from "@/components/admin/DispatchBoard"
 import { OperatorDispatch } from "@/components/admin/OperatorDispatch"
 import { TransferRunsPanel } from "@/components/admin/TransferRunsPanel"
+import { AerialView, type AerialOrder } from "@/components/admin/AerialView"
 import { getTransportRuns } from "@/app/actions/transport-runs"
 import type { TransportRun } from "@/app/actions/transport-runs"
 
@@ -102,7 +103,7 @@ export default async function DispatchPage({
 }) {
   const { tab: tabParam } = await searchParams
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
-  const activeTab = tabParam === "operators" ? "operators" : tabParam === "transfers" ? "transfers" : "drivers"
+  const activeTab = tabParam === "operators" ? "operators" : tabParam === "transfers" ? "transfers" : tabParam === "aerial" ? "aerial" : "drivers"
 
   const supabase = createAdminClient()
 
@@ -160,6 +161,20 @@ export default async function DispatchPage({
   // Pending transport runs for transfer tab
   const transportRuns = await getTransportRuns(["pending"]) as TransportRun[]
 
+  // All active orders for aerial view
+  const { data: aerialData } = await supabase
+    .from("bookings")
+    .select(`
+      id, short_code, customer_name, service_type, num_bags, num_comforters, status,
+      assigned_facility:facilities!assigned_facility_id(name),
+      assigned_driver:workers!assigned_driver_id(name)
+    `)
+    .not("status", "in", '("delivered","cancelled")')
+    .order("created_at", { ascending: false })
+
+  const aerialOrders = (aerialData ?? []) as AerialOrder[]
+  const aerialOrdersById = Object.fromEntries(aerialOrders.map(o => [o.id, o]))
+
   // In-progress orders for operator dispatch (at facility)
   const { data: facilityOrders } = await supabase
     .from("bookings")
@@ -212,6 +227,7 @@ export default async function DispatchPage({
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white rounded-xl border border-gray-100 shadow-sm p-1 w-fit">
           {[
+            { id: "aerial",    label: "🗺️ Aerial View" },
             { id: "drivers",   label: "🚗 Driver Routes" },
             { id: "transfers", label: "📦 Transfer Runs" },
             { id: "operators", label: "🏭 Operator Assignments" },
@@ -229,6 +245,15 @@ export default async function DispatchPage({
             </a>
           ))}
         </div>
+
+        {/* Aerial view tab */}
+        {activeTab === "aerial" && (
+          <AerialView
+            orders={aerialOrders}
+            runs={transportRuns}
+            allOrdersById={aerialOrdersById}
+          />
+        )}
 
         {/* Driver tab */}
         {activeTab === "drivers" && (
