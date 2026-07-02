@@ -138,6 +138,22 @@ async function advanceOrder(formData: FormData) {
   revalidatePath(`/operator/order/${bookingId}`)
 }
 
+async function setOrderStage(formData: FormData) {
+  "use server"
+  const bookingId  = formData.get("bookingId") as string
+  const stage      = formData.get("stage") as string
+  const operator   = (formData.get("operatorName") as string) || "operator"
+  const supabase   = createAdminClient()
+  await supabase.from("order_bags").update({ status: stage }).eq("booking_id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "stage_reset",
+    notes: `Reset to ${stage}`,
+    created_by: operator,
+  })
+  revalidatePath(`/operator/order/${bookingId}`)
+}
+
 async function recordFoldingPhoto(formData: FormData) {
   "use server"
   const bookingId = formData.get("bookingId") as string
@@ -317,6 +333,47 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
             </div>
           )}
         </div>
+
+        {/* Step chips — tappable to go back */}
+        {!notArrived && (bags?.length ?? 0) > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 px-4 py-3 shadow-sm">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Processing Stage</p>
+            <div className="flex items-center gap-1 flex-wrap">
+              {stages.map((stage, i) => {
+                const stageIdx   = stages.indexOf(currentStage ?? "")
+                const done       = stageIdx > i
+                const isCurrent  = stage === currentStage
+                const isPast     = done
+                return (
+                  <div key={stage} className="flex items-center gap-1">
+                    {isPast ? (
+                      <form action={setOrderStage}>
+                        <input type="hidden" name="bookingId" value={booking.id} />
+                        <input type="hidden" name="stage" value={stage} />
+                        <WorkerNameInput name="operatorName" />
+                        <button type="submit"
+                          title={`Go back to ${STATUS_LABEL[stage]}`}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 hover:bg-amber-100 hover:text-amber-700 transition-colors cursor-pointer">
+                          ✓ {STATUS_LABEL[stage]}
+                        </button>
+                      </form>
+                    ) : (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        isCurrent ? "bg-[#E8726A] text-white" : "bg-gray-100 text-gray-400"
+                      }`}>
+                        {isCurrent ? "▶ " : ""}{STATUS_LABEL[stage]}
+                      </span>
+                    )}
+                    {i < stages.length - 1 && <span className="text-gray-200 text-[10px]">→</span>}
+                  </div>
+                )
+              })}
+            </div>
+            {currentStage && stages.indexOf(currentStage) > 0 && (
+              <p className="text-[10px] text-gray-300 mt-2">Tap a completed step to reset back to it (e.g. re-wash)</p>
+            )}
+          </div>
+        )}
 
         {/* Partner mode */}
         {isPartnerMode && (
