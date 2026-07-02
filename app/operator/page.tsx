@@ -74,8 +74,8 @@ const LANES = [
   },
 ]
 
-// Statuses that mean "physically at the facility, needs operator action"
-// confirmed/incoming orders are excluded — operators only see what's in their hands
+// Incoming statuses kept for reference (section hidden from operators)
+const INCOMING_STATUSES: string[] = []
 
 export default function OperatorHome() {
   const session = useWorkerSession()
@@ -84,7 +84,7 @@ export default function OperatorHome() {
   const [queue,       setQueue]       = useState<OperatorOrder[]>([])
   const [pendingRuns, setPendingRuns] = useState<TransportRun[]>([])
   const [loading,     setLoading]     = useState(true)
-  const [, setShowIncoming]           = useState(false) // kept for TS, section removed
+  const [showIncoming, setShowIncoming] = useState(false)
 
   useEffect(() => {
     async function load() {
