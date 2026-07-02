@@ -4,6 +4,7 @@ import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import { stripe } from "@/lib/stripe"
 import PhotoUploader from "./photo-uploader"
+import { WorkerNameInput } from "./worker-name-input"
 
 // Operator steps — wash_only skips the folding step
 type StepDef = { action: string; next: string; color: string; needsMachine: boolean; needsFoldingNotes?: boolean }
@@ -493,17 +494,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                     />
                     <p className="text-[10px] text-gray-300 mt-1">Expected: {bags?.length ?? 0}</p>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
-                      Your Name
-                    </label>
-                    <input
-                      name="operatorName"
-                      type="text"
-                      placeholder="Your name"
-                      className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-yellow-400"
-                    />
-                  </div>
+                  <WorkerNameInput name="operatorName" />
                 </div>
 
                 <div>
@@ -606,10 +597,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                           placeholder="e.g. 22.5"
                           className="w-full rounded-xl border-2 border-amber-300 px-3 py-2.5 text-sm text-[#0D2240] font-mono focus:outline-none focus:border-[#E8726A] bg-white"
                         />
-                        <p className="text-[10px] text-amber-600 mt-1">
-                          Customer billed at max(actual, 20 lbs) × $2.50/lb
-                          {facility?.rate_per_lb && ` · Facility billed at max(actual, ${facility.minimum_lbs ?? 0} lbs) × $${facility.rate_per_lb}/lb`}
-                        </p>
+
                       </div>
                     )}
 
@@ -666,11 +654,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                       </div>
                     )}
 
-                    <div>
-                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Your Name</label>
-                      <input name="operatorName" type="text" placeholder="Your name"
-                        className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]" />
-                    </div>
+                    <WorkerNameInput name="operatorName" />
 
                     <button type="submit"
                       className={`w-full text-white font-extrabold py-4 rounded-2xl text-base transition-colors ${step.color}`}>
