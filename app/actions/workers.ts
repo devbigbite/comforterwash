@@ -292,13 +292,22 @@ export async function addMileageReport(formData: FormData) {
   })
 
   if (error) return { error: error.message }
-  revalidatePath(`/admin/workers/${formData.get("worker_id")}`)
-  return { success: true }
-}
+  revalidatePath(`/admin/workers/${formData.get("worker_id")}
 
-export async function deleteMileageReport(reportId: string, workerId: string) {
+// ── Update worker roles ───────────────────────────────────────────────────────
+export async function updateWorkerRoles(formData: FormData) {
   await requireAdmin()
+
   const supabase = createAdminClient()
-  await supabase.from("worker_mileage_reports").delete().eq("id", reportId)
+  const workerId = formData.get("workerId") as string
+
+  const roles: string[] = []
+  if (formData.get("role_driver") === "on")   roles.push("driver")
+  if (formData.get("role_operator") === "on") roles.push("operator")
+
+  await supabase.from("workers").update({ roles }).eq("id", workerId)
+
   revalidatePath(`/admin/workers/${workerId}`)
+  revalidatePath("/admin/workers")
+  return { success: true }
 }

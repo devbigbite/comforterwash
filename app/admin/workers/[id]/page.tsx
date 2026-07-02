@@ -5,6 +5,7 @@ import Link from "next/link"
 import {
   createStripeConnectAccount, syncStripeStatus, issuePayout, updatePayRates,
   addWorkerDocument, deleteWorkerDocument, addMileageReport, deleteMileageReport,
+  updateWorkerRoles,
 } from "@/app/actions/workers"
 import { setWorkerPin, clearWorkerPin, setWorkerLang } from "@/app/actions/staff"
 import { createClient } from "@/lib/supabase/client"
@@ -436,6 +437,46 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Roles */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h2 className="font-extrabold text-[#0D2240] text-base mb-1">Roles</h2>
+        <p className="text-xs text-gray-400 mb-4">Toggle the functions this worker can perform.</p>
+        <form action={async (fd: FormData) => {
+          "use server"
+          await updateWorkerRoles(fd)
+        }} className="space-y-3">
+          <input type="hidden" name="workerId" value={worker.id} />
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              name="role_driver"
+              defaultChecked={worker.roles?.includes("driver")}
+              className="w-4 h-4 accent-[#E8726A]"
+            />
+            <div>
+              <p className="text-sm font-bold text-[#0D2240]">Driver</p>
+              <p className="text-[11px] text-gray-400">Pickups, deliveries, and transfer runs</p>
+            </div>
+          </label>
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              name="role_operator"
+              defaultChecked={worker.roles?.includes("operator")}
+              className="w-4 h-4 accent-[#E8726A]"
+            />
+            <div>
+              <p className="text-sm font-bold text-[#0D2240]">Washing Operator</p>
+              <p className="text-[11px] text-gray-400">Processing orders at facility</p>
+            </div>
+          </label>
+          <button type="submit"
+            className="mt-2 bg-[#0D2240] hover:bg-[#1a3a5c] text-white text-xs font-bold px-5 py-2 rounded-xl transition-colors">
+            Save Roles
+          </button>
+        </form>
       </div>
 
       {/* Pay Rates */}
