@@ -153,14 +153,13 @@ export default async function DispatchPage({
     .in("status", DRIVER_STATUSES)
     .order("pickup_date")
 
-  // Split for stats
-  const pickups   = (driverOrders ?? []).filter(b => ["confirmed", "picked_up"].includes(b.status)) as DispatchBooking[]
-  const transfers = transportRuns.length > 0 ? transportRuns : [] // shown in transfers tab
-  const deliveries = (driverOrders ?? []).filter(b => b.status === "out_for_delivery") as DispatchBooking[]
-  const allDriverOrders = (driverOrders ?? []) as DispatchBooking[]
-
   // Pending transport runs for transfer tab
   const transportRuns = await getTransportRuns(["pending"]) as TransportRun[]
+
+  // Split for stats
+  const pickups         = (driverOrders ?? []).filter(b => ["confirmed", "picked_up"].includes(b.status)) as DispatchBooking[]
+  const deliveries      = (driverOrders ?? []).filter(b => b.status === "out_for_delivery") as DispatchBooking[]
+  const allDriverOrders = (driverOrders ?? []) as DispatchBooking[]
 
   // All active orders for aerial view
   const { data: aerialData } = await supabase
