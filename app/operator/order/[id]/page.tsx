@@ -612,7 +612,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">
                           {step.next === "in_washer" ? "Select Washer" : "Select Dryer"}
                         </label>
-                        <select name="machineId"
+                        <select name="machineId" required
                           className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A]">
                           <option value="">— choose machine —</option>
                           {allFacilities?.map((fac) => {
