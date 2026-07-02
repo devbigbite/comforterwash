@@ -119,24 +119,15 @@ export default async function DispatchPage({
   const drivers   = (activeDrivers   ?? []) as { id: string; name: string; shipday_email: string | null }[]
   const operators = (activeOperators ?? []) as { id: string; name: string }[]
 
-  // All active pickups (not yet picked up)
-  const { data: pickups } = await supabase
-    .from("bookings")
-    .select(`
-      id, short_code, customer_name, customer_address, customer_phone,
-      pickup_date, pickup_time_window, delivery_date, delivery_time_window,
-      service_type, num_bags, num_comforters, status,
-      shipday_pickup_order_id, shipday_delivery_order_id,
-      assigned_driver_id, assigned_operator_id,
-      assigned_facility:facilities!assigned_facility_id(id, name)
-    `)
-    .eq("status", "confirmed")
-    .gte("pickup_date", today)
-    .order("pickup_date")
-    .order("pickup_time_window")
+  // DRIVER-relevant orders — all statuses that require a driver action:
+  // confirmed       → pick up from customer → bring to facility
+  // picked_up       → en route to facility (driver has it)
+  // at_warehouse    → storage warehouse, driver needs to bring to facility
+  // ready           → folded at facility, driver delivers or transfers to warehouse
+  // out_for_delivery→ driver delivering to customer
+  const DRIVER_STATUSES = ["confirmed", "picked_up", "at_warehouse", "ready", "out_for_delivery"]
 
-  // All active deliveries (in progress, out for delivery)
-  const { data: deliveries } = await supabase
+  const { data: driverOrders } = await supabase
     .from("bookings")
     .select(`
       id, short_code, customer_name, customer_address, customer_phone,
@@ -146,9 +137,14 @@ export default async function DispatchPage({
       assigned_driver_id, assigned_operator_id,
       assigned_facility:facilities!assigned_facility_id(id, name)
     `)
-    .eq("status", "out_for_delivery")
-    .order("delivery_date")
-    .order("delivery_time_window")
+    .in("status", DRIVER_STATUSES)
+    .order("pickup_date")
+
+  // Split for stats
+  const pickups   = (driverOrders ?? []).filter(b => ["confirmed", "picked_up"].includes(b.status)) as DispatchBooking[]
+  const transfers = (driverOrders ?? []).filter(b => ["at_warehouse", "ready"].includes(b.status)) as DispatchBooking[]
+  const deliveries = (driverOrders ?? []).filter(b => b.status === "out_for_delivery") as DispatchBooking[]
+  const allDriverOrders = (driverOrders ?? []) as DispatchBooking[]
 
   // In-progress orders for operator dispatch (at facility)
   const { data: facilityOrders } = await supabase
@@ -162,11 +158,10 @@ export default async function DispatchPage({
     .not("assigned_facility_id", "is", null)
     .order("customer_name")
 
-  const allPickups   = (pickups    ?? []) as DispatchBooking[]
-  const allDeliveries = (deliveries ?? []) as DispatchBooking[]
+  // allPickups / allDeliveries / allDriverOrders already set above
   const allFacilityOrders = (facilityOrders ?? []) as FacilityOrder[]
 
-  const totalSynced = [...allPickups, ...allDeliveries].filter(
+  const totalSynced = allDriverOrders.filter(
     b => b.shipday_pickup_order_id || b.shipday_delivery_order_id
   ).length
 
@@ -188,10 +183,10 @@ export default async function DispatchPage({
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
-            { label: "Pending Pickups", value: allPickups.length,    color: "text-[#E8726A]"  },
-            { label: "Ready Deliveries", value: allDeliveries.length, color: "text-blue-600"   },
-            { label: "At Facility",     value: allFacilityOrders.length, color: "text-purple-600" },
-            { label: "Synced w/ Shipday", value: totalSynced,        color: totalSynced > 0 ? "text-green-600" : "text-amber-500" },
+            { label: "Pickups",     value: pickups.length,           color: "text-[#E8726A]"  },
+            { label: "Transfers",   value: transfers.length,          color: "text-amber-500"  },
+            { label: "Deliveries",  value: deliveries.length,         color: "text-blue-600"   },
+            { label: "At Facility", value: allFacilityOrders.length,  color: "text-purple-600" },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
               <p className={`text-3xl font-extrabold ${color}`}>{value}</p>
@@ -224,8 +219,8 @@ export default async function DispatchPage({
         {activeTab === "drivers" && (
           <DispatchBoard
             date={today}
-            pickups={allPickups}
-            deliveries={allDeliveries}
+            pickups={allDriverOrders}
+            deliveries={[]}
             drivers={drivers}
             assignDriverAction={assignDriverAction}
             unassignDriverAction={unassignDriverAction}

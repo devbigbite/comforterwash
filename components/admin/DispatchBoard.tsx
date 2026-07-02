@@ -12,10 +12,20 @@ const SERVICE_LABELS: Record<string, string> = {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  confirmed:        "bg-blue-100 text-blue-700",
+  confirmed:        "bg-[#E8726A]/15 text-[#E8726A]",
   picked_up:        "bg-purple-100 text-purple-700",
-  in_progress:      "bg-orange-100 text-orange-700",
+  at_warehouse:     "bg-amber-100 text-amber-700",
+  ready:            "bg-teal-100 text-teal-700",
   out_for_delivery: "bg-green-100 text-green-700",
+}
+
+// What action a driver needs to take
+const DRIVER_ACTION: Record<string, string> = {
+  confirmed:        "📦 Pick up from customer",
+  picked_up:        "🚗 En route to facility",
+  at_warehouse:     "🏭 Transfer: Warehouse → Facility",
+  ready:            "✅ Ready — deliver or warehouse",
+  out_for_delivery: "🚚 Deliver to customer",
 }
 
 // ─── Mini order card for kanban ───────────────────────────────────────────────
@@ -104,16 +114,15 @@ function KanbanCard({
         </div>
         <p className="font-semibold text-[#0D2240] text-xs truncate">{b.customer_name}</p>
         <p className="text-[10px] text-gray-400 truncate mt-0.5">{b.customer_address}</p>
-        <p className="text-[9px] font-bold mt-1 text-blue-500">
-          {type === "pickup" ? "📦 Pickup" : "🚚 Delivery"}{" "}
+        <p className="text-[9px] font-bold mt-1 text-[#0D2240]/60">
+          {DRIVER_ACTION[b.status] ?? b.status}
           {(() => {
-            const d = type === "pickup" ? b.pickup_date : b.delivery_date
+            const d = b.status === "out_for_delivery" ? b.delivery_date : b.pickup_date
             if (!d) return ""
-            if (isToday(parseISO(d))) return "· Today"
-            if (isTomorrow(parseISO(d))) return "· Tomorrow"
-            return "· " + format(parseISO(d), "MMM d")
+            if (isToday(parseISO(d))) return " · Today"
+            if (isTomorrow(parseISO(d))) return " · Tomorrow"
+            return " · " + format(parseISO(d), "MMM d")
           })()}
-          {" · "}{type === "pickup" ? b.pickup_time_window : b.delivery_time_window}
         </p>
         <div className="flex items-center gap-2 mt-1.5">
           <span className="text-[9px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded">
@@ -283,8 +292,8 @@ function DriverColumn({
 
 export function DispatchBoard({
   date,
-  pickups,
-  deliveries,
+  pickups: orders,
+  deliveries: _unused,
   drivers,
   assignDriverAction,
   unassignDriverAction,
@@ -300,9 +309,7 @@ export function DispatchBoard({
   rescheduleAction: (fd: FormData) => Promise<void>
   cancelAction: (fd: FormData) => Promise<void>
 }) {
-  // Orders assigned to each driver
-  const unassignedPickups   = pickups.filter(b => !b.assigned_driver_id)
-  const unassignedDeliveries = deliveries.filter(b => !b.assigned_driver_id)
+  const unassigned = orders.filter(b => !b.assigned_driver_id)
 
   return (
     <div>
@@ -310,8 +317,8 @@ export function DispatchBoard({
         {/* Unassigned pool */}
         <DriverColumn
           driver={null}
-          pickups={unassignedPickups}
-          deliveries={unassignedDeliveries}
+          pickups={unassigned}
+          deliveries={[]}
           date={date}
           drivers={drivers}
           assignDriverAction={assignDriverAction}
@@ -322,14 +329,13 @@ export function DispatchBoard({
 
         {/* One column per driver */}
         {drivers.map(driver => {
-          const dPickups    = pickups.filter(b => b.assigned_driver_id === driver.id)
-          const dDeliveries = deliveries.filter(b => b.assigned_driver_id === driver.id)
+          const mine = orders.filter(b => b.assigned_driver_id === driver.id)
           return (
             <DriverColumn
               key={driver.id}
               driver={driver}
-              pickups={dPickups}
-              deliveries={dDeliveries}
+              pickups={mine}
+              deliveries={[]}
               date={date}
               drivers={drivers}
               assignDriverAction={assignDriverAction}
