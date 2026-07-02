@@ -261,8 +261,9 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
 
   const orderCode = booking.id.slice(0, 8).toUpperCase()
   const allStatuses = bags?.map(b => b.status) ?? []
-  const operatorDone = allStatuses.every(s => ["ready", "out_for_delivery", "delivered"].includes(s))
-  const notArrived = allStatuses.every(s => ["pending", "picked_up"].includes(s))
+  const hasBags = (bags?.length ?? 0) > 0
+  const operatorDone = hasBags && allStatuses.every(s => ["ready", "out_for_delivery", "delivered"].includes(s))
+  const notArrived = hasBags && allStatuses.every(s => ["pending", "picked_up"].includes(s))
   const isOwnOperator = !facility || facility.processing_mode === "own_operator"
   const weightOnFile   = booking.actual_weight_lbs as number | null
   const foldedWeight   = booking.folded_weight_lbs != null ? parseFloat(String(booking.folded_weight_lbs)) : null
@@ -412,6 +413,17 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
         {notArrived && (
           <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center text-sm text-gray-400">
             🚐 Bags haven&apos;t arrived at the facility yet. Driver is still on pickup.
+          </div>
+        )}
+
+        {/* No bags registered */}
+        {!hasBags && !notArrived && !operatorDone && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
+            <p className="text-amber-700 font-bold text-base">📦 No bags registered yet</p>
+            <p className="text-amber-600 text-sm mt-1">
+              Bags will appear here once they&apos;re scanned in at the facility.
+              Current order status: <span className="font-bold capitalize">{booking.status?.replace(/_/g, " ")}</span>
+            </p>
           </div>
         )}
 
