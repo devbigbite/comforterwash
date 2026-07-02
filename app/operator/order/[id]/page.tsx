@@ -478,7 +478,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
               {/* Folding photo */}
               {currentStage === "folded" && (
                 <PhotoUploader bookingId={booking.id} action={recordFoldingPhoto}
-                  label="📷 Folding Photos (optional)" emptyHint="Photo of packed bags before handoff." compact />
+                  label="📷 Folding Photo (required)" emptyHint="Take a photo of the packed bags before handoff." compact />
               )}
 
               <button type="submit"
