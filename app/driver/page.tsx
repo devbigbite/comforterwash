@@ -3,10 +3,12 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { PinGate, useWorkerT, useWorkerSession } from "@/components/pin-gate"
+import { useWorkerSession } from "@/components/pin-gate"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import { getDriverQueue } from "@/app/actions/driver-queue"
+import { getActiveWorkers } from "@/app/actions/staff"
+import type { ActiveWorker } from "@/app/actions/staff"
 import type { TransportRun } from "@/app/actions/transport-runs"
 import type { DriverOrder } from "@/app/actions/driver-queue"
 
@@ -19,7 +21,6 @@ const SERVICE_LABEL: Record<string, string> = {
 }
 
 export default function DriverHome() {
-  const t = useWorkerT("driver")
   const session = useWorkerSession()
 
   const [showKeypad, setShowKeypad]     = useState(false)
@@ -34,8 +35,16 @@ export default function DriverHome() {
 
   const workerId = session?.workerId ?? null
 
+  const [drivers, setDrivers] = useState<ActiveWorker[]>([])
+
   useEffect(() => {
-    if (!workerId) return
+    // Always load driver list for the picker
+    getActiveWorkers().then(list => setDrivers(list.filter(w => w.roles?.includes("driver"))))
+  }, [])
+
+  useEffect(() => {
+    if (!workerId) { setRouteLoading(false); return }
+    setRouteLoading(true)
     async function loadData() {
       try {
         const [queue, runs] = await Promise.all([
@@ -73,7 +82,6 @@ export default function DriverHome() {
   const totalTasks = pickups.length + deliveries.length + pendingRuns.length
 
   return (
-    <PinGate role="driver">
     <div className="min-h-screen bg-[#0D2240]">
 
       {/* Header */}
@@ -98,7 +106,29 @@ export default function DriverHome() {
           </div>
         )}
 
-        {!routeLoading && totalTasks === 0 && (
+        {/* ── Driver picker when no session ── */}
+        {!routeLoading && !workerId && (
+          <div className="bg-white/5 rounded-2xl p-6 mt-4">
+            <p className="text-white font-bold mb-3">Who are you?</p>
+            <div className="space-y-2">
+              {drivers.map(d => (
+                <button
+                  key={d.id}
+                  onClick={() => {
+                    const s = { workerId: d.id, workerName: d.name, lang: "en", roles: d.roles }
+                    localStorage.setItem("washfold_driver_worker", JSON.stringify(s))
+                    window.location.reload()
+                  }}
+                  className="w-full text-left bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-3 rounded-xl transition-colors"
+                >
+                  🚐 {d.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!routeLoading && !!workerId && totalTasks === 0 && (
           <div className="bg-white/5 rounded-2xl p-8 text-center mt-4">
             <p className="text-4xl mb-3">✅</p>
             <p className="text-white font-bold text-lg">No stops today</p>
@@ -290,6 +320,6 @@ export default function DriverHome() {
 
       </div>
     </div>
-    </PinGate>
   )
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      

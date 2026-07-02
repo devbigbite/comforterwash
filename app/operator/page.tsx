@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { PinGate, useWorkerSession } from "@/components/pin-gate"
+import { useWorkerSession } from "@/components/pin-gate"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import { getOperatorQueue } from "@/app/actions/operator-queue"
@@ -98,15 +98,14 @@ export default function OperatorHome() {
   const activeCount = LANES.reduce((n, l) => n + laneOrders(l.statuses).length, 0)
 
   return (
-    <PinGate role="operator">
-      <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
 
         {/* Header */}
         <div className="bg-white border-b border-gray-100 px-5 pt-5 pb-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
           <div>
             <p className="text-[#E8726A] text-[11px] font-bold uppercase tracking-widest">Operator Station</p>
             <h1 className="text-lg font-extrabold text-[#0D2240]">
-              {session?.workerName ? `${session.workerName.split(" ")[0]}'s Queue` : "Today's Queue"}
+              Today's Queue
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -259,6 +258,6 @@ export default function OperatorHome() {
 
         </div>
       </div>
-    </PinGate>
   )
 }
+                                                                                                                                                                                                                                                                                                                                                                         
