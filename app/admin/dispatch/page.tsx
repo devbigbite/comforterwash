@@ -3,6 +3,7 @@ import { format, parseISO } from "date-fns"
 import { revalidatePath } from "next/cache"
 import { reschedulePickup, rescheduleDelivery, assignDriver, cancelShipdayOrders } from "@/app/actions/shipday"
 import { DispatchDateNav } from "@/components/admin/DispatchDateNav"
+import { SeedDispatchButton } from "@/components/admin/SeedDispatchButton"
 import { DispatchBoard } from "@/components/admin/DispatchBoard"
 import { OperatorDispatch } from "@/components/admin/OperatorDispatch"
 
@@ -184,7 +185,10 @@ export default async function DispatchPage({
             <h1 className="text-2xl font-extrabold text-[#0D2240]">Dispatch</h1>
             <p className="text-sm text-gray-400 mt-0.5">{displayDate}</p>
           </div>
-          <DispatchDateNav selectedDate={selectedDate} today={today} />
+          <div className="flex items-center gap-3">
+            <SeedDispatchButton />
+            <DispatchDateNav selectedDate={selectedDate} today={today} />
+          </div>
         </div>
 
         {/* Stats row */}
