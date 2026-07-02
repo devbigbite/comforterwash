@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { PinGate, useWorkerT, useWorkerSession } from "@/components/pin-gate"
+import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import type { TransportRun } from "@/app/actions/transport-runs"
 
@@ -173,7 +174,7 @@ export default function OperatorHome() {
             {session?.workerName ? `Hi, ${session.workerName.split(" ")[0]} 👋` : "Today's Queue"}
           </h1>
         </div>
-        <div className="w-12 h-12 rounded-2xl bg-[#E8726A] flex items-center justify-center text-2xl">🏭</div>
+        <RoleSwitcher currentRole="operator" />
       </div>
 
       <div className="px-4 pb-10 max-w-lg mx-auto space-y-3">

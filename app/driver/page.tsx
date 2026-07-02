@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { PinGate, useWorkerT, useWorkerSession } from "@/components/pin-gate"
+import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import type { TransportRun } from "@/app/actions/transport-runs"
 
@@ -106,7 +107,7 @@ export default function DriverHome() {
             {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
           </p>
         </div>
-        <div className="w-12 h-12 rounded-2xl bg-[#E8726A] flex items-center justify-center text-2xl">🚐</div>
+        <RoleSwitcher currentRole="driver" />
       </div>
 
       <div className="px-4 pb-10 max-w-lg mx-auto space-y-4">

@@ -11,6 +11,7 @@ interface WorkerSession {
   workerId: string
   workerName: string
   lang: Locale
+  roles?: string[]
 }
 
 const WorkerCtx = createContext<WorkerSession | null>(null)
@@ -99,7 +100,7 @@ export function PinGate({ role, children }: PinGateProps) {
     setLoading(false)
     if (worker) {
       const lang = (worker.lang ?? "en") as Locale
-      const s: WorkerSession = { workerId: worker.id, workerName: worker.name, lang }
+      const s: WorkerSession = { workerId: worker.id, workerName: worker.name, lang, roles: worker.roles }
       saveSession(role, s)
       setWelcome(true)
       setTimeout(() => {
