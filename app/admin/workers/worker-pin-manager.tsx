@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { setWorkerPin, clearWorkerPin } from "@/app/actions/staff"
 
 interface Props {
@@ -15,6 +15,32 @@ export function WorkerPinManager({ workerName, hasPin }: Props) {
   const [clearing, setClearing] = useState(false)
   const [result, setResult]   = useState<"saved" | "cleared" | "error" | null>(null)
   const [currentHasPin, setCurrentHasPin] = useState(hasPin)
+  const [pos, setPos]         = useState<{ top: number; left: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  function handleOpen() {
+    if (open) { setOpen(false); return }
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 8, left: r.left })
+    }
+    setOpen(true)
+  }
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    function onDown(e: MouseEvent) {
+      const target = e.target as Node
+      const panel = document.getElementById("pin-panel-" + workerName.replace(/\s/g, "_"))
+      if (panel && !panel.contains(target) && !btnRef.current?.contains(target)) {
+        setOpen(false)
+        setPin("")
+      }
+    }
+    document.addEventListener("mousedown", onDown)
+    return () => document.removeEventListener("mousedown", onDown)
+  }, [open, workerName])
 
   async function handleSet() {
     if (pin.length !== 4 || !/^\d{4}$/.test(pin)) return
@@ -46,7 +72,8 @@ export function WorkerPinManager({ workerName, hasPin }: Props) {
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(o => !o)}
+        ref={btnRef}
+        onClick={handleOpen}
         className="text-xs font-bold px-4 py-2 rounded-lg border border-gray-200 text-[#0D2240] hover:border-[#0D2240] transition-colors uppercase tracking-wide"
       >
         🔑 {currentHasPin ? "Change PIN" : "Set PIN"}
@@ -56,8 +83,12 @@ export function WorkerPinManager({ workerName, hasPin }: Props) {
       {result === "cleared" && <span className="ml-2 text-amber-600 text-xs font-semibold">PIN cleared</span>}
       {result === "error"   && <span className="ml-2 text-red-500 text-xs font-semibold">Error — try again</span>}
 
-      {open && (
-        <div className="absolute left-0 top-full mt-2 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-4 min-w-[240px]">
+      {open && pos && (
+        <div
+          id={"pin-panel-" + workerName.replace(/\s/g, "_")}
+          style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999 }}
+          className="bg-white border border-gray-200 rounded-xl shadow-xl p-4 min-w-[240px]"
+        >
           <p className="text-xs font-bold text-[#0D2240] mb-2 uppercase tracking-wide">
             {currentHasPin ? "Change PIN for " : "Set PIN for "}{workerName}
           </p>

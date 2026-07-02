@@ -20,6 +20,11 @@ function buildNav(lang: "en" | "es"): NavItem[] {
     },
     {
       type: "link",
+      href: "/admin/orders",
+      label: es ? "Órdenes" : "Orders",
+    },
+    {
+      type: "link",
       href: "/admin/search",
       label: es ? "Buscar" : "Search",
     },

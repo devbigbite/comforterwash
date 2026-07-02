@@ -4,8 +4,9 @@ import { useState } from "react"
 import Link from "next/link"
 import {
   PitchTemplate, ServiceItem, ValueProp, PricingRow,
-  updatePitchTemplate, SEGMENT_LABELS,
-} from "@/app/actions/outreach"
+  SEGMENT_LABELS,
+} from "@/app/actions/outreach-types"
+import { updatePitchTemplate } from "@/app/actions/outreach"
 
 export default function PitchEditorClient({ template: initial }: { template: PitchTemplate }) {
   const [t, setT] = useState(initial)

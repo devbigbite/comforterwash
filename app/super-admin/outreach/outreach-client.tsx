@@ -5,9 +5,11 @@ import Link from "next/link"
 import {
   PitchTemplate, Prospect, ProspectStage,
   SEGMENT_LABELS, STAGE_LABELS, STAGE_COLORS,
+  OutreachSegment,
+} from "@/app/actions/outreach-types"
+import {
   createProspect, updateProspect, deleteProspect,
   createPitchTemplate, deletePitchTemplate, updatePitchTemplate,
-  OutreachSegment,
 } from "@/app/actions/outreach"
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
