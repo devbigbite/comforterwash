@@ -384,10 +384,16 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
           </div>
         )}
 
-        {/* Not arrived */}
+        {/* Not arrived — send operator back, nothing to do here */}
         {notArrived && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center text-sm text-gray-400">
-            🚐 Bags haven&apos;t arrived at the facility yet. Driver is still on pickup.
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center space-y-3">
+            <p className="text-3xl">🚐</p>
+            <p className="text-[#0D2240] font-extrabold text-base">Not here yet</p>
+            <p className="text-amber-700 text-sm">This order is still with the driver. Come back when the bags are physically in your hands.</p>
+            <Link href="/operator"
+              className="inline-block mt-2 bg-[#0D2240] text-white font-bold text-sm px-6 py-3 rounded-xl">
+              ← Back to my queue
+            </Link>
           </div>
         )}
 
