@@ -12,6 +12,9 @@ export interface OperatorOrder {
   bags_total: number
   effective_status: string  // derived from most advanced bag status, or booking status
   assigned_facility_id: string | null
+  washer_label: string | null
+  dryer_label: string | null
+  actual_weight_lbs: number | null
 }
 
 const STATUS_ORDER = ["at_facility", "in_washer", "in_dryer", "folded", "ready"]
@@ -22,7 +25,7 @@ export async function getOperatorQueue(): Promise<OperatorOrder[]> {
   // Fetch all active bookings (not partner_attendant)
   const { data: bookings } = await supabase
     .from("bookings")
-    .select("id, short_code, customer_name, service_type, status, num_bags, facility_processing_mode, assigned_facility_id")
+    .select("id, short_code, customer_name, service_type, status, num_bags, facility_processing_mode, assigned_facility_id, washer_label, dryer_label, actual_weight_lbs")
     .in("status", ["in_progress"])
     .or("facility_processing_mode.is.null,facility_processing_mode.neq.partner_attendant")
 
@@ -59,6 +62,9 @@ export async function getOperatorQueue(): Promise<OperatorOrder[]> {
       bags_total:           b.num_bags ?? orderBags.length,
       effective_status:     mostAdv ?? b.status,  // fall back to booking status if no bags
       assigned_facility_id: b.assigned_facility_id ?? null,
+      washer_label:         b.washer_label ?? null,
+      dryer_label:          b.dryer_label  ?? null,
+      actual_weight_lbs:    b.actual_weight_lbs ?? null,
     }
   })
 }

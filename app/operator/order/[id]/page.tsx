@@ -118,6 +118,14 @@ async function advanceOrder(formData: FormData) {
     await supabase.from("bookings").update({ output_bags: outputBags }).eq("id", bookingId)
   }
 
+  // Save machine label to booking for chip display
+  if (nextStatus === "in_washer" && machineIds.length > 0) {
+    await supabase.from("bookings").update({ washer_label: machineIds.join(", ") }).eq("id", bookingId)
+  }
+  if (nextStatus === "in_dryer" && machineIds.length > 0) {
+    await supabase.from("bookings").update({ dryer_label: machineIds.join(", ") }).eq("id", bookingId)
+  }
+
   // Log event with machine assignments
   const eventMap: Record<string, string> = {
     in_washer: "loaded_into_washer",

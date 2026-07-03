@@ -189,9 +189,18 @@ export default function OperatorHome() {
                         <p className="text-[#0D2240] font-bold text-sm leading-tight">
                           {o.short_code ?? o.id.slice(0, 6).toUpperCase()}
                         </p>
-                        <p className="text-gray-400 text-[11px]">
-                          {o.bags_total} bag{o.bags_total !== 1 ? "s" : ""}
-                        </p>
+                        {(lane.key === "in_washer" || lane.key === "in_dryer") ? (
+                          <p className="text-gray-400 text-[11px]">
+                            {lane.key === "in_washer" ? o.washer_label : o.dryer_label
+                              ? <span className="font-semibold text-gray-600">{lane.key === "in_washer" ? o.washer_label : o.dryer_label}</span>
+                              : "no machine"}
+                            {o.actual_weight_lbs ? ` · ${o.actual_weight_lbs} lbs` : ""}
+                          </p>
+                        ) : (
+                          <p className="text-gray-400 text-[11px]">
+                            {o.bags_total} bag{o.bags_total !== 1 ? "s" : ""}
+                          </p>
+                        )}
                       </div>
                     </button>
                   ))}
