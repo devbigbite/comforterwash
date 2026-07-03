@@ -44,7 +44,7 @@ interface Props {
   recordPhotoEvent: (fd: FormData) => Promise<void>
 }
 
-const STORAGE_KEY = "washfold_driver_name"
+const SESSION_KEY = "washfold_driver_worker"
 
 function PhotoRequired({ taken, error }: { taken: boolean; error: boolean }) {
   if (taken) return <p className="text-green-600 text-xs font-semibold px-1 pt-1">✓ Photo taken</p>
@@ -68,7 +68,6 @@ export default function DriverOrderClient({
   const isDeliveryDay = deliveryDate === today
 
   const [driverName, setDriverName]         = useState("")
-  const [nameError, setNameError]           = useState(false)
   const [submitting, setSubmitting]         = useState<string | null>(null)
   const [actualBagCount, setActualBagCount] = useState(bags.length)
   const [selectedColor, setSelectedColor]   = useState<string>(existingColorKey ?? "")
@@ -92,20 +91,27 @@ export default function DriverOrderClient({
   const [hasDeliveryPhoto,         setHasDeliveryPhoto]         = useState(false)
   const [deliveryPhotoErr,         setDeliveryPhotoErr]         = useState(false)
 
+  // Auto-init: color from available pool, name from clock-in session
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) setDriverName(saved)
+    try {
+      const raw = localStorage.getItem(SESSION_KEY)
+      if (raw) {
+        const s = JSON.parse(raw)
+        if (s?.workerName) setDriverName(s.workerName)
+      }
+    } catch {}
+    // Auto-assign color if none pre-assigned
+    if (!existingColorKey) {
+      const available = COLORS.filter(c => !takenColors.includes(c.key))
+      if (available.length > 0) {
+        const pick = available[Math.floor(Math.random() * available.length)]
+        setSelectedColor(pick.key)
+      }
+    }
   }, [])
 
-  function saveName(n: string) {
-    setDriverName(n)
-    if (n.trim()) localStorage.setItem(STORAGE_KEY, n.trim())
-    setNameError(false)
-  }
-
   function requireName() {
-    if (!driverName.trim()) { setNameError(true); return false }
-    return true
+    return true  // name comes from session, always present
   }
 
   function updateBagWeight(i: number, val: string) {
@@ -202,20 +208,7 @@ export default function DriverOrderClient({
         </div>
       )}
 
-      {/* ── Driver name ── */}
-      <div className={`bg-white rounded-2xl shadow-sm border p-4 ${nameError ? "border-red-400" : "border-gray-100"}`}>
-        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">
-          Your Name <span className="text-[#E8726A]">*</span>
-        </label>
-        <input
-          type="text" value={driverName} onChange={e => saveName(e.target.value)}
-          placeholder="Enter your name"
-          className={`w-full rounded-xl border-2 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none transition-colors
-            ${nameError ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-[#E8726A]"}`}
-        />
-        {nameError && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Name is required</p>}
-        {driverName && !nameError && <p className="text-green-600 text-xs mt-1">✓ Saved for this device</p>}
-      </div>
+      {/* Driver name read from session — no input needed */}
 
       {/* ══════════════════════════════════════════════════════════════ */}
       {/* PICKUP PHASE                                                   */}
