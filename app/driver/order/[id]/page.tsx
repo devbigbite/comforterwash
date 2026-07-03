@@ -329,17 +329,26 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
 
         {/* Order summary */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <div className="grid grid-cols-4 gap-3 text-center text-sm">
-            <div><p className="text-gray-500 text-xs">Service</p><p className="font-bold text-[#0D2240] text-xs">{booking.service_type === "wash_fold" ? "W&F" : booking.service_type === "wash_only" ? "Wash Only" : "Comforter"}</p></div>
-            <div><p className="text-gray-500 text-xs">Bags</p><p className="font-bold text-[#0D2240]">{bags?.length ?? 0}</p></div>
-            <div><p className="text-gray-500 text-xs">Est. lbs</p><p className="font-bold text-[#0D2240]">{booking.pounds ?? "—"}</p></div>
-            <div><p className="text-gray-500 text-xs">Actual lbs</p><p className={`font-bold ${booking.actual_weight_lbs ? "text-green-600" : "text-gray-300"}`}>{booking.actual_weight_lbs ?? "—"}</p></div>
-          </div>
-          {booking.actual_weight_lbs && (
-            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between text-xs">
-              <span className="text-gray-500">Customer charge</span>
-              <span className="font-bold text-[#0D2240]">${((booking.customer_final_cents ?? 0) / 100).toFixed(2)} ({Math.max(booking.actual_weight_lbs, CUSTOMER_MIN_LBS)} lbs)</span>
+          {booking.service_type === "comforter_wash" ? (
+            <div className="grid grid-cols-2 gap-3 text-center text-sm">
+              <div><p className="text-gray-500 text-xs">Service</p><p className="font-bold text-[#0D2240] text-xs">Comforter</p></div>
+              <div><p className="text-gray-500 text-xs">Comforters</p><p className="font-bold text-[#0D2240]">{booking.num_comforters ?? bags?.length ?? 0}</p></div>
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-4 gap-3 text-center text-sm">
+                <div><p className="text-gray-500 text-xs">Service</p><p className="font-bold text-[#0D2240] text-xs">{booking.service_type === "wash_fold" ? "W&F" : "Wash Only"}</p></div>
+                <div><p className="text-gray-500 text-xs">Bags</p><p className="font-bold text-[#0D2240]">{bags?.length ?? 0}</p></div>
+                <div><p className="text-gray-500 text-xs">Est. lbs</p><p className="font-bold text-[#0D2240]">{booking.pounds ?? "—"}</p></div>
+                <div><p className="text-gray-500 text-xs">Actual lbs</p><p className={`font-bold ${booking.actual_weight_lbs ? "text-green-600" : "text-gray-300"}`}>{booking.actual_weight_lbs ?? "—"}</p></div>
+              </div>
+              {booking.actual_weight_lbs && (
+                <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between text-xs">
+                  <span className="text-gray-500">Customer charge</span>
+                  <span className="font-bold text-[#0D2240]">${((booking.customer_final_cents ?? 0) / 100).toFixed(2)} ({Math.max(booking.actual_weight_lbs, CUSTOMER_MIN_LBS)} lbs)</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -404,7 +413,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
                     <p className="text-gray-400 text-[10px]">bags</p>
                   </div>
                   <div className={`rounded-xl px-3 py-2.5 border text-center ${foldedCount !== pickedUpCount ? "bg-purple-50 border-purple-200" : "bg-gray-50 border-gray-100"}`}>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Folded</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{booking.service_type === "comforter_wash" ? "Washed" : "Folded"}</p>
                     <p className={`font-extrabold text-xl ${foldedCount !== pickedUpCount ? "text-purple-600" : "text-[#0D2240]"}`}>{foldedCount}</p>
                     <p className="text-gray-400 text-[10px]">bags{foldedCount !== pickedUpCount ? " ← use this count" : ""}</p>
                   </div>
