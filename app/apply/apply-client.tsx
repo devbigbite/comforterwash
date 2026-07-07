@@ -396,8 +396,24 @@ export function ApplyClient() {
       return
     }
 
+    const preSubmitFd = new FormData(e.currentTarget)
+    if (isDriverPath && preSubmitFd.getAll("driving_experience").length === 0) {
+      setErrorMsg(lang === "es"
+        ? "Por favor indica si has trabajado como conductor antes."
+        : "Please indicate whether you've worked as a driver before.")
+      setStatus("error")
+      return
+    }
+    if (isDriverPath && preSubmitFd.getAll("preferred_availability").length === 0) {
+      setErrorMsg(lang === "es"
+        ? "Por favor selecciona al menos una opción de disponibilidad preferida."
+        : "Please select at least one preferred availability option.")
+      setStatus("error")
+      return
+    }
+
     setStatus("submitting")
-    const fd = new FormData(e.currentTarget)
+    const fd = preSubmitFd
     fd.set(`role_${selectedRole}`, "on")
     fd.set("ic_signature", icSignature.trim())
     fd.set("ic_role", ROLE_LABELS[selectedRole])
@@ -537,16 +553,6 @@ export function ApplyClient() {
               </div>
             </div>
 
-            {/* Vehicle checkbox — shown if driver or combo */}
-            {(selectedRole === "driver" || selectedRole === "combo") && (
-              <div>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" name="has_vehicle" className="w-4 h-4 accent-[#E8726A]" />
-                  <span className="text-sm text-gray-600">{t.vehicle}</span>
-                </label>
-              </div>
-            )}
-
             <div>
               <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">
                 {t.exp_label} <span className="text-gray-400 font-normal normal-case">{t.exp_optional}</span>
@@ -569,7 +575,7 @@ export function ApplyClient() {
               <YesNo name="had_prior_jobs" label={t.dq_prior_jobs} t={t} />
 
               <div>
-                <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_prior_driving}</label>
+                <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_prior_driving} *</label>
                 <p className="text-xs text-gray-400 mb-2">{t.dq_prior_driving_hint}</p>
                 <div className="flex flex-wrap gap-3">
                   {["Uber", "DoorDash", "Lyft", "Cargo"].map((opt) => (
@@ -635,11 +641,11 @@ export function ApplyClient() {
                   <YesNo name="vehicle_registration_valid" label={t.dq_v_reg} t={t} />
                   <YesNo name="vehicle_insurance_valid" label={t.dq_v_ins} t={t} />
                   <div>
-                    <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_v_ins_commercial}</label>
+                    <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_v_ins_commercial} *</label>
                     <div className="flex gap-4">
                       {(["yes", "no", "dont_know"] as const).map((v) => (
                         <label key={v} className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                          <input type="radio" name="vehicle_insurance_commercial_ok" value={v} className="w-4 h-4 accent-[#E8726A]" />
+                          <input type="radio" name="vehicle_insurance_commercial_ok" value={v} required className="w-4 h-4 accent-[#E8726A]" />
                           {v === "yes" ? t.yes : v === "no" ? t.no : t.dont_know}
                         </label>
                       ))}
@@ -649,7 +655,7 @@ export function ApplyClient() {
               </div>
 
               <div className="pt-2 border-t border-gray-100">
-                <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-2">{t.dq_avail_pref}</label>
+                <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-2">{t.dq_avail_pref} *</label>
                 <p className="text-xs text-gray-400 mb-2">{t.dq_avail_pref_hint}</p>
                 <div className="flex flex-wrap gap-3">
                   {["Full Availability", "Morning", "Afternoon", "Nights", "Overnight Shift", "Weekends"].map((opt) => (

@@ -44,7 +44,7 @@ export async function submitApplication(formData: FormData) {
     phone:                    formData.get("phone") as string,
     address:                  formData.get("address") as string,
     roles,
-    has_vehicle:              formData.get("has_vehicle") === "on",
+    has_vehicle:              isDriverPath ? Boolean(formData.get("vehicle_brand")) : formData.get("has_vehicle") === "on",
     experience:               formData.get("experience") as string,
     status:                   "pending",
     ic_agreement_signature:   icSignature || null,
