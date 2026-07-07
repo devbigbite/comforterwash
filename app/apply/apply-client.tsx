@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { submitApplication } from "@/app/actions/workers"
@@ -324,22 +324,15 @@ export function ApplyClient() {
   const [selectedRole, setSelectedRole] = useState<Role>(null)
   const isDriverPath = selectedRole === "driver" || selectedRole === "combo"
 
-  // Driver questionnaire state
-  type DayAvail = { from: string; to: string; is24h: boolean; notAvailable: boolean; details: string }
-  const emptyDay = (): DayAvail => ({ from: "", to: "", is24h: false, notAvailable: false, details: "" })
-  const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const
-  const [availability, setAvailability] = useState<Record<string, DayAvail>>(() =>
-    Object.fromEntries(DAYS.map((d) => [d, emptyDay()])) as Record<string, DayAvail>
-  )
-  const setDay = (day: string, patch: Partial<DayAvail>) =>
-    setAvailability((prev) => ({ ...prev, [day]: { ...prev[day], ...patch } }))
-
   const [vehiclePhotoUrl, setVehiclePhotoUrl] = useState("")
   const [resumeUrl, setResumeUrl] = useState("")
   const [selfieUrl, setSelfieUrl] = useState("")
   const [uploading, setUploading] = useState<{ vehicle: boolean; resume: boolean; selfie: boolean }>({
     vehicle: false, resume: false, selfie: false,
   })
+  const vehicleInputRef = useRef<HTMLInputElement>(null)
+  const resumeInputRef  = useRef<HTMLInputElement>(null)
+  const selfieInputRef  = useRef<HTMLInputElement>(null)
 
   async function handleApplicantUpload(
     file: File,
@@ -409,7 +402,6 @@ export function ApplyClient() {
     fd.set("ic_signature", icSignature.trim())
     fd.set("ic_role", ROLE_LABELS[selectedRole])
     if (isDriverPath) {
-      fd.set("availability_json", JSON.stringify(availability))
       fd.set("vehicle_photo_url", vehiclePhotoUrl)
       fd.set("resume_url", resumeUrl)
       fd.set("selfie_url", selfieUrl)
@@ -624,11 +616,19 @@ export function ApplyClient() {
 
                 <div className="mt-3">
                   <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_v_photo} *</label>
-                  <input type="file" accept="image/*" onChange={(e) => {
+                  <input ref={vehicleInputRef} type="file" accept="image/*" onChange={(e) => {
                     const f = e.target.files?.[0]; if (f) handleApplicantUpload(f, "vehicle", setVehiclePhotoUrl)
-                  }} className="w-full text-sm" />
-                  {uploading.vehicle && <p className="text-xs text-gray-400 mt-1">{t.dq_uploading}</p>}
-                  {vehiclePhotoUrl && !uploading.vehicle && <p className="text-xs text-green-600 mt-1">{t.dq_uploaded}</p>}
+                  }} className="hidden" />
+                  <button
+                    type="button"
+                    onClick={() => vehicleInputRef.current?.click()}
+                    disabled={uploading.vehicle}
+                    className={`w-full flex items-center justify-center gap-2 border-2 border-dashed rounded-xl px-4 py-4 text-sm font-bold uppercase tracking-wide transition-colors disabled:opacity-50 ${
+                      vehiclePhotoUrl ? "border-green-300 bg-green-50 text-green-700" : "border-[#E8726A] text-[#E8726A] hover:bg-[#fdf6f3]"
+                    }`}
+                  >
+                    {uploading.vehicle ? t.dq_uploading : vehiclePhotoUrl ? `✓ ${t.dq_uploaded}` : `📷 ${t.dq_v_photo}`}
+                  </button>
                 </div>
 
                 <div className="mt-3 space-y-3">
@@ -648,46 +648,7 @@ export function ApplyClient() {
                 </div>
               </div>
 
-              {/* Availability */}
               <div className="pt-2 border-t border-gray-100">
-                <h3 className="font-bold text-[#0D2240] text-sm mb-1">{t.dq_avail_title}</h3>
-                <p className="text-xs text-gray-400 mb-3">{t.dq_avail_hint}</p>
-                <div className="space-y-2">
-                  {DAYS.map((day) => {
-                    const d = availability[day]
-                    return (
-                      <div key={day} className="border border-gray-200 rounded-xl px-3 py-2.5">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-[#0D2240] uppercase tracking-wide capitalize w-24">{day}</span>
-                          <div className="flex items-center gap-2 flex-1 min-w-[220px]">
-                            <input type="time" value={d.from} disabled={d.notAvailable || d.is24h}
-                              onChange={(e) => setDay(day, { from: e.target.value })}
-                              className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs flex-1 disabled:bg-gray-50 disabled:text-gray-300" />
-                            <span className="text-xs text-gray-400">{t.dq_to}</span>
-                            <input type="time" value={d.to} disabled={d.notAvailable || d.is24h}
-                              onChange={(e) => setDay(day, { to: e.target.value })}
-                              className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs flex-1 disabled:bg-gray-50 disabled:text-gray-300" />
-                          </div>
-                          <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
-                            <input type="checkbox" checked={d.is24h}
-                              onChange={(e) => setDay(day, { is24h: e.target.checked, notAvailable: false })}
-                              className="w-3.5 h-3.5 accent-[#E8726A]" />
-                            {t.dq_24h}
-                          </label>
-                          <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
-                            <input type="checkbox" checked={d.notAvailable}
-                              onChange={(e) => setDay(day, { notAvailable: e.target.checked, is24h: false })}
-                              className="w-3.5 h-3.5 accent-[#E8726A]" />
-                            {t.dq_na}
-                          </label>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div>
                 <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-2">{t.dq_avail_pref}</label>
                 <p className="text-xs text-gray-400 mb-2">{t.dq_avail_pref_hint}</p>
                 <div className="flex flex-wrap gap-3">
@@ -718,21 +679,37 @@ export function ApplyClient() {
 
               <div>
                 <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_resume}</label>
-                <input type="file" accept=".pdf,.doc,.docx,image/*" onChange={(e) => {
+                <input ref={resumeInputRef} type="file" accept=".pdf,.doc,.docx,image/*" onChange={(e) => {
                   const f = e.target.files?.[0]; if (f) handleApplicantUpload(f, "resume", setResumeUrl)
-                }} className="w-full text-sm" />
-                {uploading.resume && <p className="text-xs text-gray-400 mt-1">{t.dq_uploading}</p>}
-                {resumeUrl && !uploading.resume && <p className="text-xs text-green-600 mt-1">{t.dq_uploaded}</p>}
+                }} className="hidden" />
+                <button
+                  type="button"
+                  onClick={() => resumeInputRef.current?.click()}
+                  disabled={uploading.resume}
+                  className={`w-full flex items-center justify-center gap-2 border-2 border-dashed rounded-xl px-4 py-4 text-sm font-bold uppercase tracking-wide transition-colors disabled:opacity-50 ${
+                    resumeUrl ? "border-green-300 bg-green-50 text-green-700" : "border-gray-300 text-gray-500 hover:border-[#E8726A] hover:text-[#E8726A]"
+                  }`}
+                >
+                  {uploading.resume ? t.dq_uploading : resumeUrl ? `✓ ${t.dq_uploaded}` : `📄 ${t.dq_resume}`}
+                </button>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_selfie} *</label>
                 <p className="text-xs text-gray-400 mb-1.5">{t.dq_selfie_hint}</p>
-                <input type="file" accept="image/*" onChange={(e) => {
+                <input ref={selfieInputRef} type="file" accept="image/*" onChange={(e) => {
                   const f = e.target.files?.[0]; if (f) handleApplicantUpload(f, "selfie", setSelfieUrl)
-                }} className="w-full text-sm" />
-                {uploading.selfie && <p className="text-xs text-gray-400 mt-1">{t.dq_uploading}</p>}
-                {selfieUrl && !uploading.selfie && <p className="text-xs text-green-600 mt-1">{t.dq_uploaded}</p>}
+                }} className="hidden" />
+                <button
+                  type="button"
+                  onClick={() => selfieInputRef.current?.click()}
+                  disabled={uploading.selfie}
+                  className={`w-full flex items-center justify-center gap-2 border-2 border-dashed rounded-xl px-4 py-4 text-sm font-bold uppercase tracking-wide transition-colors disabled:opacity-50 ${
+                    selfieUrl ? "border-green-300 bg-green-50 text-green-700" : "border-[#E8726A] text-[#E8726A] hover:bg-[#fdf6f3]"
+                  }`}
+                >
+                  {uploading.selfie ? t.dq_uploading : selfieUrl ? `✓ ${t.dq_uploaded}` : `🤳 ${t.dq_selfie}`}
+                </button>
               </div>
             </div>
           )}
