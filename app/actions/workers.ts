@@ -22,6 +22,21 @@ export async function submitApplication(formData: FormData) {
   const icSignature = formData.get("ic_signature") as string | null
   const icRole      = formData.get("ic_role") as string | null
 
+  const isDriverPath = roles.includes("driver")
+
+  // Optional extended driver questionnaire — only present when role includes driver
+  const bool = (key: string) => {
+    const v = formData.get(key)
+    return v === null ? null : v === "yes"
+  }
+  const drivingExperience = formData.getAll("driving_experience") as string[]
+  const preferredAvailability = formData.getAll("preferred_availability") as string[]
+  const availabilityRaw = formData.get("availability_json") as string | null
+  let availability: unknown = null
+  if (availabilityRaw) {
+    try { availability = JSON.parse(availabilityRaw) } catch { availability = null }
+  }
+
   const { error } = await supabase.from("workers").insert({
     location_id:              locationId,
     name:                     formData.get("name") as string,
@@ -35,6 +50,33 @@ export async function submitApplication(formData: FormData) {
     ic_agreement_signature:   icSignature || null,
     ic_agreement_signed_at:   icSignature ? new Date().toISOString() : null,
     ic_agreement_role:        icRole || null,
+
+    ...(isDriverPath ? {
+      age_18_plus:                  bool("age_18_plus"),
+      had_prior_jobs:                bool("had_prior_jobs"),
+      driving_experience:            drivingExperience.length ? drivingExperience : null,
+      driving_experience_details:    (formData.get("driving_experience_details") as string) || null,
+      can_lift_50lbs:                bool("can_lift_50lbs"),
+      committed_to_training:         bool("committed_to_training"),
+      seeking_long_term:             bool("seeking_long_term"),
+      background_check_consent:      bool("background_check_consent"),
+      vehicle_brand:                 (formData.get("vehicle_brand") as string) || null,
+      vehicle_model:                 (formData.get("vehicle_model") as string) || null,
+      vehicle_year:                  (formData.get("vehicle_year") as string) || null,
+      vehicle_color:                 (formData.get("vehicle_color") as string) || null,
+      vehicle_photo_url:             (formData.get("vehicle_photo_url") as string) || null,
+      vehicle_registration_valid:    bool("vehicle_registration_valid"),
+      vehicle_insurance_valid:       bool("vehicle_insurance_valid"),
+      vehicle_insurance_commercial_ok: (formData.get("vehicle_insurance_commercial_ok") as string) || null,
+      availability,
+      preferred_availability:        preferredAvailability.length ? preferredAvailability : null,
+      schedule_conflicts_ok:         bool("schedule_conflicts_ok"),
+      schedule_conflicts_notes:      (formData.get("schedule_conflicts_notes") as string) || null,
+      training_availability_date:    (formData.get("training_availability_date") as string) || null,
+      why_hire_you:                  (formData.get("why_hire_you") as string) || null,
+      resume_url:                    (formData.get("resume_url") as string) || null,
+      selfie_url:                    (formData.get("selfie_url") as string) || null,
+    } : {}),
   })
 
   if (error) {

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { submitApplication } from "@/app/actions/workers"
 import { getIcAgreement } from "@/app/actions/ic-agreements"
+import { createClient } from "@/lib/supabase/client"
 
 // ── Translations ──────────────────────────────────────────────────────────────
 
@@ -50,6 +51,48 @@ const T = {
     success_title: "Application Received!",
     success_sub:   "Thanks for applying to join the WashFold Orlando team. We'll review your application and reach out within 2–3 business days.",
     back_home:     "Back to Home",
+
+    dq_title:      "Driver Questionnaire",
+    dq_sub:        "A few extra questions since driving is part of this role.",
+    dq_age:        "Are you 18 or older? (required)",
+    dq_prior_jobs: "Have you had other jobs before?",
+    dq_prior_driving: "Have you worked as a driver before?",
+    dq_prior_driving_hint: "Check all that apply",
+    dq_driving_none: "No",
+    dq_driving_details: "More details on your previous experience:",
+    dq_lift: "Can you lift boxes/bags and other packages of 50 lbs or more?",
+    dq_training: "Are you committed to learning and performing all work duties to training standards?",
+    dq_long_term: "Are you looking for long-term work? (10-12+ months)",
+    dq_bg_check: "Will you authorize us to run a background check?",
+    dq_vehicle_title: "Vehicle Information",
+    dq_v_brand: "Brand",
+    dq_v_model: "Model",
+    dq_v_year: "Year",
+    dq_v_color: "Color",
+    dq_v_photo: "Photo of your vehicle",
+    dq_v_reg: "Does your vehicle have a valid DMV registration?",
+    dq_v_ins: "Does your vehicle have a valid auto insurance policy?",
+    dq_v_ins_commercial: "Would you be able to update your vehicle insurance for commercial use?",
+    dont_know: "Don't know",
+    dq_avail_title: "Availability",
+    dq_avail_hint: "For each day, set your available hours or mark it unavailable.",
+    dq_from: "From",
+    dq_to: "To",
+    dq_24h: "24 hours",
+    dq_na: "Not available",
+    dq_avail_pref: "What is your preferred availability?",
+    dq_avail_pref_hint: "Check all that apply",
+    dq_conflicts: "Can you certify that other regular activities (school, church, sports, family, other) won't interfere with your schedule?",
+    dq_conflicts_notes: "Comment on anything that may interfere with your availability:",
+    dq_training_date: "What date are you available to start training if selected?",
+    dq_why: "Why should we hire you?",
+    dq_resume: "Upload a resume (optional)",
+    dq_selfie: "Upload a selfie to confirm your identity",
+    dq_selfie_hint: "A photo of yourself only — not a document or resume.",
+    dq_uploading: "Uploading…",
+    dq_uploaded: "Uploaded ✓",
+    yes: "Yes",
+    no: "No",
   },
   es: {
     hiring:        "Estamos Contratando",
@@ -92,6 +135,48 @@ const T = {
     success_title: "¡Solicitud Recibida!",
     success_sub:   "Gracias por aplicar para unirte al equipo de WashFold Orlando. Revisaremos tu solicitud y nos comunicaremos en 2–3 días hábiles.",
     back_home:     "Volver al Inicio",
+
+    dq_title:      "Cuestionario de Conductor",
+    dq_sub:        "Algunas preguntas adicionales ya que conducir es parte de este rol.",
+    dq_age:        "¿Tienes 18 años o más? (requerido)",
+    dq_prior_jobs: "¿Has tenido otros trabajos antes?",
+    dq_prior_driving: "¿Has trabajado como conductor antes?",
+    dq_prior_driving_hint: "Marca todo lo que aplique",
+    dq_driving_none: "No",
+    dq_driving_details: "Más detalles sobre tu experiencia previa:",
+    dq_lift: "¿Puedes levantar cajas/bolsas y otros paquetes de 50 lbs o más?",
+    dq_training: "¿Estás comprometido a aprender y realizar todas las tareas según los estándares de capacitación?",
+    dq_long_term: "¿Buscas trabajo a largo plazo? (10-12+ meses)",
+    dq_bg_check: "¿Autorizas que realicemos una verificación de antecedentes?",
+    dq_vehicle_title: "Información del Vehículo",
+    dq_v_brand: "Marca",
+    dq_v_model: "Modelo",
+    dq_v_year: "Año",
+    dq_v_color: "Color",
+    dq_v_photo: "Foto de tu vehículo",
+    dq_v_reg: "¿Tu vehículo tiene un registro de DMV válido?",
+    dq_v_ins: "¿Tu vehículo tiene una póliza de seguro de auto válida?",
+    dq_v_ins_commercial: "¿Podrías actualizar tu póliza de seguro para uso comercial?",
+    dont_know: "No lo sé",
+    dq_avail_title: "Disponibilidad",
+    dq_avail_hint: "Para cada día, indica tus horas disponibles o márcalo como no disponible.",
+    dq_from: "Desde",
+    dq_to: "Hasta",
+    dq_24h: "24 horas",
+    dq_na: "No disponible",
+    dq_avail_pref: "¿Cuál es tu disponibilidad preferida?",
+    dq_avail_pref_hint: "Marca todo lo que aplique",
+    dq_conflicts: "¿Puedes certificar que otras actividades regulares (escuela, iglesia, deportes, familia, otro) no interferirán con tu horario?",
+    dq_conflicts_notes: "Comenta sobre cualquier cosa que pueda interferir con tu disponibilidad:",
+    dq_training_date: "¿Qué fecha estás disponible para comenzar la capacitación si eres seleccionado?",
+    dq_why: "¿Por qué deberíamos contratarte?",
+    dq_resume: "Sube tu currículum (opcional)",
+    dq_selfie: "Sube una selfie para confirmar tu identidad",
+    dq_selfie_hint: "Una foto de ti mismo únicamente — no un documento o currículum.",
+    dq_uploading: "Subiendo…",
+    dq_uploaded: "Subido ✓",
+    yes: "Sí",
+    no: "No",
   },
 } as const
 
@@ -211,6 +296,24 @@ const ROLE_LABELS: Record<NonNullable<Role>, string> = {
   combo:    "Washing Operator / Driver",
 }
 
+function YesNo({ name, label, t }: { name: string; label: string; t: (typeof T)["en"] }) {
+  return (
+    <div>
+      <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{label} *</label>
+      <div className="flex gap-4">
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input type="radio" name={name} value="yes" required className="w-4 h-4 accent-[#E8726A]" />
+          {t.yes}
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input type="radio" name={name} value="no" required className="w-4 h-4 accent-[#E8726A]" />
+          {t.no}
+        </label>
+      </div>
+    </div>
+  )
+}
+
 export function ApplyClient() {
   const searchParams = useSearchParams()
   const lang: Lang = searchParams.get("lang") === "es" ? "es" : "en"
@@ -219,6 +322,41 @@ export function ApplyClient() {
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle")
   const [errorMsg, setErrorMsg] = useState("")
   const [selectedRole, setSelectedRole] = useState<Role>(null)
+  const isDriverPath = selectedRole === "driver" || selectedRole === "combo"
+
+  // Driver questionnaire state
+  type DayAvail = { from: string; to: string; is24h: boolean; notAvailable: boolean; details: string }
+  const emptyDay = (): DayAvail => ({ from: "", to: "", is24h: false, notAvailable: false, details: "" })
+  const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const
+  const [availability, setAvailability] = useState<Record<string, DayAvail>>(() =>
+    Object.fromEntries(DAYS.map((d) => [d, emptyDay()])) as Record<string, DayAvail>
+  )
+  const setDay = (day: string, patch: Partial<DayAvail>) =>
+    setAvailability((prev) => ({ ...prev, [day]: { ...prev[day], ...patch } }))
+
+  const [vehiclePhotoUrl, setVehiclePhotoUrl] = useState("")
+  const [resumeUrl, setResumeUrl] = useState("")
+  const [selfieUrl, setSelfieUrl] = useState("")
+  const [uploading, setUploading] = useState<{ vehicle: boolean; resume: boolean; selfie: boolean }>({
+    vehicle: false, resume: false, selfie: false,
+  })
+
+  async function handleApplicantUpload(
+    file: File,
+    folder: "vehicle" | "resume" | "selfie",
+    setUrl: (url: string) => void
+  ) {
+    setUploading((prev) => ({ ...prev, [folder]: true }))
+    const supabase = createClient()
+    const safeName = file.name.replace(/[^a-z0-9.]/gi, "_").toLowerCase()
+    const path = `${folder}/${Date.now()}-${safeName}`
+    const { error } = await supabase.storage.from("applicant-uploads").upload(path, file, { upsert: false })
+    if (!error) {
+      const { data: { publicUrl } } = supabase.storage.from("applicant-uploads").getPublicUrl(path)
+      setUrl(publicUrl)
+    }
+    setUploading((prev) => ({ ...prev, [folder]: false }))
+  }
 
   // IC agreement signing state
   const [icRead, setIcRead]           = useState(false)
@@ -257,11 +395,25 @@ export function ApplyClient() {
       setStatus("error")
       return
     }
+    if (isDriverPath && (!vehiclePhotoUrl || !selfieUrl)) {
+      setErrorMsg(lang === "es"
+        ? "Por favor sube la foto del vehículo y una selfie."
+        : "Please upload the vehicle photo and a selfie.")
+      setStatus("error")
+      return
+    }
+
     setStatus("submitting")
     const fd = new FormData(e.currentTarget)
     fd.set(`role_${selectedRole}`, "on")
     fd.set("ic_signature", icSignature.trim())
     fd.set("ic_role", ROLE_LABELS[selectedRole])
+    if (isDriverPath) {
+      fd.set("availability_json", JSON.stringify(availability))
+      fd.set("vehicle_photo_url", vehiclePhotoUrl)
+      fd.set("resume_url", resumeUrl)
+      fd.set("selfie_url", selfieUrl)
+    }
     const result = await submitApplication(fd)
     if (result.success) {
       setStatus("success")
@@ -412,6 +564,178 @@ export function ApplyClient() {
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A] resize-none" />
             </div>
           </div>
+
+          {/* ── Driver Questionnaire ── shown for driver / combo roles ── */}
+          {isDriverPath && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+              <div>
+                <h2 className="font-extrabold text-[#0D2240] text-lg">{t.dq_title}</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{t.dq_sub}</p>
+              </div>
+
+              <YesNo name="age_18_plus" label={t.dq_age} t={t} />
+              <YesNo name="had_prior_jobs" label={t.dq_prior_jobs} t={t} />
+
+              <div>
+                <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_prior_driving}</label>
+                <p className="text-xs text-gray-400 mb-2">{t.dq_prior_driving_hint}</p>
+                <div className="flex flex-wrap gap-3">
+                  {["Uber", "DoorDash", "Lyft", "Cargo"].map((opt) => (
+                    <label key={opt} className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                      <input type="checkbox" name="driving_experience" value={opt} className="w-4 h-4 accent-[#E8726A]" />
+                      {opt}
+                    </label>
+                  ))}
+                  <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                    <input type="checkbox" name="driving_experience" value="No" className="w-4 h-4 accent-[#E8726A]" />
+                    {t.dq_driving_none}
+                  </label>
+                </div>
+                <textarea name="driving_experience_details" rows={2} placeholder={t.dq_driving_details}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm mt-2 focus:outline-none focus:border-[#E8726A] resize-none" />
+              </div>
+
+              <YesNo name="can_lift_50lbs" label={t.dq_lift} t={t} />
+              <YesNo name="committed_to_training" label={t.dq_training} t={t} />
+              <YesNo name="seeking_long_term" label={t.dq_long_term} t={t} />
+              <YesNo name="background_check_consent" label={t.dq_bg_check} t={t} />
+
+              {/* Vehicle info */}
+              <div className="pt-2 border-t border-gray-100">
+                <h3 className="font-bold text-[#0D2240] text-sm mb-3">{t.dq_vehicle_title}</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_v_brand} *</label>
+                    <input name="vehicle_brand" required className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_v_model} *</label>
+                    <input name="vehicle_model" required className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_v_year} *</label>
+                    <input name="vehicle_year" required className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_v_color} *</label>
+                    <input name="vehicle_color" required className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A]" />
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_v_photo} *</label>
+                  <input type="file" accept="image/*" onChange={(e) => {
+                    const f = e.target.files?.[0]; if (f) handleApplicantUpload(f, "vehicle", setVehiclePhotoUrl)
+                  }} className="w-full text-sm" />
+                  {uploading.vehicle && <p className="text-xs text-gray-400 mt-1">{t.dq_uploading}</p>}
+                  {vehiclePhotoUrl && !uploading.vehicle && <p className="text-xs text-green-600 mt-1">{t.dq_uploaded}</p>}
+                </div>
+
+                <div className="mt-3 space-y-3">
+                  <YesNo name="vehicle_registration_valid" label={t.dq_v_reg} t={t} />
+                  <YesNo name="vehicle_insurance_valid" label={t.dq_v_ins} t={t} />
+                  <div>
+                    <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_v_ins_commercial}</label>
+                    <div className="flex gap-4">
+                      {(["yes", "no", "dont_know"] as const).map((v) => (
+                        <label key={v} className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                          <input type="radio" name="vehicle_insurance_commercial_ok" value={v} className="w-4 h-4 accent-[#E8726A]" />
+                          {v === "yes" ? t.yes : v === "no" ? t.no : t.dont_know}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Availability */}
+              <div className="pt-2 border-t border-gray-100">
+                <h3 className="font-bold text-[#0D2240] text-sm mb-1">{t.dq_avail_title}</h3>
+                <p className="text-xs text-gray-400 mb-3">{t.dq_avail_hint}</p>
+                <div className="space-y-2">
+                  {DAYS.map((day) => {
+                    const d = availability[day]
+                    return (
+                      <div key={day} className="border border-gray-200 rounded-xl px-3 py-2.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-[#0D2240] uppercase tracking-wide capitalize w-24">{day}</span>
+                          <div className="flex items-center gap-2 flex-1 min-w-[220px]">
+                            <input type="time" value={d.from} disabled={d.notAvailable || d.is24h}
+                              onChange={(e) => setDay(day, { from: e.target.value })}
+                              className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs flex-1 disabled:bg-gray-50 disabled:text-gray-300" />
+                            <span className="text-xs text-gray-400">{t.dq_to}</span>
+                            <input type="time" value={d.to} disabled={d.notAvailable || d.is24h}
+                              onChange={(e) => setDay(day, { to: e.target.value })}
+                              className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs flex-1 disabled:bg-gray-50 disabled:text-gray-300" />
+                          </div>
+                          <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                            <input type="checkbox" checked={d.is24h}
+                              onChange={(e) => setDay(day, { is24h: e.target.checked, notAvailable: false })}
+                              className="w-3.5 h-3.5 accent-[#E8726A]" />
+                            {t.dq_24h}
+                          </label>
+                          <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                            <input type="checkbox" checked={d.notAvailable}
+                              onChange={(e) => setDay(day, { notAvailable: e.target.checked, is24h: false })}
+                              className="w-3.5 h-3.5 accent-[#E8726A]" />
+                            {t.dq_na}
+                          </label>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-2">{t.dq_avail_pref}</label>
+                <p className="text-xs text-gray-400 mb-2">{t.dq_avail_pref_hint}</p>
+                <div className="flex flex-wrap gap-3">
+                  {["Full Availability", "Morning", "Afternoon", "Nights", "Overnight Shift", "Weekends"].map((opt) => (
+                    <label key={opt} className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                      <input type="checkbox" name="preferred_availability" value={opt} className="w-4 h-4 accent-[#E8726A]" />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <YesNo name="schedule_conflicts_ok" label={t.dq_conflicts} t={t} />
+              <textarea name="schedule_conflicts_notes" rows={2} placeholder={t.dq_conflicts_notes}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A] resize-none" />
+
+              <div>
+                <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_training_date} *</label>
+                <input type="date" name="training_availability_date" required
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A]" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_why} *</label>
+                <textarea name="why_hire_you" rows={3} required
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#E8726A] resize-none" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_resume}</label>
+                <input type="file" accept=".pdf,.doc,.docx,image/*" onChange={(e) => {
+                  const f = e.target.files?.[0]; if (f) handleApplicantUpload(f, "resume", setResumeUrl)
+                }} className="w-full text-sm" />
+                {uploading.resume && <p className="text-xs text-gray-400 mt-1">{t.dq_uploading}</p>}
+                {resumeUrl && !uploading.resume && <p className="text-xs text-green-600 mt-1">{t.dq_uploaded}</p>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0D2240] uppercase tracking-wide mb-1.5">{t.dq_selfie} *</label>
+                <p className="text-xs text-gray-400 mb-1.5">{t.dq_selfie_hint}</p>
+                <input type="file" accept="image/*" onChange={(e) => {
+                  const f = e.target.files?.[0]; if (f) handleApplicantUpload(f, "selfie", setSelfieUrl)
+                }} className="w-full text-sm" />
+                {uploading.selfie && <p className="text-xs text-gray-400 mt-1">{t.dq_uploading}</p>}
+                {selfieUrl && !uploading.selfie && <p className="text-xs text-green-600 mt-1">{t.dq_uploaded}</p>}
+              </div>
+            </div>
+          )}
 
           {/* ── IC Agreement ── shown once a role is selected */}
           {selectedRole && (
