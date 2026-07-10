@@ -453,9 +453,23 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
               {/* Machine selection — checkboxes */}
               {step.needsMachines && availableMachines.length > 0 && (
                 <div>
-                  <p className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-2">
-                    Select {step.machineType === "washer" ? "Washer(s)" : "Dryer(s)"} — pick all used
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-bold text-gray-400 uppercase tracking-wide">
+                      Select {step.machineType === "washer" ? "Washer(s)" : "Dryer(s)"} — pick all used
+                    </p>
+                    {step.machineType === "dryer" && (
+                      <button
+                        type="submit"
+                        formAction={setOrderStage}
+                        name="stage"
+                        value="at_facility"
+                        title="Go back to change the washer"
+                        className="text-xs font-bold text-[#0D2240]/60 hover:text-[#E8726A] whitespace-nowrap shrink-0 ml-2"
+                      >
+                        ← Change washer
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     {availableMachines.map(m => (
                       <label key={m.id} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 cursor-pointer hover:border-[#0D2240] has-[:checked]:border-[#E8726A] has-[:checked]:bg-[#E8726A]/5 transition-colors">
@@ -505,21 +519,4 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
             <div className="grid grid-cols-3 gap-2 text-center text-sm">
               <div>
                 <p className="text-gray-400">Customer</p>
-                <p className="font-bold text-green-600">${(booking.customer_final_cents / 100).toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-gray-400">Facility cost</p>
-                <p className="font-bold text-red-500">${((booking.facility_cost_cents ?? 0) / 100).toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-gray-400">Margin</p>
-                <p className="font-bold text-[#0D2240]">${((booking.customer_final_cents - (booking.facility_cost_cents ?? 0)) / 100).toFixed(2)}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-      </div>
-    </div>
-  )
-}
+             
