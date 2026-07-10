@@ -253,12 +253,12 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
       {/* Header */}
       <div className="bg-[#0D2240] px-4 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between max-w-lg mx-auto">
-          <Link href="/operator" className="text-white/60 text-sm">← Orders</Link>
+          <Link href="/operator" className="text-white/60 text-base">← Orders</Link>
           <div className="text-center">
-            <p className="text-white font-extrabold text-lg tracking-wide">{orderCode}</p>
-            <p className="text-white/50 text-xs">{booking.customer_name}</p>
+            <p className="text-white font-extrabold text-xl tracking-wide">{orderCode}</p>
+            <p className="text-white/50 text-sm">{booking.customer_name}</p>
           </div>
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${operatorDone ? "bg-green-500 text-white" : "bg-white/10 text-white/70"}`}>
+          <span className={`text-sm font-bold px-2.5 py-1 rounded-full ${operatorDone ? "bg-green-500 text-white" : "bg-white/10 text-white/70"}`}>
             {operatorDone ? "Done ✓" : (STATUS_LABEL[currentStage ?? ""] ?? "Processing")}
           </span>
         </div>
@@ -271,8 +271,8 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
           <div className="bg-red-600 rounded-2xl px-5 py-4 flex items-start gap-3">
             <span className="text-2xl shrink-0">🚨</span>
             <div>
-              <p className="text-white font-extrabold text-base">Weight Discrepancy — Verify Items</p>
-              <p className="text-white/80 text-sm mt-1">
+              <p className="text-white font-extrabold text-lg">Weight Discrepancy — Verify Items</p>
+              <p className="text-white/80 text-base mt-1">
                 Intake: <b>{weightOnFile} lbs</b> · Folded: <b>{foldedWeight} lbs</b> · Diff: <b>{weightDiff!.toFixed(1)} lbs</b>
               </p>
             </div>
@@ -283,25 +283,25 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">Pickup Bags</p>
+              <p className="text-gray-400 text-sm font-medium uppercase tracking-wide">Pickup Bags</p>
               <p className="text-4xl font-extrabold text-[#0D2240] leading-none mt-0.5">{pickupBagCount}</p>
               {outputBagCount && outputBagCount !== pickupBagCount && (
-                <p className="text-xs text-green-600 font-semibold mt-1">→ {outputBagCount} delivery bags</p>
+                <p className="text-sm text-green-600 font-semibold mt-1">→ {outputBagCount} delivery bags</p>
               )}
               {outputBagCount && outputBagCount === pickupBagCount && (
-                <p className="text-xs text-gray-400 mt-1">→ {outputBagCount} delivery bags</p>
+                <p className="text-sm text-gray-400 mt-1">→ {outputBagCount} delivery bags</p>
               )}
             </div>
             <div className="text-right space-y-1">
               <div>
-                <p className="text-gray-400 text-xs">Service</p>
-                <p className="font-semibold text-[#0D2240] text-sm">
+                <p className="text-gray-400 text-sm">Service</p>
+                <p className="font-semibold text-[#0D2240] text-base">
                   {booking.service_type === "wash_fold" ? "Wash & Fold" : booking.service_type === "comforter_wash" ? "Comforter" : booking.service_type}
                 </p>
               </div>
               <div>
-                <p className="text-gray-400 text-xs">Need ready by</p>
-                <p className="font-semibold text-[#0D2240] text-sm">{booking.delivery_date}</p>
+                <p className="text-gray-400 text-sm">Need ready by</p>
+                <p className="font-semibold text-[#0D2240] text-base">{booking.delivery_date}</p>
               </div>
             </div>
           </div>
@@ -311,7 +311,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Facility</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="font-semibold text-[#0D2240] text-sm">{facility.name}</span>
+                  <span className="font-semibold text-[#0D2240] text-base">{facility.name}</span>
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
                     facility.processing_mode === "partner_attendant"
                       ? "bg-purple-50 text-purple-700 border border-purple-200"
@@ -322,13 +322,13 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
               {weightOnFile ? (
                 <div className="text-right">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Weight</p>
-                  <p className="font-extrabold text-[#0D2240] text-lg">{weightOnFile} lbs</p>
+                  <p className="font-extrabold text-[#0D2240] text-xl">{weightOnFile} lbs</p>
                   <p className="text-[10px] text-gray-400">by {booking.weight_entered_by ?? "driver"}</p>
                 </div>
               ) : (
                 <div className="text-right">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Weight</p>
-                  <p className="text-sm text-amber-600 font-semibold">Not yet entered</p>
+                  <p className="text-base text-amber-600 font-semibold">Not yet entered</p>
                 </div>
               )}
             </div>
@@ -336,7 +336,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
 
           {showMarginWarning && (
             <div className="pt-2 border-t border-amber-100 bg-amber-50 -mx-4 -mb-4 px-4 pb-4 rounded-b-2xl">
-              <p className="text-amber-700 text-xs font-semibold">
+              <p className="text-amber-700 text-sm font-semibold">
                 ⚠️ Facility minimum ({facilityMin} lbs) exceeds actual weight ({weightOnFile} lbs).
               </p>
             </div>
@@ -387,8 +387,8 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
         {/* Partner mode */}
         {isPartnerMode && (
           <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 text-center">
-            <p className="text-purple-700 font-extrabold text-lg">🤝 Partner Attendant Order</p>
-            <p className="text-purple-600 text-sm mt-1">Processed by {facility?.name ?? "partner facility"}.</p>
+            <p className="text-purple-700 font-extrabold text-xl">🤝 Partner Attendant Order</p>
+            <p className="text-purple-600 text-base mt-1">Processed by {facility?.name ?? "partner facility"}.</p>
           </div>
         )}
 
@@ -396,10 +396,10 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
         {notArrived && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center space-y-3">
             <p className="text-3xl">🚐</p>
-            <p className="text-[#0D2240] font-extrabold text-base">Not here yet</p>
-            <p className="text-amber-700 text-sm">This order is still with the driver. Come back when the bags are physically in your hands.</p>
+            <p className="text-[#0D2240] font-extrabold text-lg">Not here yet</p>
+            <p className="text-amber-700 text-base">This order is still with the driver. Come back when the bags are physically in your hands.</p>
             <Link href="/operator"
-              className="inline-block mt-2 bg-[#0D2240] text-white font-bold text-sm px-6 py-3 rounded-xl">
+              className="inline-block mt-2 bg-[#0D2240] text-white font-bold text-base px-6 py-3 rounded-xl">
               ← Back to my queue
             </Link>
           </div>
@@ -409,7 +409,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
         {!notArrived && !operatorDone && !currentStage && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
             <p className="text-amber-700 font-bold">📦 No bags registered yet</p>
-            <p className="text-amber-600 text-sm mt-1">
+            <p className="text-amber-600 text-base mt-1">
               Bags will appear here once scanned in. Status: <span className="font-bold capitalize">{booking.status?.replace(/_/g, " ")}</span>
             </p>
           </div>
@@ -418,8 +418,8 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
         {/* Done */}
         {operatorDone && (
           <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
-            <p className="text-green-700 font-extrabold text-lg">✅ All done!</p>
-            <p className="text-green-600 text-sm mt-1">
+            <p className="text-green-700 font-extrabold text-xl">✅ All done!</p>
+            <p className="text-green-600 text-base mt-1">
               {outputBagCount ? `${outputBagCount} bags ready.` : "Bags are ready."} Driver will collect for delivery.
             </p>
           </div>
@@ -432,7 +432,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_COLOR[currentStage!] ?? "bg-gray-100 text-gray-500"}`}>
                 {STATUS_LABEL[currentStage!] ?? currentStage}
               </span>
-              <span className="text-gray-400 text-xs">→ {step.action}</span>
+              <span className="text-gray-400 text-sm">→ {step.action}</span>
             </div>
 
             <form action={advanceOrder} className="p-4 space-y-4">
@@ -443,9 +443,9 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
               {/* Weight fallback */}
               {needsWeightEntry && (
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-400 whitespace-nowrap shrink-0">⚖️ Weight (lbs)</label>
+                  <label className="text-sm text-gray-400 whitespace-nowrap shrink-0">⚖️ Weight (lbs)</label>
                   <input name="weight_lbs" type="number" step="0.1" min="0.1" placeholder="e.g. 22.5"
-                    className="w-28 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-[#0D2240] font-mono focus:outline-none focus:border-gray-400" />
+                    className="w-28 rounded-lg border border-gray-200 px-2 py-1.5 text-base text-[#0D2240] font-mono focus:outline-none focus:border-gray-400" />
                   <span className="text-[10px] text-gray-300">usually pre-filled by driver</span>
                 </div>
               )}
@@ -453,7 +453,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
               {/* Machine selection — checkboxes */}
               {step.needsMachines && availableMachines.length > 0 && (
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">
+                  <p className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-2">
                     Select {step.machineType === "washer" ? "Washer(s)" : "Dryer(s)"} — pick all used
                   </p>
                   <div className="grid grid-cols-2 gap-2">
@@ -461,7 +461,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                       <label key={m.id} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 cursor-pointer hover:border-[#0D2240] has-[:checked]:border-[#E8726A] has-[:checked]:bg-[#E8726A]/5 transition-colors">
                         <input type="checkbox" name="machineId" value={m.id} className="accent-[#E8726A]" />
                         <div>
-                          <p className="text-sm font-semibold text-[#0D2240]">{m.name}</p>
+                          <p className="text-base font-semibold text-[#0D2240]">{m.name}</p>
                           <p className="text-[10px] text-gray-400">{m.groupName}</p>
                         </div>
                       </label>
@@ -471,7 +471,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
               )}
 
               {step.needsMachines && availableMachines.length === 0 && (
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
                   ⚠️ No machines configured for this facility. Add machines in Admin → Logistics.
                 </p>
               )}
@@ -479,7 +479,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
               {/* Non-folding steps: normal submit */}
               {!step.needsOutputBags && (
                 <button type="submit"
-                  className={`w-full text-white font-extrabold py-4 rounded-2xl text-base transition-colors ${step.buttonColor}`}>
+                  className={`w-full text-white font-extrabold py-4 rounded-2xl text-lg transition-colors ${step.buttonColor}`}>
                   → {step.action}
                 </button>
               )}
@@ -502,7 +502,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
         {weightOnFile && booking.customer_final_cents && (
           <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Billing</p>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="grid grid-cols-3 gap-2 text-center text-sm">
               <div>
                 <p className="text-gray-400">Customer</p>
                 <p className="font-bold text-green-600">${(booking.customer_final_cents / 100).toFixed(2)}</p>

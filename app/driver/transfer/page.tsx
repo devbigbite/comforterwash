@@ -194,7 +194,7 @@ export default function TransferPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0D2240] flex items-center justify-center">
-        <p className="text-white/40 text-sm">Loading…</p>
+        <p className="text-white/40 text-base">Loading…</p>
       </div>
     )
   }
@@ -205,9 +205,9 @@ export default function TransferPage() {
   if (step === "direction") {
     return (
       <div className="min-h-screen bg-[#0D2240] flex flex-col items-center justify-center px-4">
-        <button onClick={() => router.back()} className="text-white/40 text-sm mb-8 self-start">← Back</button>
+        <button onClick={() => router.back()} className="text-white/40 text-base mb-8 self-start">← Back</button>
         <h1 className="text-white font-extrabold text-2xl mb-2">Internal Transfer</h1>
-        <p className="text-white/40 text-sm mb-8 text-center">Move orders between storage and facility</p>
+        <p className="text-white/40 text-base mb-8 text-center">Move orders between storage and facility</p>
 
         <div className="w-full max-w-sm space-y-3 mb-6">
           {DIRECTIONS.map(d => (
@@ -222,16 +222,16 @@ export default function TransferPage() {
             >
               <div className="flex items-center gap-3 mb-1">
                 <span className="text-2xl">{d.icon}</span>
-                <span className="text-white font-extrabold text-sm">{d.label}</span>
+                <span className="text-white font-extrabold text-base">{d.label}</span>
               </div>
-              <p className="text-white/40 text-xs leading-snug">{d.desc}</p>
+              <p className="text-white/40 text-sm leading-snug">{d.desc}</p>
             </button>
           ))}
         </div>
 
         {facilities.length > 1 && (
           <div className="w-full max-w-sm mb-6">
-            <label className="text-white/40 text-xs uppercase tracking-wide block mb-2">Facility</label>
+            <label className="text-white/40 text-sm uppercase tracking-wide block mb-2">Facility</label>
             <select
               value={facilityId ?? ""}
               onChange={e => setFacilityId(e.target.value || null)}
@@ -248,7 +248,7 @@ export default function TransferPage() {
         <button
           onClick={handleStartSession}
           disabled={busy}
-          className="w-full max-w-sm bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors"
+          className="w-full max-w-sm bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-lg py-4 rounded-2xl transition-colors"
         >
           {busy ? "Starting…" : "Start Session"}
         </button>
@@ -264,18 +264,18 @@ export default function TransferPage() {
     return (
       <div className="min-h-screen bg-[#0D2240] flex flex-col px-4 py-6">
         <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => router.back()} className="text-white/40 text-sm">← Back</button>
+          <button onClick={() => router.back()} className="text-white/40 text-base">← Back</button>
           <div>
-            <h1 className="text-white font-extrabold text-lg">{dirLabel}</h1>
-            <p className="text-white/40 text-xs">Trip {(session?.trip_count ?? 0) + 1} · Select orders for this load</p>
+            <h1 className="text-white font-extrabold text-xl">{dirLabel}</h1>
+            <p className="text-white/40 text-sm">Trip {(session?.trip_count ?? 0) + 1} · Select orders for this load</p>
           </div>
         </div>
 
         {availableOrders.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center">
             <span className="text-5xl mb-4">✅</span>
-            <p className="text-white font-bold text-xl mb-2">All orders moved!</p>
-            <p className="text-white/40 text-sm mb-8">No more orders to transfer in this direction.</p>
+            <p className="text-white font-bold text-2xl mb-2">All orders moved!</p>
+            <p className="text-white/40 text-base mb-8">No more orders to transfer in this direction.</p>
             <button
               onClick={async () => { await completeSession(session!.id); setStep("done") }}
               className="bg-[#E8726A] text-white font-extrabold px-8 py-3 rounded-2xl"
@@ -299,21 +299,21 @@ export default function TransferPage() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-xl">{SERVICE_ICON[order.service_type] ?? "📦"}</span>
+                      <span className="text-2xl">{SERVICE_ICON[order.service_type] ?? "📦"}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-white font-extrabold text-sm">
+                          <span className="text-white font-extrabold text-base">
                             {order.short_code?.toUpperCase() ?? order.id.slice(0, 6).toUpperCase()}
                           </span>
-                          <span className="text-white/40 text-xs">{order.customer_name}</span>
+                          <span className="text-white/40 text-sm">{order.customer_name}</span>
                         </div>
-                        <p className="text-white/40 text-xs mt-0.5">
+                        <p className="text-white/40 text-sm mt-0.5">
                           {order.num_bags} bag{order.num_bags !== 1 ? "s" : ""}
                           {order.actual_weight_lbs ? ` · ${order.actual_weight_lbs} lbs` : " · needs weighing"}
                         </p>
                       </div>
                       <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? "border-[#E8726A] bg-[#E8726A]" : "border-white/20"}`}>
-                        {selected && <span className="text-white text-xs font-extrabold">✓</span>}
+                        {selected && <span className="text-white text-sm font-extrabold">✓</span>}
                       </div>
                     </div>
                   </button>
@@ -323,15 +323,15 @@ export default function TransferPage() {
 
             {selectedIds.size > 0 && (
               <div className="bg-white/10 rounded-2xl p-4 mb-4">
-                <p className="text-white/60 text-xs mb-1">This trip</p>
-                <p className="text-white font-extrabold text-lg">{selectedIds.size} orders · {selectedBagTotal} bags</p>
+                <p className="text-white/60 text-sm mb-1">This trip</p>
+                <p className="text-white font-extrabold text-xl">{selectedIds.size} orders · {selectedBagTotal} bags</p>
               </div>
             )}
 
             <button
               onClick={handleStartTrip}
               disabled={busy || selectedIds.size === 0}
-              className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors"
+              className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-lg py-4 rounded-2xl transition-colors"
             >
               {busy ? "Starting trip…" : `Load Trip — ${selectedBagTotal} bags`}
             </button>
@@ -353,20 +353,20 @@ export default function TransferPage() {
       <div className="min-h-screen bg-[#0D2240] flex flex-col items-center justify-center px-4">
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Trip {activeTrip?.trip_number} · Loading</p>
+            <p className="text-white/40 text-sm uppercase tracking-wide mb-1">Trip {activeTrip?.trip_number} · Loading</p>
             <h1 className="text-white font-extrabold text-2xl mb-1">Count bags as you load</h1>
-            <p className="text-white/40 text-sm">Tap the amount you're putting in with each carry</p>
+            <p className="text-white/40 text-base">Tap the amount you're putting in with each carry</p>
           </div>
 
           {/* Manifest reference */}
           <div className="bg-white/5 rounded-2xl p-4 mb-6 space-y-2">
             {manifest.map(o => (
-              <div key={o.booking_id} className="flex items-center justify-between text-xs">
+              <div key={o.booking_id} className="flex items-center justify-between text-sm">
                 <span className="text-white/60">{o.customer_name ?? o.short_code}</span>
                 <span className="text-white font-bold">{o.bags_expected} bags</span>
               </div>
             ))}
-            <div className="border-t border-white/10 pt-2 flex items-center justify-between text-sm font-extrabold">
+            <div className="border-t border-white/10 pt-2 flex items-center justify-between text-base font-extrabold">
               <span className="text-white/60">Expected total</span>
               <span className="text-white">{expectedBags} bags</span>
             </div>
@@ -376,8 +376,8 @@ export default function TransferPage() {
           <div className={`text-center text-7xl font-extrabold mb-2 transition-colors ${over ? "text-red-400" : exact ? "text-green-400" : "text-white"}`}>
             {bagCount}
           </div>
-          {over && <p className="text-red-400 text-center text-sm mb-4">⚠️ More bags than expected — recount</p>}
-          {exact && <p className="text-green-400 text-center text-sm mb-4">✓ Count matches manifest</p>}
+          {over && <p className="text-red-400 text-center text-base mb-4">⚠️ More bags than expected — recount</p>}
+          {exact && <p className="text-green-400 text-center text-base mb-4">✓ Count matches manifest</p>}
 
           {/* Quick-add buttons */}
           <div className="grid grid-cols-5 gap-2 mb-3">
@@ -385,7 +385,7 @@ export default function TransferPage() {
               <button
                 key={n}
                 onClick={() => addBags(n)}
-                className="bg-white/10 hover:bg-white/20 text-white font-extrabold text-lg py-4 rounded-xl transition-colors active:scale-95"
+                className="bg-white/10 hover:bg-white/20 text-white font-extrabold text-xl py-4 rounded-xl transition-colors active:scale-95"
               >
                 +{n}
               </button>
@@ -395,14 +395,14 @@ export default function TransferPage() {
             <button
               onClick={() => addBags(-1)}
               disabled={bagCount === 0}
-              className="flex-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white font-bold py-3 rounded-xl transition-colors text-sm"
+              className="flex-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white font-bold py-3 rounded-xl transition-colors text-base"
             >
               −1 Correct
             </button>
             <button
               onClick={() => setBagCount(0)}
               disabled={bagCount === 0}
-              className="flex-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white font-bold py-3 rounded-xl transition-colors text-sm"
+              className="flex-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white font-bold py-3 rounded-xl transition-colors text-base"
             >
               Reset
             </button>
@@ -411,7 +411,7 @@ export default function TransferPage() {
           <button
             onClick={handleCertifyLoaded}
             disabled={busy || bagCount === 0}
-            className={`w-full font-extrabold text-base py-4 rounded-2xl transition-colors ${
+            className={`w-full font-extrabold text-lg py-4 rounded-2xl transition-colors ${
               exact
                 ? "bg-green-600 hover:bg-green-700 text-white"
                 : over
@@ -435,11 +435,11 @@ export default function TransferPage() {
         <div className="text-center">
           <div className="text-7xl mb-6 animate-bounce">🚐</div>
           <h1 className="text-white font-extrabold text-2xl mb-2">In Transit</h1>
-          <p className="text-white/40 text-sm mb-2">{activeTrip?.bags_loaded ?? bagCount} bags on board</p>
-          <p className="text-white/40 text-sm mb-10">Drive safely. Tap when you arrive.</p>
+          <p className="text-white/40 text-base mb-2">{activeTrip?.bags_loaded ?? bagCount} bags on board</p>
+          <p className="text-white/40 text-base mb-10">Drive safely. Tap when you arrive.</p>
           <button
             onClick={() => { setBagCount(0); setStep("unloading") }}
-            className="bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold text-base px-10 py-4 rounded-2xl transition-colors"
+            className="bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold text-lg px-10 py-4 rounded-2xl transition-colors"
           >
             Arrived — Start Unloading
           </button>
@@ -460,23 +460,23 @@ export default function TransferPage() {
       <div className="min-h-screen bg-[#0D2240] flex flex-col items-center justify-center px-4">
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Trip {activeTrip?.trip_number} · Unloading</p>
+            <p className="text-white/40 text-sm uppercase tracking-wide mb-1">Trip {activeTrip?.trip_number} · Unloading</p>
             <h1 className="text-white font-extrabold text-2xl mb-1">Count bags as you unload</h1>
-            <p className="text-white/40 text-sm">Loaded: <span className="text-white font-bold">{loaded}</span> bags</p>
+            <p className="text-white/40 text-base">Loaded: <span className="text-white font-bold">{loaded}</span> bags</p>
           </div>
 
           <div className={`text-center text-7xl font-extrabold mb-2 transition-colors ${over ? "text-red-400" : exact ? "text-green-400" : "text-white"}`}>
             {bagCount}
           </div>
-          {over && <p className="text-red-400 text-center text-sm mb-4">⚠️ More bags than loaded — recount</p>}
-          {exact && <p className="text-green-400 text-center text-sm mb-4">✓ Count matches</p>}
+          {over && <p className="text-red-400 text-center text-base mb-4">⚠️ More bags than loaded — recount</p>}
+          {exact && <p className="text-green-400 text-center text-base mb-4">✓ Count matches</p>}
 
           <div className="grid grid-cols-5 gap-2 mb-3">
             {[1, 2, 3, 4, 5].map(n => (
               <button
                 key={n}
                 onClick={() => addBags(n)}
-                className="bg-white/10 hover:bg-white/20 text-white font-extrabold text-lg py-4 rounded-xl transition-colors active:scale-95"
+                className="bg-white/10 hover:bg-white/20 text-white font-extrabold text-xl py-4 rounded-xl transition-colors active:scale-95"
               >
                 +{n}
               </button>
@@ -484,15 +484,15 @@ export default function TransferPage() {
           </div>
           <div className="flex gap-2 mb-8">
             <button onClick={() => addBags(-1)} disabled={bagCount === 0}
-              className="flex-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white font-bold py-3 rounded-xl text-sm">−1 Correct</button>
+              className="flex-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white font-bold py-3 rounded-xl text-base">−1 Correct</button>
             <button onClick={() => setBagCount(0)} disabled={bagCount === 0}
-              className="flex-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white font-bold py-3 rounded-xl text-sm">Reset</button>
+              className="flex-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white font-bold py-3 rounded-xl text-base">Reset</button>
           </div>
 
           <button
             onClick={handleCertifyUnloaded}
             disabled={busy || bagCount === 0}
-            className={`w-full font-extrabold text-base py-4 rounded-2xl transition-colors ${
+            className={`w-full font-extrabold text-lg py-4 rounded-2xl transition-colors ${
               exact ? "bg-green-600 hover:bg-green-700 text-white"
               : over ? "bg-red-500 text-white"
               : "bg-[#E8726A] hover:bg-[#d45f57] text-white disabled:opacity-40"
@@ -539,28 +539,28 @@ export default function TransferPage() {
     return (
       <div className="min-h-screen bg-[#0D2240] flex flex-col px-4 py-6">
         <div className="mb-6">
-          <p className="text-white/40 text-xs uppercase tracking-wide mb-1">First drop-off · Weighing</p>
-          <h1 className="text-white font-extrabold text-xl mb-1">Enter bag weights</h1>
-          <p className="text-white/40 text-sm">Place each bag on the scale and enter its weight</p>
+          <p className="text-white/40 text-sm uppercase tracking-wide mb-1">First drop-off · Weighing</p>
+          <h1 className="text-white font-extrabold text-2xl mb-1">Enter bag weights</h1>
+          <p className="text-white/40 text-base">Place each bag on the scale and enter its weight</p>
         </div>
 
         <div className="space-y-6 flex-1 overflow-y-auto mb-6">
           {weighingOrders.map(order => (
             <div key={order.booking_id} className="bg-white/5 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-lg">{SERVICE_ICON[order.service_type ?? ""] ?? "📦"}</span>
+                <span className="text-xl">{SERVICE_ICON[order.service_type ?? ""] ?? "📦"}</span>
                 <div>
-                  <p className="text-white font-extrabold text-sm">
+                  <p className="text-white font-extrabold text-base">
                     {order.short_code?.toUpperCase() ?? order.booking_id.slice(0, 6).toUpperCase()}
                   </p>
-                  <p className="text-white/40 text-xs">{order.customer_name} · {order.bags_expected} bags</p>
+                  <p className="text-white/40 text-sm">{order.customer_name} · {order.bags_expected} bags</p>
                 </div>
               </div>
 
               <div className="space-y-2">
                 {Array.from({ length: order.bags_expected }).map((_, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <span className="text-white/40 text-sm w-12">Bag {i + 1}</span>
+                    <span className="text-white/40 text-base w-12">Bag {i + 1}</span>
                     <div className="relative flex-1">
                       <input
                         type="number"
@@ -571,14 +571,14 @@ export default function TransferPage() {
                         onChange={e => setWeight(order.booking_id, i, e.target.value)}
                         className="w-full bg-white/10 text-white font-bold text-right border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:border-[#E8726A] pr-14"
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 text-sm">lbs</span>
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 text-base">lbs</span>
                     </div>
                   </div>
                 ))}
               </div>
 
               <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
-                <span className="text-white/40 text-xs">Order total</span>
+                <span className="text-white/40 text-sm">Order total</span>
                 <span className="text-white font-extrabold">{orderTotal(order.booking_id)} lbs</span>
               </div>
             </div>
@@ -588,7 +588,7 @@ export default function TransferPage() {
         <button
           onClick={handleSubmitWeights}
           disabled={busy || !allWeighed}
-          className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-base py-4 rounded-2xl transition-colors"
+          className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold text-lg py-4 rounded-2xl transition-colors"
         >
           {busy ? "Saving…" : "Confirm Weights & Certify Drop-off"}
         </button>
@@ -604,7 +604,7 @@ export default function TransferPage() {
       <div className="min-h-screen bg-[#0D2240] flex flex-col items-center justify-center px-4 text-center">
         <div className="text-7xl mb-6">🎉</div>
         <h1 className="text-white font-extrabold text-2xl mb-2">Session Complete</h1>
-        <p className="text-white/40 text-sm mb-10">All orders have been moved and certified.</p>
+        <p className="text-white/40 text-base mb-10">All orders have been moved and certified.</p>
         <button
           onClick={() => router.push("/driver")}
           className="bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold px-10 py-4 rounded-2xl transition-colors"

@@ -104,7 +104,7 @@ export default function OperatorHome() {
         <div className="bg-white border-b border-gray-100 px-5 pt-5 pb-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
           <div>
             <p className="text-[#E8726A] text-[11px] font-bold uppercase tracking-widest">Operator Station</p>
-            <h1 className="text-lg font-extrabold text-[#0D2240]">
+            <h1 className="text-xl font-extrabold text-[#0D2240]">
               Today's Queue
             </h1>
           </div>
@@ -112,7 +112,7 @@ export default function OperatorHome() {
             <RoleSwitcher currentRole="operator" />
             <button
               onClick={() => { localStorage.removeItem("washfold_operator_worker"); window.location.href = "/staff" }}
-              className="text-xs text-gray-400 hover:text-red-500 border border-gray-200 px-3 py-1.5 rounded-full transition-colors font-medium"
+              className="text-sm text-gray-400 hover:text-red-500 border border-gray-200 px-3 py-1.5 rounded-full transition-colors font-medium"
             >
               Sign out
             </button>
@@ -123,7 +123,7 @@ export default function OperatorHome() {
 
           {loading && (
             <div className="text-center py-16">
-              <p className="text-gray-300 text-sm animate-pulse">Loading stations…</p>
+              <p className="text-gray-300 text-base animate-pulse">Loading stations…</p>
             </div>
           )}
 
@@ -133,9 +133,9 @@ export default function OperatorHome() {
               className="w-full bg-purple-50 border border-purple-200 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-purple-500 uppercase tracking-widest mb-0.5">🚐 Incoming Run</p>
+                  <p className="text-sm font-bold text-purple-500 uppercase tracking-widest mb-0.5">🚐 Incoming Run</p>
                   <p className="text-[#0D2240] font-bold">{run.facility_name ?? "Facility"}</p>
-                  <p className="text-purple-600 text-sm">{run.order_ids.length} orders arriving — tap to receive</p>
+                  <p className="text-purple-600 text-base">{run.order_ids.length} orders arriving — tap to receive</p>
                 </div>
                 <span className="text-2xl text-purple-300">→</span>
               </div>
@@ -147,9 +147,9 @@ export default function OperatorHome() {
               className="w-full bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-amber-500 uppercase tracking-widest mb-0.5">📦 Return Run</p>
+                  <p className="text-sm font-bold text-amber-500 uppercase tracking-widest mb-0.5">📦 Return Run</p>
                   <p className="text-[#0D2240] font-bold">{run.facility_name ?? "Facility"} → Warehouse</p>
-                  <p className="text-amber-600 text-sm">{run.order_ids.length} orders — tap to send out</p>
+                  <p className="text-amber-600 text-base">{run.order_ids.length} orders — tap to send out</p>
                 </div>
                 <span className="text-2xl text-amber-300">→</span>
               </div>
@@ -165,13 +165,13 @@ export default function OperatorHome() {
                 {/* Lane header */}
                 <div className="px-4 pt-4 pb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">{lane.emoji}</span>
+                    <span className="text-xl">{lane.emoji}</span>
                     <div>
-                      <p className={`font-extrabold text-sm ${lane.text}`}>{lane.label}</p>
+                      <p className={`font-extrabold text-base ${lane.text}`}>{lane.label}</p>
                       <p className="text-[11px] text-gray-400">{lane.action}</p>
                     </div>
                   </div>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${lane.bg} ${lane.text} border ${lane.border}`}>
+                  <span className={`text-sm font-bold px-2.5 py-1 rounded-full ${lane.bg} ${lane.text} border ${lane.border}`}>
                     {orders.length} order{orders.length !== 1 ? "s" : ""}
                   </span>
                 </div>
@@ -184,9 +184,9 @@ export default function OperatorHome() {
                       onClick={() => router.push(`/operator/order/${o.id}`)}
                       className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-left shadow-sm active:scale-95 transition-transform hover:border-gray-300 flex items-center gap-2"
                     >
-                      <span className="text-base">{SERVICE_EMOJI[o.service_type] ?? "📦"}</span>
+                      <span className="text-lg">{SERVICE_EMOJI[o.service_type] ?? "📦"}</span>
                       <div>
-                        <p className="text-[#0D2240] font-bold text-sm leading-tight">
+                        <p className="text-[#0D2240] font-bold text-base leading-tight">
                           {o.short_code ?? o.id.slice(0, 6).toUpperCase()}
                         </p>
                         {(lane.key === "in_washer" || lane.key === "in_dryer") ? (
@@ -213,8 +213,8 @@ export default function OperatorHome() {
           {!loading && activeCount === 0 && pendingRuns.length === 0 && (
             <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center shadow-sm">
               <p className="text-4xl mb-3">✅</p>
-              <p className="text-[#0D2240] font-bold text-lg">All stations clear!</p>
-              <p className="text-gray-400 text-sm mt-1">Nothing to process right now.</p>
+              <p className="text-[#0D2240] font-bold text-xl">All stations clear!</p>
+              <p className="text-gray-400 text-base mt-1">Nothing to process right now.</p>
             </div>
           )}
 
@@ -227,11 +227,11 @@ export default function OperatorHome() {
               >
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-gray-300" />
-                  <p className="text-sm font-bold text-gray-500">
+                  <p className="text-base font-bold text-gray-500">
                     {incoming.length} order{incoming.length !== 1 ? "s" : ""} incoming
                   </p>
                 </div>
-                <span className="text-gray-300 text-xs">{showIncoming ? "▲" : "▼"}</span>
+                <span className="text-gray-300 text-sm">{showIncoming ? "▲" : "▼"}</span>
               </button>
               {showIncoming && (
                 <div className="px-3 pb-3 flex flex-wrap gap-2 border-t border-gray-100 pt-3">
@@ -241,9 +241,9 @@ export default function OperatorHome() {
                       onClick={() => router.push(`/operator/order/${o.id}`)}
                       className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-left active:scale-95 transition-transform flex items-center gap-2"
                     >
-                      <span className="text-base">{SERVICE_EMOJI[o.service_type] ?? "📦"}</span>
+                      <span className="text-lg">{SERVICE_EMOJI[o.service_type] ?? "📦"}</span>
                       <div>
-                        <p className="text-gray-500 font-bold text-sm leading-tight">
+                        <p className="text-gray-500 font-bold text-base leading-tight">
                           {o.short_code ?? o.id.slice(0, 6).toUpperCase()}
                         </p>
                         <p className="text-gray-400 text-[11px]">{o.bags_total} bags · on the way</p>
@@ -259,7 +259,7 @@ export default function OperatorHome() {
           <div className="pt-1">
             <button
               onClick={() => router.push("/operator/order")}
-              className="w-full text-gray-400 text-sm py-3 hover:text-gray-600 transition-colors text-center"
+              className="w-full text-gray-400 text-base py-3 hover:text-gray-600 transition-colors text-center"
             >
               🔢 Find order by number
             </button>
