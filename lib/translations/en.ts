@@ -35,7 +35,7 @@ const en = {
     slide3Cta: "See Pricing",
   },
   services: {
-    heading: "Select Your Service and Schedule Pickup:",
+    heading: "Select a Service and Schedule Your Pickup:",
     comforterTitle: "Comforter Wash",
     comforterDesc: "Fully water washed & delivered. Pick up dirty, get it back clean.",
     washFoldTitle: "Wash & Fold",
@@ -618,4 +618,4 @@ const en = {
 } as const
 
 export default en
-export type TranslationKeys = typeof en
+export type TranslationKeys = typeof e

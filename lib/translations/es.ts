@@ -35,7 +35,7 @@ const es = {
     slide3Cta: "Ver Precios",
   },
   services: {
-    heading: "Selecciona el Servicio y Programa tu Recogido:",
+    heading: "Selecciona un Servicio y Programa tu Recogido:",
     comforterTitle: "Lavado de Edredón",
     comforterDesc: "Lavado profesional para edredones de cualquier tamaño. Los recogemos sucios y los entregamos limpios — precio fijo, sin sorpresas.",
     washFoldTitle: "Lavado y Doblado",
