@@ -519,4 +519,21 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
             <div className="grid grid-cols-3 gap-2 text-center text-sm">
               <div>
                 <p className="text-gray-400">Customer</p>
-             
+                <p className="font-bold text-green-600">${(booking.customer_final_cents / 100).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">Facility cost</p>
+                <p className="font-bold text-red-500">${((booking.facility_cost_cents ?? 0) / 100).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">Margin</p>
+                <p className="font-bold text-[#0D2240]">${((booking.customer_final_cents - (booking.facility_cost_cents ?? 0)) / 100).toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  )
+}
