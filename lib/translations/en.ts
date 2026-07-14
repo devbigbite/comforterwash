@@ -35,7 +35,7 @@ const en = {
     slide3Cta: "See Pricing",
   },
   services: {
-    heading: "Book a Service",
+    heading: "Select Your Service and Schedule Pickup:",
     comforterTitle: "Comforter Wash",
     comforterDesc: "Fully water washed & delivered. Pick up dirty, get it back clean.",
     washFoldTitle: "Wash & Fold",
