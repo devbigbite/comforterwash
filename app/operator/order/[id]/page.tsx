@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache"
 import PhotoUploader from "./photo-uploader"
 import { WorkerNameInput } from "./worker-name-input"
 import { FoldingForm } from "./folding-form"
+import { PinGate } from "@/components/pin-gate"
+import { OperatorOrderGate } from "@/components/operator-order-gate"
 
 const STATUS_LABEL: Record<string, string> = {
   pending:          "Pending",
@@ -249,6 +251,8 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
   const showMarginWarning = weightOnFile && facilityMin > weightOnFile
 
   return (
+    <PinGate role="operator">
+    <OperatorOrderGate assignedOperatorId={booking.assigned_operator_id ?? null}>
     <div className="min-h-screen bg-[#f7f8fb]">
       {/* Header */}
       <div className="bg-[#0D2240] px-4 py-4 sticky top-0 z-10">
@@ -535,5 +539,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
 
       </div>
     </div>
+    </OperatorOrderGate>
+    </PinGate>
   )
 }
