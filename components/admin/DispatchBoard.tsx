@@ -30,14 +30,15 @@ const DRIVER_ACTION: Record<string, { label: string; arrow: string }> = {
   out_for_delivery:   { label: "Out for delivery",         arrow: "→ Customer"              },
 }
 
-// Statuses a dispatcher can force directly from this board, independent of
-// the driver app. Mirrors the lifecycle stages that actually appear here
-// (warehouse/transfer statuses live in the Transfer Runs tab instead).
-const OVERRIDE_STATUSES: { value: string; label: string }[] = [
-  { value: "confirmed",        label: "Confirmed"    },
-  { value: "picked_up",        label: "Picked Up"    },
-  { value: "out_for_delivery", label: "Out for Del."},
-  { value: "delivered",        label: "Delivered"    },
+// Operational dispatcher moves — purely routing/status, never touches
+// weight, pricing, or payment capture (that only happens in the driver
+// app's own dropoff/delivery flow).
+const ROUTE_ACTIONS: { status: string; label: string; note: string }[] = [
+  { status: "picked_up",        label: "↩ Back to Picked Up",   note: "Sent back to Picked Up by dispatcher — driver needs to return for something missed." },
+  { status: "at_facility",      label: "→ Send to Facility",     note: "Routed to facility by dispatcher." },
+  { status: "at_warehouse",     label: "→ Send to Warehouse",    note: "Routed to warehouse by dispatcher." },
+  { status: "out_for_delivery", label: "→ Start Delivery",       note: "Delivery run started by dispatcher." },
+  { status: "delivered",        label: "✓ Mark Delivered",       note: "Marked delivered by dispatcher (confirmed by phone)." },
 ]
 
 // ─── Mini order card for kanban ───────────────────────────────────────────────
@@ -105,14 +106,29 @@ function KanbanCard({
     })
   }
 
-  function setStatus(status: string) {
+  function setStatus(status: string, note: string) {
     const fd = new FormData()
     fd.set("bookingId", b.id)
     fd.set("status", status)
+    fd.set("note", note)
     fd.set("date", date)
     startStatusTransition(async () => {
       await setBookingStatusAction(fd)
-      flash(`Status → ${OVERRIDE_STATUSES.find(s => s.value === status)?.label ?? status}`)
+      flash("Updated ✓")
+    })
+  }
+
+  function removeFromDriver() {
+    const fd = new FormData()
+    fd.set("bookingId", b.id)
+    fd.set("status", "confirmed")
+    fd.set("note", "Removed from driver — pickup could not be completed (e.g. customer did not leave items out). Needs reassignment.")
+    fd.set("unassign", "true")
+    fd.set("date", date)
+    startStatusTransition(async () => {
+      await setBookingStatusAction(fd)
+      setOpen(false)
+      flash("Removed from driver")
     })
   }
 
@@ -172,29 +188,38 @@ function KanbanCard({
       {/* Expanded assign panel */}
       {open && (
         <div className="border-t border-gray-100 bg-gray-50 rounded-b-xl px-3 py-2.5 space-y-2">
-          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Status</p>
-          <div className="grid grid-cols-4 gap-1">
-            {OVERRIDE_STATUSES.map(s => {
-              const isCurrent = s.value === b.status
+          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Quick actions</p>
+          <div className="grid grid-cols-2 gap-1">
+            {ROUTE_ACTIONS.map(a => {
+              const isCurrent = a.status === b.status
               return (
                 <button
-                  key={s.value}
+                  key={a.status}
                   type="button"
                   disabled={statusPending}
-                  onClick={() => setStatus(s.value)}
-                  title={s.label}
-                  className={`text-[9px] font-bold py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+                  onClick={() => setStatus(a.status, a.note)}
+                  className={`text-[10px] font-bold py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
                     isCurrent
                       ? "bg-[#0D2240] text-white border-[#0D2240]"
                       : "bg-white text-gray-500 border-gray-200 hover:border-[#0D2240] hover:text-[#0D2240]"
                   }`}
                 >
-                  {s.label}
+                  {a.label}
                 </button>
               )
             })}
           </div>
-          <p className="text-[9px] text-gray-400 -mt-1">Dispatcher override — jump forward or roll back any status.</p>
+          <p className="text-[9px] text-gray-400 -mt-1">Routing/status only — no billing or payment effect.</p>
+
+          <button
+            type="button"
+            disabled={statusPending}
+            onClick={removeFromDriver}
+            className="w-full text-[10px] font-bold text-red-500 hover:text-red-700 border border-red-200 hover:border-red-300 bg-red-50 rounded-lg py-1.5 transition-colors disabled:opacity-50"
+          >
+            ✕ Remove from driver — pickup failed
+          </button>
+          <p className="text-[9px] text-gray-400 -mt-1">Customer didn't leave items out, wasn't home, etc. Unassigns the driver and returns this to Confirmed for reassignment.</p>
 
           <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide pt-1">Assign driver</p>
           <div className="grid gap-1">

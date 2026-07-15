@@ -49,18 +49,32 @@ async function unassignDriverAction(formData: FormData) {
   revalidatePath(`/admin/dispatch?date=${date}`)
 }
 
-async function setBookingStatusAdminAction(formData: FormData) {
+// Operational dispatcher moves for a driver's order — no billing/Stripe
+// side effects. This intentionally does NOT touch weight, pricing, or
+// payment capture; that only ever happens through the driver app's own
+// dropoff/delivery flow. Two flavors:
+//   - route changes (send to facility/warehouse, start delivery, delivered,
+//     go back a step) just update status.
+//   - "remove from driver" also clears the assignment, e.g. the customer
+//     calls to say they didn't leave items out for pickup.
+async function driverQuickActionAdmin(formData: FormData) {
   "use server"
   const bookingId = formData.get("bookingId") as string
   const status    = formData.get("status")    as string
+  const note      = formData.get("note")      as string
+  const unassign  = formData.get("unassign")  === "true"
   const date      = formData.get("date")      as string
   const supabase  = createAdminClient()
-  await supabase.from("bookings").update({ status }).eq("id", bookingId)
+
+  const updates: Record<string, unknown> = { status }
+  if (unassign) updates.assigned_driver_id = null
+
+  await supabase.from("bookings").update(updates).eq("id", bookingId)
   await supabase.from("order_bags").update({ status }).eq("booking_id", bookingId)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
-    event_type: "status_override",
-    notes: `Status set to "${status}" by dispatcher`,
+    event_type: unassign ? "removed_from_driver" : "dispatcher_status_change",
+    notes: note || `Status set to "${status}" by dispatcher`,
     created_by: "admin",
   })
   revalidatePath(`/admin/dispatch?date=${date}`)
@@ -318,7 +332,7 @@ export default async function DispatchPage({
             unassignDriverAction={unassignDriverAction}
             rescheduleAction={rescheduleAction}
             cancelAction={cancelAction}
-            setBookingStatusAction={setBookingStatusAdminAction}
+            setBookingStatusAction={driverQuickActionAdmin}
           />
         )}
 
