@@ -49,6 +49,23 @@ async function unassignDriverAction(formData: FormData) {
   revalidatePath(`/admin/dispatch?date=${date}`)
 }
 
+async function setBookingStatusAdminAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const status    = formData.get("status")    as string
+  const date      = formData.get("date")      as string
+  const supabase  = createAdminClient()
+  await supabase.from("bookings").update({ status }).eq("id", bookingId)
+  await supabase.from("order_bags").update({ status }).eq("booking_id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "status_override",
+    notes: `Status set to "${status}" by dispatcher`,
+    created_by: "admin",
+  })
+  revalidatePath(`/admin/dispatch?date=${date}`)
+}
+
 async function assignRunDriverAction(runId: string, driverName: string) {
   "use server"
   const supabase = createAdminClient()
@@ -301,6 +318,7 @@ export default async function DispatchPage({
             unassignDriverAction={unassignDriverAction}
             rescheduleAction={rescheduleAction}
             cancelAction={cancelAction}
+            setBookingStatusAction={setBookingStatusAdminAction}
           />
         )}
 

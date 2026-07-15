@@ -30,6 +30,16 @@ const DRIVER_ACTION: Record<string, { label: string; arrow: string }> = {
   out_for_delivery:   { label: "Out for delivery",         arrow: "→ Customer"              },
 }
 
+// Statuses a dispatcher can force directly from this board, independent of
+// the driver app. Mirrors the lifecycle stages that actually appear here
+// (warehouse/transfer statuses live in the Transfer Runs tab instead).
+const OVERRIDE_STATUSES: { value: string; label: string }[] = [
+  { value: "confirmed",        label: "Confirmed"    },
+  { value: "picked_up",        label: "Picked Up"    },
+  { value: "out_for_delivery", label: "Out for Del."},
+  { value: "delivered",        label: "Delivered"    },
+]
+
 // ─── Mini order card for kanban ───────────────────────────────────────────────
 
 function KanbanCard({
@@ -42,6 +52,7 @@ function KanbanCard({
   unassignDriverAction,
   rescheduleAction,
   cancelAction,
+  setBookingStatusAction,
 }: {
   booking: DispatchBooking
   type: "pickup" | "delivery"
@@ -52,9 +63,11 @@ function KanbanCard({
   unassignDriverAction: (fd: FormData) => Promise<void>
   rescheduleAction: (fd: FormData) => Promise<void>
   cancelAction: (fd: FormData) => Promise<void>
+  setBookingStatusAction: (fd: FormData) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [statusPending, startStatusTransition] = useTransition()
   const [toast, setToast] = useState<string | null>(null)
   const orderCode = b.short_code ?? b.id.slice(0, 6).toUpperCase()
   const bagCount = b.num_bags ?? b.num_comforters ?? 1
@@ -89,6 +102,17 @@ function KanbanCard({
       await unassignDriverAction(fd)
       setOpen(false)
       flash("Unassigned")
+    })
+  }
+
+  function setStatus(status: string) {
+    const fd = new FormData()
+    fd.set("bookingId", b.id)
+    fd.set("status", status)
+    fd.set("date", date)
+    startStatusTransition(async () => {
+      await setBookingStatusAction(fd)
+      flash(`Status → ${OVERRIDE_STATUSES.find(s => s.value === status)?.label ?? status}`)
     })
   }
 
@@ -148,7 +172,31 @@ function KanbanCard({
       {/* Expanded assign panel */}
       {open && (
         <div className="border-t border-gray-100 bg-gray-50 rounded-b-xl px-3 py-2.5 space-y-2">
-          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Assign driver</p>
+          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Status</p>
+          <div className="grid grid-cols-4 gap-1">
+            {OVERRIDE_STATUSES.map(s => {
+              const isCurrent = s.value === b.status
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  disabled={statusPending}
+                  onClick={() => setStatus(s.value)}
+                  title={s.label}
+                  className={`text-[9px] font-bold py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+                    isCurrent
+                      ? "bg-[#0D2240] text-white border-[#0D2240]"
+                      : "bg-white text-gray-500 border-gray-200 hover:border-[#0D2240] hover:text-[#0D2240]"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-[9px] text-gray-400 -mt-1">Dispatcher override — jump forward or roll back any status.</p>
+
+          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide pt-1">Assign driver</p>
           <div className="grid gap-1">
             {drivers.map(d => (
               <button
@@ -198,6 +246,7 @@ function DriverColumn({
   unassignDriverAction,
   rescheduleAction,
   cancelAction,
+  setBookingStatusAction,
 }: {
   driver: { id: string; name: string; shipday_email: string | null } | null // null = "Unassigned"
   pickups: DispatchBooking[]
@@ -208,6 +257,7 @@ function DriverColumn({
   unassignDriverAction: (fd: FormData) => Promise<void>
   rescheduleAction: (fd: FormData) => Promise<void>
   cancelAction: (fd: FormData) => Promise<void>
+  setBookingStatusAction: (fd: FormData) => Promise<void>
 }) {
   const isUnassigned = driver === null
   const total = pickups.length + deliveries.length
@@ -286,7 +336,8 @@ function DriverColumn({
                       assignDriverAction={assignDriverAction}
                       unassignDriverAction={unassignDriverAction}
                       rescheduleAction={rescheduleAction}
-                      cancelAction={cancelAction} />
+                      cancelAction={cancelAction}
+                      setBookingStatusAction={setBookingStatusAction} />
                   ))}
                 </div>
               </div>
@@ -309,6 +360,7 @@ export function DispatchBoard({
   unassignDriverAction,
   rescheduleAction,
   cancelAction,
+  setBookingStatusAction,
 }: {
   date: string
   pickups: DispatchBooking[]
@@ -318,6 +370,7 @@ export function DispatchBoard({
   unassignDriverAction: (fd: FormData) => Promise<void>
   rescheduleAction: (fd: FormData) => Promise<void>
   cancelAction: (fd: FormData) => Promise<void>
+  setBookingStatusAction: (fd: FormData) => Promise<void>
 }) {
   const unassigned = orders.filter(b => !b.assigned_driver_id)
 
@@ -335,6 +388,7 @@ export function DispatchBoard({
           unassignDriverAction={unassignDriverAction}
           rescheduleAction={rescheduleAction}
           cancelAction={cancelAction}
+          setBookingStatusAction={setBookingStatusAction}
         />
 
         {/* One column per driver */}
@@ -352,6 +406,7 @@ export function DispatchBoard({
               unassignDriverAction={unassignDriverAction}
               rescheduleAction={rescheduleAction}
               cancelAction={cancelAction}
+              setBookingStatusAction={setBookingStatusAction}
             />
           )
         })}
