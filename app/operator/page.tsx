@@ -119,6 +119,14 @@ function OperatorHomeInner() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href="https://dexterlive.com/users/sign_in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-white bg-[#0D2240] hover:bg-[#1a3a5c] px-3 py-1.5 rounded-full transition-colors font-bold"
+            >
+              Dexter
+            </a>
             <RoleSwitcher currentRole="operator" />
             <button
               onClick={() => { localStorage.removeItem("washfold_operator_worker"); window.location.href = "/staff" }}
