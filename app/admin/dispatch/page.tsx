@@ -72,6 +72,21 @@ async function assignOperatorAction(formData: FormData) {
   revalidatePath(`/admin/dispatch?date=${date}`)
 }
 
+async function setOrderStageAdminAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const stage     = formData.get("stage")     as string
+  const supabase  = createAdminClient()
+  await supabase.from("order_bags").update({ status: stage }).eq("booking_id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "stage_reset",
+    notes: `Stage set to "${stage}" by dispatcher`,
+    created_by: "admin",
+  })
+  revalidatePath("/admin/dispatch")
+}
+
 async function rescheduleAction(formData: FormData) {
   "use server"
   const bookingId   = formData.get("bookingId")   as string
@@ -187,8 +202,28 @@ export default async function DispatchPage({
     .not("assigned_facility_id", "is", null)
     .order("customer_name")
 
+  // Current bag-level stage per order, so dispatchers can see and roll back
+  // exactly what an operator would see/do on their station screen.
+  const facilityOrderIds = (facilityOrders ?? []).map(o => o.id)
+  const { data: facilityBags } = facilityOrderIds.length
+    ? await supabase.from("order_bags").select("booking_id, status").in("booking_id", facilityOrderIds)
+    : { data: [] as { booking_id: string; status: string }[] }
+
+  const STAGE_ORDER = ["at_facility", "in_washer", "in_dryer", "folded", "ready"]
+  const stageByBooking = new Map<string, string | null>()
+  for (const id of facilityOrderIds) {
+    const statuses = (facilityBags ?? []).filter(b => b.booking_id === id).map(b => b.status)
+    const mostAdvanced = statuses.length
+      ? [...statuses].sort((a, z) => STAGE_ORDER.indexOf(z) - STAGE_ORDER.indexOf(a))[0]
+      : null
+    stageByBooking.set(id, mostAdvanced)
+  }
+
   // allPickups / allDeliveries / allDriverOrders already set above
-  const allFacilityOrders = (facilityOrders ?? []) as FacilityOrder[]
+  const allFacilityOrders = (facilityOrders ?? []).map(o => ({
+    ...o,
+    current_stage: stageByBooking.get(o.id) ?? null,
+  })) as FacilityOrder[]
 
   const totalSynced = allDriverOrders.filter(
     b => b.shipday_pickup_order_id || b.shipday_delivery_order_id
@@ -286,6 +321,7 @@ export default async function DispatchPage({
             operators={operators}
             facilities={(facilities ?? []) as { id: string; name: string }[]}
             assignOperatorAction={assignOperatorAction}
+            setOrderStageAction={setOrderStageAdminAction}
           />
         )}
 
@@ -327,4 +363,5 @@ export type FacilityOrder = {
   status: string
   assigned_operator_id: string | null
   assigned_facility: { id: string; name: string } | null
+  current_stage: string | null
 }
