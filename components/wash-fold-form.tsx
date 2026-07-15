@@ -941,7 +941,6 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                           value={formData.recurringDeliveryDay}
                           available={validDeliveryDays}
                           onChange={(d) => setFormData(p => ({ ...p, recurringDeliveryDay: d }))}
-                          note={formData.recurringPickupDay === "friday" || formData.recurringPickupDay === "saturday" ? tw.fridayNote : undefined}
                         />
                         {formData.recurringDeliveryDay && (
                           <div>
@@ -998,14 +997,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                     </div>
                     <DateStrip selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} />
                     {formData.pickupDate && (
-                      <>
-                        {(formData.pickupDate.getDay() === 5 || formData.pickupDate.getDay() === 6) && (
-                          <p className="text-[10px] text-amber-600 font-medium mt-2 bg-amber-50 px-3 py-1.5 rounded-lg">
-                            {tw.fridayNote}
-                          </p>
-                        )}
-                        <TimeSlotPicker label={tf.availableTimeSlots} value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} windows={getTimeWindowsForDate(formData.pickupDate!, activeRoutes, "pickup")} />
-                      </>
+                      <TimeSlotPicker label={tf.availableTimeSlots} value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} windows={getTimeWindowsForDate(formData.pickupDate!, activeRoutes, "pickup")} />
                     )}
                   </div>
                   {formData.pickupDate && formData.pickupTimeWindow && (

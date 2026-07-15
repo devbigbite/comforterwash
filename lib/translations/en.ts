@@ -334,7 +334,6 @@ const en = {
     addFabricSoftener: "Add Fabric Softener",
     pickupTime:        "↑ Pickup time",
     deliveryTime:      "↓ Delivery time",
-    fridayNote:        "Friday & Saturday pickups are processed Monday — earliest delivery is Tuesday.",
     minTurnaround:     "2-day turnaround minimum.",
     anyWeekday:        "Any weekday",
     daysAfterPickup:   "days after pickup",
@@ -618,4 +617,4 @@ const en = {
 } as const
 
 export default en
-export type TranslationKeys = typeof e
+export type TranslationKeys = typeof en
