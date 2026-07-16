@@ -453,6 +453,43 @@ const en = {
     ],
   },
 
+  // ── Component: CommercialForm (used on /commercial) ─────────────────────────
+  commercialForm: {
+    businessNameLabel:      "Business Name",
+    businessNamePlaceholder:"Sunshine Gym & Spa",
+    ownerLabel:              "Owner or Manager",
+    ownerPlaceholder:        "Maria Rodriguez",
+    emailLabel:              "Email",
+    emailPlaceholder:        "maria@sunshinegym.com",
+    phoneLabel:              "Phone",
+    phonePlaceholder:        "(407) 555-0100",
+    businessTypeLabel:       "Business Type",
+    selectIndustry:          "Select your industry…",
+    otherTypePlaceholder:    "Please describe your business…",
+    weeklyVolumeLabel:       "Estimated Weekly Volume",
+    weeklyVolumePlaceholder: "e.g. 50 lbs, 20 towels/day",
+    preferredDaysLabel:      "Preferred Pickup / Delivery Days",
+    preferredDaysPlaceholder:"e.g. Mon, Wed, Fri",
+    optional:                "(optional)",
+    submitBtn:               "Request a Bid →",
+    sending:                 "Sending…",
+    replyNote:               "We'll reply within one business day.",
+    genericError:            "Something went wrong.",
+    successTitle:            "We've Got Your Request!",
+    successBody:             "We'll review your information and reach out within one business day with a custom quote.",
+    businessTypes: [
+      "Lodging and Hosting",
+      "Short-Term Rentals / Airbnb",
+      "Gyms & Fitness Centers",
+      "Spas & Salons",
+      "Restaurant / Café",
+      "Medical / Dental Office",
+      "Construction / Contractors",
+      "Offices & Co-Working Spaces",
+      "Other",
+    ],
+  },
+
 
   // ── PIN gate (shared by driver + operator apps) ─────────────────────────────
   pin: {

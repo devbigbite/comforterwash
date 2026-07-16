@@ -452,6 +452,43 @@ const es = {
     ],
   },
 
+  // ── Componente: CommercialForm (usado en /commercial) ────────────────────────
+  commercialForm: {
+    businessNameLabel:      "Nombre del Negocio",
+    businessNamePlaceholder:"Sunshine Gym & Spa",
+    ownerLabel:              "Propietario o Gerente",
+    ownerPlaceholder:        "Maria Rodriguez",
+    emailLabel:              "Correo Electrónico",
+    emailPlaceholder:        "maria@sunshinegym.com",
+    phoneLabel:              "Teléfono",
+    phonePlaceholder:        "(407) 555-0100",
+    businessTypeLabel:       "Tipo de Negocio",
+    selectIndustry:          "Selecciona tu industria…",
+    otherTypePlaceholder:    "Describe tu negocio…",
+    weeklyVolumeLabel:       "Volumen Semanal Estimado",
+    weeklyVolumePlaceholder: "ej. 50 lbs, 20 toallas/día",
+    preferredDaysLabel:      "Días Preferidos de Recogida / Entrega",
+    preferredDaysPlaceholder:"ej. Lun, Mié, Vie",
+    optional:                "(opcional)",
+    submitBtn:               "Solicitar una Oferta →",
+    sending:                 "Enviando…",
+    replyNote:               "Te responderemos dentro de un día hábil.",
+    genericError:            "Algo salió mal.",
+    successTitle:            "¡Hemos Recibido tu Solicitud!",
+    successBody:             "Revisaremos tu información y te contactaremos dentro de un día hábil con una cotización personalizada.",
+    businessTypes: [
+      "Hospedaje y Alojamiento",
+      "Alquileres a Corto Plazo / Airbnb",
+      "Gimnasios y Centros de Fitness",
+      "Spas y Salones",
+      "Restaurante / Café",
+      "Consultorio Médico / Dental",
+      "Construcción / Contratistas",
+      "Oficinas y Espacios de Co-Trabajo",
+      "Otro",
+    ],
+  },
+
 
   // ── PIN gate ─────────────────────────────────────────────────────────────────
   pin: {
