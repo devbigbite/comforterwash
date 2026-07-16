@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { cookies } from "next/headers"
 import { LangProvider } from "@/components/lang-provider"
 import { SiteNav } from "@/components/site-nav"
 import type { Locale } from "@/lib/i18n"
@@ -20,15 +21,18 @@ export const metadata: Metadata = {
   keywords: "comforter cleaning Orlando, comforter wash delivery Orlando, laundry pickup Orlando",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-  searchParams,
 }: Readonly<{
   children: React.ReactNode
-  searchParams?: { lang?: string }
 }>) {
-  const initialLocale: Locale =
-    searchParams?.lang === "es" ? "es" : "en"
+  // Layouts in the App Router never receive searchParams (only page.tsx
+  // does) — reading it here always resolved to undefined, so this used to
+  // silently default to "en" no matter what URL was loaded. Cookies, unlike
+  // searchParams, ARE available in layouts, and are the mechanism the
+  // EN/ES toggle now writes to (see app/actions/site-lang.ts).
+  const cookieStore = await cookies()
+  const initialLocale: Locale = cookieStore.get("wf_locale")?.value === "es" ? "es" : "en"
 
   return (
     <html lang={initialLocale} className={inter.variable}>

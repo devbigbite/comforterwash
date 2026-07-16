@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { getFaqItems, type FaqItem, type FaqCategory } from "@/app/actions/faq"
+import { getSiteLangCookie } from "@/app/actions/site-lang"
 import en from "@/lib/translations/en"
 import es from "@/lib/translations/es"
 
@@ -84,7 +85,8 @@ export default async function FaqPage({
 }: {
   searchParams: Promise<{ lang?: string }>
 }) {
-  const { lang } = await searchParams
+  const { lang: langParam } = await searchParams
+  const lang = langParam ?? (await getSiteLangCookie())
   const tr = lang === "es" ? es.faqPage : en.faqPage
 
   const allItems = await getFaqItems(lang)
