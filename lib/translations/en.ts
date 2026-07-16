@@ -425,7 +425,7 @@ const en = {
     howSub:      "Getting started takes less than 10 minutes.",
     benefitsTitle: "Why WashFold for Business?",
     benefitsSub:   "We built our service around reliability — because your business depends on it.",
-    formTitle:   "Request a Bid",
+    formTitle:   "Request a Quote",
     formSub:     "Fill in your details and we'll reply within one business day with a custom quote.",
     footerBack:  "Back to Home",
     industries: [
@@ -471,7 +471,7 @@ const en = {
     preferredDaysLabel:      "Preferred Pickup / Delivery Days",
     preferredDaysPlaceholder:"e.g. Mon, Wed, Fri",
     optional:                "(optional)",
-    submitBtn:               "Request a Bid →",
+    submitBtn:               "Request a Quote →",
     sending:                 "Sending…",
     replyNote:               "We'll reply within one business day.",
     genericError:            "Something went wrong.",

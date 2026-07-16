@@ -424,7 +424,7 @@ const es = {
     howSub:      "Comenzar toma menos de 10 minutos.",
     benefitsTitle: "¿Por qué WashFold para tu Negocio?",
     benefitsSub:   "Construimos nuestro servicio alrededor de la confiabilidad — porque tu negocio depende de ello.",
-    formTitle:   "Solicitar una Oferta",
+    formTitle:   "Solicitar una Cotización",
     formSub:     "Completa tus datos y te responderemos dentro de un día hábil con una cotización personalizada.",
     footerBack:  "Volver al Inicio",
     industries: [
@@ -470,7 +470,7 @@ const es = {
     preferredDaysLabel:      "Días Preferidos de Recogida / Entrega",
     preferredDaysPlaceholder:"ej. Lun, Mié, Vie",
     optional:                "(opcional)",
-    submitBtn:               "Solicitar una Oferta →",
+    submitBtn:               "Solicitar una Cotización →",
     sending:                 "Enviando…",
     replyNote:               "Te responderemos dentro de un día hábil.",
     genericError:            "Algo salió mal.",
