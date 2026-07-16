@@ -277,7 +277,7 @@ const es = {
     weekly:        "Semanal",
     biweekly:      "Bisemanal",
     save10:        "Ahorra 10%",
-    howManyBags:   "Pesaremos tu ropa antes de procesarla. ¿Cuántas bolsas debemos recoger en esta vuelta?",
+    howManyBags:   "¿Cuántas bolsas debemos recoger en esta vuelta?",
     bagWeightNote: "Una bolsa estándar tiene unas 20 lb. El cobro final se ajusta al peso real.",
     // booking tier selector
     howToBook:             "¿Cómo quieres agendar?",
