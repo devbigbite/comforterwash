@@ -268,6 +268,7 @@ export function BookingForm() {
   const [promoPriceCents, setPromoPriceCents] = useState(PROMO_PRICE_CENTS)
   const [detergentOptions, setDetergentOptions] = useState<ServiceOption[]>([])
   const [extraOptions, setExtraOptions] = useState<ServiceOption[]>([])
+  const [accessoryOptions, setAccessoryOptions] = useState<ServiceOption[]>([])
 
   useEffect(() => {
     import("@/app/actions/holidays").then(m => m.getExcludedDates()).then(dates => setExcludedDates(new Set(dates)))
@@ -281,13 +282,15 @@ export function BookingForm() {
       setPromoPriceCents(cfg.comforterPromoCents)
       setComforterSizes(buildSizes())
     })
-    Promise.all([getServiceOptions("detergent"), getServiceOptions("extra")]).then(([dets, exts]) => {
+    Promise.all([getServiceOptions("detergent"), getServiceOptions("extra"), getServiceOptions("accessory")]).then(([dets, exts, accs]) => {
       setDetergentOptions(dets)
       setExtraOptions(exts)
+      setAccessoryOptions(accs)
       if (dets.length > 0) setFormData(f => ({ ...f, detergentId: dets[0].id }))
-      if (exts.length > 0) {
+      if (exts.length > 0 || accs.length > 0) {
         const init: Record<string, boolean> = {}
         exts.forEach(e => { init[e.id] = false })
+        accs.forEach(a => { init[a.id] = false })
         setFormData(f => ({ ...f, selectedExtras: init }))
       }
     })
@@ -300,8 +303,12 @@ export function BookingForm() {
     ? totalCount * promoPriceCents
     : comforterSizes.reduce((acc, s) => acc + quantities[s.id as SizeId] * s.cents, 0)
 
+  const selectedAddonsCents = [...extraOptions, ...accessoryOptions]
+    .filter(e => formData.selectedExtras[e.id])
+    .reduce((s, e) => s + e.price_cents, 0)
+
   const discountCents      = promo ? Math.min(promo.discountCents, subtotalCents) : 0
-  const afterDiscountCents = Math.max(0, subtotalCents - discountCents)
+  const afterDiscountCents = Math.max(0, subtotalCents - discountCents) + selectedAddonsCents
   const deliveryFeeCents   = calcDeliveryFee(feeConfig, "comforter_wash")
   const tipCents           = calcTip(tipOption, customTipCents, afterDiscountCents)
   const totalCents         = afterDiscountCents + deliveryFeeCents + tipCents
@@ -349,7 +356,7 @@ export function BookingForm() {
   const selectedSizes = comforterSizes.filter(s => quantities[s.id as SizeId] > 0)
 
   const selectedDetergent   = detergentOptions.find(d => d.id === formData.detergentId)
-  const selectedExtrasList  = extraOptions.filter(e => formData.selectedExtras[e.id])
+  const selectedExtrasList  = [...extraOptions, ...accessoryOptions].filter(e => formData.selectedExtras[e.id])
   const addOnsSummary = [
     selectedDetergent && selectedDetergent.id !== detergentOptions[0]?.id ? selectedDetergent.name : null,
     ...selectedExtrasList.map(e => e.name),
@@ -730,6 +737,32 @@ export function BookingForm() {
                 <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.treatmentAddOns}</h4>
                 <div className="space-y-2">
                   {extraOptions.map(addon => (
+                    <label key={addon.id}
+                      className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                        formData.selectedExtras[addon.id] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                      <Checkbox
+                        checked={!!formData.selectedExtras[addon.id]}
+                        onCheckedChange={c => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [addon.id]: c as boolean } }))}
+                        className="shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-[#0D2240] text-sm">{addon.name}</p>
+                        {addon.description && <p className="text-xs text-gray-400">{addon.description}</p>}
+                      </div>
+                      {addon.price_cents === 0
+                        ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
+                        : <span className="text-[10px] font-bold text-[#0D2240] bg-gray-100 px-2 py-0.5 rounded-full">+${(addon.price_cents / 100).toFixed(2)}</span>
+                      }
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {accessoryOptions.length > 0 && (
+              <div>
+                <h4 className="font-bold text-[#0D2240] text-sm mb-3">{tf.accessoryAddOns}</h4>
+                <div className="space-y-2">
+                  {accessoryOptions.map(addon => (
                     <label key={addon.id}
                       className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
                         formData.selectedExtras[addon.id] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
