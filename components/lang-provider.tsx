@@ -42,18 +42,24 @@ export function LangProvider({
 
     // Server components (e.g. /commercial, /service-areas) read the "lang"
     // query param directly and pick their own translations independent of
-    // this client context. A plain history.replaceState() only updates the
-    // URL bar — it doesn't ask Next.js to re-render those server components,
-    // so their body content silently stays in whatever language the page
-    // first loaded with. router.replace() triggers a real (soft) navigation
-    // so those pages re-render with the new "lang" param too.
+    // this client context. Update the URL first so it's consistent...
     const url = new URL(window.location.href)
     if (l === "en") {
       url.searchParams.delete("lang")
     } else {
       url.searchParams.set("lang", l)
     }
-    router.replace(url.pathname + url.search, { scroll: false })
+    window.history.replaceState({}, "", url.toString())
+
+    // ...then ask Next.js to re-fetch this route's Server Component payload
+    // (picking up the new "lang" param) via router.refresh(). Unlike
+    // router.replace()/push(), refresh() does NOT perform a client-side
+    // navigation — it re-renders Server Components in place while leaving
+    // Client Component state (like this locale) untouched. router.replace()
+    // was tried here first, but it caused RootLayout to re-run with its own
+    // (unsupported) searchParams read, which always resolves to "en" and
+    // was snapping the language straight back to English on every toggle.
+    router.refresh()
   }
 
   return (
