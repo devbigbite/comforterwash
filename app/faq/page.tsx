@@ -5,7 +5,12 @@ import en from "@/lib/translations/en"
 import es from "@/lib/translations/es"
 
 export const metadata = { title: "FAQ — WashFold Orlando" }
-export const revalidate = 60
+// force-dynamic instead of a plain revalidate window: this page reads the
+// wf_locale cookie (via getSiteLangCookie()) to follow the EN/ES toggle,
+// and an indirect cookies() call through an imported helper doesn't always
+// get picked up by Next's static-analysis opt-in to dynamic rendering
+// (see app/commercial/page.tsx, which hit this exact bug).
+export const dynamic = "force-dynamic"
 
 function getCategories(t: typeof en.faqPage) {
   return [
