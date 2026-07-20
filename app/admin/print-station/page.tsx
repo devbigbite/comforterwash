@@ -28,13 +28,13 @@ export default function PrintStationSetupPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Quick Links</p>
           <div className="flex flex-wrap gap-2">
-            <a href="/operator/station" target="_blank" rel="noopener noreferrer"
+            <a href="/operator/owner-login" target="_blank" rel="noopener noreferrer"
               className="bg-[#E8726A] hover:bg-[#d45f57] text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
-              🖨️ Open Print Station
+              👑 Set Up This Computer as Owner
             </a>
-            <a href="/operator" target="_blank" rel="noopener noreferrer"
+            <a href="/operator/station" target="_blank" rel="noopener noreferrer"
               className="bg-[#0D2240] hover:bg-[#1a3a5c] text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
-              Open Operator App
+              🖨️ Open Print Station
             </a>
             <a href="/admin" target="_blank" rel="noopener noreferrer"
               className="bg-white border border-gray-200 hover:border-gray-300 text-[#0D2240] text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
@@ -68,9 +68,9 @@ export default function PrintStationSetupPage() {
             <p>Go to <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">comforterwash.com/admin</code> and log in with the admin password once. This just needs to happen once per browser.</p>
           </Step>
 
-          <Step n={2} title="Open the Operator app and continue as Owner">
-            <p>Go to <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">comforterwash.com/operator</code> — you'll see a "Continue as Owner" option since you're logged into admin. Tap it once.</p>
-            <p>This matters because Owner sessions can see and print <strong>any</strong> operator's finished order, not just orders assigned to one specific worker. It also now stays logged in permanently on this browser — you will not need to repeat this step after restarts.</p>
+          <Step n={2} title="Set this computer up as Owner">
+            <p>Click the <strong>"👑 Set Up This Computer as Owner"</strong> button above (only works while you're logged into Admin, which you already are). It signs this browser into the Operator app as Owner and drops you straight into the Print Station.</p>
+            <p>This matters because Owner sessions can see and print <strong>any</strong> operator's finished order, not just orders assigned to one specific worker. It also stays logged in permanently on this browser afterward — you will not need to repeat this step after restarts, and you won't need a worker PIN at all on this machine.</p>
           </Step>
 
           <Step n={3} title="Go to the Print Station and pin it">
@@ -93,7 +93,7 @@ export default function PrintStationSetupPage() {
           <div className="text-amber-700 text-sm leading-relaxed space-y-1.5">
             <p>• <strong>Print dialog doesn't open automatically:</strong> browser pop-up/auto-print blockers can interfere — allow pop-ups for this site, or just click "Print All Receipts" manually on the receipts page.</p>
             <p>• <strong>Wrong printer selected in the dialog:</strong> the browser may default to a different printer (like "Save as PDF") — set the thermal printer as the default printer in system settings so it's pre-selected.</p>
-            <p>• <strong>"Continue as Owner" isn't showing up:</strong> the admin login session may have expired — log into /admin again, then return to /operator.</p>
+            <p>• <strong>Landed on "Enter admin password" instead of the Print Station:</strong> the "Set Up This Computer as Owner" link only works while logged into Admin in that browser — log into /admin first, then click the button again.</p>
             <p>• <strong>Receipt prints blank or faint:</strong> the paper roll is likely loaded backwards — flip it so the thermal-coated side faces the print head.</p>
           </div>
         </div>
