@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
-import { getAllLocations, updateLocation } from "@/app/actions/super-admin"
+import { getAllLocations, updateLocation, inviteLocationAdmin, getLocationAdmins, removeLocationAdmin } from "@/app/actions/super-admin"
 
 type Location = {
   id: string
@@ -36,6 +36,45 @@ export default function SuperAdminPage() {
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState<string | null>(null)
   const [, startTransition]       = useTransition()
+
+  // Admin invite / management
+  const [adminsForId, setAdminsForId] = useState<string | null>(null)
+  const [admins, setAdmins] = useState<{ user_id: string; email: string; role: string; is_super_admin: boolean }[]>([])
+  const [loadingAdmins, setLoadingAdmins] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviting, setInviting] = useState(false)
+  const [inviteMsg, setInviteMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
+
+  async function openAdmins(locId: string) {
+    setAdminsForId(locId)
+    setInviteEmail("")
+    setInviteMsg(null)
+    setLoadingAdmins(true)
+    const data = await getLocationAdmins(locId)
+    setAdmins(data)
+    setLoadingAdmins(false)
+  }
+
+  async function handleInvite() {
+    if (!adminsForId || !inviteEmail.trim()) return
+    setInviting(true)
+    setInviteMsg(null)
+    const result = await inviteLocationAdmin(adminsForId, inviteEmail.trim())
+    setInviting(false)
+    if (result.error) { setInviteMsg({ type: "err", text: result.error }); return }
+    setInviteMsg({ type: "ok", text: `Sign-in link sent to ${inviteEmail}.` })
+    setInviteEmail("")
+    const data = await getLocationAdmins(adminsForId)
+    setAdmins(data)
+  }
+
+  async function handleRemoveAdmin(userId: string) {
+    if (!adminsForId) return
+    if (!confirm("Remove this admin's access to this location?")) return
+    await removeLocationAdmin(adminsForId, userId)
+    const data = await getLocationAdmins(adminsForId)
+    setAdmins(data)
+  }
 
   async function load() {
     setLoading(true)
@@ -194,12 +233,20 @@ export default function SuperAdminPage() {
                       {new Date(loc.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => startEdit(loc)}
-                        className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => startEdit(loc)}
+                          className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => openAdmins(loc.id)}
+                          className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+                        >
+                          Admins
+                        </button>
+                      </div>
                     </td>
                   </>
                 )}
@@ -215,6 +262,71 @@ export default function SuperAdminPage() {
           </tbody>
         </table>
       </div>
+
+      {/* ── Admins modal ─────────────────────────────────────────────── */}
+      {adminsForId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4" onClick={() => setAdminsForId(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900">
+                Admins — {locations.find(l => l.id === adminsForId)?.name}
+              </h3>
+              <button onClick={() => setAdminsForId(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            {loadingAdmins ? (
+              <p className="text-sm text-slate-400 py-4 text-center">Loading…</p>
+            ) : (
+              <div className="space-y-2 mb-5">
+                {admins.length === 0 && (
+                  <p className="text-sm text-slate-400 py-2">No admins yet — invite the first one below.</p>
+                )}
+                {admins.map(a => (
+                  <div key={a.user_id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{a.email}</p>
+                      <p className="text-xs text-slate-400">{a.is_super_admin ? "Super admin" : a.role}</p>
+                    </div>
+                    {!a.is_super_admin && (
+                      <button onClick={() => handleRemoveAdmin(a.user_id)} className="text-xs text-red-500 hover:text-red-700 font-medium">
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="border-t border-slate-100 pt-4">
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Invite an admin</label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="admin@theirbusiness.com"
+                  className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+                <button
+                  onClick={handleInvite}
+                  disabled={inviting || !inviteEmail.trim()}
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  {inviting ? "Sending…" : "Invite"}
+                </button>
+              </div>
+              {inviteMsg && (
+                <p className={`text-xs mt-2 font-medium ${inviteMsg.type === "ok" ? "text-green-600" : "text-red-500"}`}>
+                  {inviteMsg.text}
+                </p>
+              )}
+              <p className="text-xs text-slate-400 mt-2">
+                They'll get an email with a one-time sign-in link — no password to set up.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Location IDs reference */}
       <details className="text-xs text-slate-400">

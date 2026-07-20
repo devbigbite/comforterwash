@@ -1,4 +1,5 @@
 import { loginAction } from "./actions"
+import { MagicLinkForm } from "./magic-link-form"
 
 export default function LoginPage({ searchParams }: { searchParams: { error?: string } }) {
   const hasError  = searchParams?.error === "1"
@@ -22,7 +23,17 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <h1 className="text-2xl font-extrabold text-[#1e3a8a] mb-1">Sign in</h1>
-          <p className="text-gray-400 text-sm mb-6">Enter your admin password to continue</p>
+          <p className="text-gray-400 text-sm mb-6">Get a one-time sign-in link sent to your email</p>
+
+          <MagicLinkForm />
+
+          <div className="flex items-center gap-3 my-6">
+            <div className="h-px bg-gray-100 flex-1" />
+            <span className="text-xs text-gray-300 font-semibold uppercase tracking-wide">or</span>
+            <div className="h-px bg-gray-100 flex-1" />
+          </div>
+
+          <p className="text-gray-400 text-xs mb-3">Legacy password (WashFold Orlando only)</p>
 
           <form action={loginAction} className="space-y-4">
             <div>

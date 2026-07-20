@@ -54,6 +54,92 @@ export async function createLocation(
 
 // ── Update ────────────────────────────────────────────────────────────────────
 
+// ── Invite a tenant's first admin ─────────────────────────────────────────────
+// Creates (or reuses) a Supabase Auth user for the given email, links them to
+// this location via location_users with role "admin", and emails them a
+// magic sign-in link scoped to /admin/auth/callback. This is the actual
+// "onboard a new tenant" action — without it, createLocation() above just
+// makes an orphaned location nobody can log into.
+export async function inviteLocationAdmin(
+  locationId: string,
+  email: string,
+): Promise<{ error?: string; success?: boolean }> {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+  const cleanEmail = email.trim().toLowerCase()
+  if (!cleanEmail || !cleanEmail.includes("@")) return { error: "Enter a valid email address." }
+
+  // Find or create the auth user
+  const { data: userList } = await supabase.auth.admin.listUsers()
+  let userId = userList?.users.find(u => u.email?.toLowerCase() === cleanEmail)?.id
+
+  if (!userId) {
+    const { data: created, error: createError } = await supabase.auth.admin.createUser({
+      email: cleanEmail,
+      email_confirm: true,
+    })
+    if (createError || !created?.user) {
+      return { error: createError?.message ?? "Failed to create user" }
+    }
+    userId = created.user.id
+  }
+
+  // Link to this location as admin (idempotent — unique on location_id+user_id)
+  const { error: linkError } = await supabase
+    .from("location_users")
+    .upsert(
+      { location_id: locationId, user_id: userId, role: "admin", is_super_admin: false },
+      { onConflict: "location_id,user_id" }
+    )
+  if (linkError) return { error: linkError.message }
+
+  // Send them a magic sign-in link
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://comforterwash.com"
+  const { data: linkData, error: linkGenError } = await supabase.auth.admin.generateLink({
+    type: "magiclink",
+    email: cleanEmail,
+    options: { redirectTo: `${siteUrl}/admin/auth/callback` },
+  })
+  if (linkGenError) return { error: linkGenError.message }
+
+  const magicLink = (linkData as { properties?: { action_link?: string } } | null)?.properties?.action_link
+  if (magicLink) {
+    const { sendAdminMagicLinkEmail } = await import("@/lib/email")
+    await sendAdminMagicLinkEmail(cleanEmail, magicLink)
+  }
+
+  revalidatePath("/super-admin")
+  return { success: true }
+}
+
+// ── Remove an admin's access to a location ────────────────────────────────────
+export async function removeLocationAdmin(locationId: string, userId: string): Promise<{ error?: string }> {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+  await supabase.from("location_users").delete().eq("location_id", locationId).eq("user_id", userId)
+  revalidatePath("/super-admin")
+  return {}
+}
+
+// ── List admins for a location ────────────────────────────────────────────────
+export async function getLocationAdmins(locationId: string): Promise<{ user_id: string; email: string; role: string; is_super_admin: boolean }[]> {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+  const { data: memberships } = await supabase
+    .from("location_users")
+    .select("user_id, role, is_super_admin")
+    .eq("location_id", locationId)
+  if (!memberships?.length) return []
+
+  const { data: userList } = await supabase.auth.admin.listUsers()
+  return memberships.map(m => ({
+    user_id: m.user_id,
+    email: userList?.users.find(u => u.id === m.user_id)?.email ?? "(unknown)",
+    role: m.role,
+    is_super_admin: m.is_super_admin,
+  }))
+}
+
 export async function updateLocation(
   id: string,
   updates: {

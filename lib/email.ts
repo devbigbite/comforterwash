@@ -184,6 +184,29 @@ export async function sendAccountReadyEmail(
 }
 
 // ─────────────────────────────────────────────────────────────────
+// 8b. Admin: Magic Link Login
+// ─────────────────────────────────────────────────────────────────
+export async function sendAdminMagicLinkEmail(toEmail: string, magicLink: string) {
+  const branding = await getEmailBranding()
+  const subject = `🔑 Sign in to ${branding.businessName} Admin`
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:${branding.primaryColor};margin-bottom:12px">Admin Sign-In</h2>
+      <p style="color:#444;font-size:14px;line-height:1.6;margin-bottom:24px">
+        Click below to sign in to the ${branding.businessName} admin dashboard. This link is valid for a limited time and can only be used once.
+      </p>
+      <a href="${magicLink}" style="display:inline-block;background:${branding.accentColor};color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:14px">
+        Sign In →
+      </a>
+      <p style="color:#999;font-size:12px;margin-top:28px">
+        Didn't request this? You can safely ignore this email.
+      </p>
+    </div>
+  `
+  return safeSend({ from: await fromAdmin(), to: [toEmail], subject, html })
+}
+
+// ─────────────────────────────────────────────────────────────────
 // 9. Facility: Orders Arrived  (sent when driver completes to_facility run)
 // ─────────────────────────────────────────────────────────────────
 export interface FacilityArrivalData {
