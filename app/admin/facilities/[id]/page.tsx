@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { notFound } from "next/navigation"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import DeleteGroupButton from "./delete-group-button"
 import {
   addStorageSpace, updateStorageSpace,
@@ -8,9 +10,20 @@ import {
   type StorageSpace,
 } from "@/app/actions/storage-spaces"
 
+// Note: machine_groups/machines don't have their own location_id — they're
+// scoped transitively through facility_id, which every entry point below
+// verifies against the current tenant's facilities before use.
+async function assertFacilityOwnership(facilityId: string) {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase.from("facilities").select("id").eq("id", facilityId).eq("location_id", locationId).maybeSingle()
+  if (!data) throw new Error("Facility not found for this account")
+}
+
 async function addGroup(formData: FormData) {
   "use server"
   const facilityId = formData.get("facilityId") as string
+  await assertFacilityOwnership(facilityId)
   const name = (formData.get("name") as string)?.trim()
   const type = formData.get("type") as string
   const capacityLbs = parseFloat(formData.get("capacity") as string) || null
@@ -27,6 +40,7 @@ async function addMachine(formData: FormData) {
   "use server"
   const groupId = formData.get("groupId") as string
   const facilityId = formData.get("facilityId") as string
+  await assertFacilityOwnership(facilityId)
   const name = (formData.get("name") as string)?.trim()
   if (!name) return
   const supabase = createAdminClient()
@@ -38,6 +52,7 @@ async function toggleMachine(formData: FormData) {
   "use server"
   const machineId = formData.get("machineId") as string
   const facilityId = formData.get("facilityId") as string
+  await assertFacilityOwnership(facilityId)
   const currentStatus = formData.get("status") as string
   const newStatus = currentStatus === "active" ? "inactive" : "active"
   const supabase = createAdminClient()
@@ -49,6 +64,7 @@ async function deleteMachine(formData: FormData) {
   "use server"
   const machineId = formData.get("machineId") as string
   const facilityId = formData.get("facilityId") as string
+  await assertFacilityOwnership(facilityId)
   const supabase = createAdminClient()
   await supabase.from("machines").delete().eq("id", machineId)
   revalidatePath(`/admin/facilities/${facilityId}`)
@@ -58,16 +74,18 @@ async function deleteGroup(formData: FormData) {
   "use server"
   const groupId = formData.get("groupId") as string
   const facilityId = formData.get("facilityId") as string
+  await assertFacilityOwnership(facilityId)
   const supabase = createAdminClient()
   await supabase.from("machine_groups").delete().eq("id", groupId)
   revalidatePath(`/admin/facilities/${facilityId}`)
 }
 
 export default async function FacilityDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdmin()
   const { id } = await params
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
-  const { data: facility } = await supabase.from("facilities").select("*").eq("id", id).single()
+  const { data: facility } = await supabase.from("facilities").select("*").eq("id", id).eq("location_id", locationId).single()
   if (!facility) notFound()
 
   const [{ data: groups }, { data: storageSpacesRaw }] = await Promise.all([

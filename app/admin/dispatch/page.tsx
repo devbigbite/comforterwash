@@ -10,19 +10,25 @@ import { AerialView } from "@/components/admin/AerialView"
 import type { AerialOrder } from "@/types/dispatch"
 import { getTransportRuns } from "@/app/actions/transport-runs"
 import type { TransportRun } from "@/app/actions/transport-runs"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 // ─── Server Actions ───────────────────────────────────────────────────────────
+// Every action below verifies bookingId/runId belongs to the current tenant
+// before mutating, so a dispatcher session for one tenant can't touch
+// another tenant's orders/runs even if it knew the id.
 
 async function assignDriverAction(formData: FormData) {
   "use server"
+  await requireAdmin()
   const bookingId   = formData.get("bookingId")   as string
   const driverEmail = formData.get("driverEmail")  as string
   const driverId    = formData.get("driverId")     as string
   const date        = formData.get("date")         as string
-  const supabase    = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const { ok } = await assignDriver(bookingId, driverEmail)
-  await supabase.from("bookings").update({ assigned_driver_id: driverId || null }).eq("id", bookingId)
+  await supabase.from("bookings").update({ assigned_driver_id: driverId || null }).eq("id", bookingId).eq("location_id", locationId)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "driver_assigned",
@@ -36,10 +42,11 @@ async function assignDriverAction(formData: FormData) {
 
 async function unassignDriverAction(formData: FormData) {
   "use server"
+  await requireAdmin()
   const bookingId = formData.get("bookingId") as string
   const date      = formData.get("date")      as string
-  const supabase  = createAdminClient()
-  await supabase.from("bookings").update({ assigned_driver_id: null }).eq("id", bookingId)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("bookings").update({ assigned_driver_id: null }).eq("id", bookingId).eq("location_id", locationId)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "driver_unassigned",
@@ -59,17 +66,18 @@ async function unassignDriverAction(formData: FormData) {
 //     calls to say they didn't leave items out for pickup.
 async function driverQuickActionAdmin(formData: FormData) {
   "use server"
+  await requireAdmin()
   const bookingId = formData.get("bookingId") as string
   const status    = formData.get("status")    as string
   const note      = formData.get("note")      as string
   const unassign  = formData.get("unassign")  === "true"
   const date      = formData.get("date")      as string
-  const supabase  = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const updates: Record<string, unknown> = { status }
   if (unassign) updates.assigned_driver_id = null
 
-  await supabase.from("bookings").update(updates).eq("id", bookingId)
+  await supabase.from("bookings").update(updates).eq("id", bookingId).eq("location_id", locationId)
   await supabase.from("order_bags").update({ status }).eq("booking_id", bookingId)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
@@ -82,18 +90,20 @@ async function driverQuickActionAdmin(formData: FormData) {
 
 async function assignRunDriverAction(runId: string, driverName: string) {
   "use server"
-  const supabase = createAdminClient()
-  await supabase.from("transport_runs").update({ assigned_to: driverName }).eq("id", runId)
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("transport_runs").update({ assigned_to: driverName }).eq("id", runId).eq("location_id", locationId)
   revalidatePath("/admin/dispatch")
 }
 
 async function assignOperatorAction(formData: FormData) {
   "use server"
+  await requireAdmin()
   const bookingId   = formData.get("bookingId")   as string
   const operatorId  = formData.get("operatorId")  as string
   const date        = formData.get("date")         as string
-  const supabase    = createAdminClient()
-  await supabase.from("bookings").update({ assigned_operator_id: operatorId || null }).eq("id", bookingId)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("bookings").update({ assigned_operator_id: operatorId || null }).eq("id", bookingId).eq("location_id", locationId)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "operator_assigned",
@@ -105,6 +115,7 @@ async function assignOperatorAction(formData: FormData) {
 
 async function setOrderStageAdminAction(formData: FormData) {
   "use server"
+  await requireAdmin()
   const bookingId = formData.get("bookingId") as string
   const stage     = formData.get("stage")     as string
   const supabase  = createAdminClient()
@@ -120,6 +131,7 @@ async function setOrderStageAdminAction(formData: FormData) {
 
 async function rescheduleAction(formData: FormData) {
   "use server"
+  await requireAdmin()
   const bookingId   = formData.get("bookingId")   as string
   const type        = formData.get("type")         as string
   const newDate     = formData.get("newDate")      as string
@@ -135,6 +147,7 @@ async function rescheduleAction(formData: FormData) {
 
 async function cancelAction(formData: FormData) {
   "use server"
+  await requireAdmin()
   const bookingId = formData.get("bookingId") as string
   const date      = formData.get("date")      as string
   await cancelShipdayOrders(bookingId)
@@ -148,16 +161,18 @@ export default async function DispatchPage({
 }: {
   searchParams: Promise<{ tab?: string }>
 }) {
+  await requireAdmin()
   const { tab: tabParam } = await searchParams
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
   const activeTab = tabParam === "operators" ? "operators" : tabParam === "transfers" ? "transfers" : tabParam === "aerial" ? "aerial" : "drivers"
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   // Workers
   const { data: activeDrivers } = await supabase
     .from("workers")
     .select("id, name, shipday_email")
+    .eq("location_id", locationId)
     .eq("status", "active")
     .contains("roles", ["driver"])
     .order("name")
@@ -165,6 +180,7 @@ export default async function DispatchPage({
   const { data: activeOperators } = await supabase
     .from("workers")
     .select("id, name")
+    .eq("location_id", locationId)
     .eq("status", "active")
     .contains("roles", ["operator"])
     .order("name")
@@ -172,6 +188,7 @@ export default async function DispatchPage({
   const { data: facilities } = await supabase
     .from("facilities")
     .select("id, name")
+    .eq("location_id", locationId)
     .order("name")
 
   const drivers   = (activeDrivers   ?? []) as { id: string; name: string; shipday_email: string | null }[]
@@ -196,6 +213,7 @@ export default async function DispatchPage({
       assigned_driver_id, assigned_operator_id,
       assigned_facility:facilities!assigned_facility_id(id, name)
     `)
+    .eq("location_id", locationId)
     .in("status", DRIVER_STATUSES)
     .order("pickup_date")
 
@@ -215,6 +233,7 @@ export default async function DispatchPage({
       assigned_facility:facilities!assigned_facility_id(name),
       assigned_driver:workers!assigned_driver_id(name)
     `)
+    .eq("location_id", locationId)
     .not("status", "in", '("delivered","cancelled")')
     .order("created_at", { ascending: false })
 

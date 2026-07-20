@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import { RouteTimeWindowEditor } from "./route-time-window-editor"
 import { RouteEditor } from "./route-editor"
 import type { Route } from "@/lib/route-availability"
@@ -9,7 +11,8 @@ interface StorageSpace { id: string; name: string; facility_id: string; address:
 
 async function createRoute(formData: FormData) {
   "use server"
-  const supabase = createAdminClient()
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const pickupDays   = formData.getAll("pickup_days") as string[]
   const deliveryDays = formData.getAll("delivery_days") as string[]
   const areas = (formData.get("service_areas") as string)
@@ -19,6 +22,7 @@ async function createRoute(formData: FormData) {
   const biweeklyStart = formData.get("biweekly_start_date") as string || null
 
   await supabase.from("routes").insert({
+    location_id:         locationId,
     name:                formData.get("name") as string,
     service_areas:       areas,
     pickup_days:         pickupDays,
@@ -36,21 +40,24 @@ async function createRoute(formData: FormData) {
 
 async function toggleRoute(id: string, active: boolean) {
   "use server"
-  const supabase = createAdminClient()
-  await supabase.from("routes").update({ active }).eq("id", id)
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("routes").update({ active }).eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/routes")
 }
 
 async function deleteRoute(id: string) {
   "use server"
-  const supabase = createAdminClient()
-  await supabase.from("routes").delete().eq("id", id)
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("routes").delete().eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/routes")
 }
 
 async function updateRoute(id: string, formData: FormData) {
   "use server"
-  const supabase = createAdminClient()
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const pickupDays   = formData.getAll("pickup_days") as string[]
   const deliveryDays = formData.getAll("delivery_days") as string[]
   const areas = (formData.get("service_areas") as string)
@@ -68,7 +75,7 @@ async function updateRoute(id: string, formData: FormData) {
     notes:               formData.get("notes") as string || null,
     facility_id:                formData.get("facility_id") as string || null,
     default_storage_space_id:   formData.get("default_storage_space_id") as string || null,
-  }).eq("id", id)
+  }).eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/routes")
 }
 
@@ -79,12 +86,13 @@ const DAY_ABBR: Record<string, string> = {
 }
 
 export default async function RoutesPage() {
-  const supabase = createAdminClient()
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const [{ data: routesRaw = [] }, { data: facilitiesRaw = [] }, { data: storageSpacesRaw = [] }] = await Promise.all([
-    supabase.from("routes").select("*").order("created_at", { ascending: true }),
-    supabase.from("facilities").select("id, name").eq("active", true).order("name"),
-    supabase.from("storage_spaces").select("id, name, facility_id, address, unit").eq("active", true).order("name"),
+    supabase.from("routes").select("*").eq("location_id", locationId).order("created_at", { ascending: true }),
+    supabase.from("facilities").select("id, name").eq("location_id", locationId).eq("active", true).order("name"),
+    supabase.from("storage_spaces").select("id, name, facility_id, address, unit").eq("location_id", locationId).eq("active", true).order("name"),
   ])
   const storageSpaces: StorageSpace[] = (storageSpacesRaw ?? []) as StorageSpace[]
 
@@ -92,7 +100,7 @@ export default async function RoutesPage() {
 
   const routeIds = (routesRaw ?? []).map(r => r.id)
   const { data: windows = [] } = routeIds.length
-    ? await supabase.from("route_time_windows").select("*").in("route_id", routeIds).order("sort_order").order("start_time")
+    ? await supabase.from("route_time_windows").select("*").eq("location_id", locationId).in("route_id", routeIds).order("sort_order").order("start_time")
     : { data: [] }
 
   const windowsByRoute: Record<string, Route["time_windows"]> = {}

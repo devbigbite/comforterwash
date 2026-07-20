@@ -419,3 +419,22 @@ export async function setTipsEnabled(enabled: boolean): Promise<void> {
   )
   revalidatePath("/admin/pricing")
 }
+
+// ── Public zip-code check (used by the landing-page ZipChecker widget) ────────
+// This used to run as a raw anon-client query directly from the browser with
+// no location_id filter — since the underlying RLS policy on service_areas is
+// "public read, no restriction", that meant a customer on any tenant's site
+// could get a false "yes we serve you" based on ANY tenant's zip list. Routing
+// it through a server action scopes the lookup to the current request's
+// tenant via getLocationId().
+export async function checkZipServiceable(zip: string): Promise<boolean> {
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase
+    .from("service_areas")
+    .select("zip_code")
+    .eq("zip_code", zip)
+    .eq("location_id", locationId)
+    .eq("active", true)
+    .maybeSingle()
+  return !!data
+}

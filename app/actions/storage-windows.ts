@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireAdmin } from "@/lib/auth-guard"
+import { getLocationId } from "@/lib/location"
 import { revalidatePath } from "next/cache"
 
 export interface StorageEntryWindow {
@@ -31,10 +32,10 @@ export async function addStorageEntryWindow(formData: FormData) {
   const days: number[] = JSON.parse(daysRaw || "[]")
   if (days.length === 0) return { error: "Select at least one day" }
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data, error } = await supabase
     .from("storage_entry_windows")
-    .insert({ storage_space_id: storageSpaceId, label, days_of_week: days, start_time: startTime, end_time: endTime, overnight, notes })
+    .insert({ storage_space_id: storageSpaceId, location_id: locationId, label, days_of_week: days, start_time: startTime, end_time: endTime, overnight, notes })
     .select()
     .single()
 
@@ -47,17 +48,18 @@ export async function addStorageEntryWindow(formData: FormData) {
 
 export async function deleteStorageEntryWindow(id: string) {
   await requireAdmin()
-  const supabase = createAdminClient()
-  await supabase.from("storage_entry_windows").delete().eq("id", id)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("storage_entry_windows").delete().eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/facilities")
 }
 
 export async function getStorageEntryWindows(storageSpaceId: string) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("storage_entry_windows")
     .select("*")
     .eq("storage_space_id", storageSpaceId)
+    .eq("location_id", locationId)
     .eq("active", true)
     .order("start_time")
   return (data ?? []) as StorageEntryWindow[]

@@ -4,7 +4,7 @@ import { MessageUsModal } from "@/components/message-us-modal"
 import { getSiteLangCookie } from "@/app/actions/site-lang"
 import en from "@/lib/translations/en"
 import es from "@/lib/translations/es"
-import { getBranding } from "@/lib/location"
+import { getBranding, getLocationId } from "@/lib/location"
 
 export async function generateMetadata() {
   const branding = await getBranding()
@@ -26,11 +26,12 @@ export default async function ServiceAreasPage({
   const lang = langParam ?? (await getSiteLangCookie())
   const tr = lang === "es" ? es.serviceAreasPage : en.serviceAreasPage
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data: areas } = await supabase
     .from("service_areas")
     .select("zip_code, city, notes, active")
     .eq("active", true)
+    .eq("location_id", locationId)
     .order("zip_code")
 
   const activeAreas = areas ?? []

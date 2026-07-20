@@ -1,54 +1,62 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import DeleteZipButton from "./delete-button"
 import EditZipRow from "./edit-zip-row"
 
 async function addZip(formData: FormData) {
   "use server"
+  await requireAdmin()
   const zip = (formData.get("zip") as string)?.trim()
   const city = (formData.get("city") as string)?.trim() || "Orlando"
   const notes = (formData.get("notes") as string)?.trim() || null
   if (!zip || zip.length !== 5) return
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   await supabase.from("service_areas").upsert(
-    { zip_code: zip, city, notes, active: true },
-    { onConflict: "zip_code" }
+    { zip_code: zip, city, notes, active: true, location_id: locationId },
+    { onConflict: "location_id,zip_code" }
   )
   revalidatePath("/admin/zip-codes")
 }
 
 async function toggleZip(formData: FormData) {
   "use server"
+  await requireAdmin()
   const id = formData.get("id") as string
   const active = formData.get("active") === "true"
-  const supabase = createAdminClient()
-  await supabase.from("service_areas").update({ active: !active }).eq("id", id)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("service_areas").update({ active: !active }).eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/zip-codes")
 }
 
 async function deleteZip(formData: FormData) {
   "use server"
+  await requireAdmin()
   const id = formData.get("id") as string
-  const supabase = createAdminClient()
-  await supabase.from("service_areas").delete().eq("id", id)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("service_areas").delete().eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/zip-codes")
 }
 
 async function updateZip(formData: FormData) {
   "use server"
+  await requireAdmin()
   const id = formData.get("id") as string
   const city = (formData.get("city") as string)?.trim() || "Orlando"
   const notes = (formData.get("notes") as string)?.trim() || null
-  const supabase = createAdminClient()
-  await supabase.from("service_areas").update({ city, notes }).eq("id", id)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("service_areas").update({ city, notes }).eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/zip-codes")
 }
 
 export default async function ZipCodesPage() {
-  const supabase = createAdminClient()
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data: areas } = await supabase
     .from("service_areas")
     .select("*")
+    .eq("location_id", locationId)
     .order("zip_code", { ascending: true })
 
   const activeCount = areas?.filter((a) => a.active).length ?? 0

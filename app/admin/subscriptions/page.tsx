@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { pauseSubscription, resumeSubscription, cancelSubscription, forcecancelSubscription } from "@/app/actions/subscriptions"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 async function pauseSub(id: string) {
   "use server"
@@ -43,10 +45,12 @@ const DAY_LABEL: Record<string, string> = {
 }
 
 export default async function SubscriptionsPage() {
-  const supabase = createAdminClient()
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data: subs = [] } = await supabase
     .from("subscriptions")
     .select("*")
+    .eq("location_id", locationId)
     .order("created_at", { ascending: false })
 
   const perPickup   = subs.filter(s => s.subscription_type !== "monthly_plan")

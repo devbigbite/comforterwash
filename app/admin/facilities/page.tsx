@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import Link from "next/link"
 import { FacilityAccessWindowsEditor, type AccessWindow } from "@/components/admin/FacilityAccessWindowsEditor"
 import {
@@ -22,6 +24,7 @@ const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] 
 
 async function addFacility(formData: FormData) {
   "use server"
+  await requireAdmin()
   const name = (formData.get("name") as string)?.trim()
   if (!name) return
 
@@ -29,12 +32,13 @@ async function addFacility(formData: FormData) {
   const supports_partner_attendant = formData.get("supports_partner_attendant") === "on"
   if (!supports_own_operator && !supports_partner_attendant) return
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const code = Math.random().toString(36).slice(2, 12)
 
   const hasLimit = formData.get("has_processing_limit") === "on"
 
   await supabase.from("facilities").insert({
+    location_id: locationId,
     name,
     address:                  (formData.get("address") as string)?.trim() || null,
     phone:                    (formData.get("phone") as string)?.trim() || null,
@@ -57,12 +61,13 @@ async function addFacility(formData: FormData) {
 
 async function editFacility(formData: FormData) {
   "use server"
+  await requireAdmin()
   const id   = formData.get("id") as string
   const name = (formData.get("name") as string)?.trim()
   if (!name || !id) return
 
   const hasLimit = formData.get("has_processing_limit") === "on"
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   await supabase.from("facilities").update({
     name,
@@ -80,21 +85,23 @@ async function editFacility(formData: FormData) {
     supports_partner_attendant: formData.get("supports_partner_attendant") === "on",
     rate_per_lb:   parseFloat(formData.get("rate_per_lb") as string) || null,
     minimum_lbs:   parseFloat(formData.get("minimum_lbs") as string) || 0,
-  }).eq("id", id)
+  }).eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/facilities")
 }
 
 async function toggleFacility(formData: FormData) {
   "use server"
+  await requireAdmin()
   const id     = formData.get("id") as string
   const active = formData.get("active") === "true"
-  const supabase = createAdminClient()
-  await supabase.from("facilities").update({ active: !active }).eq("id", id)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("facilities").update({ active: !active }).eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/facilities")
 }
 
 async function adminSyncFacilityStripe(formData: FormData) {
   "use server"
+  await requireAdmin()
   const facilityId = formData.get("facilityId") as string
   await syncFacilityStripeStatus(facilityId)
 }
@@ -237,13 +244,14 @@ const STORAGE_LABEL: Record<number, { label: string; color: string }> = {
 // ── page ─────────────────────────────────────────────────────────────────────
 
 export default async function FacilitiesPage() {
-  const supabase = createAdminClient()
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const [{ data: facilities }, { data: allWindows }, { data: allStorageSpaces }, { data: allEntryWindows }, { data: allPayouts }] = await Promise.all([
-    supabase.from("facilities").select("*, machine_groups(count)").order("name"),
-    supabase.from("facility_access_windows").select("*").eq("active", true).order("start_time"),
-    supabase.from("storage_spaces").select("*").order("active", { ascending: false }).order("name"),
-    supabase.from("storage_entry_windows").select("*").eq("active", true).order("start_time"),
-    supabase.from("facility_payouts").select("id, facility_id, amount_cents, period_from, period_to, orders_count, total_lbs, stripe_transfer_id, status, notes, created_at").order("created_at", { ascending: false }).limit(200),
+    supabase.from("facilities").select("*, machine_groups(count)").eq("location_id", locationId).order("name"),
+    supabase.from("facility_access_windows").select("*").eq("location_id", locationId).eq("active", true).order("start_time"),
+    supabase.from("storage_spaces").select("*").eq("location_id", locationId).order("active", { ascending: false }).order("name"),
+    supabase.from("storage_entry_windows").select("*").eq("location_id", locationId).eq("active", true).order("start_time"),
+    supabase.from("facility_payouts").select("id, facility_id, amount_cents, period_from, period_to, orders_count, total_lbs, stripe_transfer_id, status, notes, created_at").eq("location_id", locationId).order("created_at", { ascending: false }).limit(200),
   ])
   const storageByFacility = (allStorageSpaces ?? []).reduce<Record<string, StorageSpace[]>>((acc, s) => {
     if (!acc[s.facility_id]) acc[s.facility_id] = []

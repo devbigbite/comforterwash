@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { checkZipServiceable } from "@/app/actions/settings"
 import { useLang } from "@/components/lang-provider"
 
 export function ZipChecker() {
@@ -14,14 +14,8 @@ export function ZipChecker() {
     const cleaned = zip.trim()
     if (cleaned.length < 5) return
     setStatus("loading")
-    const supabase = createClient()
-    const { data } = await supabase
-      .from("service_areas")
-      .select("zip_code")
-      .eq("zip_code", cleaned)
-      .eq("active", true)
-      .maybeSingle()
-    setStatus(data ? "yes" : "no")
+    const serviceable = await checkZipServiceable(cleaned)
+    setStatus(serviceable ? "yes" : "no")
   }
 
   return (

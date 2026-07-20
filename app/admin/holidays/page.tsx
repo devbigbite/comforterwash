@@ -2,20 +2,25 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { PlatformHoursEditor } from "@/components/admin/platform-hours-editor"
 import { todayET } from "@/lib/date-et"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 async function addHoliday(formData: FormData) {
   "use server"
-  const supabase = createAdminClient()
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   await supabase.from("holiday_exclusions").insert({
     date: formData.get("date") as string,
     name: formData.get("name") as string,
+    location_id: locationId,
   })
   revalidatePath("/admin/holidays")
 }
 
 async function addDateRange(formData: FormData) {
   "use server"
-  const supabase = createAdminClient()
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const dateFrom = formData.get("date_from") as string
   const dateTo = formData.get("date_to") as string
   const name = formData.get("name") as string
@@ -26,14 +31,16 @@ async function addDateRange(formData: FormData) {
     date: dateFrom,
     date_to: isRange ? dateTo : null,
     name,
+    location_id: locationId,
   })
   revalidatePath("/admin/holidays")
 }
 
 async function removeHoliday(id: string) {
   "use server"
-  const supabase = createAdminClient()
-  await supabase.from("holiday_exclusions").delete().eq("id", id)
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("holiday_exclusions").delete().eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/holidays")
 }
 
@@ -53,18 +60,20 @@ function fmt(dateStr: string) {
 }
 
 export default async function HolidaysPage() {
-  const supabase = createAdminClient()
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data: exclusions = [] } = await supabase
     .from("holiday_exclusions")
     .select("*")
+    .eq("location_id", locationId)
     .order("date", { ascending: true })
 
   // Load saved platform hours from settings
-  const supabaseServer = createAdminClient()
-  const { data: hoursSetting } = await supabaseServer
+  const { data: hoursSetting } = await supabase
     .from("settings")
     .select("value")
     .eq("key", "platform_hours")
+    .eq("location_id", locationId)
     .single()
 
   let savedHours = null

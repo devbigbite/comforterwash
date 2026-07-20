@@ -11,6 +11,18 @@ import {
 } from "@/app/actions/shipday"
 import { getMiscFees } from "@/app/actions/fees"
 import { MiscFeesPanel } from "./misc-fees-panel"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
+
+// bookings has its own location_id — every inline action below verifies the
+// bookingId it's given actually belongs to the current tenant before doing
+// anything, so an admin session for one tenant can't act on another's orders.
+async function assertBookingOwnership(bookingId: string) {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase.from("bookings").select("id").eq("id", bookingId).eq("location_id", locationId).maybeSingle()
+  if (!data) throw new Error("Order not found for this account")
+}
 
 const STATUS_COLORS: Record<string, string> = {
   pending:          "bg-gray-100 text-gray-500",
@@ -58,6 +70,7 @@ async function assignFacility(formData: FormData) {
   "use server"
   const bookingId = formData.get("bookingId") as string
   const facilityId = formData.get("facilityId") as string
+  await assertBookingOwnership(bookingId)
 
   const supabase = createAdminClient()
   await supabase.from("bookings").update({ assigned_facility_id: facilityId }).eq("id", bookingId)
@@ -75,6 +88,7 @@ async function transferFacility(formData: FormData) {
   const bookingId = formData.get("bookingId") as string
   const newFacilityId = formData.get("newFacilityId") as string
   const requiresPhysicalTransfer = formData.get("requiresPhysicalTransfer") === "true"
+  await assertBookingOwnership(bookingId)
 
   const supabase = createAdminClient()
   await supabase.from("bookings").update({ assigned_facility_id: newFacilityId }).eq("id", bookingId)
@@ -94,6 +108,7 @@ async function reschedulePickupAction(formData: FormData) {
   const bookingId = formData.get("bookingId") as string
   const newDate = formData.get("newDate") as string
   const newWindow = formData.get("newWindow") as string
+  await assertBookingOwnership(bookingId)
   const supabase = createAdminClient()
   await reschedulePickup(bookingId, newDate, newWindow)
   await supabase.from("order_events").insert({
@@ -110,6 +125,7 @@ async function rescheduleDeliveryAction(formData: FormData) {
   const bookingId = formData.get("bookingId") as string
   const newDate = formData.get("newDate") as string
   const newWindow = formData.get("newWindow") as string
+  await assertBookingOwnership(bookingId)
   const supabase = createAdminClient()
   await rescheduleDelivery(bookingId, newDate, newWindow)
   await supabase.from("order_events").insert({
@@ -125,6 +141,7 @@ async function assignDriverAction(formData: FormData) {
   "use server"
   const bookingId = formData.get("bookingId") as string
   const driverEmail = formData.get("driverEmail") as string
+  await assertBookingOwnership(bookingId)
   const supabase = createAdminClient()
   const { ok } = await assignDriver(bookingId, driverEmail)
   await supabase.from("order_events").insert({
@@ -141,6 +158,7 @@ async function assignDriverAction(formData: FormData) {
 async function cancelShipdayAction(formData: FormData) {
   "use server"
   const bookingId = formData.get("bookingId") as string
+  await assertBookingOwnership(bookingId)
   const supabase = createAdminClient()
   await cancelShipdayOrders(bookingId)
   await supabase.from("order_events").insert({
@@ -153,8 +171,9 @@ async function cancelShipdayAction(formData: FormData) {
 }
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdmin()
   const { id } = await params
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const { data: booking } = await supabase
     .from("bookings")
@@ -165,6 +184,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       assigned_facility:facilities!assigned_facility_id(id, name, processing_mode, rate_per_lb, minimum_lbs, partner_access_code)
     `)
     .eq("id", id)
+    .eq("location_id", locationId)
     .single()
 
   if (!booking) notFound()

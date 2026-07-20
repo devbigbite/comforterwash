@@ -34,16 +34,16 @@ export async function createPromoCode(formData: FormData) {
 export async function togglePromoCode(id: string, active: boolean) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
-  await supabase.from("promo_codes").update({ active }).eq("id", id)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("promo_codes").update({ active }).eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/promos")
 }
 
 export async function deletePromoCode(id: string) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
-  await supabase.from("promo_codes").delete().eq("id", id)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("promo_codes").delete().eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/promos")
 }
 

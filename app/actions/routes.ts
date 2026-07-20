@@ -96,7 +96,7 @@ export async function createRouteTimeWindow(
   windowType: 'both' | 'pickup_only' | 'delivery_only' = 'both'
 ): Promise<{ error?: string }> {
   await requireAdmin()
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   // Get current max sort_order for this route
   const { data: existing } = await supabase
@@ -110,6 +110,7 @@ export async function createRouteTimeWindow(
 
   const { error } = await supabase.from("route_time_windows").insert({
     route_id:     routeId,
+    location_id:  locationId,
     start_time:   startTime,
     end_time:     endTime,
     label,
@@ -127,7 +128,7 @@ export async function createRouteTimeWindow(
 export async function deleteRouteTimeWindow(windowId: string): Promise<void> {
   await requireAdmin()
 
-  const supabase = createAdminClient()
-  await supabase.from("route_time_windows").delete().eq("id", windowId)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("route_time_windows").delete().eq("id", windowId).eq("location_id", locationId)
   revalidatePath("/admin/routes")
 }

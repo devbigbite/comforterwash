@@ -2,10 +2,12 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireAdmin } from "@/lib/auth-guard"
+import { getLocationId } from "@/lib/location"
 import { revalidatePath } from "next/cache"
 
 export async function addAccessWindow(formData: FormData) {
   await requireAdmin()
+  const locationId = await getLocationId()
   const facilityId = formData.get("facilityId") as string
   const label      = (formData.get("label") as string)?.trim() || null
   const daysRaw    = formData.get("days_of_week") as string
@@ -22,7 +24,7 @@ export async function addAccessWindow(formData: FormData) {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("facility_access_windows")
-    .insert({ facility_id: facilityId, label, days_of_week: days, start_time: startTime, end_time: endTime, overnight, notes })
+    .insert({ facility_id: facilityId, location_id: locationId, label, days_of_week: days, start_time: startTime, end_time: endTime, overnight, notes })
     .select()
     .single()
 
@@ -37,27 +39,29 @@ export async function addAccessWindow(formData: FormData) {
 
 export async function deleteAccessWindow(id: string) {
   await requireAdmin()
-  const supabase = createAdminClient()
-  await supabase.from("facility_access_windows").delete().eq("id", id)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("facility_access_windows").delete().eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/facilities")
 }
 
 export async function getFacilityAccessWindows(facilityId: string) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("facility_access_windows")
     .select("*")
     .eq("facility_id", facilityId)
+    .eq("location_id", locationId)
     .eq("active", true)
     .order("start_time")
   return data ?? []
 }
 
 export async function getAllFacilityWindows() {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("facility_access_windows")
     .select("*")
+    .eq("location_id", locationId)
     .eq("active", true)
     .order("facility_id")
   return data ?? []

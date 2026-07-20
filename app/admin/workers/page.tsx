@@ -2,6 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { approveWorker, rejectWorker, updatePayRates, createStripeConnectAccount } from "@/app/actions/workers"
 import { WorkerPinManager } from "./worker-pin-manager"
 import { CreateWorkerModal } from "./create-worker-modal"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import Link from "next/link"
 
 const STATUS_BADGE: Record<string, string> = {
@@ -25,8 +27,9 @@ export default async function WorkersPage({
 }: {
   searchParams: Promise<{ tab?: string }>
 }) {
+  await requireAdmin()
   const { tab = "pending" } = await searchParams
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const statusFilter = tab === "active"
     ? ["active"]
@@ -37,12 +40,14 @@ export default async function WorkersPage({
   const { data: workers = [] } = await supabase
     .from("workers")
     .select("*, clock_pin")
+    .eq("location_id", locationId)
     .in("status", statusFilter)
     .order("created_at", { ascending: false })
 
   const { data: counts } = await supabase
     .from("workers")
     .select("status")
+    .eq("location_id", locationId)
 
   const tally = { pending: 0, active: 0, all: 0 }
   counts?.forEach((w) => {

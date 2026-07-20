@@ -10,6 +10,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { headers } from "next/headers"
 import Image from "next/image"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 export const dynamic = "force-dynamic"
 
@@ -20,7 +22,7 @@ const TEST_WORKERS = [
   { name: "Test Operator", pin: "2222", roles: ["operator"], location: "Orlando, FL" },
 ]
 
-async function ensureTestWorkers() {
+async function ensureTestWorkers(locationId: string) {
   const supabase = createAdminClient()
 
   for (const w of TEST_WORKERS) {
@@ -28,10 +30,12 @@ async function ensureTestWorkers() {
       .from("workers")
       .select("id")
       .eq("name", w.name)
+      .eq("location_id", locationId)
       .maybeSingle()
 
     if (!existing) {
       await supabase.from("workers").insert({
+        location_id: locationId,
         name:      w.name,
         email:     `${w.name.toLowerCase().replace(" ", ".")}@test.washfold`,
         phone:     "5550000000",
@@ -51,6 +55,7 @@ async function ensureTestWorkers() {
 
 async function createTestBooking(formData: FormData) {
   "use server"
+  await requireAdmin()
   const supabase    = createAdminClient()
   const locationId  = formData.get("location_id") as string
 
@@ -91,6 +96,7 @@ async function createTestBooking(formData: FormData) {
 
 async function resetTestData(formData: FormData) {
   "use server"
+  await requireAdmin()
   const supabase   = createAdminClient()
   const locationId = formData.get("location_id") as string
 
@@ -112,7 +118,9 @@ function qrUrl(data: string) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function TestHubPage() {
-  await ensureTestWorkers()
+  await requireAdmin()
+  const locationId = await getLocationId()
+  await ensureTestWorkers(locationId)
 
   const supabase   = createAdminClient()
   const hdrs       = await headers()
@@ -122,14 +130,11 @@ export default async function TestHubPage() {
   const protocol  = host.startsWith("localhost") ? "http" : "https"
   const base      = `${protocol}://${host}`
 
-  // Fetch location_id
-  const { data: loc } = await supabase.from("locations").select("id").limit(1).single()
-  const locationId = loc?.id ?? ""
-
   // Fetch recent test bookings
   const { data: testBookings } = await supabase
     .from("bookings")
     .select("id, short_code, status, phase, pickup_date, delivery_date, created_at")
+    .eq("location_id", locationId)
     .eq("customer_email", "test@test.washfold")
     .order("created_at", { ascending: false })
     .limit(5)

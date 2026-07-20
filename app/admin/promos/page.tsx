@@ -1,4 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import { createPromoCode, togglePromoCode, deletePromoCode } from "@/app/actions/promos"
 import { getComforterPromo, setComforterPromo, getLandingOffers } from "@/app/actions/settings"
 import { LandingOffersEditor } from "@/components/admin/landing-offers-editor"
@@ -10,9 +12,10 @@ function fmt(promo: { discount_type: string; discount_value: number }) {
 }
 
 export default async function PromotionsPage() {
-  const supabase = createAdminClient()
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const [{ data: promos = [] }, promoActive, offers] = await Promise.all([
-    supabase.from("promo_codes").select("*").order("created_at", { ascending: false }),
+    supabase.from("promo_codes").select("*").eq("location_id", locationId).order("created_at", { ascending: false }),
     getComforterPromo(),
     getLandingOffers(),
   ])
