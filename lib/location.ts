@@ -32,17 +32,19 @@ export interface Location {
   address: string | null
 }
 
-// ── Fallback branding — used only if a location row is somehow missing these
-// fields (should never happen once seeded, but keeps pages from breaking) ────
+// ── Fallback branding — only used when getLocationId() can't resolve a row
+// at all (shouldn't happen once middleware is set up). Deliberately generic,
+// NOT WashFold-specific, so a new tenant never silently inherits WashFold
+// Orlando's name/phone/email if something's misconfigured.
 export const DEFAULT_BRANDING = {
-  business_name: "WashFold Orlando",
+  business_name: "Your Business",
   tagline: null as string | null,
   logo_url: null as string | null,
   primary_color: "#0D2240",
   accent_color: "#E8726A",
-  support_phone: "+14073002999",
-  support_email: "hello@washfoldorlando.com",
-  address: "10524 Moss Park Rd, Ste 204177, Orlando, FL 32832",
+  support_phone: null as string | null,
+  support_email: null as string | null,
+  address: null as string | null,
 }
 
 // ── Get just the location_id (most common use case) ──────────────────────────
@@ -61,14 +63,13 @@ export async function getLocation(): Promise<Location | null> {
     .eq("id", locationId)
     .single()
   if (!data) return null
+  // business_name falls back to the location's own `name` (always set at
+  // creation) — never to another tenant's branding defaults.
   return {
     ...data,
-    business_name: data.business_name ?? DEFAULT_BRANDING.business_name,
+    business_name: data.business_name ?? data.name,
     primary_color: data.primary_color ?? DEFAULT_BRANDING.primary_color,
     accent_color:  data.accent_color  ?? DEFAULT_BRANDING.accent_color,
-    support_phone: data.support_phone ?? DEFAULT_BRANDING.support_phone,
-    support_email: data.support_email ?? DEFAULT_BRANDING.support_email,
-    address:       data.address       ?? DEFAULT_BRANDING.address,
   } as Location
 }
 
@@ -77,14 +78,14 @@ export async function getBranding() {
   const loc = await getLocation()
   if (!loc) return DEFAULT_BRANDING
   return {
-    business_name: loc.business_name ?? DEFAULT_BRANDING.business_name,
+    business_name: loc.business_name ?? loc.name,
     tagline:       loc.tagline,
     logo_url:      loc.logo_url,
     primary_color: loc.primary_color,
     accent_color:  loc.accent_color,
-    support_phone: loc.support_phone ?? DEFAULT_BRANDING.support_phone,
-    support_email: loc.support_email ?? DEFAULT_BRANDING.support_email,
-    address:       loc.address ?? DEFAULT_BRANDING.address,
+    support_phone: loc.support_phone,
+    support_email: loc.support_email,
+    address:       loc.address,
   }
 }
 

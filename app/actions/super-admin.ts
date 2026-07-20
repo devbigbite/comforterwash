@@ -19,6 +19,39 @@ export async function getAllLocations(): Promise<(Location & { created_at: strin
 
 // ── Create ────────────────────────────────────────────────────────────────────
 
+// Sensible starter catalog for a brand-new tenant — mirrors what WashFold
+// Orlando actually uses day-to-day. Every other setting (pricing, which
+// services are active, site text/images) already falls back to hardcoded
+// defaults when a location has no rows yet (see app/actions/settings.ts,
+// app/actions/pricing.ts) — service_options is the one table with no
+// graceful default, so a new tenant would otherwise see empty detergent/
+// extras/accessory pickers on every booking form until they configured it
+// themselves.
+const STARTER_SERVICE_OPTIONS: {
+  type: "detergent" | "extra" | "accessory"
+  name: string
+  description: string
+  price_cents: number
+  enabled: boolean
+  sort_order: number
+  is_hypoallergenic: boolean
+  requires_comforter: boolean
+}[] = [
+  { type: "detergent", name: "Standard Detergent", description: "Our regular, all-purpose detergent", price_cents: 0, enabled: true, sort_order: 0, is_hypoallergenic: false, requires_comforter: false },
+  { type: "detergent", name: "Fragrance-Free / Hypoallergenic", description: "Gentle on sensitive skin, no added fragrance", price_cents: 100, enabled: true, sort_order: 1, is_hypoallergenic: true, requires_comforter: false },
+  { type: "extra", name: "Fabric Softener", description: "Adds softness and a light scent", price_cents: 0, enabled: false, sort_order: 0, is_hypoallergenic: false, requires_comforter: false },
+  { type: "extra", name: "OxyClean", description: "Extra stain-fighting boost", price_cents: 0, enabled: false, sort_order: 1, is_hypoallergenic: false, requires_comforter: false },
+  { type: "accessory", name: "Premium Laundry Bag", description: "Reusable branded laundry bag", price_cents: 1000, enabled: true, sort_order: 0, is_hypoallergenic: false, requires_comforter: false },
+  { type: "accessory", name: "Premium Comforter Bag", description: "Reusable branded comforter storage bag", price_cents: 700, enabled: true, sort_order: 1, is_hypoallergenic: false, requires_comforter: true },
+]
+
+async function seedNewLocation(locationId: string): Promise<void> {
+  const supabase = createAdminClient()
+  await supabase.from("service_options").insert(
+    STARTER_SERVICE_OPTIONS.map(o => ({ ...o, location_id: locationId, pricing_unit: "per_order" }))
+  )
+}
+
 export async function createLocation(
   formData: FormData
 ): Promise<{ error?: string }> {
@@ -35,17 +68,21 @@ export async function createLocation(
     return { error: "Slug can only contain lowercase letters, numbers, and hyphens." }
   }
 
-  const { error } = await supabase.from("locations").insert({
+  const { data, error } = await supabase.from("locations").insert({
     name,
     slug,
     custom_domain: customDomain,
     plan,
     status: "active",
-  })
+  }).select("id").single()
 
   if (error) {
     if (error.code === "23505") return { error: "A location with that slug already exists." }
     return { error: error.message }
+  }
+
+  if (data?.id) {
+    await seedNewLocation(data.id)
   }
 
   revalidatePath("/super-admin")
