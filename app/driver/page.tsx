@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import { getDriverQueue } from "@/app/actions/driver-queue"
+import { findBookingForDriverLookup } from "@/app/actions/operator-queue"
 import { getActiveWorkers } from "@/app/actions/staff"
 import type { ActiveWorker } from "@/app/actions/staff"
 import type { TransportRun } from "@/app/actions/transport-runs"
@@ -76,15 +76,10 @@ export default function DriverHome() {
     if (cleaned.length < 4) { setError("Enter at least 4 digits"); return }
     setLoading(true)
     setError("")
-    const supabase = createClient()
-    const { data: byCode } = await supabase
-      .from("bookings").select("id").eq("short_code", cleaned).maybeSingle()
-    if (byCode) { router.push(`/driver/order/${byCode.id}`); return }
-    const { data: byId } = await supabase
-      .from("bookings").select("id").ilike("id", `${cleaned}%`).limit(1).maybeSingle()
+    const found = await findBookingForDriverLookup(cleaned)
     setLoading(false)
-    if (!byId) { setError("Order not found"); return }
-    router.push(`/driver/order/${byId.id}`)
+    if (!found) { setError("Order not found"); return }
+    router.push(`/driver/order/${found.id}`)
   }
 
   const toFacilityRuns  = pendingRuns.filter(r => r.run_type === "to_facility")

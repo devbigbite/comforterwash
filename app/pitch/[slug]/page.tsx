@@ -1,4 +1,4 @@
-import { getPitchTemplate } from "@/app/actions/outreach"
+import { getPitchTemplate, incrementTemplateViewCount } from "@/app/actions/outreach"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 
@@ -25,12 +25,7 @@ export default async function PublicPitchPage({
 
   // Increment view count (fire and forget)
   try {
-    const { createClient } = await import("@/lib/supabase/server")
-    const supabase = await createClient()
-    await supabase
-      .from("commercial_pitch_templates")
-      .update({ view_count: (t.view_count ?? 0) + 1 })
-      .eq("id", t.id)
+    await incrementTemplateViewCount(t.id)
   } catch {}
 
   return (

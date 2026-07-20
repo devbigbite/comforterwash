@@ -1,6 +1,7 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { requireAdmin } from "@/lib/auth-guard"
 import type {
   OutreachSegment,
   ProspectStage,
@@ -11,7 +12,8 @@ import type {
 // ─── Pitch Template Actions ───────────────────────────────────────────────────
 
 export async function listPitchTemplates(): Promise<PitchTemplate[]> {
-  const supabase = await createClient()
+  await requireAdmin()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("commercial_pitch_templates")
     .select("*")
@@ -20,8 +22,11 @@ export async function listPitchTemplates(): Promise<PitchTemplate[]> {
   return data as PitchTemplate[]
 }
 
+// Intentionally NOT admin-gated — this is what powers the public prospect-facing
+// /pitch/[slug] page. The slug itself acts as the access token (unguessable),
+// same trust model as e.g. a Stripe payment link.
 export async function getPitchTemplate(slug: string): Promise<PitchTemplate | null> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("commercial_pitch_templates")
     .select("*")
@@ -37,7 +42,8 @@ export async function createPitchTemplate(input: {
   segment: OutreachSegment
   tagline?: string
 }): Promise<{ id?: string; slug?: string; error?: string }> {
-  const supabase = await createClient()
+  await requireAdmin()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("commercial_pitch_templates")
     .insert({
@@ -57,7 +63,8 @@ export async function updatePitchTemplate(
   id: string,
   updates: Partial<Omit<PitchTemplate, "id" | "created_at" | "updated_at" | "view_count">>
 ): Promise<{ error?: string }> {
-  const supabase = await createClient()
+  await requireAdmin()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from("commercial_pitch_templates")
     .update(updates)
@@ -67,7 +74,8 @@ export async function updatePitchTemplate(
 }
 
 export async function deletePitchTemplate(id: string): Promise<{ error?: string }> {
-  const supabase = await createClient()
+  await requireAdmin()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from("commercial_pitch_templates")
     .delete()
@@ -76,15 +84,20 @@ export async function deletePitchTemplate(id: string): Promise<{ error?: string 
   return {}
 }
 
+// Intentionally NOT admin-gated — fired from the public pitch page when a
+// prospect views their proposal.
 export async function incrementTemplateViewCount(id: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   await supabase.rpc("increment_pitch_view", { template_id: id })
 }
 
 // ─── Prospect / Pipeline Actions ─────────────────────────────────────────────
+// All of these carry prospect PII (name, phone, email, business info) and are
+// admin/CRM-only — never reachable from a public page.
 
 export async function listProspects(): Promise<Prospect[]> {
-  const supabase = await createClient()
+  await requireAdmin()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("commercial_prospects")
     .select("*")
@@ -94,7 +107,8 @@ export async function listProspects(): Promise<Prospect[]> {
 }
 
 export async function getProspect(id: string): Promise<Prospect | null> {
-  const supabase = await createClient()
+  await requireAdmin()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("commercial_prospects")
     .select("*")
@@ -119,7 +133,8 @@ export async function createProspect(input: {
   next_follow_up?: string
   assigned_to?: string
 }): Promise<{ id?: string; error?: string }> {
-  const supabase = await createClient()
+  await requireAdmin()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("commercial_prospects")
     .insert({
@@ -147,7 +162,8 @@ export async function updateProspect(
   id: string,
   updates: Partial<Omit<Prospect, "id" | "created_at" | "updated_at">>
 ): Promise<{ error?: string }> {
-  const supabase = await createClient()
+  await requireAdmin()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from("commercial_prospects")
     .update(updates)
@@ -157,7 +173,8 @@ export async function updateProspect(
 }
 
 export async function deleteProspect(id: string): Promise<{ error?: string }> {
-  const supabase = await createClient()
+  await requireAdmin()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from("commercial_prospects")
     .delete()

@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { requireAdmin } from "@/lib/auth-guard"
 import { revalidatePath } from "next/cache"
 
 export async function getIcAgreements() {
@@ -25,6 +26,7 @@ export async function getIcAgreement(role: string, lang: string) {
 }
 
 export async function saveIcAgreement(role: string, lang: string, body: string) {
+  await requireAdmin()
   const supabase = createAdminClient()
 
   // Fetch current version to increment

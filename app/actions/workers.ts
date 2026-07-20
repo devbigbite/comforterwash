@@ -91,8 +91,8 @@ export async function submitApplication(formData: FormData) {
 export async function approveWorker(workerId: string) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
-  await supabase.from("workers").update({ status: "approved" }).eq("id", workerId)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("workers").update({ status: "approved" }).eq("id", workerId).eq("location_id", locationId)
   revalidatePath("/admin/workers")
 }
 
@@ -100,11 +100,12 @@ export async function approveWorker(workerId: string) {
 export async function rejectWorker(workerId: string, notes?: string) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   await supabase
     .from("workers")
     .update({ status: "rejected", admin_notes: notes ?? null })
     .eq("id", workerId)
+    .eq("location_id", locationId)
   revalidatePath("/admin/workers")
 }
 
@@ -112,7 +113,7 @@ export async function rejectWorker(workerId: string, notes?: string) {
 export async function updatePayRates(formData: FormData) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const workerId = formData.get("workerId") as string
 
   await supabase.from("workers").update({
@@ -122,7 +123,7 @@ export async function updatePayRates(formData: FormData) {
     operator_per_mile_cents:  Math.round(parseFloat(formData.get("operator_per_mile") as string || "0") * 100),
     hourly_wage_cents:        Math.round(parseFloat(formData.get("hourly_wage") as string || "0") * 100),
     status: "active",
-  }).eq("id", workerId)
+  }).eq("id", workerId).eq("location_id", locationId)
 
   revalidatePath("/admin/workers")
 }
@@ -131,11 +132,12 @@ export async function updatePayRates(formData: FormData) {
 export async function createStripeConnectAccount(workerId: string) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data: worker } = await supabase
     .from("workers")
     .select("id, name, email, stripe_account_id")
     .eq("id", workerId)
+    .eq("location_id", locationId)
     .single()
 
   if (!worker) return { error: "Worker not found" }
@@ -182,11 +184,12 @@ export async function createStripeConnectAccount(workerId: string) {
 export async function syncStripeStatus(workerId: string) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data: worker } = await supabase
     .from("workers")
     .select("stripe_account_id")
     .eq("id", workerId)
+    .eq("location_id", locationId)
     .single()
 
   if (!worker?.stripe_account_id) return { error: "No Stripe account linked" }
@@ -198,6 +201,7 @@ export async function syncStripeStatus(workerId: string) {
     .from("workers")
     .update({ stripe_onboarding_complete: complete })
     .eq("id", workerId)
+    .eq("location_id", locationId)
 
   revalidatePath("/admin/workers")
   return { complete }
@@ -207,7 +211,7 @@ export async function syncStripeStatus(workerId: string) {
 export async function issuePayout(formData: FormData) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const workerId  = formData.get("workerId") as string
   const bookingId = formData.get("bookingId") as string | null
   const type      = formData.get("type") as string          // delivery | operation | mileage | manual
@@ -220,6 +224,7 @@ export async function issuePayout(formData: FormData) {
     .from("workers")
     .select("stripe_account_id, stripe_onboarding_complete, driver_per_order_cents, driver_per_mile_cents, operator_per_hour_cents, operator_per_mile_cents")
     .eq("id", workerId)
+    .eq("location_id", locationId)
     .single()
 
   if (!worker?.stripe_account_id) return { error: "No Stripe Connect account linked" }
@@ -244,6 +249,7 @@ export async function issuePayout(formData: FormData) {
   // Record payout
   await supabase.from("worker_payouts").insert({
     worker_id:         workerId,
+    location_id:       locationId,
     booking_id:        bookingId || null,
     payout_type:       type,
     amount_cents:      amountCents,
@@ -281,8 +287,8 @@ export async function addWorkerDocument(formData: FormData) {
 
 export async function deleteWorkerDocument(documentId: string, workerId: string) {
   await requireAdmin()
-  const supabase = createAdminClient()
-  await supabase.from("worker_documents").delete().eq("id", documentId)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("worker_documents").delete().eq("id", documentId).eq("location_id", locationId)
   revalidatePath(`/admin/workers/${workerId}`)
 }
 
@@ -291,13 +297,14 @@ export async function deleteWorkerDocument(documentId: string, workerId: string)
 export async function createWorkerManually(formData: FormData) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const roles: string[] = []
   if (formData.get("role_driver") === "on")    roles.push("driver")
   if (formData.get("role_operator") === "on")  roles.push("operator")
 
   const { error } = await supabase.from("workers").insert({
+    location_id:  locationId,
     name:         formData.get("name") as string,
     email:        formData.get("email") as string,
     phone:        (formData.get("phone") as string) || null,
@@ -342,14 +349,14 @@ export async function addMileageReport(formData: FormData) {
 export async function updateWorkerRoles(formData: FormData) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const workerId = formData.get("workerId") as string
 
   const roles: string[] = []
   if (formData.get("role_driver") === "on")   roles.push("driver")
   if (formData.get("role_operator") === "on") roles.push("operator")
 
-  await supabase.from("workers").update({ roles }).eq("id", workerId)
+  await supabase.from("workers").update({ roles }).eq("id", workerId).eq("location_id", locationId)
 
   revalidatePath(`/admin/workers/${workerId}`)
   revalidatePath("/admin/workers")

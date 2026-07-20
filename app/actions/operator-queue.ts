@@ -35,6 +35,21 @@ export async function getUnprintedOrders(): Promise<UnprintedOrder[]> {
   }))
 }
 
+/**
+ * Looks up a booking id by short code (exact) or by id prefix — used by the
+ * driver app's manual order lookup. Server-side/admin-client so it doesn't
+ * depend on any public RLS read access to bookings.
+ */
+export async function findBookingForDriverLookup(cleanedDigits: string): Promise<{ id: string } | null> {
+  const supabase = createAdminClient()
+  const { data: byCode } = await supabase
+    .from("bookings").select("id").eq("short_code", cleanedDigits).maybeSingle()
+  if (byCode) return byCode
+  const { data: byId } = await supabase
+    .from("bookings").select("id").ilike("id", `${cleanedDigits}%`).limit(1).maybeSingle()
+  return byId ?? null
+}
+
 export async function markReceiptsPrinted(bookingId: string): Promise<void> {
   const supabase = createAdminClient()
   await supabase.from("bookings").update({ receipts_printed_at: new Date().toISOString() }).eq("id", bookingId)
