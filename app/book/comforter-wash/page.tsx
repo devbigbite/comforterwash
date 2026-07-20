@@ -4,10 +4,14 @@ import { BookingPageTitle } from "@/components/booking-page-title"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServicesConfig } from "@/app/actions/settings"
+import { getBranding } from "@/lib/location"
 
-export const metadata = {
-  title: "Book Comforter Wash — WashFold Orlando",
-  description: "Schedule pickup and delivery for your comforter. Fully water washed, from $35.",
+export async function generateMetadata() {
+  const branding = await getBranding()
+  return {
+    title: `Book Comforter Wash — ${branding.business_name || "Your Business"}`,
+    description: "Schedule pickup and delivery for your comforter. Fully water washed, from $35.",
+  }
 }
 
 export default async function ComforterWashPage() {

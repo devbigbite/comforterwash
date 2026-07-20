@@ -1,7 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getBranding } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 
 export type LegalSection = {
@@ -142,6 +142,21 @@ const PRIVACY_DEFAULTS: LegalSection[] = [
 
 // ── Server actions ────────────────────────────────────────────────────────────
 
+// Default sections above are written with WashFold Orlando's own contact info
+// baked in as literal text. Any tenant that hasn't customized their legal_pages
+// row yet still needs to see THEIR OWN name/email here, not WashFold's — so we
+// substitute those placeholders at read time using the current tenant's branding.
+function applyBranding(sections: LegalSection[], businessName: string, supportEmail: string | null): LegalSection[] {
+  const email = supportEmail || "support@example.com"
+  return sections.map(s => ({
+    ...s,
+    content: s.content
+      .replaceAll("clean@washfoldorlando.com", email)
+      .replaceAll("ComforterWash Orlando", businessName)
+      .replaceAll("WashFold Orlando", businessName),
+  }))
+}
+
 export async function getLegalPage(key: "terms" | "privacy"): Promise<LegalSection[]> {
   try {
     const [supabase, locationId] = [createAdminClient(), await getLocationId()]
@@ -157,7 +172,9 @@ export async function getLegalPage(key: "terms" | "privacy"): Promise<LegalSecti
   } catch {
     // fall through to defaults
   }
-  return key === "terms" ? TERMS_DEFAULTS : PRIVACY_DEFAULTS
+  const defaults = key === "terms" ? TERMS_DEFAULTS : PRIVACY_DEFAULTS
+  const branding = await getBranding()
+  return applyBranding(defaults, branding.business_name || "Your Business", branding.support_email)
 }
 
 export async function saveLegalPage(key: "terms" | "privacy", sections: LegalSection[]) {

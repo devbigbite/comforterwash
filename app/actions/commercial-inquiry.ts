@@ -1,9 +1,11 @@
 "use server"
 
 import { Resend } from "resend"
+import { getBranding } from "@/lib/location"
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing")
-const FROM   = "WashFold Orlando <clean@washfoldorlando.com>"
+// Sending domain is deliberately fixed for now — see note in contact.ts.
+const SEND_ADDRESS = "clean@washfoldorlando.com"
 const TO     = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
 
 export async function submitCommercialInquiry(
@@ -36,11 +38,14 @@ export async function submitCommercialInquiry(
     return { success: false, error: "Please fill in all required fields." }
   }
 
+  const branding = await getBranding()
+  const businessName2 = branding.business_name || "Your Business"
+
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f7f8fb;padding:24px;border-radius:12px;">
       <div style="background:#0D2240;padding:24px;border-radius:10px;margin-bottom:24px;text-align:center;">
         <h1 style="color:#fff;margin:0;font-size:22px;">New Commercial Inquiry</h1>
-        <p style="color:#E8726A;margin:6px 0 0;font-size:14px;">WashFold Orlando — Commercial Services</p>
+        <p style="color:#E8726A;margin:6px 0 0;font-size:14px;">${businessName2} — Commercial Services</p>
       </div>
 
       <div style="background:#fff;border-radius:10px;padding:24px;border:1px solid #e5e7eb;">
@@ -84,14 +89,14 @@ export async function submitCommercialInquiry(
       </div>
 
       <p style="text-align:center;margin-top:20px;color:#9ca3af;font-size:12px;">
-        Submitted via WashFold Orlando Commercial page
+        Submitted via ${businessName2} Commercial page
       </p>
     </div>
   `
 
   try {
     const result = await resend.emails.send({
-      from:    FROM,
+      from:    `${businessName2} <${SEND_ADDRESS}>`,
       to:      TO,
       replyTo: email,
       subject: `Commercial Inquiry: ${businessName} (${businessType})`,

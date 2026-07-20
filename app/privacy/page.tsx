@@ -1,12 +1,16 @@
 import Link from "next/link"
 import { getLegalPage, type LegalSection } from "@/app/actions/legal"
+import { getBranding } from "@/lib/location"
 
-export const metadata = { title: "Privacy Policy — ComforterWash Orlando" }
+export async function generateMetadata() {
+  const branding = await getBranding()
+  return { title: `Privacy Policy — ${branding.business_name || "Your Business"}` }
+}
 export const revalidate = 60 // Re-fetch from DB at most every 60 seconds
 
 // ── Content renderer ─────────────────────────────────────────────────────────
 
-function renderBlocks(content: string, isWarning: boolean) {
+function renderBlocks(content: string, isWarning: boolean, email: string) {
   const textClass = isWarning
     ? "text-sm text-amber-700 leading-relaxed"
     : "text-sm text-gray-600 leading-relaxed"
@@ -26,7 +30,7 @@ function renderBlocks(content: string, isWarning: boolean) {
         </ul>
       )
     }
-    const parts = block.split("clean@washfoldorlando.com")
+    const parts = block.split(email)
     if (parts.length > 1) {
       return (
         <p key={i} className={textClass}>
@@ -34,8 +38,8 @@ function renderBlocks(content: string, isWarning: boolean) {
             <span key={j}>
               {part}
               {j < parts.length - 1 && (
-                <a href="mailto:clean@washfoldorlando.com" className="text-[#E8726A] underline">
-                  clean@washfoldorlando.com
+                <a href={`mailto:${email}`} className="text-[#E8726A] underline">
+                  {email}
                 </a>
               )}
             </span>
@@ -47,20 +51,20 @@ function renderBlocks(content: string, isWarning: boolean) {
   })
 }
 
-function Section({ section }: { section: LegalSection }) {
+function Section({ section, email }: { section: LegalSection; email: string }) {
   const isWarning = section.style === "warning"
   if (isWarning) {
     return (
       <section className="space-y-3 rounded-xl border border-amber-100 bg-amber-50 p-5">
         <h2 className="text-lg font-extrabold text-amber-800">{section.title}</h2>
-        {renderBlocks(section.content, true)}
+        {renderBlocks(section.content, true, email)}
       </section>
     )
   }
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-extrabold">{section.title}</h2>
-      {renderBlocks(section.content, false)}
+      {renderBlocks(section.content, false, email)}
     </section>
   )
 }
@@ -68,7 +72,8 @@ function Section({ section }: { section: LegalSection }) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function PrivacyPage() {
-  const sections = await getLegalPage("privacy")
+  const [sections, branding] = await Promise.all([getLegalPage("privacy"), getBranding()])
+  const email = branding.support_email || "support@example.com"
 
   return (
     <main className="min-h-screen bg-white">
@@ -79,7 +84,7 @@ export default async function PrivacyPage() {
 
       <div className="mx-auto max-w-2xl px-4 py-14 space-y-10 text-[#0D2240]">
         {sections.map((s) => (
-          <Section key={s.id} section={s} />
+          <Section key={s.id} section={s} email={email} />
         ))}
 
         <div className="border-t border-gray-100 pt-6 flex gap-4 text-xs text-gray-400">

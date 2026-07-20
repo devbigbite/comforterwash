@@ -1,10 +1,14 @@
 "use server"
 
 import { Resend } from "resend"
+import { getBranding } from "@/lib/location"
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing")
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
-const FROM = "WashFold Orlando <clean@washfoldorlando.com>"
+// Sending domain is deliberately fixed for now — real per-tenant sending
+// domains are a bigger future lift (see lib/email.ts SEND_DOMAIN). The
+// display name and body copy below use the tenant's own branding.
+const SEND_ADDRESS = "clean@washfoldorlando.com"
 
 export async function sendContactMessage(formData: FormData) {
   const name    = (formData.get("name")    as string ?? "").trim()
@@ -16,14 +20,16 @@ export async function sendContactMessage(formData: FormData) {
   }
 
   try {
+    const branding = await getBranding()
+    const businessName = branding.business_name || "Your Business"
     const result = await resend.emails.send({
-      from: FROM,
+      from: `${businessName} <${SEND_ADDRESS}>`,
       to: [ADMIN_EMAIL],
       subject: `\u{1F4AC} New message from ${name}`,
       html: `
         <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
           <h2 style="color:#0D2240;margin-bottom:4px;">New Customer Message</h2>
-          <p style="color:#888;font-size:13px;margin-bottom:24px;">Received via WashFold Orlando website</p>
+          <p style="color:#888;font-size:13px;margin-bottom:24px;">Received via ${businessName} website</p>
 
           <table style="width:100%;border-collapse:collapse;font-size:14px;">
             <tr>

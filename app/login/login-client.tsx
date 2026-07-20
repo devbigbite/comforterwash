@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { getBrandingSettings } from "@/app/actions/branding"
 
 type Mode = "email" | "phone" | "google"
 type PhoneStep = "input" | "verify"
@@ -24,6 +25,11 @@ export function LoginForm() {
   const [error, setError] = useState(urlError === "auth_failed" ? "Authentication failed. Please try again." : "")
 
   const supabase = createClient()
+
+  const [businessName, setBusinessName] = useState("Your Business")
+  useEffect(() => {
+    getBrandingSettings().then(b => setBusinessName(b.business_name))
+  }, [])
 
   async function sendMagicLink() {
     if (!email) return
@@ -247,7 +253,7 @@ export function LoginForm() {
 
         {/* Back to home */}
         <p className="text-center mt-6 text-xs text-gray-400">
-          <a href="/" className="hover:text-[var(--brand-primary)] transition-colors">← Back to WashFold Orlando</a>
+          <a href="/" className="hover:text-[var(--brand-primary)] transition-colors">← Back to {businessName}</a>
         </p>
       </div>
     </div>

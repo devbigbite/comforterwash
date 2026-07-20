@@ -6,12 +6,16 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServicesConfig } from "@/app/actions/settings"
 import { getPricingConfig } from "@/app/actions/pricing"
+import { getBranding } from "@/lib/location"
 
 export const dynamic = "force-dynamic"
 
-export const metadata = {
-  title: "Book Wash & Fold — WashFold Orlando",
-  description: "Clothes washed, dried, and folded with free pickup & delivery. $2.40/lb, $20 minimum.",
+export async function generateMetadata() {
+  const branding = await getBranding()
+  return {
+    title: `Book Wash & Fold — ${branding.business_name || "Your Business"}`,
+    description: "Clothes washed, dried, and folded with free pickup & delivery. $2.40/lb, $20 minimum.",
+  }
 }
 
 export default async function WashFoldPage() {

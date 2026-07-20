@@ -4,10 +4,14 @@ import { getServiceOptions } from "@/app/actions/service-options"
 import { getMonthlyPlanEnabled } from "@/app/actions/settings"
 import PricingClient from "./pricing-client"
 import Link from "next/link"
+import { getBranding } from "@/lib/location"
 
-export const metadata = {
-  title: "Monthly Plans — WashFold Orlando",
-  description: "Choose a monthly laundry plan. Flat monthly fee, lbs included, free pickup & delivery.",
+export async function generateMetadata() {
+  const branding = await getBranding()
+  return {
+    title: `Monthly Plans — ${branding.business_name || "Your Business"}`,
+    description: "Choose a monthly laundry plan. Flat monthly fee, lbs included, free pickup & delivery.",
+  }
 }
 
 export default async function PricingPage() {

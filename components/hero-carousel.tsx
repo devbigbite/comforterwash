@@ -26,11 +26,13 @@ export default function HeroCarousel({
   images,
   text = DEFAULT_TEXT,
   lang = "en",
+  businessName = "Your Business",
 }: {
   tr?: HeroTr
   images?: CarouselImages | undefined
   text?: SiteText
   lang?: "en" | "es"
+  businessName?: string
 }) {
   const [active, setActive] = useState(0)
   const [transitioning, setTransitioning] = useState(false)
@@ -104,7 +106,7 @@ export default function HeroCarousel({
         {slide.type === "full" && currentImage && (
           <Image
             src={currentImage}
-            alt="WashFold Orlando"
+            alt={businessName}
             fill
             className={`object-cover ${slide.objectPos}`}
             priority
@@ -122,7 +124,7 @@ export default function HeroCarousel({
             {/* Subtle left-side scrim — keeps text legible without flooding the photo */}
             <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent pointer-events-none" />
             <div className="relative mx-auto max-w-7xl px-5 sm:px-8 w-full">
-              <p className="text-[var(--brand-accent)] font-bold text-xs uppercase tracking-[0.25em] mb-2 sm:mb-3">WashFold Orlando</p>
+              <p className="text-[var(--brand-accent)] font-bold text-xs uppercase tracking-[0.25em] mb-2 sm:mb-3">{businessName}</p>
               <h1 className="text-white font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight max-w-2xl mb-3 sm:mb-4" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.65)" }}>
                 {slide.headline}
               </h1>

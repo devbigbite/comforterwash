@@ -1,10 +1,14 @@
 import Link from "next/link"
 import { getFaqItems, type FaqItem, type FaqCategory } from "@/app/actions/faq"
 import { getSiteLangCookie } from "@/app/actions/site-lang"
+import { getBranding } from "@/lib/location"
 import en from "@/lib/translations/en"
 import es from "@/lib/translations/es"
 
-export const metadata = { title: "FAQ — WashFold Orlando" }
+export async function generateMetadata() {
+  const branding = await getBranding()
+  return { title: `FAQ — ${branding.business_name || "Your Business"}` }
+}
 // force-dynamic instead of a plain revalidate window: this page reads the
 // wf_locale cookie (via getSiteLangCookie()) to follow the EN/ES toggle,
 // and an indirect cookies() call through an imported helper doesn't always
@@ -35,7 +39,7 @@ function getCategories(t: typeof en.faqPage) {
   ]
 }
 
-function renderAnswer(answer: string) {
+function renderAnswer(answer: string, email: string) {
   const blocks = answer.split("\n\n")
   return blocks.map((block, i) => {
     const lines = block.split("\n").filter(l => l.trim())
@@ -46,7 +50,7 @@ function renderAnswer(answer: string) {
         </ul>
       )
     }
-    const parts = block.split("clean@washfoldorlando.com")
+    const parts = block.split(email)
     if (parts.length > 1) {
       return (
         <p key={i} className="text-gray-600 text-sm leading-relaxed mt-2">
@@ -54,8 +58,8 @@ function renderAnswer(answer: string) {
             <span key={j}>
               {part}
               {j < parts.length - 1 && (
-                <a href="mailto:clean@washfoldorlando.com" className="text-[var(--brand-accent)] underline">
-                  clean@washfoldorlando.com
+                <a href={`mailto:${email}`} className="text-[var(--brand-accent)] underline">
+                  {email}
                 </a>
               )}
             </span>
@@ -67,7 +71,7 @@ function renderAnswer(answer: string) {
   })
 }
 
-function AccordionItem({ item }: { item: FaqItem }) {
+function AccordionItem({ item, email }: { item: FaqItem; email: string }) {
   return (
     <details className="group border-b border-gray-100 last:border-0">
       <summary className="flex items-center justify-between py-4 px-1 cursor-pointer list-none select-none">
@@ -79,7 +83,7 @@ function AccordionItem({ item }: { item: FaqItem }) {
         </span>
       </summary>
       <div className="pb-4 px-1">
-        {renderAnswer(item.answer)}
+        {renderAnswer(item.answer, email)}
       </div>
     </details>
   )
@@ -94,7 +98,8 @@ export default async function FaqPage({
   const lang = langParam ?? (await getSiteLangCookie())
   const tr = lang === "es" ? es.faqPage : en.faqPage
 
-  const allItems = await getFaqItems(lang)
+  const [allItems, branding] = await Promise.all([getFaqItems(lang), getBranding()])
+  const email = branding.support_email || "support@example.com"
   const activeItems = allItems.filter(i => i.active)
   const CATEGORIES = getCategories(tr)
 
@@ -150,7 +155,7 @@ export default async function FaqPage({
                 </div>
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 divide-y divide-gray-100">
                   {catItems.map(item => (
-                    <AccordionItem key={item.id} item={item} />
+                    <AccordionItem key={item.id} item={item} email={email} />
                   ))}
                 </div>
               </section>
@@ -163,7 +168,7 @@ export default async function FaqPage({
           <p className="text-white font-extrabold text-lg">{tr.stillHave}</p>
           <p className="text-white/60 text-sm mt-2 mb-4">{tr.stillHaveSub}</p>
           <a
-            href="mailto:clean@washfoldorlando.com"
+            href={`mailto:${email}`}
             className="inline-block bg-[var(--brand-accent)] text-white font-bold text-sm px-6 py-3 rounded-full hover:bg-[#d45f57] transition-colors"
           >
             {tr.emailUs}

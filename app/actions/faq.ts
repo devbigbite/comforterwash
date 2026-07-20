@@ -1,7 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getBranding } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 
 export type FaqCategory = "general" | "comforter_wash" | "wash_fold"
@@ -225,6 +225,21 @@ const DEFAULTS: FaqItem[] = [
 
 // ── Server actions ────────────────────────────────────────────────────────────
 
+// DEFAULTS above are written with WashFold Orlando's own contact info baked
+// in as literal text (email, "Orlando"). Any tenant that hasn't customized
+// their faq_items yet still needs to see THEIR OWN business name/email here,
+// not WashFold's — substitute those placeholders at read time.
+function applyBranding(items: FaqItem[], businessName: string, supportEmail: string | null): FaqItem[] {
+  const email = supportEmail || "support@example.com"
+  const sub = (s: string) =>
+    s.replaceAll("clean@washfoldorlando.com", email).replaceAll("WashFold Orlando", businessName)
+  return items.map(i => ({
+    ...i,
+    answer: sub(i.answer),
+    answer_es: i.answer_es ? sub(i.answer_es) : i.answer_es,
+  }))
+}
+
 export async function getFaqItems(lang?: string): Promise<FaqItem[]> {
   let items: FaqItem[]
   try {
@@ -235,9 +250,15 @@ export async function getFaqItems(lang?: string): Promise<FaqItem[]> {
       .eq("location_id", locationId)
       .order("category")
       .order("sort_order")
-    items = (!error && data && data.length > 0) ? data as FaqItem[] : DEFAULTS
+    if (!error && data && data.length > 0) {
+      items = data as FaqItem[]
+    } else {
+      const branding = await getBranding()
+      items = applyBranding(DEFAULTS, branding.business_name || "Your Business", branding.support_email)
+    }
   } catch {
-    items = DEFAULTS
+    const branding = await getBranding()
+    items = applyBranding(DEFAULTS, branding.business_name || "Your Business", branding.support_email)
   }
 
   if (lang === "es") {

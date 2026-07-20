@@ -9,6 +9,7 @@ import { useLang } from "@/components/lang-provider"
 import { useState, useEffect } from "react"
 import { getLandingOffers, getSiteImages, getSiteText, getServicesConfig, getMonthlyPlanEnabled, type ServicesConfig } from "@/app/actions/settings"
 import { getPricingConfig } from "@/app/actions/pricing"
+import { getBrandingSettings } from "@/app/actions/branding"
 import { PRICING_DEFAULTS } from "@/lib/pricing-defaults"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
 import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
@@ -26,6 +27,8 @@ export default function Home() {
   const [services, setServices] = useState<ServicesConfig | null>(null)
   const [livePricing, setLivePricing] = useState<PricingConfig>(PRICING_DEFAULTS)
   const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState(true)
+  const [businessName, setBusinessName] = useState("Your Business")
+  const [supportEmail, setSupportEmail] = useState("clean@washfoldorlando.com")
   useEffect(() => {
     getLandingOffers().then(setOffers)
     getSiteImages().then(setImages)
@@ -33,6 +36,10 @@ export default function Home() {
     getServicesConfig().then(setServices)
     getPricingConfig().then(setLivePricing)
     getMonthlyPlanEnabled().then(setMonthlyPlanEnabled)
+    getBrandingSettings().then(b => {
+      setBusinessName(b.business_name)
+      if (b.support_email) setSupportEmail(b.support_email)
+    })
   }, [])
   const visibleOffers = (offers ?? []).filter(o => o.enabled)
   return (
@@ -45,6 +52,7 @@ export default function Home() {
         images={images ? { slide1: images.slide_1, slide2: images.slide_2, slide3: images.slide_3 } : undefined}
         text={siteText}
         lang={locale}
+        businessName={businessName}
       />
 
       {/* ── Our Services — immediately after hero ──────────────────────── */}
@@ -138,7 +146,7 @@ export default function Home() {
         <div className="mx-auto max-w-4xl mt-10 rounded-3xl overflow-hidden shadow-lg relative h-48 sm:h-72 md:h-80">
           <Image
             src={images?.why_us ?? "/img-why-us.jpg"}
-            alt="WashFold Orlando pickup and delivery"
+            alt={`${businessName} pickup and delivery`}
             fill
             className="object-cover"
             unoptimized={!!(images?.why_us?.startsWith("http"))}
@@ -437,7 +445,7 @@ export default function Home() {
                 </svg>
               </div>
               <p className="text-white/50 text-xs uppercase tracking-widest font-semibold">{tr.footer.sendNote}</p>
-              <a href="mailto:clean@washfoldorlando.com" className="border border-[var(--brand-accent)] text-[var(--brand-accent)] hover:bg-[var(--brand-accent)] hover:text-white font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-full transition-all">
+              <a href={`mailto:${supportEmail}`} className="border border-[var(--brand-accent)] text-[var(--brand-accent)] hover:bg-[var(--brand-accent)] hover:text-white font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-full transition-all">
                 {tr.footer.contact}
               </a>
             </div>
@@ -457,7 +465,7 @@ export default function Home() {
               <Link href="/apply" className="hover:text-[var(--brand-accent)] transition-colors">Employment</Link>
             </div>
             <div className="flex items-center gap-4">
-              <p className="text-white/25 text-xs">&copy; {new Date().getFullYear()} WashFold Orlando</p>
+              <p className="text-white/25 text-xs">&copy; {new Date().getFullYear()} {businessName}</p>
               <span className="text-white/10 text-xs">·</span>
               <Link href="/faq" className="text-white/40 hover:text-[var(--brand-accent)] text-xs transition-colors">FAQ</Link>
               <Link href="/terms" className="text-white/40 hover:text-[var(--brand-accent)] text-xs transition-colors">Terms</Link>

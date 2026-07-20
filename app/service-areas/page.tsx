@@ -4,10 +4,15 @@ import { MessageUsModal } from "@/components/message-us-modal"
 import { getSiteLangCookie } from "@/app/actions/site-lang"
 import en from "@/lib/translations/en"
 import es from "@/lib/translations/es"
+import { getBranding } from "@/lib/location"
 
-export const metadata = {
-  title: "Service Areas | WashFold Orlando",
-  description: "WashFold provides free laundry pickup and delivery across the Orlando metro area. Check if we serve your ZIP code.",
+export async function generateMetadata() {
+  const branding = await getBranding()
+  const name = branding.business_name || "Your Business"
+  return {
+    title: `Service Areas | ${name}`,
+    description: `${name} provides free laundry pickup and delivery across the Orlando metro area. Check if we serve your ZIP code.`,
+  }
 }
 
 export const dynamic = "force-dynamic"
@@ -30,13 +35,15 @@ export default async function ServiceAreasPage({
 
   const activeAreas = areas ?? []
   const titleLines = tr.title.split("\n")
+  const branding = await getBranding()
+  const badge = tr.badge === "WashFold Orlando" ? (branding.business_name || "Your Business") : tr.badge
 
   return (
     <main className="min-h-screen bg-white font-sans">
 
       {/* Header */}
       <div className="bg-[#0D2240] py-14 px-4 text-center">
-        <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.25em] mb-3">{tr.badge}</p>
+        <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.25em] mb-3">{badge}</p>
         <h1 className="text-white font-extrabold text-4xl md:text-5xl leading-tight mb-4">
           {titleLines[0]}<br />{titleLines[1]}
         </h1>

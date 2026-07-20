@@ -314,10 +314,15 @@ function YesNo({ name, label, t }: { name: string; label: string; t: (typeof T)[
   )
 }
 
-export function ApplyClient() {
+export function ApplyClient({ businessName = "Your Business" }: { businessName?: string }) {
   const searchParams = useSearchParams()
   const lang: Lang = searchParams.get("lang") === "es" ? "es" : "en"
-  const t = T[lang]
+  const tBase = T[lang]
+  const t = {
+    ...tBase,
+    hero_title: tBase.hero_title.replace("WashFold", businessName),
+    success_sub: tBase.success_sub.replace("WashFold Orlando", businessName),
+  }
 
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle")
   const [errorMsg, setErrorMsg] = useState("")
@@ -362,7 +367,7 @@ export function ApplyClient() {
     if (!selectedRole) return
     setIcText(null)
     getIcAgreement(selectedRole, lang).then((text) => {
-      setIcText(text ?? IC_AGREEMENT[selectedRole])
+      setIcText(text ?? IC_AGREEMENT[selectedRole].replaceAll("WashFold Orlando", businessName))
     })
   }, [selectedRole, lang])
 

@@ -3,11 +3,15 @@ import { CommercialForm } from "@/components/CommercialForm"
 import { getSiteLangCookie } from "@/app/actions/site-lang"
 import en from "@/lib/translations/en"
 import es from "@/lib/translations/es"
+import { getBranding } from "@/lib/location"
 
-export const metadata = {
-  title: "Commercial Laundry Services — WashFold Orlando",
-  description:
-    "Effective laundry pickup & delivery for Orlando businesses. Hotels, Airbnb hosts, gyms, spas, restaurants, medical offices and more. Get a custom quote today.",
+export async function generateMetadata() {
+  const branding = await getBranding()
+  return {
+    title: `Commercial Laundry Services — ${branding.business_name || "Your Business"}`,
+    description:
+      "Effective laundry pickup & delivery for Orlando businesses. Hotels, Airbnb hosts, gyms, spas, restaurants, medical offices and more. Get a custom quote today.",
+  }
 }
 
 // Without this, Next.js statically prerenders this page at build time
@@ -29,6 +33,8 @@ export default async function CommercialPage({
   // cookie the EN/ES toggle writes to.
   const lang = langParam ?? (await getSiteLangCookie())
   const tr = lang === "es" ? es.commercialPage : en.commercialPage
+  const branding = await getBranding()
+  const businessName = branding.business_name || "Your Business"
 
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
@@ -142,7 +148,7 @@ export default async function CommercialPage({
       {/* ── Footer note ─────────────────────────────────────────────────────── */}
       <section className="bg-[#f7f8fb] px-4 py-8 text-center border-t border-gray-100">
         <p className="text-gray-400 text-xs">
-          WashFold Orlando · Commercial Laundry Pickup &amp; Delivery ·{" "}
+          {businessName} · Commercial Laundry Pickup &amp; Delivery ·{" "}
           <Link href={lang === "es" ? "/?lang=es" : "/"} className="text-[var(--brand-accent)] hover:underline">{tr.footerBack}</Link>
         </p>
       </section>
