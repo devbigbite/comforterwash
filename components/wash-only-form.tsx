@@ -16,6 +16,7 @@ import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
+import { effectivePriceForOrder } from "@/lib/service-option-utils"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
 import { getTipsEnabled, getDeliveryFeeSettings, getComforterPromo } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
@@ -279,7 +280,8 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
 
   const selectedDetergent = detergentOptions.find(d => d.id === formData.detergentId)
   const selectedExtrasList = extraOptions.filter(e => formData.selectedExtras[e.id])
-  const extrasCents = (selectedDetergent?.price_cents ?? 0) + selectedExtrasList.reduce((s, e) => s + e.price_cents, 0)
+  const qty = { pounds: formData.pounds, items: formData.numBags, loads: formData.numBags }
+  const extrasCents = (selectedDetergent ? effectivePriceForOrder(selectedDetergent, qty) : 0) + selectedExtrasList.reduce((s, e) => s + effectivePriceForOrder(e, qty), 0)
   const baseCents = Math.max(formData.pounds * priceCents, minLbs * priceCents)
   const comforterTotalCount = comforterAddon ? Object.values(comforterQtys).reduce((a, b) => a + b, 0) : 0
   const comforterSubtotalCents = comforterAddon

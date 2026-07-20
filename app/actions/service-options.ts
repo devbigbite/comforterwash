@@ -5,6 +5,8 @@ import { getLocationId } from "@/lib/location"
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/lib/auth-guard"
 
+export type PricingUnit = "per_order" | "per_pound" | "per_item" | "per_load"
+
 export interface ServiceOption {
   id: string
   type: "detergent" | "extra" | "accessory"
@@ -20,6 +22,7 @@ export interface ServiceOption {
   is_hypoallergenic: boolean
   requires_comforter: boolean
   location_id?: string
+  pricing_unit: PricingUnit
 }
 
 
@@ -75,6 +78,7 @@ export async function upsertServiceOption(option: Partial<ServiceOption> & { typ
     price_cents: option.price_cents ?? 0,
     enabled: option.enabled ?? true,
     location_id: option.location_id ?? locationId,
+    pricing_unit: option.pricing_unit ?? "per_order",
   })
   revalidatePath("/admin/pricing")
 }

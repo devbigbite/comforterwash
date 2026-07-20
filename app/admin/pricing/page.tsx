@@ -12,8 +12,21 @@ function dollarsToField(val: number) { return (val / 100).toFixed(2) }
 function fieldToCents(str: string) { return Math.round(parseFloat(str) * 100) }
 
 const BLANK_OPTION = (type: "detergent" | "extra" | "accessory"): Partial<ServiceOption> => ({
-  type, name: "", description: "", price_cents: 0, enabled: true,
+  type, name: "", description: "", price_cents: 0, enabled: true, pricing_unit: "per_order",
 })
+
+const UNIT_LABEL: Record<string, string> = {
+  per_order: "per order",
+  per_pound: "per lb",
+  per_item:  "per item",
+  per_load:  "per load",
+}
+const UNIT_OPTIONS: { value: "per_order" | "per_pound" | "per_item" | "per_load"; label: string; hint: string }[] = [
+  { value: "per_order", label: "By the order",  hint: "Charged once per order (current default)" },
+  { value: "per_pound", label: "By the pound",   hint: "Price × estimated/actual weight" },
+  { value: "per_item",  label: "Per item",       hint: "Price × quantity of items (e.g. comforters)" },
+  { value: "per_load",  label: "By the load",    hint: "Price × number of bags/loads" },
+]
 
 function OptionsSection({
   title, icon, type, options, onRefresh,
@@ -99,6 +112,17 @@ function OptionsSection({
               onChange={e => setDraft(d => ({ ...d, price_cents: fieldToCents(e.target.value) }))} />
           </div>
         </div>
+      </div>
+      <div>
+        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Charge</label>
+        <select className={inputCls}
+          value={draft.pricing_unit ?? "per_order"}
+          onChange={e => setDraft(d => ({ ...d, pricing_unit: e.target.value as ServiceOption["pricing_unit"] }))}>
+          {UNIT_OPTIONS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+        </select>
+        <p className="text-[10px] text-gray-400 mt-1">
+          {UNIT_OPTIONS.find(u => u.value === (draft.pricing_unit ?? "per_order"))?.hint}
+        </p>
       </div>
       <div>
         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Description (English)</label>
@@ -230,6 +254,11 @@ function OptionsSection({
                         <span className="text-xs bg-[#0D2240] text-white font-bold px-2 py-0.5 rounded-full">{cents(opt.price_cents)}</span>
                       ) : (
                         <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">Free</span>
+                      )}
+                      {opt.price_cents > 0 && (opt.pricing_unit ?? "per_order") !== "per_order" && (
+                        <span className="text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">
+                          {UNIT_LABEL[opt.pricing_unit ?? "per_order"]}
+                        </span>
                       )}
                       {opt.requires_comforter && <span className="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">🛏️ Comforter only</span>}
                       {opt.is_hypoallergenic && <span className="text-xs bg-teal-100 text-teal-700 font-bold px-2 py-0.5 rounded-full">🌿 Hypo-Safe</span>}

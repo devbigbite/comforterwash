@@ -18,7 +18,7 @@ import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getMonthlyPlanEnabled, getComforterPromo } from "@/app/actions/settings"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
-import { effectivePrice, isSaleActive } from "@/lib/service-option-utils"
+import { effectivePrice, effectivePriceForOrder, isSaleActive } from "@/lib/service-option-utils"
 import { getTipsEnabled, getDeliveryFeeSettings } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
@@ -380,7 +380,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
     ? extraOptions.filter(e => e.is_hypoallergenic)
     : extraOptions
   const selectedExtrasList  = visibleExtraOptions.filter(e => formData.selectedExtras[e.id])
-  const extrasCents         = (selectedDetergent ? effectivePrice(selectedDetergent) : 0) + selectedExtrasList.reduce((s, e) => s + effectivePrice(e), 0)
+  const qty = { pounds: formData.pounds, items: formData.numBags, loads: formData.numBags }
+  const extrasCents         = (selectedDetergent ? effectivePriceForOrder(selectedDetergent, qty) : 0) + selectedExtrasList.reduce((s, e) => s + effectivePriceForOrder(e, qty), 0)
 
   const pricePerLbCents = freqPricing[formData.frequency as keyof typeof freqPricing].cents
   const baseCents       = Math.max(formData.pounds * pricePerLbCents, minLbs * pricePerLbCents)

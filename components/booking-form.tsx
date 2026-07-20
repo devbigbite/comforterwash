@@ -18,6 +18,7 @@ import { useLang } from "@/components/lang-provider"
 import { getComforterPromo, getDeliveryFeeSettings, getTipsEnabled } from "@/app/actions/settings"
 import { getPricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
+import { effectivePriceForOrder } from "@/lib/service-option-utils"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
@@ -321,7 +322,7 @@ export function BookingForm() {
 
   const selectedAddonsCents = [...extraOptions, ...accessoryOptions]
     .filter(e => formData.selectedExtras[e.id])
-    .reduce((s, e) => s + e.price_cents, 0)
+    .reduce((s, e) => s + effectivePriceForOrder(e, { items: totalCount, loads: totalCount }), 0)
 
   const discountCents      = promo ? Math.min(promo.discountCents, subtotalCents) : 0
   const afterDiscountCents = Math.max(0, subtotalCents - discountCents) + selectedAddonsCents
