@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useWorkerSession } from "@/components/pin-gate"
+import { PinGate, useWorkerSession } from "@/components/pin-gate"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import { getOperatorQueue } from "@/app/actions/operator-queue"
@@ -67,8 +67,17 @@ const LANES = [
 const INCOMING_STATUSES: string[] = []
 
 export default function OperatorHome() {
+  return (
+    <PinGate role="operator">
+      <OperatorHomeInner />
+    </PinGate>
+  )
+}
+
+function OperatorHomeInner() {
   const session = useWorkerSession()
   const router  = useRouter()
+  const workerId = session?.workerId ?? null
 
   const [queue,       setQueue]       = useState<OperatorOrder[]>([])
   const [pendingRuns, setPendingRuns] = useState<TransportRun[]>([])
@@ -76,9 +85,10 @@ export default function OperatorHome() {
   const [showIncoming, setShowIncoming] = useState(false)
 
   useEffect(() => {
+    if (!workerId) { setLoading(false); return }
     async function load() {
       const [orders, runs] = await Promise.all([
-        getOperatorQueue(),
+        getOperatorQueue(workerId!),
         getPendingRunsForRole("operator"),
       ])
       setQueue(orders)
@@ -86,7 +96,7 @@ export default function OperatorHome() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [workerId])
 
   const laneOrders = (statuses: string[]) =>
     queue.filter(o => statuses.includes(o.effective_status))
@@ -109,6 +119,14 @@ export default function OperatorHome() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href="https://dexterlive.com/users/sign_in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-white bg-[#0D2240] hover:bg-[#1a3a5c] px-3 py-1.5 rounded-full transition-colors font-bold"
+            >
+              Dexter
+            </a>
             <RoleSwitcher currentRole="operator" />
             <button
               onClick={() => { localStorage.removeItem("washfold_operator_worker"); window.location.href = "/staff" }}

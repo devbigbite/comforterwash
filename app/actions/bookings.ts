@@ -47,9 +47,11 @@ function generateShortCode(): string {
   return String(Math.floor(Math.random() * 900000) + 100000)
 }
 
+// "yellow" is reserved exclusively for the remote-storage marker sticker —
+// it must never be assigned as a per-order color key (see facility-board.tsx).
 const COLOR_ROTATION = [
   "red", "blue", "sky", "green", "lime",
-  "pink", "hotpink", "orange", "yellow", "purple",
+  "pink", "hotpink", "orange", "purple",
 ]
 
 /** Pick the next color key not already used on the same pickup date. */

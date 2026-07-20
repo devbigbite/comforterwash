@@ -389,7 +389,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
                     <p className={`text-sm mt-0.5 ${booking.hold_at_facility ? "text-emerald-600" : "text-amber-600"}`}>
                       {booking.hold_at_facility
                         ? "Look for this order in the floor temp area — color key sticker only."
-                        : "Pick up from remote storage — look for color key sticker + second marker sticker."}
+                        : "Pick up from remote storage — look for color key sticker + a YELLOW marker sticker."}
                     </p>
                   </div>
                 </div>

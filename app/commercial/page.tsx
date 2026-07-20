@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { CommercialForm } from "@/components/CommercialForm"
+import { getSiteLangCookie } from "@/app/actions/site-lang"
 import en from "@/lib/translations/en"
 import es from "@/lib/translations/es"
 
@@ -9,12 +10,24 @@ export const metadata = {
     "Effective laundry pickup & delivery for Orlando businesses. Hotels, Airbnb hosts, gyms, spas, restaurants, medical offices and more. Get a custom quote today.",
 }
 
+// Without this, Next.js statically prerenders this page at build time
+// (no other dynamic API is used besides the indirected cookies() call
+// inside getSiteLangCookie(), which isn't always enough for Next's static
+// analysis to pick up) — baking in whatever locale existed at build time
+// forever and ignoring the per-request wf_locale cookie entirely. That's
+// why /commercial specifically stayed stuck while /service-areas (which
+// already had this) and /faq (revalidate = 60) worked.
+export const dynamic = "force-dynamic"
+
 export default async function CommercialPage({
   searchParams,
 }: {
   searchParams: Promise<{ lang?: string }>
 }) {
-  const { lang } = await searchParams
+  const { lang: langParam } = await searchParams
+  // Explicit ?lang= wins (shareable links); otherwise fall back to the
+  // cookie the EN/ES toggle writes to.
+  const lang = langParam ?? (await getSiteLangCookie())
   const tr = lang === "es" ? es.commercialPage : en.commercialPage
 
   return (

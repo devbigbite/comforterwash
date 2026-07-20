@@ -1,8 +1,9 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, useTransition } from "react"
 import type { Locale } from "@/lib/i18n"
 import { getTranslations } from "@/lib/i18n"
+import { setSiteLangCookie } from "@/app/actions/site-lang"
 import type { TranslationKeys } from "@/lib/translations/en"
 
 interface LangContextValue {
@@ -25,6 +26,7 @@ export function LangProvider({
   initialLocale?: Locale
 }) {
   const [locale, setLocaleState] = useState<Locale>(initialLocale)
+  const [, startTransition] = useTransition()
 
   useEffect(() => {
     // Persist preference
@@ -37,7 +39,11 @@ export function LangProvider({
   const setLocale = (l: Locale) => {
     setLocaleState(l)
     try { localStorage.setItem("wf-locale", l) } catch {}
-    // Update URL param without full reload for SEO crawlers
+
+    // Keep the URL in sync too, purely for shareable links / SEO crawlers —
+    // this alone does NOT make server-rendered pages (e.g. /commercial,
+    // /service-areas) re-render, since a raw history.replaceState() is
+    // invisible to Next.js.
     const url = new URL(window.location.href)
     if (l === "en") {
       url.searchParams.delete("lang")
@@ -45,6 +51,16 @@ export function LangProvider({
       url.searchParams.set("lang", l)
     }
     window.history.replaceState({}, "", url.toString())
+
+    // The actual mechanism: set a cookie server-side and revalidate the
+    // whole route tree (mirrors app/actions/admin-lang.ts, which already
+    // works for the admin panel). Server Components — including RootLayout,
+    // which can read cookies but NOT searchParams — pick up the new
+    // language on the resulting re-render, without a client-side navigation
+    // that would otherwise reset this component's own state.
+    startTransition(() => {
+      setSiteLangCookie(l)
+    })
   }
 
   return (

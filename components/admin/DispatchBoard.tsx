@@ -30,6 +30,17 @@ const DRIVER_ACTION: Record<string, { label: string; arrow: string }> = {
   out_for_delivery:   { label: "Out for delivery",         arrow: "→ Customer"              },
 }
 
+// Operational dispatcher moves — purely routing/status, never touches
+// weight, pricing, or payment capture (that only happens in the driver
+// app's own dropoff/delivery flow).
+const ROUTE_ACTIONS: { status: string; label: string; note: string }[] = [
+  { status: "picked_up",        label: "↩ Back to Picked Up",   note: "Sent back to Picked Up by dispatcher — driver needs to return for something missed." },
+  { status: "at_facility",      label: "→ Send to Facility",     note: "Routed to facility by dispatcher." },
+  { status: "at_warehouse",     label: "→ Send to Warehouse",    note: "Routed to warehouse by dispatcher." },
+  { status: "out_for_delivery", label: "→ Start Delivery",       note: "Delivery run started by dispatcher." },
+  { status: "delivered",        label: "✓ Mark Delivered",       note: "Marked delivered by dispatcher (confirmed by phone)." },
+]
+
 // ─── Mini order card for kanban ───────────────────────────────────────────────
 
 function KanbanCard({
@@ -42,6 +53,7 @@ function KanbanCard({
   unassignDriverAction,
   rescheduleAction,
   cancelAction,
+  setBookingStatusAction,
 }: {
   booking: DispatchBooking
   type: "pickup" | "delivery"
@@ -52,9 +64,11 @@ function KanbanCard({
   unassignDriverAction: (fd: FormData) => Promise<void>
   rescheduleAction: (fd: FormData) => Promise<void>
   cancelAction: (fd: FormData) => Promise<void>
+  setBookingStatusAction: (fd: FormData) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [statusPending, startStatusTransition] = useTransition()
   const [toast, setToast] = useState<string | null>(null)
   const orderCode = b.short_code ?? b.id.slice(0, 6).toUpperCase()
   const bagCount = b.num_bags ?? b.num_comforters ?? 1
@@ -89,6 +103,32 @@ function KanbanCard({
       await unassignDriverAction(fd)
       setOpen(false)
       flash("Unassigned")
+    })
+  }
+
+  function setStatus(status: string, note: string) {
+    const fd = new FormData()
+    fd.set("bookingId", b.id)
+    fd.set("status", status)
+    fd.set("note", note)
+    fd.set("date", date)
+    startStatusTransition(async () => {
+      await setBookingStatusAction(fd)
+      flash("Updated ✓")
+    })
+  }
+
+  function removeFromDriver() {
+    const fd = new FormData()
+    fd.set("bookingId", b.id)
+    fd.set("status", "confirmed")
+    fd.set("note", "Removed from driver — pickup could not be completed (e.g. customer did not leave items out). Needs reassignment.")
+    fd.set("unassign", "true")
+    fd.set("date", date)
+    startStatusTransition(async () => {
+      await setBookingStatusAction(fd)
+      setOpen(false)
+      flash("Removed from driver")
     })
   }
 
@@ -148,7 +188,40 @@ function KanbanCard({
       {/* Expanded assign panel */}
       {open && (
         <div className="border-t border-gray-100 bg-gray-50 rounded-b-xl px-3 py-2.5 space-y-2">
-          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Assign driver</p>
+          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Quick actions</p>
+          <div className="grid grid-cols-2 gap-1">
+            {ROUTE_ACTIONS.map(a => {
+              const isCurrent = a.status === b.status
+              return (
+                <button
+                  key={a.status}
+                  type="button"
+                  disabled={statusPending}
+                  onClick={() => setStatus(a.status, a.note)}
+                  className={`text-[10px] font-bold py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+                    isCurrent
+                      ? "bg-[#0D2240] text-white border-[#0D2240]"
+                      : "bg-white text-gray-500 border-gray-200 hover:border-[#0D2240] hover:text-[#0D2240]"
+                  }`}
+                >
+                  {a.label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-[9px] text-gray-400 -mt-1">Routing/status only — no billing or payment effect.</p>
+
+          <button
+            type="button"
+            disabled={statusPending}
+            onClick={removeFromDriver}
+            className="w-full text-[10px] font-bold text-red-500 hover:text-red-700 border border-red-200 hover:border-red-300 bg-red-50 rounded-lg py-1.5 transition-colors disabled:opacity-50"
+          >
+            ✕ Remove from driver — pickup failed
+          </button>
+          <p className="text-[9px] text-gray-400 -mt-1">Customer didn't leave items out, wasn't home, etc. Unassigns the driver and returns this to Confirmed for reassignment.</p>
+
+          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide pt-1">Assign driver</p>
           <div className="grid gap-1">
             {drivers.map(d => (
               <button
@@ -198,6 +271,7 @@ function DriverColumn({
   unassignDriverAction,
   rescheduleAction,
   cancelAction,
+  setBookingStatusAction,
 }: {
   driver: { id: string; name: string; shipday_email: string | null } | null // null = "Unassigned"
   pickups: DispatchBooking[]
@@ -208,6 +282,7 @@ function DriverColumn({
   unassignDriverAction: (fd: FormData) => Promise<void>
   rescheduleAction: (fd: FormData) => Promise<void>
   cancelAction: (fd: FormData) => Promise<void>
+  setBookingStatusAction: (fd: FormData) => Promise<void>
 }) {
   const isUnassigned = driver === null
   const total = pickups.length + deliveries.length
@@ -286,7 +361,8 @@ function DriverColumn({
                       assignDriverAction={assignDriverAction}
                       unassignDriverAction={unassignDriverAction}
                       rescheduleAction={rescheduleAction}
-                      cancelAction={cancelAction} />
+                      cancelAction={cancelAction}
+                      setBookingStatusAction={setBookingStatusAction} />
                   ))}
                 </div>
               </div>
@@ -309,6 +385,7 @@ export function DispatchBoard({
   unassignDriverAction,
   rescheduleAction,
   cancelAction,
+  setBookingStatusAction,
 }: {
   date: string
   pickups: DispatchBooking[]
@@ -318,6 +395,7 @@ export function DispatchBoard({
   unassignDriverAction: (fd: FormData) => Promise<void>
   rescheduleAction: (fd: FormData) => Promise<void>
   cancelAction: (fd: FormData) => Promise<void>
+  setBookingStatusAction: (fd: FormData) => Promise<void>
 }) {
   const unassigned = orders.filter(b => !b.assigned_driver_id)
 
@@ -335,6 +413,7 @@ export function DispatchBoard({
           unassignDriverAction={unassignDriverAction}
           rescheduleAction={rescheduleAction}
           cancelAction={cancelAction}
+          setBookingStatusAction={setBookingStatusAction}
         />
 
         {/* One column per driver */}
@@ -352,6 +431,7 @@ export function DispatchBoard({
               unassignDriverAction={unassignDriverAction}
               rescheduleAction={rescheduleAction}
               cancelAction={cancelAction}
+              setBookingStatusAction={setBookingStatusAction}
             />
           )
         })}

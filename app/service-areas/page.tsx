@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { ZipChecker } from "@/components/zip-checker"
 import { MessageUsModal } from "@/components/message-us-modal"
+import { getSiteLangCookie } from "@/app/actions/site-lang"
 import en from "@/lib/translations/en"
 import es from "@/lib/translations/es"
 
@@ -16,7 +17,8 @@ export default async function ServiceAreasPage({
 }: {
   searchParams: Promise<{ lang?: string }>
 }) {
-  const { lang } = await searchParams
+  const { lang: langParam } = await searchParams
+  const lang = langParam ?? (await getSiteLangCookie())
   const tr = lang === "es" ? es.serviceAreasPage : en.serviceAreasPage
 
   const supabase = createAdminClient()

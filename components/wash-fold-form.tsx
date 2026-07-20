@@ -17,6 +17,7 @@ import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getMonthlyPlanEnabled, getComforterPromo } from "@/app/actions/settings"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
+import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
 import { effectivePrice, isSaleActive } from "@/lib/service-option-utils"
 import { getTipsEnabled, getDeliveryFeeSettings } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
@@ -291,6 +292,21 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
       options: { shouldCreateUser: false },
     })
     if (!error) setEmailCheckState("otp_sent")
+  }
+
+  const [prefsApplied, setPrefsApplied] = useState(false)
+  async function handlePhoneBlur() {
+    const digits = formData.phone.replace(/\D/g, "")
+    if (digits.length < 10 || prefsApplied) return
+    const prefs = await getCustomerPreferences(formData.phone)
+    if (prefs) {
+      setFormData(p => ({
+        ...p,
+        detergentId: prefs.detergentId ?? p.detergentId,
+        selectedExtras: { ...p.selectedExtras, ...Object.fromEntries(prefs.extraIds.map(id => [id, true])) },
+      }))
+      setPrefsApplied(true)
+    }
   }
 
   async function verifyOtp() {
@@ -583,7 +599,11 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
             amountCents={preAuthCents}
             label={`Wash & Fold — ~${formData.pounds} lbs`}
             manualCapture={true}
-            onSuccess={() => { if (!isRecurring && emailCheckState !== "verified") setShowAccountPrompt(true) }}
+            onSuccess={() => {
+              if (!isRecurring && emailCheckState !== "verified") setShowAccountPrompt(true)
+              const chosenExtraIds = [...extraOptions, ...accessoryOptions].filter(e => formData.selectedExtras[e.id]).map(e => e.id)
+              saveCustomerPreferences(formData.phone, formData.detergentId || null, chosenExtraIds)
+            }}
             metadata={checkoutMeta}
           />
 
@@ -941,7 +961,6 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                           value={formData.recurringDeliveryDay}
                           available={validDeliveryDays}
                           onChange={(d) => setFormData(p => ({ ...p, recurringDeliveryDay: d }))}
-                          note={formData.recurringPickupDay === "friday" || formData.recurringPickupDay === "saturday" ? tw.fridayNote : undefined}
                         />
                         {formData.recurringDeliveryDay && (
                           <div>
@@ -998,14 +1017,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                     </div>
                     <DateStrip selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} />
                     {formData.pickupDate && (
-                      <>
-                        {(formData.pickupDate.getDay() === 5 || formData.pickupDate.getDay() === 6) && (
-                          <p className="text-[10px] text-amber-600 font-medium mt-2 bg-amber-50 px-3 py-1.5 rounded-lg">
-                            {tw.fridayNote}
-                          </p>
-                        )}
-                        <TimeSlotPicker label={tf.availableTimeSlots} value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} windows={getTimeWindowsForDate(formData.pickupDate!, activeRoutes, "pickup")} />
-                      </>
+                      <TimeSlotPicker label={tf.availableTimeSlots} value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} windows={getTimeWindowsForDate(formData.pickupDate!, activeRoutes, "pickup")} />
                     )}
                   </div>
                   {formData.pickupDate && formData.pickupTimeWindow && (
@@ -1225,7 +1237,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                   <Input type={type} placeholder={placeholder}
                     value={(formData as Record<string, unknown>)[key] as string}
                     onChange={(e) => setFormData(p => ({ ...p, [key]: e.target.value }))}
-                    onBlur={key === "email" ? handleEmailBlur : undefined}
+                    onBlur={key === "email" ? handleEmailBlur : key === "phone" ? handlePhoneBlur : undefined}
                     className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
                   {key === "email" && emailCheckState === "otp_sent" && (
                     <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 space-y-3 mt-1">

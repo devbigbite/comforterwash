@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache"
 import PhotoUploader from "./photo-uploader"
 import { WorkerNameInput } from "./worker-name-input"
 import { FoldingForm } from "./folding-form"
+import { PinGate } from "@/components/pin-gate"
+import { OperatorOrderGate } from "@/components/operator-order-gate"
 
 const STATUS_LABEL: Record<string, string> = {
   pending:          "Pending",
@@ -176,6 +178,38 @@ async function recordFoldingPhoto(formData: FormData) {
   })
 }
 
+// Yellow is deliberately excluded — reserved exclusively for the storage marker sticker.
+const COLOR_KEYS = [
+  { key: "red",     label: "Red",      hex: "#ef4444" },
+  { key: "blue",    label: "Blue",     hex: "#3b82f6" },
+  { key: "sky",     label: "Sky Blue", hex: "#38bdf8" },
+  { key: "green",   label: "Green",    hex: "#22c55e" },
+  { key: "lime",    label: "Lime",     hex: "#84cc16" },
+  { key: "pink",    label: "Pink",     hex: "#f472b6" },
+  { key: "hotpink", label: "Hot Pink", hex: "#ec4899" },
+  { key: "orange",  label: "Orange",   hex: "#f97316" },
+  { key: "purple",  label: "Purple",   hex: "#a855f7" },
+] as const
+const STORAGE_MARKER_HEX = "#eab308"
+
+async function setFacilityDecision(formData: FormData) {
+  "use server"
+  const bookingId       = formData.get("bookingId") as string
+  const holdAtFacility  = formData.get("hold_at_facility") === "true"
+  const colorKey        = formData.get("color_key") as string | null
+  const supabase        = createAdminClient()
+  const updates: Record<string, unknown> = { hold_at_facility: holdAtFacility }
+  if (colorKey) updates.color_key = colorKey
+  await supabase.from("bookings").update(updates).eq("id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "facility_decision",
+    notes: holdAtFacility ? "Kept on facility floor" : "Sent to remote storage (YELLOW marker sticker required)",
+    created_by: "operator",
+  })
+  revalidatePath(`/operator/order/${bookingId}`)
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default async function OperatorOrderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -249,6 +283,8 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
   const showMarginWarning = weightOnFile && facilityMin > weightOnFile
 
   return (
+    <PinGate role="operator">
+    <OperatorOrderGate assignedOperatorId={booking.assigned_operator_id ?? null}>
     <div className="min-h-screen bg-[#f7f8fb]">
       {/* Header */}
       <div className="bg-[#0D2240] px-4 py-4 sticky top-0 z-10">
@@ -302,6 +338,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
               <div>
                 <p className="text-gray-400 text-sm">Need ready by</p>
                 <p className="font-semibold text-[#0D2240] text-base">{booking.delivery_date}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Delivery date decides floor vs. storage — see below</p>
               </div>
             </div>
           </div>
@@ -342,6 +379,25 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
             </div>
           )}
         </div>
+
+        {/* Customer wash preferences — detergent, softener, dryer sheets, extras */}
+        {(booking.detergent || booking.extras) && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Wash Preferences</p>
+            <div className="flex flex-wrap gap-1.5">
+              {booking.detergent && (
+                <span className="text-sm font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                  🧴 {booking.detergent}
+                </span>
+              )}
+              {(booking.extras as string | null)?.split(",").map((e: string) => e.trim()).filter(Boolean).map((extra: string) => (
+                <span key={extra} className="text-sm font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                  ✓ {extra}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Step chips — tappable to go back */}
         {!notArrived && (bags?.length ?? 0) > 0 && (
@@ -424,6 +480,77 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
             </p>
           </div>
         )}
+
+        {/* Floor vs Storage decision — where the finished bags physically go */}
+        {operatorDone && (() => {
+          const deliveryDate = booking.delivery_date as string | null
+          const today = new Date(); today.setHours(0,0,0,0)
+          const dDate = deliveryDate ? new Date(deliveryDate + "T12:00:00") : null
+          const daysOut = dDate ? Math.round((dDate.getTime() - today.getTime()) / 86400000) : null
+          const urgencyLabel = daysOut === 0 ? "Today" : daysOut === 1 ? "Tomorrow" : deliveryDate
+          const holdAtFacility = booking.hold_at_facility as boolean | null
+          return (
+            <div className={`rounded-2xl border shadow-sm p-4 ${holdAtFacility ? "bg-emerald-50 border-emerald-200" : holdAtFacility === false ? "bg-amber-50 border-amber-200" : "bg-white border-gray-100"}`}>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Floor vs. Storage — where do these bags go?</p>
+              <p className="text-sm text-gray-500 mb-3">
+                Delivery is <strong className="text-[#0D2240]">{urgencyLabel}</strong>.
+                {daysOut !== null && daysOut <= 1 && <span className="text-red-500 font-semibold"> Recommend keeping on the floor.</span>}
+                {daysOut !== null && daysOut > 1 && <span className="text-amber-600 font-semibold"> Delivery isn't soon — storage is fine.</span>}
+              </p>
+
+              <div className="flex gap-2 mb-3">
+                <form action={setFacilityDecision} className="flex-1">
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <input type="hidden" name="hold_at_facility" value="true" />
+                  {booking.color_key && <input type="hidden" name="color_key" value={booking.color_key} />}
+                  <button type="submit"
+                    className={`w-full text-sm font-bold py-3 rounded-xl transition-colors ${holdAtFacility ? "bg-emerald-500 text-white" : "bg-white border border-gray-200 text-gray-500 hover:border-emerald-300"}`}>
+                    📍 Keep at Facility
+                  </button>
+                </form>
+                <form action={setFacilityDecision} className="flex-1">
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <input type="hidden" name="hold_at_facility" value="false" />
+                  {booking.color_key && <input type="hidden" name="color_key" value={booking.color_key} />}
+                  <button type="submit"
+                    className={`w-full text-sm font-bold py-3 rounded-xl transition-colors ${holdAtFacility === false ? "bg-amber-500 text-white" : "bg-white border border-gray-200 text-gray-500 hover:border-amber-300"}`}>
+                    📦 Send to Storage
+                  </button>
+                </form>
+              </div>
+
+              {holdAtFacility === false && (
+                <div className="bg-white border border-amber-200 rounded-xl px-3 py-2 flex items-start gap-2 mb-3">
+                  <span className="w-4 h-4 rounded-full shrink-0 mt-0.5 border border-amber-300" style={{ background: STORAGE_MARKER_HEX }} />
+                  <p className="text-xs text-amber-700 leading-snug">
+                    <strong>Apply a YELLOW marker sticker</strong> alongside the color key sticker on every bag before moving it to storage. Yellow is reserved for this — never used as a color key.
+                  </p>
+                </div>
+              )}
+
+              {/* Color key picker */}
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Color Key Sticker</p>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_KEYS.map(c => (
+                  <form key={c.key} action={setFacilityDecision}>
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <input type="hidden" name="hold_at_facility" value={String(!!holdAtFacility)} />
+                    <input type="hidden" name="color_key" value={c.key} />
+                    <button type="submit" title={c.label}
+                      className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${booking.color_key === c.key ? "border-[#0D2240] scale-110 shadow-md" : "border-transparent"}`}
+                      style={{ background: c.hex }} />
+                  </form>
+                ))}
+              </div>
+              {booking.color_key && (
+                <p className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full inline-block" style={{ background: COLOR_KEYS.find(c => c.key === booking.color_key)?.hex ?? "#d1d5db" }} />
+                  {COLOR_KEYS.find(c => c.key === booking.color_key)?.label} sticker assigned
+                </p>
+              )}
+            </div>
+          )
+        })()}
 
         {/* ── Main action card ── */}
         {!isPartnerMode && !notArrived && !operatorDone && step && (
@@ -519,4 +646,23 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
             <div className="grid grid-cols-3 gap-2 text-center text-sm">
               <div>
                 <p className="text-gray-400">Customer</p>
-             
+                <p className="font-bold text-green-600">${(booking.customer_final_cents / 100).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">Facility cost</p>
+                <p className="font-bold text-red-500">${((booking.facility_cost_cents ?? 0) / 100).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-gray-400">Margin</p>
+                <p className="font-bold text-[#0D2240]">${((booking.customer_final_cents - (booking.facility_cost_cents ?? 0)) / 100).toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+    </OperatorOrderGate>
+    </PinGate>
+  )
+}

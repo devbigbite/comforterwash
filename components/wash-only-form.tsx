@@ -16,6 +16,7 @@ import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
+import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
 import { getTipsEnabled, getDeliveryFeeSettings, getComforterPromo } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
@@ -175,6 +176,21 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
       options: { shouldCreateUser: false },
     })
     if (!error) setEmailCheckState("otp_sent")
+  }
+
+  const [prefsApplied, setPrefsApplied] = useState(false)
+  async function handlePhoneBlur() {
+    const digits = formData.phone.replace(/\D/g, "")
+    if (digits.length < 10 || prefsApplied) return
+    const prefs = await getCustomerPreferences(formData.phone)
+    if (prefs) {
+      setFormData(p => ({
+        ...p,
+        detergentId: prefs.detergentId ?? p.detergentId,
+        selectedExtras: { ...p.selectedExtras, ...Object.fromEntries(prefs.extraIds.map(id => [id, true])) },
+      }))
+      setPrefsApplied(true)
+    }
   }
 
   async function verifyOtp() {
@@ -345,7 +361,10 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
             amountCents={preAuthCents}
             label={`Wash Only — ~${formData.pounds} lbs`}
             manualCapture={true}
-            onSuccess={() => { if (emailCheckState !== "verified") setShowAccountPrompt(true) }}
+            onSuccess={() => {
+              if (emailCheckState !== "verified") setShowAccountPrompt(true)
+              saveCustomerPreferences(formData.phone, formData.detergentId || null, selectedExtrasList.map(e => e.id))
+            }}
             metadata={{
               customerName: formData.name,
               customerEmail: formData.email,
@@ -661,7 +680,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                   <Input type={type} placeholder={placeholder}
                     value={(formData as Record<string, unknown>)[key] as string}
                     onChange={(e) => setFormData(p => ({ ...p, [key]: e.target.value }))}
-                    onBlur={key === "email" ? handleEmailBlur : undefined}
+                    onBlur={key === "email" ? handleEmailBlur : key === "phone" ? handlePhoneBlur : undefined}
                     className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
                   {key === "email" && emailCheckState === "otp_sent" && (
                     <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 space-y-3 mt-1">

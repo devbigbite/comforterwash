@@ -13,6 +13,9 @@ import { createClient } from "@/lib/supabase/client"
 
 // ── Color key palette (matching the label roll set) ──────────────────────────
 
+// "yellow" is intentionally excluded — it is reserved exclusively for the
+// remote-storage marker sticker (see the Floor vs Storage panel below) so it
+// never collides with a per-order color key on the same day.
 export const COLOR_KEYS = [
   { key: "red",      label: "Red",       hex: "#ef4444" },
   { key: "blue",     label: "Blue",      hex: "#3b82f6" },
@@ -22,9 +25,10 @@ export const COLOR_KEYS = [
   { key: "pink",     label: "Pink",      hex: "#f472b6" },
   { key: "hotpink",  label: "Hot Pink",  hex: "#ec4899" },
   { key: "orange",   label: "Orange",    hex: "#f97316" },
-  { key: "yellow",   label: "Yellow",    hex: "#eab308" },
   { key: "purple",   label: "Purple",    hex: "#a855f7" },
 ] as const
+
+export const STORAGE_MARKER_HEX = "#eab308"
 
 type ColorKey = typeof COLOR_KEYS[number]["key"] | null
 
@@ -351,7 +355,7 @@ function OrderDrawer({
                   <p className="text-xs text-gray-500 mt-0.5 leading-snug">
                     {order.hold_at_facility
                       ? "Staying on the facility floor temp space. Apply color key sticker only."
-                      : <>Sending to remote storage. Apply color key sticker <strong>+ second marker sticker</strong> (color TBD).</>
+                      : <>Sending to remote storage. Apply color key sticker <strong>+ YELLOW marker sticker</strong>.</>
                     }
                     {!order.hold_at_facility && urgency.label === "Today" && <span className="text-red-500 font-semibold ml-1">Delivery is today — recommend floor.</span>}
                     {!order.hold_at_facility && urgency.label === "Tomorrow" && <span className="text-amber-600 font-semibold ml-1">Delivery is tomorrow — consider floor.</span>}
@@ -366,12 +370,12 @@ function OrderDrawer({
                 </button>
               </div>
 
-              {/* Second marker sticker — shown only when going to storage, TBD color */}
+              {/* Storage marker sticker — always YELLOW, reserved and never used as a per-order color key */}
               {!order.hold_at_facility && (
                 <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
-                  <span className="text-amber-500 shrink-0 mt-0.5">🏷️</span>
+                  <span className="w-4 h-4 rounded-full shrink-0 mt-0.5 border border-amber-300" style={{ background: STORAGE_MARKER_HEX }} />
                   <p className="text-xs text-amber-700 leading-snug">
-                    <strong>Second marker sticker required</strong> for orders going to remote storage. Color TBD — apply alongside the color key sticker so the driver can identify this as a storage order.
+                    <strong>YELLOW marker sticker required</strong> for orders going to remote storage — apply it alongside the color key sticker so the driver immediately identifies this as a storage order. Yellow is reserved for this and is never used as a per-order color key.
                   </p>
                 </div>
               )}

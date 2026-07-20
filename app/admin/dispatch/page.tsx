@@ -49,6 +49,37 @@ async function unassignDriverAction(formData: FormData) {
   revalidatePath(`/admin/dispatch?date=${date}`)
 }
 
+// Operational dispatcher moves for a driver's order — no billing/Stripe
+// side effects. This intentionally does NOT touch weight, pricing, or
+// payment capture; that only ever happens through the driver app's own
+// dropoff/delivery flow. Two flavors:
+//   - route changes (send to facility/warehouse, start delivery, delivered,
+//     go back a step) just update status.
+//   - "remove from driver" also clears the assignment, e.g. the customer
+//     calls to say they didn't leave items out for pickup.
+async function driverQuickActionAdmin(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const status    = formData.get("status")    as string
+  const note      = formData.get("note")      as string
+  const unassign  = formData.get("unassign")  === "true"
+  const date      = formData.get("date")      as string
+  const supabase  = createAdminClient()
+
+  const updates: Record<string, unknown> = { status }
+  if (unassign) updates.assigned_driver_id = null
+
+  await supabase.from("bookings").update(updates).eq("id", bookingId)
+  await supabase.from("order_bags").update({ status }).eq("booking_id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: unassign ? "removed_from_driver" : "dispatcher_status_change",
+    notes: note || `Status set to "${status}" by dispatcher`,
+    created_by: "admin",
+  })
+  revalidatePath(`/admin/dispatch?date=${date}`)
+}
+
 async function assignRunDriverAction(runId: string, driverName: string) {
   "use server"
   const supabase = createAdminClient()
@@ -70,6 +101,21 @@ async function assignOperatorAction(formData: FormData) {
     created_by: "admin",
   })
   revalidatePath(`/admin/dispatch?date=${date}`)
+}
+
+async function setOrderStageAdminAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const stage     = formData.get("stage")     as string
+  const supabase  = createAdminClient()
+  await supabase.from("order_bags").update({ status: stage }).eq("booking_id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "stage_reset",
+    notes: `Stage set to "${stage}" by dispatcher`,
+    created_by: "admin",
+  })
+  revalidatePath("/admin/dispatch")
 }
 
 async function rescheduleAction(formData: FormData) {
@@ -187,8 +233,28 @@ export default async function DispatchPage({
     .not("assigned_facility_id", "is", null)
     .order("customer_name")
 
+  // Current bag-level stage per order, so dispatchers can see and roll back
+  // exactly what an operator would see/do on their station screen.
+  const facilityOrderIds = (facilityOrders ?? []).map(o => o.id)
+  const { data: facilityBags } = facilityOrderIds.length
+    ? await supabase.from("order_bags").select("booking_id, status").in("booking_id", facilityOrderIds)
+    : { data: [] as { booking_id: string; status: string }[] }
+
+  const STAGE_ORDER = ["at_facility", "in_washer", "in_dryer", "folded", "ready"]
+  const stageByBooking = new Map<string, string | null>()
+  for (const id of facilityOrderIds) {
+    const statuses = (facilityBags ?? []).filter(b => b.booking_id === id).map(b => b.status)
+    const mostAdvanced = statuses.length
+      ? [...statuses].sort((a, z) => STAGE_ORDER.indexOf(z) - STAGE_ORDER.indexOf(a))[0]
+      : null
+    stageByBooking.set(id, mostAdvanced)
+  }
+
   // allPickups / allDeliveries / allDriverOrders already set above
-  const allFacilityOrders = (facilityOrders ?? []) as FacilityOrder[]
+  const allFacilityOrders = (facilityOrders ?? []).map(o => ({
+    ...o,
+    current_stage: stageByBooking.get(o.id) ?? null,
+  })) as FacilityOrder[]
 
   const totalSynced = allDriverOrders.filter(
     b => b.shipday_pickup_order_id || b.shipday_delivery_order_id
@@ -266,6 +332,7 @@ export default async function DispatchPage({
             unassignDriverAction={unassignDriverAction}
             rescheduleAction={rescheduleAction}
             cancelAction={cancelAction}
+            setBookingStatusAction={driverQuickActionAdmin}
           />
         )}
 
@@ -286,6 +353,7 @@ export default async function DispatchPage({
             operators={operators}
             facilities={(facilities ?? []) as { id: string; name: string }[]}
             assignOperatorAction={assignOperatorAction}
+            setOrderStageAction={setOrderStageAdminAction}
           />
         )}
 
@@ -327,4 +395,5 @@ export type FacilityOrder = {
   status: string
   assigned_operator_id: string | null
   assigned_facility: { id: string; name: string } | null
+  current_stage: string | null
 }

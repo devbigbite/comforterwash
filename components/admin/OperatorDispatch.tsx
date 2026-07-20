@@ -20,6 +20,15 @@ const STATUS_COLOR: Record<string, string> = {
   ready:       "bg-teal-100 text-teal-700",
 }
 
+// Same processing pipeline the operator station screen uses.
+const STAGES: { value: string; label: string }[] = [
+  { value: "at_facility", label: "At Facility"   },
+  { value: "in_washer",   label: "In Washer"     },
+  { value: "in_dryer",    label: "In Dryer"      },
+  { value: "folded",      label: "Folded"        },
+  { value: "ready",       label: "Ready"         },
+]
+
 // ─── Kanban card ─────────────────────────────────────────────────────────────
 
 function OperatorCard({
@@ -27,14 +36,17 @@ function OperatorCard({
   operators,
   date,
   assignOperatorAction,
+  setOrderStageAction,
 }: {
   order: FacilityOrder
   operators: { id: string; name: string }[]
   date: string
   assignOperatorAction: (fd: FormData) => Promise<void>
+  setOrderStageAction: (fd: FormData) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [stagePending, startStageTransition] = useTransition()
   const [toast, setToast] = useState<string | null>(null)
 
   const code = order.short_code ?? order.id.slice(0, 6).toUpperCase()
@@ -49,6 +61,17 @@ function OperatorCard({
       await assignOperatorAction(fd)
       setOpen(false)
       setToast(operatorId ? "Assigned ✓" : "Removed")
+      setTimeout(() => setToast(null), 2500)
+    })
+  }
+
+  function setStage(stage: string) {
+    const fd = new FormData()
+    fd.set("bookingId", order.id)
+    fd.set("stage", stage)
+    startStageTransition(async () => {
+      await setOrderStageAction(fd)
+      setToast(`Stage → ${STAGES.find(s => s.value === stage)?.label ?? stage}`)
       setTimeout(() => setToast(null), 2500)
     })
   }
@@ -69,8 +92,8 @@ function OperatorCard({
       >
         <div className="flex items-center gap-2 mb-1">
           <span className="font-black font-mono text-[#0D2240] text-xs">{code}</span>
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_COLOR[order.status] ?? "bg-gray-100 text-gray-500"}`}>
-            {order.status?.replace(/_/g, " ")}
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_COLOR[order.current_stage ?? order.status] ?? "bg-gray-100 text-gray-500"}`}>
+            {(order.current_stage ?? order.status)?.replace(/_/g, " ")}
           </span>
         </div>
         <p className="font-semibold text-[#0D2240] text-xs truncate">{order.customer_name}</p>
@@ -88,7 +111,31 @@ function OperatorCard({
       {/* Assign panel */}
       {open && (
         <div className="border-t border-gray-100 bg-gray-50 rounded-b-xl px-3 py-2.5 space-y-2">
-          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Assign operator</p>
+          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Processing stage</p>
+          <div className="grid grid-cols-5 gap-1">
+            {STAGES.map(s => {
+              const isCurrent = s.value === order.current_stage
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  disabled={stagePending}
+                  onClick={() => setStage(s.value)}
+                  title={s.label}
+                  className={`text-[9px] font-bold py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+                    isCurrent
+                      ? "bg-[#0D2240] text-white border-[#0D2240]"
+                      : "bg-white text-gray-500 border-gray-200 hover:border-[#0D2240] hover:text-[#0D2240]"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-[9px] text-gray-400 -mt-1">Dispatcher override — jump forward or roll back any stage, no PIN needed.</p>
+
+          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide pt-1">Assign operator</p>
           <div className="grid gap-1">
             {operators.map(op => {
               const isAssigned = op.id === order.assigned_operator_id
@@ -136,12 +183,14 @@ function OperatorColumn({
   allOperators,
   date,
   assignOperatorAction,
+  setOrderStageAction,
 }: {
   operator: { id: string; name: string } | null  // null = Unassigned
   orders: FacilityOrder[]
   allOperators: { id: string; name: string }[]
   date: string
   assignOperatorAction: (fd: FormData) => Promise<void>
+  setOrderStageAction: (fd: FormData) => Promise<void>
 }) {
   const isUnassigned = operator === null
 
@@ -181,6 +230,7 @@ function OperatorColumn({
             operators={allOperators}
             date={date}
             assignOperatorAction={assignOperatorAction}
+            setOrderStageAction={setOrderStageAction}
           />
         ))}
       </div>
@@ -196,12 +246,14 @@ export function OperatorDispatch({
   operators,
   facilities: _unused,
   assignOperatorAction,
+  setOrderStageAction,
 }: {
   date: string
   orders: FacilityOrder[]
   operators: { id: string; name: string }[]
   facilities: { id: string; name: string }[]
   assignOperatorAction: (fd: FormData) => Promise<void>
+  setOrderStageAction: (fd: FormData) => Promise<void>
 }) {
   const unassigned = orders.filter(o => !o.assigned_operator_id)
 
@@ -215,6 +267,7 @@ export function OperatorDispatch({
           allOperators={operators}
           date={date}
           assignOperatorAction={assignOperatorAction}
+          setOrderStageAction={setOrderStageAction}
         />
 
         {/* One column per operator */}
@@ -228,6 +281,7 @@ export function OperatorDispatch({
               allOperators={operators}
               date={date}
               assignOperatorAction={assignOperatorAction}
+              setOrderStageAction={setOrderStageAction}
             />
           )
         })}
