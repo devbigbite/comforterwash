@@ -143,6 +143,7 @@ export default async function AdminHub() {
         { label: "Staff Clock", href: "/staff" },
         { label: "Driver App →", href: "/driver", external: true },
         { label: "Operator App →", href: "/operator", external: true },
+        { label: "Print Station Setup", href: "/admin/print-station" },
       ],
     },
     {
