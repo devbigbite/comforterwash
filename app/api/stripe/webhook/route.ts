@@ -22,9 +22,27 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
 
-      // ── New plan subscriber signed up ──────────────────────────────────────
+      // ── Checkout completed — either a tenant's platform-billing subscription
+      // (Phase 4 SaaS billing) or one of a tenant's own customers signing up
+      // for a monthly laundry plan. Distinguished by metadata.type.
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session
+
+        if (session.metadata?.type === "platform_subscription") {
+          const locationId = session.metadata?.location_id
+          if (!locationId) break
+
+          const stripeSubId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id
+          const stripeCustomerId = typeof session.customer === "string" ? session.customer : session.customer?.id
+
+          await supabase.from("locations").update({
+            stripe_customer_id: stripeCustomerId ?? null,
+            stripe_subscription_id: stripeSubId ?? null,
+            billing_status: "active",
+          }).eq("id", locationId)
+          break
+        }
+
         if (session.metadata?.type !== "monthly_plan") break
         if (session.mode !== "subscription") break
 
@@ -124,6 +142,13 @@ export async function POST(req: NextRequest) {
           })
           .eq("stripe_subscription_id", stripeSubId)
           .eq("subscription_type", "monthly_plan")
+
+        // Same event also covers a tenant's platform subscription renewing —
+        // no-op if stripeSubId doesn't match any location.
+        await supabase
+          .from("locations")
+          .update({ billing_status: "active" })
+          .eq("stripe_subscription_id", stripeSubId)
         break
       }
 
@@ -139,6 +164,11 @@ export async function POST(req: NextRequest) {
           .from("subscriptions")
           .update({ status: "past_due" })
           .eq("stripe_subscription_id", stripeSubId)
+
+        await supabase
+          .from("locations")
+          .update({ billing_status: "past_due" })
+          .eq("stripe_subscription_id", stripeSubId)
         break
       }
 
@@ -148,6 +178,11 @@ export async function POST(req: NextRequest) {
         await supabase
           .from("subscriptions")
           .update({ status: "cancelled" })
+          .eq("stripe_subscription_id", sub.id)
+
+        await supabase
+          .from("locations")
+          .update({ billing_status: "canceled" })
           .eq("stripe_subscription_id", sub.id)
         break
       }

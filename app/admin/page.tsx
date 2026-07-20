@@ -1,5 +1,7 @@
 import type React from "react"
 import { getBookings } from "@/app/actions/bookings"
+import { getFulfillmentMode } from "@/app/actions/walkin"
+import { getMyBillingStatus } from "@/app/actions/platform-billing"
 import { getBranding } from "@/lib/location"
 import { todayET } from "@/lib/pickup-cutoff"
 import {
@@ -38,8 +40,11 @@ type Module = {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function AdminHub() {
-  const [bookings, branding] = await Promise.all([getBookings(), getBranding()])
+  const [bookings, branding, fulfillmentMode, billingStatus] = await Promise.all([
+    getBookings(), getBranding(), getFulfillmentMode(), getMyBillingStatus(),
+  ])
   const today = todayET()
+  const showWalkin = fulfillmentMode === "walkin" || fulfillmentMode === "both"
 
   const stats = {
     total: bookings.length,
@@ -65,6 +70,7 @@ export default async function AdminHub() {
         { label: "Dispatch Board", href: "/admin/dispatch" },
         { label: "Order Search", href: "/admin/search" },
         { label: "All Bookings", href: "/admin/orders" },
+        ...(showWalkin ? [{ label: "Walk-In / Drop-Off", href: "/admin/walkin" }] : []),
       ],
     },
     {
@@ -180,6 +186,20 @@ export default async function AdminHub() {
   return (
     <div className="bg-[#f0f4fa] min-h-screen">
       <main className="max-w-6xl mx-auto px-6 py-10 space-y-10">
+
+        {/* ── Billing banner ───────────────────────────────────────────────── */}
+        {(billingStatus === "past_due" || billingStatus === "canceled") && (
+          <div className={`rounded-2xl border px-5 py-4 flex items-center gap-3 ${
+            billingStatus === "canceled" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"
+          }`}>
+            <span className="text-xl">⚠️</span>
+            <p className={`text-sm font-semibold ${billingStatus === "canceled" ? "text-red-700" : "text-amber-700"}`}>
+              {billingStatus === "canceled"
+                ? "Your subscription has been cancelled. Contact the platform to reactivate your account."
+                : "Your last payment failed. Please update your billing to keep your account in good standing."}
+            </p>
+          </div>
+        )}
 
         {/* ── Title ────────────────────────────────────────────────────────── */}
         <div>

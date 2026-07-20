@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
 import { getAllLocations, updateLocation, inviteLocationAdmin, getLocationAdmins, removeLocationAdmin } from "@/app/actions/super-admin"
+import { setLocationPlanPrice, createBillingCheckoutLink, cancelLocationBilling } from "@/app/actions/platform-billing"
 
 type Location = {
   id: string
@@ -12,6 +13,17 @@ type Location = {
   status: "active" | "inactive" | "suspended"
   plan: string | null
   created_at: string
+  billing_status: string
+  plan_price_cents: number | null
+  plan_name: string | null
+}
+
+const BILLING_COLORS: Record<string, string> = {
+  none:      "bg-slate-100 text-slate-500",
+  trialing:  "bg-blue-100 text-blue-700",
+  active:    "bg-green-100 text-green-700",
+  past_due:  "bg-amber-100 text-amber-700",
+  canceled:  "bg-red-100 text-red-700",
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -44,6 +56,55 @@ export default function SuperAdminPage() {
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviting, setInviting] = useState(false)
   const [inviteMsg, setInviteMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
+
+  // Billing modal
+  const [billingForId, setBillingForId] = useState<string | null>(null)
+  const [billPlanName, setBillPlanName] = useState("")
+  const [billPriceDollars, setBillPriceDollars] = useState("")
+  const [billSaving, setBillSaving] = useState(false)
+  const [billMsg, setBillMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
+
+  function openBilling(loc: Location) {
+    setBillingForId(loc.id)
+    setBillPlanName(loc.plan_name ?? "")
+    setBillPriceDollars(loc.plan_price_cents ? (loc.plan_price_cents / 100).toFixed(2) : "")
+    setBillMsg(null)
+    setCheckoutUrl(null)
+  }
+
+  async function handleSavePlanPrice() {
+    if (!billingForId) return
+    setBillSaving(true)
+    setBillMsg(null)
+    const cents = Math.round(parseFloat(billPriceDollars || "0") * 100)
+    const res = await setLocationPlanPrice(billingForId, billPlanName, cents)
+    setBillSaving(false)
+    if (res.error) { setBillMsg({ type: "err", text: res.error }); return }
+    setBillMsg({ type: "ok", text: "Plan price saved." })
+    startTransition(() => { load() })
+  }
+
+  async function handleCreateCheckoutLink() {
+    if (!billingForId) return
+    setBillSaving(true)
+    setBillMsg(null)
+    const res = await createBillingCheckoutLink(billingForId)
+    setBillSaving(false)
+    if (res.error) { setBillMsg({ type: "err", text: res.error }); return }
+    setCheckoutUrl(res.url ?? null)
+  }
+
+  async function handleCancelBilling() {
+    if (!billingForId) return
+    if (!confirm("Cancel this tenant's platform subscription immediately?")) return
+    setBillSaving(true)
+    const res = await cancelLocationBilling(billingForId)
+    setBillSaving(false)
+    if (res.error) { setBillMsg({ type: "err", text: res.error }); return }
+    setBillMsg({ type: "ok", text: "Subscription cancelled." })
+    startTransition(() => { load() })
+  }
 
   async function openAdmins(locId: string) {
     setAdminsForId(locId)
@@ -152,6 +213,7 @@ export default function SuperAdminPage() {
               <th className="px-4 py-3 font-semibold text-slate-600">Domain</th>
               <th className="px-4 py-3 font-semibold text-slate-600">Plan</th>
               <th className="px-4 py-3 font-semibold text-slate-600">Status</th>
+              <th className="px-4 py-3 font-semibold text-slate-600">Billing</th>
               <th className="px-4 py-3 font-semibold text-slate-600">Added</th>
               <th className="px-4 py-3"></th>
             </tr>
@@ -189,6 +251,11 @@ export default function SuperAdminPage() {
                     <td className="px-4 py-2">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[loc.status]}`}>
                         {loc.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${BILLING_COLORS[loc.billing_status] ?? BILLING_COLORS.none}`}>
+                        {loc.billing_status}
                       </span>
                     </td>
                     <td className="px-4 py-2 text-slate-400 text-xs">
@@ -229,6 +296,15 @@ export default function SuperAdminPage() {
                         {loc.status}
                       </button>
                     </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => openBilling(loc)}
+                        title="Manage billing"
+                        className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${BILLING_COLORS[loc.billing_status] ?? BILLING_COLORS.none}`}
+                      >
+                        {loc.billing_status}{loc.plan_price_cents ? ` · $${(loc.plan_price_cents / 100).toFixed(0)}/mo` : ""}
+                      </button>
+                    </td>
                     <td className="px-4 py-3 text-slate-400 text-xs">
                       {new Date(loc.created_at).toLocaleDateString()}
                     </td>
@@ -246,6 +322,12 @@ export default function SuperAdminPage() {
                         >
                           Admins
                         </button>
+                        <button
+                          onClick={() => openBilling(loc)}
+                          className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+                        >
+                          Billing
+                        </button>
                       </div>
                     </td>
                   </>
@@ -254,7 +336,7 @@ export default function SuperAdminPage() {
             ))}
             {locations.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-slate-400 text-sm">
+                <td colSpan={8} className="px-4 py-12 text-center text-slate-400 text-sm">
                   No locations yet. <Link href="/super-admin/locations/new" className="text-indigo-600 hover:underline">Create the first one.</Link>
                 </td>
               </tr>
@@ -323,6 +405,81 @@ export default function SuperAdminPage() {
               <p className="text-xs text-slate-400 mt-2">
                 They'll get an email with a one-time sign-in link — no password to set up.
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Billing modal ────────────────────────────────────────────── */}
+      {billingForId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4" onClick={() => setBillingForId(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900">
+                Billing — {locations.find(l => l.id === billingForId)?.name}
+              </h3>
+              <button onClick={() => setBillingForId(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Plan name</label>
+                <input
+                  value={billPlanName}
+                  onChange={e => setBillPlanName(e.target.value)}
+                  placeholder="Starter"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Monthly price ($)</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  value={billPriceDollars}
+                  onChange={e => setBillPriceDollars(e.target.value)}
+                  placeholder="99.00"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+              <button
+                onClick={handleSavePlanPrice}
+                disabled={billSaving}
+                className="w-full bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+              >
+                {billSaving ? "Saving…" : "Save Plan Price"}
+              </button>
+
+              <div className="border-t border-slate-100 pt-4">
+                <button
+                  onClick={handleCreateCheckoutLink}
+                  disabled={billSaving}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+                >
+                  {billSaving ? "Generating…" : "Generate Checkout Link"}
+                </button>
+                {checkoutUrl && (
+                  <div className="mt-3 bg-slate-50 rounded-lg p-3">
+                    <p className="text-xs text-slate-500 mb-1">Send this to the tenant — they enter their own card:</p>
+                    <a href={checkoutUrl} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline break-all">{checkoutUrl}</a>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-100 pt-4">
+                <button
+                  onClick={handleCancelBilling}
+                  disabled={billSaving}
+                  className="w-full text-red-600 hover:text-red-700 text-sm font-medium py-2 disabled:opacity-50"
+                >
+                  Cancel Subscription
+                </button>
+              </div>
+
+              {billMsg && (
+                <p className={`text-xs font-medium ${billMsg.type === "ok" ? "text-green-600" : "text-red-500"}`}>
+                  {billMsg.text}
+                </p>
+              )}
             </div>
           </div>
         </div>

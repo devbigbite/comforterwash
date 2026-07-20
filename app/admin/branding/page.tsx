@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { getBrandingSettings, setBrandingSettings, uploadBrandLogo, type BrandingSettings } from "@/app/actions/branding"
+import { getFulfillmentMode, setFulfillmentMode, type FulfillmentMode } from "@/app/actions/walkin"
 
 const FIELD_CLS = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#0D2240]/20 bg-white"
 const LABEL_CLS = "block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5"
@@ -170,6 +171,63 @@ export default function BrandingPage() {
           {saved && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
         </div>
       </form>
+
+      <FulfillmentSection />
+    </div>
+  )
+}
+
+// ── Fulfillment mode — pickup/delivery vs. walk-in drop-off ───────────────────
+function FulfillmentSection() {
+  const [mode, setMode] = useState<FulfillmentMode | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    getFulfillmentMode().then(setMode)
+  }, [])
+
+  async function save(next: FulfillmentMode) {
+    setSaving(true)
+    setMode(next)
+    await setFulfillmentMode(next)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  if (!mode) return null
+
+  const OPTIONS: { value: FulfillmentMode; label: string; desc: string }[] = [
+    { value: "delivery", label: "Pickup & Delivery", desc: "Driver picks up and delivers every order (default)." },
+    { value: "walkin", label: "Walk-In Only", desc: "Customers drop bags off in person and pick them up — no driver dispatch." },
+    { value: "both", label: "Both", desc: "Offer pickup/delivery and take walk-in drop-offs." },
+  ]
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xl">🚪</span>
+        <h2 className="font-extrabold text-[#0D2240] text-base">Fulfillment</h2>
+      </div>
+      <p className="text-xs text-gray-400 mb-5">How customers get their laundry to and from you.</p>
+      <div className="grid sm:grid-cols-3 gap-3">
+        {OPTIONS.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            disabled={saving}
+            onClick={() => save(opt.value)}
+            className={`text-left rounded-xl border-2 p-4 transition-all disabled:opacity-50 ${
+              mode === opt.value ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 hover:border-gray-200"
+            }`}
+          >
+            <p className="font-bold text-[#0D2240] text-sm">{opt.label}</p>
+            <p className="text-xs text-gray-400 mt-1">{opt.desc}</p>
+          </button>
+        ))}
+      </div>
+      {saved && <p className="text-green-600 text-sm font-semibold mt-3">✓ Saved</p>}
     </div>
   )
 }

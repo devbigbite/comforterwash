@@ -7,14 +7,14 @@ import { requireSuperAdmin } from "@/lib/auth-guard"
 
 // ── Read ──────────────────────────────────────────────────────────────────────
 
-export async function getAllLocations(): Promise<(Location & { created_at: string })[]> {
+export async function getAllLocations(): Promise<(Location & { created_at: string; billing_status: string; plan_price_cents: number | null; plan_name: string | null })[]> {
   await requireSuperAdmin()
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("locations")
-    .select("id, slug, name, custom_domain, status, plan, created_at")
+    .select("id, slug, name, custom_domain, status, plan, created_at, billing_status, plan_price_cents, plan_name")
     .order("created_at", { ascending: true })
-  return (data ?? []) as (Location & { created_at: string })[]
+  return (data ?? []) as (Location & { created_at: string; billing_status: string; plan_price_cents: number | null; plan_name: string | null })[]
 }
 
 // ── Create ────────────────────────────────────────────────────────────────────
