@@ -250,6 +250,8 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
   const foldedWeight   = booking.folded_weight_lbs != null ? parseFloat(String(booking.folded_weight_lbs)) : null
   const weightDiff     = (weightOnFile && foldedWeight) ? Math.abs(foldedWeight - weightOnFile) : null
   const weightFlagged  = weightDiff !== null && weightDiff >= 4
+  const holdAtFacility = booking.hold_at_facility as boolean | null
+  const facilityDecisionMade = holdAtFacility !== null
 
   // Determine current processing stage from bags
   const allBagStatuses = bags?.map(b => b.status) ?? []
@@ -473,11 +475,23 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
 
         {/* Done */}
         {operatorDone && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
-            <p className="text-green-700 font-extrabold text-xl">✅ All done!</p>
-            <p className="text-green-600 text-base mt-1">
-              {outputBagCount ? `${outputBagCount} bags ready.` : "Bags are ready."} Driver will collect for delivery.
-            </p>
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center space-y-3">
+            <div>
+              <p className="text-green-700 font-extrabold text-xl">✅ All done!</p>
+              <p className="text-green-600 text-base mt-1">
+                {outputBagCount ? `${outputBagCount} bags ready.` : "Bags are ready."} Driver will collect for delivery.
+              </p>
+            </div>
+            {facilityDecisionMade ? (
+              <Link href={`/operator/order/${booking.id}/labels`}
+                className="inline-block bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-base px-6 py-3 rounded-xl transition-colors">
+                🖨️ Print Bag Receipts
+              </Link>
+            ) : (
+              <p className="text-amber-700 text-sm font-semibold bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                ⬇ Decide Floor vs. Storage below before printing receipts
+              </p>
+            )}
           </div>
         )}
 
@@ -488,7 +502,6 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
           const dDate = deliveryDate ? new Date(deliveryDate + "T12:00:00") : null
           const daysOut = dDate ? Math.round((dDate.getTime() - today.getTime()) / 86400000) : null
           const urgencyLabel = daysOut === 0 ? "Today" : daysOut === 1 ? "Tomorrow" : deliveryDate
-          const holdAtFacility = booking.hold_at_facility as boolean | null
           return (
             <div className={`rounded-2xl border shadow-sm p-4 ${holdAtFacility ? "bg-emerald-50 border-emerald-200" : holdAtFacility === false ? "bg-amber-50 border-amber-200" : "bg-white border-gray-100"}`}>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Floor vs. Storage — where do these bags go?</p>

@@ -2,6 +2,68 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 
+export interface UnprintedOrder {
+  id: string
+  short_code: string | null
+  bag_count: number
+  hold_at_facility: boolean
+  delivery_date: string | null
+}
+
+/**
+ * Orders that are finished (Floor/Storage decision made — the only way
+ * hold_at_facility gets set is from that decision, which only appears once
+ * the operator has marked the order Ready) and haven't had their bag
+ * receipts printed yet. Powers the shared print station's queue.
+ */
+export async function getUnprintedOrders(): Promise<UnprintedOrder[]> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from("bookings")
+    .select("id, short_code, output_bags, num_bags, hold_at_facility, delivery_date")
+    .not("hold_at_facility", "is", null)
+    .is("receipts_printed_at", null)
+    .not("status", "in", '("delivered","cancelled")')
+    .order("delivery_date", { ascending: true })
+
+  return (data ?? []).map(b => ({
+    id: b.id,
+    short_code: b.short_code,
+    bag_count: b.output_bags ?? b.num_bags ?? 1,
+    hold_at_facility: b.hold_at_facility as boolean,
+    delivery_date: b.delivery_date,
+  }))
+}
+
+export async function markReceiptsPrinted(bookingId: string): Promise<void> {
+  const supabase = createAdminClient()
+  await supabase.from("bookings").update({ receipts_printed_at: new Date().toISOString() }).eq("id", bookingId)
+}
+
+export interface PrintedOrder extends UnprintedOrder {
+  receipts_printed_at: string
+}
+
+/** Recently-printed orders, most recent first — for the station's reprint list. */
+export async function getPrintedOrders(): Promise<PrintedOrder[]> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from("bookings")
+    .select("id, short_code, output_bags, num_bags, hold_at_facility, delivery_date, receipts_printed_at")
+    .not("receipts_printed_at", "is", null)
+    .order("receipts_printed_at", { ascending: false })
+    .limit(50)
+
+  return (data ?? []).map(b => ({
+    id: b.id,
+    short_code: b.short_code,
+    bag_count: b.output_bags ?? b.num_bags ?? 1,
+    hold_at_facility: b.hold_at_facility as boolean,
+    delivery_date: b.delivery_date,
+    receipts_printed_at: b.receipts_printed_at as string,
+  }))
+}
+
 export interface OperatorOrder {
   id: string
   short_code: string | null

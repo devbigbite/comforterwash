@@ -120,6 +120,12 @@ function OperatorHomeInner() {
           </div>
           <div className="flex items-center gap-2">
             <a
+              href="/operator/station"
+              className="text-sm text-white bg-[#E8726A] hover:bg-[#d45f57] px-3 py-1.5 rounded-full transition-colors font-bold"
+            >
+              🖨️ Print Station
+            </a>
+            <a
               href="https://dexterlive.com/users/sign_in"
               target="_blank"
               rel="noopener noreferrer"

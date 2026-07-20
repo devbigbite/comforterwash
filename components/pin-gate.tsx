@@ -88,6 +88,7 @@ export function PinGate({ role, children }: PinGateProps) {
 
   function enterAsOwner() {
     const s: WorkerSession = { workerId: "owner", workerName: "Owner" }
+    saveSession(role, s)
     setSession(s)
   }
 
