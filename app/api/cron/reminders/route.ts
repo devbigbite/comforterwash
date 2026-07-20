@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { sendSMS } from "@/lib/sms"
 import { sendPickupReminderToCustomer } from "@/lib/email"
 import { todayET } from "@/lib/date-et"
+import { getBranding } from "@/lib/location"
 
 // Vercel cron calls this route — secured by CRON_SECRET
 export async function GET(req: NextRequest) {
@@ -34,6 +35,7 @@ export async function GET(req: NextRequest) {
   let smsSent = 0
   let emailSent = 0
   const errors: string[] = []
+  const branding = await getBranding()
 
   for (const booking of pickups) {
     const firstName = booking.customer_name?.split(" ")[0] ?? "there"
@@ -41,7 +43,7 @@ export async function GET(req: NextRequest) {
 
     // SMS reminder
     if (booking.customer_phone) {
-      const msg = `Hi ${firstName}! Reminder: WashFold Orlando will be picking up your laundry today between ${timeWindow}. Please have it ready! Questions? Reply to this message.`
+      const msg = `Hi ${firstName}! Reminder: ${branding.business_name} will be picking up your laundry today between ${timeWindow}. Please have it ready! Questions? Reply to this message.`
       const smsResult = await sendSMS(booking.customer_phone, msg)
       if (smsResult.success) smsSent++
       else errors.push(`SMS ${booking.id}: ${smsResult.error}`)

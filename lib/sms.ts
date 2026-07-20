@@ -1,18 +1,22 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getBranding } from "@/lib/location"
 
 // ── SMS templates ────────────────────────────────────────────────────────────
+// Last arg on every template is the business name — always supplied by
+// sendBookingNotification below via getBranding(), defaulting to
+// "WashFold Orlando" so nothing changes if it's ever omitted.
 
 const SMS_TEMPLATES = {
-  booking_confirmed: (name: string, pickupDate: string, pickupTime: string) =>
-    `Hi ${name}! Your WashFold Orlando booking is confirmed. Pickup scheduled for ${pickupDate} between ${pickupTime}.`,
+  booking_confirmed: (name: string, pickupDate: string, pickupTime: string, businessName = "WashFold Orlando") =>
+    `Hi ${name}! Your ${businessName} booking is confirmed. Pickup scheduled for ${pickupDate} between ${pickupTime}.`,
 
   pickup_reminder: (name: string, pickupTime: string) =>
     `Hi ${name}! Reminder: We'll be picking up your laundry today between ${pickupTime}. Just leave it by your door. See you soon!`,
 
-  picked_up: (name: string, deliveryDate: string) =>
-    `Hi ${name}! We've picked up your laundry. Estimated delivery: ${deliveryDate}. - WashFold Orlando`,
+  picked_up: (name: string, deliveryDate: string, businessName = "WashFold Orlando") =>
+    `Hi ${name}! We've picked up your laundry. Estimated delivery: ${deliveryDate}. - ${businessName}`,
 
   // Not used in the current flow — kept for manual use if needed
   in_progress: (name: string) =>
@@ -21,8 +25,8 @@ const SMS_TEMPLATES = {
   out_for_delivery: (name: string, deliveryTime: string) =>
     `Hi ${name}! Your fresh, clean laundry is out for delivery! Expect it between ${deliveryTime} today.`,
 
-  delivered: (name: string) =>
-    `Hi ${name}! Your laundry has been delivered! Thanks for choosing WashFold Orlando 🧺`,
+  delivered: (name: string, businessName = "WashFold Orlando") =>
+    `Hi ${name}! Your laundry has been delivered! Thanks for choosing ${businessName} 🧺`,
 }
 
 // ── Core send function — Twilio REST API via fetch ───────────────────────────
@@ -97,7 +101,10 @@ export async function sendBookingNotification(
     throw new Error("Booking not found")
   }
 
-  const message = SMS_TEMPLATES[notificationType](...(templateArgs as [string, ...string[]]))
+  const branding = await getBranding()
+  // Extra trailing arg is ignored by templates that don't declare a
+  // businessName param — safe to always pass it.
+  const message = SMS_TEMPLATES[notificationType](...(templateArgs as [string, ...string[]]), branding.business_name)
   const result  = await sendSMS(booking.customer_phone, message)
 
   if (result.success) {

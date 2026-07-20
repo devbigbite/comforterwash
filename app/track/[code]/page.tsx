@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getBranding } from "@/lib/location"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 
@@ -97,6 +98,7 @@ function formatTime(isoStr: string) {
 export default async function TrackPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
   const supabase = createAdminClient()
+  const branding = await getBranding()
 
   // Look up booking by short_code
   const { data: booking } = await supabase
@@ -149,7 +151,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
             <path d="M8 24 Q11 19 14 24 Q17 29 20 24 Q23 19 26 24 Q29 29 32 24 Q35 19 38 24"
               stroke="#E8726A" strokeWidth="3" strokeLinecap="round" fill="none" />
           </svg>
-          WashFold Orlando
+          {branding.business_name}
         </Link>
         <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 mb-3">
           <span className="text-lg">{serviceIcon}</span>
@@ -303,7 +305,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
         {/* ── Contact footer ── */}
         <div className="bg-[#0D2240] rounded-2xl p-5 text-center">
           <p className="text-white font-extrabold mb-1">Questions about your order?</p>
-          <p className="text-white/50 text-sm mb-4">Contact WashFold Orlando and mention your order code.</p>
+          <p className="text-white/50 text-sm mb-4">Contact {branding.business_name} and mention your order code.</p>
           <p className="text-[#E8726A] font-black text-lg tracking-widest font-mono">{code.toUpperCase()}</p>
         </div>
 

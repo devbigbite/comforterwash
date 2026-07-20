@@ -121,6 +121,7 @@ export default async function AdminHub() {
       icon: <Megaphone className="h-7 w-7" style={{ color: "#d97706" }} />,
       primaryHref: "/admin/promos",
       links: [
+        { label: "Branding", href: "/admin/branding" },
         { label: "Promotions", href: "/admin/promos" },
         { label: "Site Images", href: "/admin/images" },
         { label: "Email Templates", href: "/admin/templates" },

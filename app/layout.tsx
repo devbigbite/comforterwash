@@ -6,6 +6,7 @@ import { cookies } from "next/headers"
 import { LangProvider } from "@/components/lang-provider"
 import { SiteNav } from "@/components/site-nav"
 import type { Locale } from "@/lib/i18n"
+import { getBranding } from "@/lib/location"
 import "./globals.css"
 
 const inter = Inter({
@@ -14,11 +15,17 @@ const inter = Inter({
   variable: "--font-inter",
 })
 
-export const metadata: Metadata = {
-  title: "WashFold Orlando – Comforter Wash & Delivery | $33 Any Size",
-  description:
-    "Professional comforter washing with free pickup & delivery in Orlando. $33 per comforter, any size. 72-hour turnaround. Schedule your pickup online — Mon through Wed.",
-  keywords: "comforter cleaning Orlando, comforter wash delivery Orlando, laundry pickup Orlando",
+// Per-tenant page title/description — falls back to the original WashFold
+// Orlando copy if a tenant hasn't set a tagline yet.
+export async function generateMetadata(): Promise<Metadata> {
+  const b = await getBranding()
+  const tagline = b.tagline ?? "Comforter Wash & Delivery | $33 Any Size"
+  return {
+    title: `${b.business_name} – ${tagline}`,
+    description:
+      "Professional comforter washing with free pickup & delivery. $33 per comforter, any size. 72-hour turnaround. Schedule your pickup online — Mon through Wed.",
+    keywords: "comforter cleaning, comforter wash delivery, laundry pickup",
+  }
 }
 
 export default async function RootLayout({

@@ -22,6 +22,27 @@ export interface Location {
   custom_domain: string | null
   status: "active" | "inactive" | "suspended"
   plan: string | null
+  business_name: string | null
+  tagline: string | null
+  logo_url: string | null
+  primary_color: string
+  accent_color: string
+  support_phone: string | null
+  support_email: string | null
+  address: string | null
+}
+
+// ── Fallback branding — used only if a location row is somehow missing these
+// fields (should never happen once seeded, but keeps pages from breaking) ────
+export const DEFAULT_BRANDING = {
+  business_name: "WashFold Orlando",
+  tagline: null as string | null,
+  logo_url: null as string | null,
+  primary_color: "#0D2240",
+  accent_color: "#E8726A",
+  support_phone: "+14073002999",
+  support_email: "hello@washfoldorlando.com",
+  address: "10524 Moss Park Rd, Ste 204177, Orlando, FL 32832",
 }
 
 // ── Get just the location_id (most common use case) ──────────────────────────
@@ -36,10 +57,35 @@ export async function getLocation(): Promise<Location | null> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("locations")
-    .select("id, slug, name, custom_domain, status, plan")
+    .select("id, slug, name, custom_domain, status, plan, business_name, tagline, logo_url, primary_color, accent_color, support_phone, support_email, address")
     .eq("id", locationId)
     .single()
-  return data as Location | null
+  if (!data) return null
+  return {
+    ...data,
+    business_name: data.business_name ?? DEFAULT_BRANDING.business_name,
+    primary_color: data.primary_color ?? DEFAULT_BRANDING.primary_color,
+    accent_color:  data.accent_color  ?? DEFAULT_BRANDING.accent_color,
+    support_phone: data.support_phone ?? DEFAULT_BRANDING.support_phone,
+    support_email: data.support_email ?? DEFAULT_BRANDING.support_email,
+    address:       data.address       ?? DEFAULT_BRANDING.address,
+  } as Location
+}
+
+// ── Get just the branding subset (cheap, for headers/footers/emails) ─────────
+export async function getBranding() {
+  const loc = await getLocation()
+  if (!loc) return DEFAULT_BRANDING
+  return {
+    business_name: loc.business_name ?? DEFAULT_BRANDING.business_name,
+    tagline:       loc.tagline,
+    logo_url:      loc.logo_url,
+    primary_color: loc.primary_color,
+    accent_color:  loc.accent_color,
+    support_phone: loc.support_phone ?? DEFAULT_BRANDING.support_phone,
+    support_email: loc.support_email ?? DEFAULT_BRANDING.support_email,
+    address:       loc.address ?? DEFAULT_BRANDING.address,
+  }
 }
 
 // ── Used in middleware (edge-safe, no next/headers) ───────────────────────────

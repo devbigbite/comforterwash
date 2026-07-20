@@ -39,7 +39,29 @@ const BASE_STYLES = `
   </style>
 `
 
-function emailShell(content: string): string {
+// ─── Branding — passed in from lib/location.ts's getBranding() at send time.
+// Defaults keep every existing call site working unchanged if it doesn't
+// pass branding yet (e.g. templates not updated in this pass).
+export interface EmailBranding {
+  businessName: string
+  primaryColor: string
+  accentColor: string
+  supportPhone: string
+  websiteDomain: string   // no protocol, e.g. "washfoldorlando.com"
+}
+
+export const DEFAULT_EMAIL_BRANDING: EmailBranding = {
+  businessName: "WashFold Orlando",
+  primaryColor: "#0D2240",
+  accentColor: "#E8726A",
+  supportPhone: "(407) 123-4567",
+  websiteDomain: "washfoldorlando.com",
+}
+
+function emailShell(content: string, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): string {
+  const { businessName, accentColor, websiteDomain } = branding
+  const [firstWord, ...restWords] = businessName.split(" ")
+  const rest = restWords.join(" ")
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -51,12 +73,12 @@ function emailShell(content: string): string {
   <div class="wrapper">
     <div class="card">
       <div class="header">
-        <div class="logo-text">Wash<span class="logo-coral">Fold</span> Orlando</div>
+        <div class="logo-text">${firstWord}${rest ? ` <span class="logo-coral">${rest}</span>` : ""}</div>
       </div>
       ${content}
     </div>
     <div style="text-align:center;margin-top:20px;">
-      <p style="font-size:11px;color:#9ca3af;">© 2025 WashFold Orlando · <a href="https://washfoldorlando.com" style="color:#E8726A;">washfoldorlando.com</a></p>
+      <p style="font-size:11px;color:#9ca3af;">© ${new Date().getFullYear()} ${businessName} · <a href="https://${websiteDomain}" style="color:${accentColor};">${websiteDomain}</a></p>
     </div>
   </div>
 </body>
@@ -105,7 +127,7 @@ export interface BookingConfirmationData {
   shortCode?: string       // 6-digit track code, e.g. "523847"
 }
 
-export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
+export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: EmailTemplateOverride = {}, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
   const isComforter = d.serviceType === "comforter_wash"
   const isWashFold  = d.serviceType === "wash_fold"
@@ -134,7 +156,7 @@ export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: Em
       </div>
 
       ${d.shortCode ? `
-      <a href="https://washfoldorlando.com/track/${d.shortCode}" class="cta-button">
+      <a href="https://${branding.websiteDomain}/track/${d.shortCode}" class="cta-button">
         🗺️ Track Your Order
       </a>
       <p style="font-size:12px;color:#9ca3af;text-align:center;margin-top:-16px;margin-bottom:24px;">
@@ -147,14 +169,14 @@ export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: Em
       </div>
 
       <p style="font-size:14px;color:#374151;margin-bottom:8px;">Questions? Reply to this email or text us anytime.</p>
-      <p style="font-size:14px;color:#374151;"><strong>📞 (407) 123-4567</strong></p>
+      <p style="font-size:14px;color:#374151;"><strong>📞 ${branding.supportPhone}</strong></p>
     </div>
     <div class="footer">
-      <p>WashFold Orlando · Pickup &amp; Delivery Laundry Service<br/>
-      <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+      <p>${branding.businessName} · Pickup &amp; Delivery Laundry Service<br/>
+      <a href="https://${branding.websiteDomain}">${branding.websiteDomain}</a></p>
       ${ov.footer_note !== null && ov.footer_note !== undefined ? `<p style="margin-top:10px;font-size:11px;color:#b0b8c4;">${ov.footer_note}</p>` : ""}
     </div>
-  `)
+  `, branding)
 
   return {
     subject: ov.subject?.replace(/\{\{service_type\}\}/g, serviceLabel(d.serviceType).replace(/&amp;/g, "&")).replace(/\{\{pickup_date\}\}/g, d.pickupDate) ?? `✅ Booking confirmed — ${serviceLabel(d.serviceType).replace(/&amp;/g, "&")} pickup ${d.pickupDate}`,
@@ -181,7 +203,7 @@ export interface AdminNewOrderData {
   subscriptionFrequency?: string
 }
 
-export function buildAdminNewOrderEmail(d: AdminNewOrderData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
+export function buildAdminNewOrderEmail(d: AdminNewOrderData, ov: EmailTemplateOverride = {}, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): { subject: string; html: string } {
   const isRecurring = d.subscriptionFrequency && d.subscriptionFrequency !== "one_time"
   const freqLabel = d.subscriptionFrequency === "weekly" ? "Weekly" : d.subscriptionFrequency === "biweekly" ? "Bi-weekly" : "One-time"
 
@@ -213,12 +235,12 @@ export function buildAdminNewOrderEmail(d: AdminNewOrderData, ov: EmailTemplateO
         ${detailRow("Booking ID", `<span style="font-family:monospace;font-size:12px;">${d.bookingId}</span>`)}
       </div>
 
-      <a href="https://washfoldorlando.com/admin" class="cta-button">View in Admin Dashboard →</a>
+      <a href="https://${branding.websiteDomain}/admin" class="cta-button">View in Admin Dashboard →</a>
     </div>
     <div class="footer">
-      <p>This is an internal alert for WashFold Orlando staff.</p>
+      <p>This is an internal alert for ${branding.businessName} staff.</p>
     </div>
-  `)
+  `, branding)
 
   return {
     subject: ov.subject?.replace(/\{\{customer_name\}\}/g, d.customerName).replace(/\{\{service_type\}\}/g, freqLabel.toLowerCase()).replace(/\{\{pickup_date\}\}/g, d.pickupDate) ?? `🔔 New ${freqLabel.toLowerCase()} order — ${d.customerName} · ${d.pickupDate}`,
@@ -235,7 +257,7 @@ export interface PickupReminderData {
   serviceType: string
 }
 
-export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
+export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplateOverride = {}, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
 
   const html = emailShell(`
@@ -257,17 +279,17 @@ export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplat
       ${ov.contact_note != null
         ? `<p style="font-size:14px;color:#374151;">${ov.contact_note}</p>`
         : `<p style="font-size:14px;color:#374151;">Need to reschedule or have questions? Text or call us ASAP.</p>
-      <p style="font-size:14px;color:#374151;margin-top:8px;"><strong>📞 (407) 123-4567</strong></p>`
+      <p style="font-size:14px;color:#374151;margin-top:8px;"><strong>📞 ${branding.supportPhone}</strong></p>`
       }
     </div>
     <div class="footer">
-      <p>WashFold Orlando · <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+      <p>${branding.businessName} · <a href="https://${branding.websiteDomain}">${branding.websiteDomain}</a></p>
       ${ov.footer_note !== null && ov.footer_note !== undefined ? `<p style="margin-top:10px;font-size:11px;color:#b0b8c4;">${ov.footer_note}</p>` : ""}
     </div>
-  `)
+  `, branding)
 
   return {
-    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow) ?? `🚗 Pickup today ${d.pickupTimeWindow} — WashFold Orlando`,
+    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow) ?? `🚗 Pickup today ${d.pickupTimeWindow} — ${branding.businessName}`,
     html,
   }
 }
@@ -282,7 +304,7 @@ export interface OrderPickedUpData {
   pounds?: number
 }
 
-export function buildOrderPickedUpEmail(d: OrderPickedUpData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
+export function buildOrderPickedUpEmail(d: OrderPickedUpData, ov: EmailTemplateOverride = {}, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
   let itemText = "your laundry"
   if (d.serviceType === "comforter_wash") {
@@ -304,13 +326,13 @@ export function buildOrderPickedUpEmail(d: OrderPickedUpData, ov: EmailTemplateO
       <p style="font-size:14px;color:#374151;">We'll send another update when your order is out for delivery. Stay fresh! 👕</p>
     </div>
     <div class="footer">
-      <p>WashFold Orlando · <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+      <p>${branding.businessName} · <a href="https://${branding.websiteDomain}">${branding.websiteDomain}</a></p>
       ${ov.footer_note !== null && ov.footer_note !== undefined ? `<p style="margin-top:10px;font-size:11px;color:#b0b8c4;">${ov.footer_note}</p>` : ""}
     </div>
-  `)
+  `, branding)
 
   return {
-    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{delivery_date\}\}/g, d.deliveryDate) ?? `✅ Picked up! Delivery on ${d.deliveryDate} — WashFold Orlando`,
+    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{delivery_date\}\}/g, d.deliveryDate) ?? `✅ Picked up! Delivery on ${d.deliveryDate} — ${branding.businessName}`,
     html,
   }
 }
@@ -325,7 +347,7 @@ export interface OutForDeliveryData {
   finalTotal?: string
 }
 
-export function buildOutForDeliveryEmail(d: OutForDeliveryData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
+export function buildOutForDeliveryEmail(d: OutForDeliveryData, ov: EmailTemplateOverride = {}, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
 
   const html = emailShell(`
@@ -344,16 +366,16 @@ export function buildOutForDeliveryEmail(d: OutForDeliveryData, ov: EmailTemplat
         <p>🏡 <strong>Not home?</strong> Text us a safe place to leave your order and we'll take care of it.</p>
       </div>
 
-      <p style="font-size:14px;color:#374151;"><strong>📞 (407) 123-4567</strong></p>
+      <p style="font-size:14px;color:#374151;"><strong>📞 ${branding.supportPhone}</strong></p>
     </div>
     <div class="footer">
-      <p>WashFold Orlando · <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+      <p>${branding.businessName} · <a href="https://${branding.websiteDomain}">${branding.websiteDomain}</a></p>
       ${ov.footer_note !== null && ov.footer_note !== undefined ? `<p style="margin-top:10px;font-size:11px;color:#b0b8c4;">${ov.footer_note}</p>` : ""}
     </div>
-  `)
+  `, branding)
 
   return {
-    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{delivery_time\}\}/g, d.deliveryTimeWindow) ?? `🚗 Out for delivery today ${d.deliveryTimeWindow} — WashFold Orlando`,
+    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{delivery_time\}\}/g, d.deliveryTimeWindow) ?? `🚗 Out for delivery today ${d.deliveryTimeWindow} — ${branding.businessName}`,
     html,
   }
 }
@@ -366,7 +388,7 @@ export interface DeliveredData {
   bookingId: string
 }
 
-export function buildDeliveredEmail(d: DeliveredData, ov: EmailTemplateOverride = {}): { subject: string; html: string } {
+export function buildDeliveredEmail(d: DeliveredData, ov: EmailTemplateOverride = {}, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
 
   const html = emailShell(`
@@ -381,17 +403,17 @@ export function buildDeliveredEmail(d: DeliveredData, ov: EmailTemplateOverride 
 
       <a href="https://g.page/r/washfoldorlando/review" class="cta-button">${ov.cta_text ?? "Leave Us a Google Review ⭐"}</a>
 
-      <p style="font-size:13px;color:#9ca3af;margin-top:16px;">Booking #${d.bookingId.slice(0, 8).toUpperCase()} · <a href="https://washfoldorlando.com" style="color:#E8726A;">Book again</a></p>
+      <p style="font-size:13px;color:#9ca3af;margin-top:16px;">Booking #${d.bookingId.slice(0, 8).toUpperCase()} · <a href="https://${branding.websiteDomain}" style="color:${branding.accentColor};">Book again</a></p>
     </div>
     <div class="footer">
-      <p>Thank you for choosing WashFold Orlando!<br/>
-      <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+      <p>Thank you for choosing ${branding.businessName}!<br/>
+      <a href="https://${branding.websiteDomain}">${branding.websiteDomain}</a></p>
       ${ov.footer_note !== null && ov.footer_note !== undefined ? `<p style="margin-top:10px;font-size:11px;color:#b0b8c4;">${ov.footer_note}</p>` : ""}
     </div>
-  `)
+  `, branding)
 
   return {
-    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName) ?? `🎉 Delivered! Thanks for choosing WashFold Orlando`,
+    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName) ?? `🎉 Delivered! Thanks for choosing ${branding.businessName}`,
     html,
   }
 }
@@ -403,13 +425,13 @@ export interface AccountReadyData {
   isRecurring: boolean
 }
 
-export function buildAccountReadyEmail(d: AccountReadyData): { subject: string; html: string } {
+export function buildAccountReadyEmail(d: AccountReadyData, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
 
   const html = emailShell(`
     <div class="body">
       <div class="hero-badge">🔑 Account Ready</div>
-      <h1>Your WashFold account is set up, ${firstName}!</h1>
+      <h1>Your ${branding.businessName} account is set up, ${firstName}!</h1>
       <p class="subtitle">${
         d.isRecurring
           ? "Your recurring service is active. Access your account to view upcoming pickups, pause, or make changes anytime."
@@ -418,15 +440,15 @@ export function buildAccountReadyEmail(d: AccountReadyData): { subject: string; 
 
       <a href="${d.magicLink}" class="cta-button">Access My Account →</a>
 
-      <p style="font-size:13px;color:#6b7280;margin-top:8px;">This link is valid for 24 hours. After that, visit <a href="https://washfoldorlando.com/login" style="color:#E8726A;">washfoldorlando.com/login</a> to sign in.</p>
+      <p style="font-size:13px;color:#6b7280;margin-top:8px;">This link is valid for 24 hours. After that, visit <a href="https://${branding.websiteDomain}/login" style="color:${branding.accentColor};">${branding.websiteDomain}/login</a> to sign in.</p>
     </div>
     <div class="footer">
-      <p>WashFold Orlando · <a href="https://washfoldorlando.com">washfoldorlando.com</a></p>
+      <p>${branding.businessName} · <a href="https://${branding.websiteDomain}">${branding.websiteDomain}</a></p>
     </div>
-  `)
+  `, branding)
 
   return {
-    subject: `🔑 Access your WashFold Orlando account`,
+    subject: `🔑 Access your ${branding.businessName} account`,
     html,
   }
 }

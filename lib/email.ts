@@ -17,15 +17,40 @@ import {
   type DeliveredData,
 } from "./email-templates"
 import { getEmailTemplate } from "@/app/actions/email-templates"
+import { getBranding } from "@/lib/location"
+import type { EmailBranding } from "./email-templates"
 
 // ─────────────────────────────────────────────────────────────────
 // Configuration
 // ─────────────────────────────────────────────────────────────────
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing_configure_in_vercel")
 
-const FROM_CUSTOMER = "WashFold Orlando <clean@washfoldorlando.com>"
-const FROM_ADMIN    = "WashFold Orlando <clean@washfoldorlando.com>"
-const ADMIN_EMAIL   = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
+// Sending address stays fixed to the verified domain — the display name in
+// front of it is what changes per tenant (real per-tenant sending domains
+// are a bigger Phase 3/4 lift).
+const SEND_DOMAIN = "clean@washfoldorlando.com"
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
+
+async function getEmailBranding(): Promise<EmailBranding> {
+  const b = await getBranding()
+  return {
+    businessName: b.business_name,
+    primaryColor: b.primary_color,
+    accentColor: b.accent_color,
+    supportPhone: b.support_phone ?? "(407) 123-4567",
+    websiteDomain: "washfoldorlando.com",
+  }
+}
+
+async function fromCustomer(): Promise<string> {
+  const b = await getEmailBranding()
+  return `${b.businessName} <${SEND_DOMAIN}>`
+}
+
+async function fromAdmin(): Promise<string> {
+  const b = await getEmailBranding()
+  return `${b.businessName} <${SEND_DOMAIN}>`
+}
 
 // ─────────────────────────────────────────────────────────────────
 // Generic send helper (swallows errors so they don't break payments)
@@ -47,18 +72,18 @@ async function safeSend(payload: Parameters<typeof resend.emails.send>[0]) {
 // 1. Customer: Booking Confirmation
 // ─────────────────────────────────────────────────────────────────
 export async function sendBookingConfirmationEmail(data: BookingConfirmationData) {
-  const ov = await getEmailTemplate("customer_booking_confirmation")
-  const { subject, html } = buildBookingConfirmationEmail(data, ov ?? {})
-  return safeSend({ from: FROM_CUSTOMER, to: [data.customerEmail], subject, html })
+  const [ov, branding] = await Promise.all([getEmailTemplate("customer_booking_confirmation"), getEmailBranding()])
+  const { subject, html } = buildBookingConfirmationEmail(data, ov ?? {}, branding)
+  return safeSend({ from: await fromCustomer(), to: [data.customerEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
 // 2. Admin: New Order Alert
 // ─────────────────────────────────────────────────────────────────
 export async function sendAdminNewOrderEmail(data: AdminNewOrderData) {
-  const ov = await getEmailTemplate("admin_new_order")
-  const { subject, html } = buildAdminNewOrderEmail(data, ov ?? {})
-  return safeSend({ from: FROM_ADMIN, to: [ADMIN_EMAIL], subject, html })
+  const [ov, branding] = await Promise.all([getEmailTemplate("admin_new_order"), getEmailBranding()])
+  const { subject, html } = buildAdminNewOrderEmail(data, ov ?? {}, branding)
+  return safeSend({ from: await fromAdmin(), to: [ADMIN_EMAIL], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -72,36 +97,36 @@ export async function sendPickupReminderEmail(data: PickupReminderData) {
 }
 
 export async function sendPickupReminderToCustomer(toEmail: string, data: PickupReminderData) {
-  const ov = await getEmailTemplate("pickup_reminder")
-  const { subject, html } = buildPickupReminderEmail(data, ov ?? {})
-  return safeSend({ from: FROM_CUSTOMER, to: [toEmail], subject, html })
+  const [ov, branding] = await Promise.all([getEmailTemplate("pickup_reminder"), getEmailBranding()])
+  const { subject, html } = buildPickupReminderEmail(data, ov ?? {}, branding)
+  return safeSend({ from: await fromCustomer(), to: [toEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
 // 4. Customer: Order Picked Up
 // ─────────────────────────────────────────────────────────────────
 export async function sendOrderPickedUpEmail(toEmail: string, data: OrderPickedUpData) {
-  const ov = await getEmailTemplate("order_picked_up")
-  const { subject, html } = buildOrderPickedUpEmail(data, ov ?? {})
-  return safeSend({ from: FROM_CUSTOMER, to: [toEmail], subject, html })
+  const [ov, branding] = await Promise.all([getEmailTemplate("order_picked_up"), getEmailBranding()])
+  const { subject, html } = buildOrderPickedUpEmail(data, ov ?? {}, branding)
+  return safeSend({ from: await fromCustomer(), to: [toEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
 // 5. Customer: Out for Delivery
 // ─────────────────────────────────────────────────────────────────
 export async function sendOutForDeliveryEmail(toEmail: string, data: OutForDeliveryData) {
-  const ov = await getEmailTemplate("out_for_delivery")
-  const { subject, html } = buildOutForDeliveryEmail(data, ov ?? {})
-  return safeSend({ from: FROM_CUSTOMER, to: [toEmail], subject, html })
+  const [ov, branding] = await Promise.all([getEmailTemplate("out_for_delivery"), getEmailBranding()])
+  const { subject, html } = buildOutForDeliveryEmail(data, ov ?? {}, branding)
+  return safeSend({ from: await fromCustomer(), to: [toEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
 // 6. Customer: Delivered
 // ─────────────────────────────────────────────────────────────────
 export async function sendDeliveredEmail(toEmail: string, data: DeliveredData) {
-  const ov = await getEmailTemplate("delivered")
-  const { subject, html } = buildDeliveredEmail(data, ov ?? {})
-  return safeSend({ from: FROM_CUSTOMER, to: [toEmail], subject, html })
+  const [ov, branding] = await Promise.all([getEmailTemplate("delivered"), getEmailBranding()])
+  const { subject, html } = buildDeliveredEmail(data, ov ?? {}, branding)
+  return safeSend({ from: await fromCustomer(), to: [toEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -117,6 +142,7 @@ export interface ScheduleAlertData {
 }
 
 export async function sendScheduleAlertEmail(to: string, data: ScheduleAlertData) {
+  const branding = await getEmailBranding()
   const flagLabels: Record<string, string> = {
     unscheduled: "clocked in with no shift scheduled",
     early_in:    `clocked in ${data.flagMinutes} min early`,
@@ -128,19 +154,19 @@ export async function sendScheduleAlertEmail(to: string, data: ScheduleAlertData
   const subject = `⚠️ Schedule alert — ${data.workerName} ${description}`
   const html = `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-      <h2 style="color:#0D2240;margin-bottom:4px">Schedule Alert</h2>
-      <p style="color:#666;font-size:14px;margin-bottom:24px">WashFold Orlando · Staff Clock</p>
+      <h2 style="color:${branding.primaryColor};margin-bottom:4px">Schedule Alert</h2>
+      <p style="color:#666;font-size:14px;margin-bottom:24px">${branding.businessName} · Staff Clock</p>
       <table style="width:100%;border-collapse:collapse;font-size:14px">
-        <tr><td style="padding:8px 0;color:#888;width:140px">Worker</td><td style="font-weight:600;color:#0D2240">${data.workerName}</td></tr>
-        <tr><td style="padding:8px 0;color:#888">Role</td><td style="color:#0D2240">${data.role}</td></tr>
-        <tr><td style="padding:8px 0;color:#888">Alert</td><td style="color:#E8726A;font-weight:700;text-transform:capitalize">${description}</td></tr>
-        <tr><td style="padding:8px 0;color:#888">Clock time</td><td style="color:#0D2240">${data.clockTime}</td></tr>
-        ${data.scheduledTime ? `<tr><td style="padding:8px 0;color:#888">Scheduled</td><td style="color:#0D2240">${data.scheduledTime}</td></tr>` : ""}
+        <tr><td style="padding:8px 0;color:#888;width:140px">Worker</td><td style="font-weight:600;color:${branding.primaryColor}">${data.workerName}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Role</td><td style="color:${branding.primaryColor}">${data.role}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Alert</td><td style="color:${branding.accentColor};font-weight:700;text-transform:capitalize">${description}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Clock time</td><td style="color:${branding.primaryColor}">${data.clockTime}</td></tr>
+        ${data.scheduledTime ? `<tr><td style="padding:8px 0;color:#888">Scheduled</td><td style="color:${branding.primaryColor}">${data.scheduledTime}</td></tr>` : ""}
       </table>
       <p style="margin-top:24px;font-size:12px;color:#aaa">Review attendance at /admin/schedule</p>
     </div>
   `
-  return safeSend({ from: FROM_ADMIN, to: [to], subject, html })
+  return safeSend({ from: await fromAdmin(), to: [to], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -152,8 +178,9 @@ export async function sendAccountReadyEmail(
   magicLink: string,
   isRecurring: boolean,
 ) {
-  const { subject, html } = buildAccountReadyEmail({ customerName, magicLink, isRecurring })
-  return safeSend({ from: FROM_CUSTOMER, to: [toEmail], subject, html })
+  const branding = await getEmailBranding()
+  const { subject, html } = buildAccountReadyEmail({ customerName, magicLink, isRecurring }, branding)
+  return safeSend({ from: await fromCustomer(), to: [toEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -208,5 +235,5 @@ export async function sendFacilityArrivalEmail(toEmail: string, data: FacilityAr
       </p>
     </div>`
 
-  return safeSend({ from: FROM_ADMIN, to: [toEmail], subject, html })
+  return safeSend({ from: await fromAdmin(), to: [toEmail], subject, html })
 }
