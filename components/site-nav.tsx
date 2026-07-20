@@ -8,9 +8,9 @@ import { LangToggle } from "@/components/lang-toggle"
 export function Logo({ size = 40 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="24" cy="24" r="24" fill="#0D2240" />
+      <circle cx="24" cy="24" r="24" fill="var(--brand-primary)" />
       <path d="M8 24 Q11 19 14 24 Q17 29 20 24 Q23 19 26 24 Q29 29 32 24 Q35 19 38 24"
-        stroke="#E8726A" strokeWidth="3" strokeLinecap="round" fill="none" />
+        stroke="var(--brand-accent)" strokeWidth="3" strokeLinecap="round" fill="none" />
       <path d="M10 29 Q13 24 16 29 Q19 34 22 29 Q25 24 28 29 Q31 34 34 29"
         stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.25" />
     </svg>
@@ -54,7 +54,7 @@ export function SiteNav() {
   return (
     <>
       {/* Top utility bar */}
-      <div className="bg-[#0D2240] text-white/70 text-xs">
+      <div className="bg-[var(--brand-primary)] text-white/70 text-xs">
         <div className="mx-auto max-w-7xl px-4 h-9 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/login" className="hover:text-white transition-colors">{tr.common.signIn}</Link>
@@ -70,10 +70,10 @@ export function SiteNav() {
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <Logo size={42} />
             <div className="leading-tight">
-              <span className="block text-[#0D2240] font-extrabold text-xl tracking-tight leading-none">
-                Wash<span className="text-[#E8726A]">Fold</span>
+              <span className="block text-[var(--brand-primary)] font-extrabold text-xl tracking-tight leading-none">
+                Wash<span className="text-[var(--brand-accent)]">Fold</span>
               </span>
-              <span className="block text-[#0D2240]/40 text-[10px] font-semibold uppercase tracking-widest">Orlando</span>
+              <span className="block text-[var(--brand-primary)]/40 text-[10px] font-semibold uppercase tracking-widest">Orlando</span>
             </div>
           </Link>
 
@@ -82,7 +82,7 @@ export function SiteNav() {
               <a
                 key={n.label}
                 href={n.href}
-                className="px-3 py-2 text-sm font-semibold text-[#0D2240]/60 hover:text-[#E8726A] transition-colors rounded-lg hover:bg-orange-50 uppercase tracking-wide text-xs"
+                className="px-3 py-2 text-sm font-semibold text-[var(--brand-primary)]/60 hover:text-[var(--brand-accent)] transition-colors rounded-lg hover:bg-orange-50 uppercase tracking-wide text-xs"
               >
                 {n.label}
               </a>
@@ -93,7 +93,7 @@ export function SiteNav() {
 
           <a
             href={href("#services")}
-            className="shrink-0 bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-2.5 rounded-full transition-colors uppercase tracking-wide shadow-sm"
+            className="shrink-0 bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-2.5 rounded-full transition-colors uppercase tracking-wide shadow-sm"
           >
             {tr.common.schedulePickup}
           </a>

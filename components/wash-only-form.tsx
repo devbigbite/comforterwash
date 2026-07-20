@@ -73,12 +73,12 @@ function DateStrip({ selected, onSelect, isAvailable }: {
             <button key={i} type="button" disabled={!avail} onClick={() => onSelect(d)}
               className={cn(
                 "flex flex-col items-center justify-center w-[62px] rounded-2xl border-2 py-2.5 transition-all shrink-0",
-                sel ? "bg-[#E8726A] border-[#E8726A] text-white shadow-md"
-                  : avail ? "bg-white border-gray-200 text-[#0D2240] hover:border-[#E8726A] hover:shadow-sm cursor-pointer"
+                sel ? "bg-[var(--brand-accent)] border-[var(--brand-accent)] text-white shadow-md"
+                  : avail ? "bg-white border-gray-200 text-[var(--brand-primary)] hover:border-[var(--brand-accent)] hover:shadow-sm cursor-pointer"
                   : "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
               )}>
               <span className={cn("text-[10px] font-bold uppercase tracking-wider", sel ? "text-white/80" : avail ? "text-gray-400" : "text-gray-300")}>{DAY_ABBR[d.getDay()]}</span>
-              <span className={cn("text-xl font-extrabold leading-tight my-0.5", sel ? "text-white" : avail ? "text-[#0D2240]" : "text-gray-300")}>{d.getDate()}</span>
+              <span className={cn("text-xl font-extrabold leading-tight my-0.5", sel ? "text-white" : avail ? "text-[var(--brand-primary)]" : "text-gray-300")}>{d.getDate()}</span>
               <span className={cn("text-[10px] font-bold uppercase", sel ? "text-white/70" : avail ? "text-gray-400" : "text-gray-300")}>{MON_ABBR[d.getMonth()]}</span>
             </button>
           )
@@ -96,7 +96,7 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
         {windows.map((w) => (
           <button key={w.id} type="button" onClick={() => onChange(w.label)}
             className={cn("px-6 py-2.5 rounded-xl font-bold text-sm transition-all",
-              value === w.label ? "bg-[#E8726A] text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200")}>
+              value === w.label ? "bg-[var(--brand-accent)] text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200")}>
             {w.label}
           </button>
         ))}
@@ -317,7 +317,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
       <Card className="shadow-lg border-0 ring-1 ring-gray-100 overflow-hidden">
         <CardContent className="pt-6 space-y-5">
           <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5">
-            <h3 className="font-bold text-[#0D2240] text-sm uppercase tracking-wide mb-3">{tw.orderSummary}</h3>
+            <h3 className="font-bold text-[var(--brand-primary)] text-sm uppercase tracking-wide mb-3">{tw.orderSummary}</h3>
             {[
               { label: tf.labelService, value: "Wash Only (no folding)" },
               { label: tf.labelRate, value: priceLabel },
@@ -338,7 +338,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
             ].map((row) => (
               <div key={row.label} className="flex justify-between gap-4 text-sm">
                 <span className="text-gray-400 shrink-0">{row.label}</span>
-                <span className="font-medium text-[#0D2240] text-right">{row.value}</span>
+                <span className="font-medium text-[var(--brand-primary)] text-right">{row.value}</span>
               </div>
             ))}
             {deliveryFeeCents > 0 && (
@@ -353,9 +353,9 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                 <span className="font-semibold">${(tipCents / 100).toFixed(2)}</span>
               </div>
             )}
-            <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
-              <span className="text-[#0D2240]">{tf.preAuthEst}</span>
-              <span className="text-[#E8726A]">${totalDisplay}</span>
+            <div className="border-t border-[var(--brand-primary)]/10 pt-2.5 flex justify-between font-extrabold text-base">
+              <span className="text-[var(--brand-primary)]">{tf.preAuthEst}</span>
+              <span className="text-[var(--brand-accent)]">${totalDisplay}</span>
             </div>
             <p className="text-[10px] text-gray-400">{tw.chargedAtSummary.replace("{priceLabel}", priceLabel).replace("20 lb", `${minLbs} lb`)}</p>
           </div>
@@ -405,14 +405,14 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
 
           {/* Post-payment: invite new customer to create an account */}
           {showAccountPrompt && !accountCreated && (
-            <div className="rounded-2xl border-2 border-[#0D2240]/15 bg-[#fdf6f5] p-5 space-y-3">
+            <div className="rounded-2xl border-2 border-[var(--brand-primary)]/15 bg-[#fdf6f5] p-5 space-y-3">
               <div>
-                <p className="font-bold text-[#0D2240] text-sm">Save your info for next time?</p>
+                <p className="font-bold text-[var(--brand-primary)] text-sm">Save your info for next time?</p>
                 <p className="text-xs text-gray-500 mt-1">We&apos;ll create a free account so you can re-order without re-entering everything.</p>
               </div>
               <div className="flex gap-2">
                 <Button
-                  className="flex-1 h-10 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
+                  className="flex-1 h-10 text-sm font-bold bg-[var(--brand-primary)] hover:bg-[#1a3a5c]"
                   disabled={accountCreating}
                   onClick={handleCreateAccount}
                 >
@@ -448,15 +448,15 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
             <div key={s.id} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center gap-1">
                 <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-                  step === s.id ? "bg-[#0D2240] text-white ring-4 ring-[#0D2240]/15"
-                    : (step as number) > s.id ? "bg-[#E8726A] text-white" : "bg-gray-100 text-gray-400")}>
+                  step === s.id ? "bg-[var(--brand-primary)] text-white ring-4 ring-[var(--brand-primary)]/15"
+                    : (step as number) > s.id ? "bg-[var(--brand-accent)] text-white" : "bg-gray-100 text-gray-400")}>
                   {(step as number) > s.id ? "✓" : s.id}
                 </div>
                 <span className={cn("text-[10px] font-semibold uppercase tracking-wide hidden sm:block",
-                  step === s.id ? "text-[#0D2240]" : "text-gray-300")}>{s.label}</span>
+                  step === s.id ? "text-[var(--brand-primary)]" : "text-gray-300")}>{s.label}</span>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={cn("flex-1 h-0.5 mx-2 mb-4 transition-colors", (step as number) > s.id ? "bg-[#E8726A]" : "bg-gray-100")} />
+                <div className={cn("flex-1 h-0.5 mx-2 mb-4 transition-colors", (step as number) > s.id ? "bg-[var(--brand-accent)]" : "bg-gray-100")} />
               )}
             </div>
           ))}
@@ -466,7 +466,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
         {step === 1 && (
           <div className="space-y-7">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tw.howManyBags}</h3>
+              <h3 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">{tw.howManyBags}</h3>
               <p className="text-sm text-gray-400">{tw.bagWeightNote}</p>
             </div>
 
@@ -475,16 +475,16 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                 <button type="button"
                   onClick={() => setFormData(p => { const bags = Math.max(1, p.numBags - 1); return { ...p, numBags: bags, pounds: bagsToEstLbs(bags) } })}
                   disabled={formData.numBags <= 1}
-                  className="w-12 h-12 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center disabled:opacity-25 hover:bg-[#0D2240] hover:text-white transition-colors">
+                  className="w-12 h-12 rounded-full border-2 border-[var(--brand-primary)] text-[var(--brand-primary)] font-bold text-2xl flex items-center justify-center disabled:opacity-25 hover:bg-[var(--brand-primary)] hover:text-white transition-colors">
                   −
                 </button>
                 <div className="text-center min-w-[90px]">
-                  <div className="text-6xl font-extrabold text-[#0D2240] leading-none tabular-nums">{formData.numBags}</div>
+                  <div className="text-6xl font-extrabold text-[var(--brand-primary)] leading-none tabular-nums">{formData.numBags}</div>
                   <div className="text-sm text-gray-400 mt-1.5 font-medium">{formData.numBags > 1 ? tf.bags : tf.bag}</div>
                 </div>
                 <button type="button"
                   onClick={() => setFormData(p => { const bags = p.numBags + 1; return { ...p, numBags: bags, pounds: bagsToEstLbs(bags) } })}
-                  className="w-12 h-12 rounded-full border-2 border-[#0D2240] text-[#0D2240] font-bold text-2xl flex items-center justify-center hover:bg-[#0D2240] hover:text-white transition-colors">
+                  className="w-12 h-12 rounded-full border-2 border-[var(--brand-primary)] text-[var(--brand-primary)] font-bold text-2xl flex items-center justify-center hover:bg-[var(--brand-primary)] hover:text-white transition-colors">
                   +
                 </button>
               </div>
@@ -493,7 +493,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                   <button key={n} type="button"
                     onClick={() => setFormData(p => ({ ...p, numBags: n, pounds: bagsToEstLbs(n) }))}
                     className={cn("px-4 py-1.5 rounded-full text-xs font-bold border-2 transition-all",
-                      formData.numBags === n ? "bg-[#0D2240] border-[#0D2240] text-white" : "border-gray-200 text-gray-500 hover:border-[#0D2240]")}>
+                      formData.numBags === n ? "bg-[var(--brand-primary)] border-[var(--brand-primary)] text-white" : "border-gray-200 text-gray-500 hover:border-[var(--brand-primary)]")}>
                     {n} {n > 1 ? tf.bags : tf.bag}
                   </button>
                 ))}
@@ -503,12 +503,12 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
             <div className="bg-[#fdf6f5] rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">{tw.estimatedWeight}</p>
-                  <p className="text-sm font-bold text-[#0D2240]">~{formData.pounds} lbs</p>
+                  <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{tw.estimatedWeight}</p>
+                  <p className="text-sm font-bold text-[var(--brand-primary)]">~{formData.pounds} lbs</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-[#0D2240]/50 font-medium uppercase tracking-wide">{tf.preAuthEst}</p>
-                  <p className="text-2xl font-extrabold text-[#E8726A]">${totalDisplay}</p>
+                  <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{tf.preAuthEst}</p>
+                  <p className="text-2xl font-extrabold text-[var(--brand-accent)]">${totalDisplay}</p>
                   <p className="text-xs text-gray-400">at {priceLabel}</p>
                 </div>
               </div>
@@ -517,8 +517,8 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
             <div className="space-y-6 border-t border-gray-100 pt-6">
               <div>
                 <div className="flex items-center gap-1.5 mb-3">
-                  <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">1</span>
-                  <h4 className="font-bold text-[#0D2240] text-sm">{tb.pickupDateTitle}</h4>
+                  <span className="w-5 h-5 rounded-full bg-[var(--brand-accent)] text-white text-[10px] font-bold flex items-center justify-center">1</span>
+                  <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tb.pickupDateTitle}</h4>
                 </div>
                 <DateStrip selected={formData.pickupDate} onSelect={(d) => setFormData(p => ({ ...p, pickupDate: d, deliveryDate: getEarliestRouteDelivery(d, activeRoutes) }))} isAvailable={isPickupAvailable} />
                 {formData.pickupDate && <TimeSlotPicker value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} label={tf.availableTimeSlots} windows={getTimeWindowsForDate(formData.pickupDate, activeRoutes, "pickup")} />}
@@ -526,8 +526,8 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
               {formData.pickupDate && formData.pickupTimeWindow && (
                 <div>
                   <div className="flex items-center gap-1.5 mb-3">
-                    <span className="w-5 h-5 rounded-full bg-[#E8726A] text-white text-[10px] font-bold flex items-center justify-center">2</span>
-                    <h4 className="font-bold text-[#0D2240] text-sm">{tb.deliveryDateTitle}</h4>
+                    <span className="w-5 h-5 rounded-full bg-[var(--brand-accent)] text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                    <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tb.deliveryDateTitle}</h4>
                     <span className="text-xs text-gray-400">— {tb.deliveryGapNote}</span>
                   </div>
                   <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} />
@@ -536,7 +536,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
               )}
             </div>
 
-            <Button className="w-full h-12 text-base font-bold bg-[#0D2240] hover:bg-[#1a3a5c] mt-2"
+            <Button className="w-full h-12 text-base font-bold bg-[var(--brand-primary)] hover:bg-[#1a3a5c] mt-2"
               disabled={!canStep1} onClick={() => setStep(2)}>
               {tf.continueDetergent}
             </Button>
@@ -547,28 +547,28 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
         {step === 2 && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.detergentPreference}</h3>
+              <h3 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">{tf.detergentPreference}</h3>
               <p className="text-sm text-gray-400">{two.clothesWashedNote}</p>
             </div>
             <div className="space-y-2">
               {detergentOptions.map((opt) => (
                 <label key={opt.id}
                   className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
-                    formData.detergentId === opt.id ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                    formData.detergentId === opt.id ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
                   <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                    formData.detergentId === opt.id ? "border-[#E8726A] bg-[#E8726A]" : "border-gray-300")}>
+                    formData.detergentId === opt.id ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]" : "border-gray-300")}>
                     {formData.detergentId === opt.id && <div className="w-2 h-2 rounded-full bg-white" />}
                   </div>
                   <input type="radio" className="sr-only" name="detergent" value={opt.id}
                     checked={formData.detergentId === opt.id}
                     onChange={() => setFormData(p => ({ ...p, detergentId: opt.id }))} />
                   <div className="flex-1">
-                    <p className="font-semibold text-[#0D2240] text-sm">{opt.name}</p>
+                    <p className="font-semibold text-[var(--brand-primary)] text-sm">{opt.name}</p>
                     <p className="text-xs text-gray-400">{opt.description}</p>
                   </div>
                   {opt.price_cents === 0
                     ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                    : <span className="text-[10px] font-bold text-[#0D2240] bg-[#0D2240]/10 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}</span>
+                    : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-[var(--brand-primary)]/10 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}</span>
                   }
                 </label>
               ))}
@@ -577,19 +577,19 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
               <div className="space-y-2">
                 {extraOptions.map((opt) => (
                   <label key={opt.id} className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
-                    formData.selectedExtras[opt.id] ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                    formData.selectedExtras[opt.id] ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
                     <Checkbox
                       checked={!!formData.selectedExtras[opt.id]}
                       onCheckedChange={(c) => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [opt.id]: c as boolean } }))}
                       className="shrink-0"
                     />
                     <div className="flex-1">
-                      <p className="font-semibold text-[#0D2240] text-sm">{opt.name}</p>
+                      <p className="font-semibold text-[var(--brand-primary)] text-sm">{opt.name}</p>
                       <p className="text-xs text-gray-400">{opt.description}</p>
                     </div>
                     {opt.price_cents === 0
                       ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                      : <span className="text-[10px] font-bold text-[#0D2240] bg-[#0D2240]/10 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}</span>
+                      : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-[var(--brand-primary)]/10 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}</span>
                     }
                   </label>
                 ))}
@@ -600,13 +600,13 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
             <div className="border-2 border-gray-100 rounded-2xl p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-bold text-[#0D2240] text-sm">🛏️ Add Comforters to this Pickup?</h4>
+                  <h4 className="font-bold text-[var(--brand-primary)] text-sm">🛏️ Add Comforters to this Pickup?</h4>
                   <p className="text-xs text-gray-400 mt-0.5">Flat rate per item · by size · same pickup run</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => { setComforterAddon(v => !v); if (comforterAddon) setComforterQtys({ twin: 0, full: 0, queen: 0, king: 0 }) }}
-                  className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${comforterAddon ? "bg-[#0D2240]" : "bg-gray-200"}`}
+                  className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${comforterAddon ? "bg-[var(--brand-primary)]" : "bg-gray-200"}`}
                 >
                   <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform ${comforterAddon ? "translate-x-5" : "translate-x-0"}`} />
                 </button>
@@ -614,9 +614,9 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
               {comforterAddon && (
                 <div className="space-y-2 pt-1">
                   {comforterPromo && (
-                    <div className="bg-[#E8726A]/10 border border-[#E8726A]/20 rounded-xl px-3 py-2 flex items-center gap-2">
+                    <div className="bg-[var(--brand-accent)]/10 border border-[var(--brand-accent)]/20 rounded-xl px-3 py-2 flex items-center gap-2">
                       <span className="text-sm">🎉</span>
-                      <p className="text-xs font-bold text-[#E8726A]">
+                      <p className="text-xs font-bold text-[var(--brand-accent)]">
                         Promo active — every comforter ${(comforterPromoCents / 100).toFixed(0)} any size
                       </p>
                     </div>
@@ -627,9 +627,9 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                     return (
                       <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-[#f7f8fb] border border-gray-100">
                         <div>
-                          <p className="font-semibold text-[#0D2240] text-sm">{s.label}</p>
+                          <p className="font-semibold text-[var(--brand-primary)] text-sm">{s.label}</p>
                           <p className="text-xs text-gray-400">
-                            {s.note} · <span className={comforterPromo && s.cents !== comforterPromoCents ? "text-[#E8726A] font-bold" : ""}>${(price / 100).toFixed(2)} ea</span>
+                            {s.note} · <span className={comforterPromo && s.cents !== comforterPromoCents ? "text-[var(--brand-accent)] font-bold" : ""}>${(price / 100).toFixed(2)} ea</span>
                             {comforterPromo && s.cents > comforterPromoCents && (
                               <span className="ml-1 line-through text-gray-300">${(s.cents / 100).toFixed(2)}</span>
                             )}
@@ -639,16 +639,16 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                           <button type="button"
                             onClick={() => setComforterQtys(q => ({ ...q, [s.id]: Math.max(0, q[s.id as CSize] - 1) }))}
                             className="w-7 h-7 rounded-full bg-gray-200 hover:bg-gray-300 text-sm font-bold flex items-center justify-center transition-colors">−</button>
-                          <span className="w-5 text-center font-extrabold text-[#0D2240] text-sm">{qty}</span>
+                          <span className="w-5 text-center font-extrabold text-[var(--brand-primary)] text-sm">{qty}</span>
                           <button type="button"
                             onClick={() => setComforterQtys(q => ({ ...q, [s.id]: q[s.id as CSize] + 1 }))}
-                            className="w-7 h-7 rounded-full bg-[#0D2240] hover:bg-[#1a3a5c] text-white text-sm font-bold flex items-center justify-center transition-colors">+</button>
+                            className="w-7 h-7 rounded-full bg-[var(--brand-primary)] hover:bg-[#1a3a5c] text-white text-sm font-bold flex items-center justify-center transition-colors">+</button>
                         </div>
                       </div>
                     )
                   })}
                   {comforterTotalCount > 0 && (
-                    <p className="text-xs text-right font-bold text-[#0D2240] pt-1">
+                    <p className="text-xs text-right font-bold text-[var(--brand-primary)] pt-1">
                       {comforterTotalCount} comforter{comforterTotalCount > 1 ? "s" : ""} added · +${(comforterSubtotalCents / 100).toFixed(2)}
                     </p>
                   )}
@@ -657,7 +657,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
             </div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>{tf.back}</Button>
-              <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]" onClick={() => setStep(3)}>
+              <Button className="flex-[2] h-12 text-sm font-bold bg-[var(--brand-primary)] hover:bg-[#1a3a5c]" onClick={() => setStep(3)}>
                 {tf.continueYourInfo}
               </Button>
             </div>
@@ -668,7 +668,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
         {step === 3 && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.whereToGo}</h3>
+              <h3 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">{tf.whereToGo}</h3>
               <p className="text-sm text-gray-400">Enter your contact info and service address.</p>
             </div>
             <div className="space-y-4">
@@ -678,16 +678,16 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                 { label: tf.phone, key: "phone", placeholder: "(407) 555-0100", type: "tel" },
               ].map(({ label, key, placeholder, type }) => (
                 <div key={key} className="space-y-1.5">
-                  <Label className="font-semibold text-[#0D2240] text-sm">{label}</Label>
+                  <Label className="font-semibold text-[var(--brand-primary)] text-sm">{label}</Label>
                   <Input type={type} placeholder={placeholder}
                     value={(formData as Record<string, unknown>)[key] as string}
                     onChange={(e) => setFormData(p => ({ ...p, [key]: e.target.value }))}
                     onBlur={key === "email" ? handleEmailBlur : key === "phone" ? handlePhoneBlur : undefined}
-                    className="h-12 border-gray-200 focus:border-[#E8726A] text-sm" />
+                    className="h-12 border-gray-200 focus:border-[var(--brand-accent)] text-sm" />
                   {key === "email" && emailCheckState === "otp_sent" && (
                     <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 space-y-3 mt-1">
-                      <p className="text-sm font-semibold text-[#0D2240]">
-                        👋 Welcome back! Enter the 6-digit code we sent to <span className="text-[#E8726A]">{formData.email}</span>
+                      <p className="text-sm font-semibold text-[var(--brand-primary)]">
+                        👋 Welcome back! Enter the 6-digit code we sent to <span className="text-[var(--brand-accent)]">{formData.email}</span>
                       </p>
                       <div className="flex gap-2">
                         <Input
@@ -696,13 +696,13 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                           placeholder="000000"
                           inputMode="numeric"
                           maxLength={6}
-                          className="font-mono text-center text-lg tracking-widest h-11 border-blue-200 focus:border-[#E8726A] w-36"
+                          className="font-mono text-center text-lg tracking-widest h-11 border-blue-200 focus:border-[var(--brand-accent)] w-36"
                         />
                         <button
                           type="button"
                           onClick={verifyOtp}
                           disabled={otpCode.length < 6 || otpLoading}
-                          className="flex-1 bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white text-sm font-bold rounded-lg transition-colors px-4"
+                          className="flex-1 bg-[var(--brand-primary)] hover:bg-[#1a3a5c] disabled:opacity-40 text-white text-sm font-bold rounded-lg transition-colors px-4"
                         >
                           {otpLoading ? "Verifying…" : "Sign in →"}
                         </button>
@@ -724,7 +724,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
 
               {/* Pickup address */}
               <div className="space-y-2">
-                <Label className="font-semibold text-[#0D2240] text-sm">Pickup Address</Label>
+                <Label className="font-semibold text-[var(--brand-primary)] text-sm">Pickup Address</Label>
                 <AddressAutocomplete
                   value={formData.pickupStreet}
                   onChange={street => setFormData(p => ({ ...p, pickupStreet: street }))}
@@ -733,13 +733,13 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                 <div className="grid gap-2 min-w-0" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
                   <Input placeholder="City" value={formData.pickupCity}
                     onChange={(e) => setFormData(p => ({ ...p, pickupCity: e.target.value }))}
-                    className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                    className="min-w-0 h-10 border-gray-200 focus:border-[var(--brand-accent)] text-sm" />
                   <Input placeholder="ST" maxLength={2} value={formData.pickupState}
                     onChange={(e) => setFormData(p => ({ ...p, pickupState: e.target.value.toUpperCase() }))}
-                    className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm text-center uppercase" />
+                    className="min-w-0 h-10 border-gray-200 focus:border-[var(--brand-accent)] text-sm text-center uppercase" />
                   <Input placeholder="Zip" value={formData.pickupZip}
                     onChange={(e) => setFormData(p => ({ ...p, pickupZip: e.target.value }))}
-                    className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                    className="min-w-0 h-10 border-gray-200 focus:border-[var(--brand-accent)] text-sm" />
                 </div>
               </div>
 
@@ -752,7 +752,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
               {/* Delivery address (shown when different) */}
               {!formData.sameAddress && (
                 <div className="space-y-2">
-                  <Label className="font-semibold text-[#0D2240] text-sm">Delivery Address</Label>
+                  <Label className="font-semibold text-[var(--brand-primary)] text-sm">Delivery Address</Label>
                   <AddressAutocomplete
                     value={formData.deliveryStreet}
                     onChange={street => setFormData(p => ({ ...p, deliveryStreet: street }))}
@@ -761,20 +761,20 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                   <div className="grid gap-2 min-w-0" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
                     <Input placeholder="City" value={formData.deliveryCity}
                       onChange={(e) => setFormData(p => ({ ...p, deliveryCity: e.target.value }))}
-                      className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                      className="min-w-0 h-10 border-gray-200 focus:border-[var(--brand-accent)] text-sm" />
                     <Input placeholder="ST" maxLength={2} value={formData.deliveryState}
                       onChange={(e) => setFormData(p => ({ ...p, deliveryState: e.target.value.toUpperCase() }))}
-                      className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm text-center uppercase" />
+                      className="min-w-0 h-10 border-gray-200 focus:border-[var(--brand-accent)] text-sm text-center uppercase" />
                     <Input placeholder="Zip" value={formData.deliveryZip}
                       onChange={(e) => setFormData(p => ({ ...p, deliveryZip: e.target.value }))}
-                      className="min-w-0 h-10 border-gray-200 focus:border-[#E8726A] text-sm" />
+                      className="min-w-0 h-10 border-gray-200 focus:border-[var(--brand-accent)] text-sm" />
                   </div>
                 </div>
               )}
             </div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(2)}>{tf.back}</Button>
-              <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
+              <Button className="flex-[2] h-12 text-sm font-bold bg-[var(--brand-primary)] hover:bg-[#1a3a5c]"
                 disabled={!canStep3} onClick={() => setStep(4)}>
                 {tf.continueConfirm}
               </Button>
@@ -786,7 +786,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
         {step === 4 && (
           <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0D2240] mb-1">{tf.almostDone}</h3>
+              <h3 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">{tf.almostDone}</h3>
               <p className="text-sm text-gray-400">{tf.reviewOrder}</p>
             </div>
 
@@ -799,12 +799,12 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
 
             {/* Tip selector */}
             {tipsEnabled && <div className="rounded-2xl border border-gray-200 p-4">
-              <p className="text-sm font-bold text-[#0D2240] mb-3">Add a Tip <span className="text-gray-400 font-normal">(optional — shared among all staff)</span></p>
+              <p className="text-sm font-bold text-[var(--brand-primary)] mb-3">Add a Tip <span className="text-gray-400 font-normal">(optional — shared among all staff)</span></p>
               <div className="flex gap-2 flex-wrap mb-3">
                 {TIP_PRESETS.map(p => (
                   <button key={p.value} type="button"
                     onClick={() => setTipOption(p.value)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-bold border transition-colors ${tipOption === p.value ? "bg-[#0D2240] text-white border-[#0D2240]" : "bg-white text-gray-600 border-gray-200 hover:border-[#0D2240]"}`}>
+                    className={`px-3 py-1.5 rounded-full text-sm font-bold border transition-colors ${tipOption === p.value ? "bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]" : "bg-white text-gray-600 border-gray-200 hover:border-[var(--brand-primary)]"}`}>
                     {p.label}{p.value !== "none" && p.value !== "custom" ? ` · $${(calcTip(p.value, 0, afterDiscountCents) / 100).toFixed(2)}` : ""}
                   </button>
                 ))}
@@ -813,7 +813,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                 <div className="relative max-w-[160px]">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
                   <input type="number" min="0" step="0.50" placeholder="0.00"
-                    className="w-full border border-gray-200 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-[#E8726A]"
+                    className="w-full border border-gray-200 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-accent)]"
                     onChange={e => setCustomTipCents(Math.round(parseFloat(e.target.value || "0") * 100))} />
                 </div>
               )}
@@ -840,7 +840,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
               ].map((row) => (
                 <div key={row.label} className="flex justify-between gap-4">
                   <span className="text-gray-400 shrink-0">{row.label}</span>
-                  <span className="font-medium text-[#0D2240] text-right">{row.value}</span>
+                  <span className="font-medium text-[var(--brand-primary)] text-right">{row.value}</span>
                 </div>
               ))}
               {promo && (
@@ -849,42 +849,42 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                   <span className="font-semibold">−${(discountCents / 100).toFixed(2)}</span>
                 </div>
               )}
-              <div className="border-t border-[#0D2240]/10 pt-2.5 flex justify-between font-extrabold text-base">
-                <span className="text-[#0D2240]">{tf.estimatedTotal}</span>
-                <span className="text-[#E8726A]">${totalDisplay}</span>
+              <div className="border-t border-[var(--brand-primary)]/10 pt-2.5 flex justify-between font-extrabold text-base">
+                <span className="text-[var(--brand-primary)]">{tf.estimatedTotal}</span>
+                <span className="text-[var(--brand-accent)]">${totalDisplay}</span>
               </div>
               <p className="text-[10px] text-gray-400">{two.estimatedTotalNote}</p>
             </div>
 
             {/* ── Required agreements + signature ── */}
-            <div className="rounded-2xl border-2 border-[#E8726A]/25 bg-[#fdf6f5]/60 p-4 space-y-3">
+            <div className="rounded-2xl border-2 border-[var(--brand-accent)]/25 bg-[#fdf6f5]/60 p-4 space-y-3">
               {/* Terms */}
-              <label className={`flex items-start gap-3 cursor-pointer rounded-xl border-2 p-3 transition-all ${formData.agreedToTerms ? "border-green-300 bg-green-50" : "border-dashed border-gray-300 bg-white hover:border-[#E8726A]/50"}`}>
+              <label className={`flex items-start gap-3 cursor-pointer rounded-xl border-2 p-3 transition-all ${formData.agreedToTerms ? "border-green-300 bg-green-50" : "border-dashed border-gray-300 bg-white hover:border-[var(--brand-accent)]/50"}`}>
                 <Checkbox checked={formData.agreedToTerms} onCheckedChange={(c) => setFormData(p => ({ ...p, agreedToTerms: c as boolean }))} className="mt-0.5 shrink-0" />
                 <span className="text-sm text-gray-700 leading-relaxed">
                   {tw.agreeWeightTerms}
-                  {!formData.agreedToTerms && <span className="ml-1.5 text-[#E8726A] font-bold text-[11px]">← required</span>}
+                  {!formData.agreedToTerms && <span className="ml-1.5 text-[var(--brand-accent)] font-bold text-[11px]">← required</span>}
                 </span>
               </label>
 
               {/* SMS consent */}
-              <label className={`flex items-start gap-3 cursor-pointer rounded-xl border-2 p-3 transition-all ${formData.smsConsent ? "border-green-300 bg-green-50" : "border-dashed border-gray-300 bg-white hover:border-[#E8726A]/50"}`}>
+              <label className={`flex items-start gap-3 cursor-pointer rounded-xl border-2 p-3 transition-all ${formData.smsConsent ? "border-green-300 bg-green-50" : "border-dashed border-gray-300 bg-white hover:border-[var(--brand-accent)]/50"}`}>
                 <Checkbox checked={formData.smsConsent} onCheckedChange={(c) => setFormData(p => ({ ...p, smsConsent: c as boolean }))} className="mt-0.5 shrink-0" />
                 <span className="text-sm text-gray-700 leading-relaxed">
                   <strong>{tf.smsConsentBold}</strong>{tf.smsConsentSuffix}
-                  {!formData.smsConsent && <span className="ml-1.5 text-[#E8726A] font-bold text-[11px]">← required</span>}
+                  {!formData.smsConsent && <span className="ml-1.5 text-[var(--brand-accent)] font-bold text-[11px]">← required</span>}
                 </span>
               </label>
 
               {/* Electronic signature */}
               <div className="space-y-1.5 pt-1">
                 <div className="flex items-center justify-between">
-                  <Label className="font-extrabold text-[#0D2240] text-sm">
-                    {tf.signatureLabel} <span className="text-[#E8726A]">*</span>
+                  <Label className="font-extrabold text-[var(--brand-primary)] text-sm">
+                    {tf.signatureLabel} <span className="text-[var(--brand-accent)]">*</span>
                   </Label>
                   {formData.signature.trim()
                     ? <span className="text-[10px] font-bold text-green-600 uppercase tracking-wide">✓ Signed</span>
-                    : <span className="text-[10px] font-bold text-[#E8726A] uppercase tracking-wide">Required</span>
+                    : <span className="text-[10px] font-bold text-[var(--brand-accent)] uppercase tracking-wide">Required</span>
                   }
                 </div>
                 <div className={`rounded-xl border-2 transition-all ${formData.signature.trim() ? "border-green-300 bg-green-50" : "border-dashed border-gray-300 bg-white"}`}>
@@ -898,7 +898,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
 
             <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(3)}>{tf.back}</Button>
-              <Button className="flex-[2] h-12 text-sm font-bold bg-[#0D2240] hover:bg-[#1a3a5c]"
+              <Button className="flex-[2] h-12 text-sm font-bold bg-[var(--brand-primary)] hover:bg-[#1a3a5c]"
                 disabled={!canStep4} onClick={() => setStep("payment")}>
                 {tf.proceedToPayment}
               </Button>

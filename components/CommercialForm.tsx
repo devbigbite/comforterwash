@@ -11,7 +11,7 @@ import en from "@/lib/translations/en"
 // readable regardless of which language the customer submitted in.
 const BUSINESS_TYPE_VALUES = en.commercialForm.businessTypes
 
-const inp = "w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white placeholder-gray-400"
+const inp = "w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]/30 bg-white placeholder-gray-400"
 const label = "block text-xs font-extrabold text-white/90 uppercase tracking-wide mb-1.5"
 
 export function CommercialForm() {
@@ -65,7 +65,7 @@ export function CommercialForm() {
       {/* Row 1: Business Name + Owner/Manager */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className={label}>{t.businessNameLabel} <span className="text-[#E8726A]">*</span></label>
+          <label className={label}>{t.businessNameLabel} <span className="text-[var(--brand-accent)]">*</span></label>
           <input
             name="business_name"
             type="text"
@@ -75,7 +75,7 @@ export function CommercialForm() {
           />
         </div>
         <div>
-          <label className={label}>{t.ownerLabel} <span className="text-[#E8726A]">*</span></label>
+          <label className={label}>{t.ownerLabel} <span className="text-[var(--brand-accent)]">*</span></label>
           <input
             name="contact"
             type="text"
@@ -89,7 +89,7 @@ export function CommercialForm() {
       {/* Row 2: Email + Phone */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className={label}>{t.emailLabel} <span className="text-[#E8726A]">*</span></label>
+          <label className={label}>{t.emailLabel} <span className="text-[var(--brand-accent)]">*</span></label>
           <input
             name="email"
             type="email"
@@ -99,7 +99,7 @@ export function CommercialForm() {
           />
         </div>
         <div>
-          <label className={label}>{t.phoneLabel} <span className="text-[#E8726A]">*</span></label>
+          <label className={label}>{t.phoneLabel} <span className="text-[var(--brand-accent)]">*</span></label>
           <input
             name="phone"
             type="tel"
@@ -112,7 +112,7 @@ export function CommercialForm() {
 
       {/* Row 3: Business Type */}
       <div>
-        <label className={label}>{t.businessTypeLabel} <span className="text-[#E8726A]">*</span></label>
+        <label className={label}>{t.businessTypeLabel} <span className="text-[var(--brand-accent)]">*</span></label>
         <select
           name="business_type"
           required
@@ -171,7 +171,7 @@ export function CommercialForm() {
       <button
         type="submit"
         disabled={pending}
-        className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-sm uppercase tracking-widest py-4 rounded-full transition-colors"
+        className="w-full bg-[var(--brand-accent)] hover:bg-[#d45f57] disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-sm uppercase tracking-widest py-4 rounded-full transition-colors"
       >
         {pending ? t.sending : t.submitBtn}
       </button>

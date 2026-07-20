@@ -98,7 +98,7 @@ export default function HeroCarousel({
   const isExternal = !!currentImage && currentImage.startsWith("http")
 
   return (
-    <section className="relative w-full overflow-hidden bg-[#0D2240] -mb-px" style={{ minHeight: "clamp(380px, 70vw, 580px)" }}>
+    <section className="relative w-full overflow-hidden bg-[var(--brand-primary)] -mb-px" style={{ minHeight: "clamp(380px, 70vw, 580px)" }}>
       {/* Background image — per slide */}
       <div className={"absolute inset-x-0 top-0 transition-opacity duration-700 " + (slide.type === "full" ? "bottom-16" : "bottom-0")} style={{ opacity: transitioning ? 0 : 1 }}>
         {slide.type === "full" && currentImage && (
@@ -122,12 +122,12 @@ export default function HeroCarousel({
             {/* Subtle left-side scrim — keeps text legible without flooding the photo */}
             <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent pointer-events-none" />
             <div className="relative mx-auto max-w-7xl px-5 sm:px-8 w-full">
-              <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.25em] mb-2 sm:mb-3">WashFold Orlando</p>
+              <p className="text-[var(--brand-accent)] font-bold text-xs uppercase tracking-[0.25em] mb-2 sm:mb-3">WashFold Orlando</p>
               <h1 className="text-white font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight max-w-2xl mb-3 sm:mb-4" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.65)" }}>
                 {slide.headline}
               </h1>
               <p className="text-white/90 text-sm sm:text-base md:text-lg max-w-xl mb-5 sm:mb-8" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}>{slide.subline}</p>
-              <a href="#services" className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-6 sm:px-8 py-3 sm:py-3.5 rounded-full uppercase tracking-wide transition-colors shadow-lg">
+              <a href="#services" className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-6 sm:px-8 py-3 sm:py-3.5 rounded-full uppercase tracking-wide transition-colors shadow-lg">
                 {slide.cta}
               </a>
             </div>
@@ -147,7 +147,7 @@ export default function HeroCarousel({
               />
             )}
             {/* Gradient: dark at bottom for text legibility */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0D2240]/90" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--brand-primary)]/90" />
 
             {/* Mobile: centered label above + 3 step badges row */}
             <div className="absolute inset-x-0 bottom-0 pb-12 px-4 flex flex-col items-center gap-4 sm:hidden">
@@ -197,8 +197,8 @@ export default function HeroCarousel({
       </div>
 
       {/* Bottom-edge fade + solid strip guarantee */}
-      <div className={"absolute inset-x-0 bottom-0 bg-gradient-to-b from-transparent to-[#0D2240] pointer-events-none z-10 " + (slide.type === "steps" ? "h-16" : "h-32")} />
-      <div className="absolute inset-x-0 bottom-0 h-2 bg-[#0D2240] pointer-events-none z-20" />
+      <div className={"absolute inset-x-0 bottom-0 bg-gradient-to-b from-transparent to-[var(--brand-primary)] pointer-events-none z-10 " + (slide.type === "steps" ? "h-16" : "h-32")} />
+      <div className="absolute inset-x-0 bottom-0 h-2 bg-[var(--brand-primary)] pointer-events-none z-20" />
 
       {/* Dots */}
       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2.5 z-20">
@@ -208,7 +208,7 @@ export default function HeroCarousel({
             onClick={() => goTo(i)}
             aria-label={`Slide ${i + 1}`}
             className="transition-all duration-300 rounded-full"
-            style={{ width: i === active ? "24px" : "8px", height: "8px", background: i === active ? "#E8726A" : "rgba(255,255,255,0.5)" }}
+            style={{ width: i === active ? "24px" : "8px", height: "8px", background: i === active ? "var(--brand-accent)" : "rgba(255,255,255,0.5)" }}
           />
         ))}
       </div>

@@ -79,10 +79,10 @@ export function LoginForm() {
 
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-[#E8726A] flex items-center justify-center text-3xl mx-auto mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-[var(--brand-accent)] flex items-center justify-center text-3xl mx-auto mb-4">
             🧺
           </div>
-          <h1 className="text-2xl font-extrabold text-[#0D2240]">Sign in to WashFold</h1>
+          <h1 className="text-2xl font-extrabold text-[var(--brand-primary)]">Sign in to WashFold</h1>
           <p className="text-sm text-gray-400 mt-1">Track orders · Rebook · Manage your account</p>
         </div>
 
@@ -97,8 +97,8 @@ export function LoginForm() {
                 onClick={() => { setMode(m); setSent(false); setPhoneStep("input"); setError("") }}
                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all capitalize ${
                   mode === m
-                    ? "bg-white text-[#0D2240] shadow-sm"
-                    : "text-gray-400 hover:text-[#0D2240]"
+                    ? "bg-white text-[var(--brand-primary)] shadow-sm"
+                    : "text-gray-400 hover:text-[var(--brand-primary)]"
                 }`}
               >
                 {m === "email" ? "✉️ Email" : m === "phone" ? "📱 Phone" : "🔵 Google"}
@@ -112,7 +112,7 @@ export function LoginForm() {
               {sent ? (
                 <div className="text-center py-4">
                   <div className="text-4xl mb-3">📬</div>
-                  <p className="font-bold text-[#0D2240]">Check your email</p>
+                  <p className="font-bold text-[var(--brand-primary)]">Check your email</p>
                   <p className="text-sm text-gray-400 mt-1">
                     We sent a magic link to <span className="font-semibold">{email}</span>. Click it to sign in — no password needed.
                   </p>
@@ -135,13 +135,13 @@ export function LoginForm() {
                       onChange={(e) => setEmail(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && sendMagicLink()}
                       placeholder="you@example.com"
-                      className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] transition-colors"
+                      className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] transition-colors"
                     />
                   </div>
                   <button
                     onClick={sendMagicLink}
                     disabled={loading || !email}
-                    className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold py-3.5 rounded-2xl text-sm transition-colors"
+                    className="w-full bg-[var(--brand-accent)] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold py-3.5 rounded-2xl text-sm transition-colors"
                   >
                     {loading ? "Sending…" : "Send Magic Link →"}
                   </button>
@@ -165,14 +165,14 @@ export function LoginForm() {
                       onChange={(e) => setPhone(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && sendPhoneOtp()}
                       placeholder="(407) 555-0100"
-                      className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] transition-colors"
+                      className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] transition-colors"
                     />
                     <p className="text-xs text-gray-400 mt-1">US numbers — we'll add +1 automatically</p>
                   </div>
                   <button
                     onClick={sendPhoneOtp}
                     disabled={loading || !phone}
-                    className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold py-3.5 rounded-2xl text-sm transition-colors"
+                    className="w-full bg-[var(--brand-accent)] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold py-3.5 rounded-2xl text-sm transition-colors"
                   >
                     {loading ? "Sending…" : "Send Code →"}
                   </button>
@@ -181,7 +181,7 @@ export function LoginForm() {
                 <>
                   <div className="text-center mb-2">
                     <p className="text-sm text-gray-500">
-                      Code sent to <span className="font-semibold text-[#0D2240]">{phone}</span>
+                      Code sent to <span className="font-semibold text-[var(--brand-primary)]">{phone}</span>
                     </p>
                   </div>
                   <div>
@@ -196,13 +196,13 @@ export function LoginForm() {
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                       onKeyDown={(e) => e.key === "Enter" && verifyPhoneOtp()}
                       placeholder="123456"
-                      className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-2xl font-mono font-bold text-center text-[#0D2240] tracking-widest focus:outline-none focus:border-[#E8726A] transition-colors"
+                      className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-2xl font-mono font-bold text-center text-[var(--brand-primary)] tracking-widest focus:outline-none focus:border-[var(--brand-accent)] transition-colors"
                     />
                   </div>
                   <button
                     onClick={verifyPhoneOtp}
                     disabled={loading || otp.length < 6}
-                    className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold py-3.5 rounded-2xl text-sm transition-colors"
+                    className="w-full bg-[var(--brand-accent)] hover:bg-[#d45f57] disabled:opacity-40 text-white font-extrabold py-3.5 rounded-2xl text-sm transition-colors"
                   >
                     {loading ? "Verifying…" : "Verify & Sign In →"}
                   </button>
@@ -226,7 +226,7 @@ export function LoginForm() {
               <button
                 onClick={signInWithGoogle}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 hover:border-[#0D2240] bg-white text-[#0D2240] font-bold py-3.5 rounded-2xl text-sm transition-all disabled:opacity-40"
+                className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 hover:border-[var(--brand-primary)] bg-white text-[var(--brand-primary)] font-bold py-3.5 rounded-2xl text-sm transition-all disabled:opacity-40"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -247,7 +247,7 @@ export function LoginForm() {
 
         {/* Back to home */}
         <p className="text-center mt-6 text-xs text-gray-400">
-          <a href="/" className="hover:text-[#0D2240] transition-colors">← Back to WashFold Orlando</a>
+          <a href="/" className="hover:text-[var(--brand-primary)] transition-colors">← Back to WashFold Orlando</a>
         </p>
       </div>
     </div>

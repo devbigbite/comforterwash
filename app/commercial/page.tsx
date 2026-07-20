@@ -34,14 +34,14 @@ export default async function CommercialPage({
     <main className="min-h-screen bg-[#f7f8fb]">
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section className="bg-[#0D2240] px-4 py-20 text-center">
+      <section className="bg-[var(--brand-primary)] px-4 py-20 text-center">
         <div className="mx-auto max-w-3xl">
-          <span className="inline-block bg-[#E8726A]/20 text-[#E8726A] text-xs font-extrabold uppercase tracking-widest px-4 py-1.5 rounded-full mb-5">
+          <span className="inline-block bg-[var(--brand-accent)]/20 text-[var(--brand-accent)] text-xs font-extrabold uppercase tracking-widest px-4 py-1.5 rounded-full mb-5">
             {tr.badge}
           </span>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white leading-tight mb-5">
             {tr.heroTitle1}<br />
-            <span className="text-[#E8726A]">{tr.heroTitle2}</span>
+            <span className="text-[var(--brand-accent)]">{tr.heroTitle2}</span>
           </h1>
           <p className="text-white/70 text-lg leading-relaxed mb-8 max-w-2xl mx-auto">
             {tr.heroSub}
@@ -49,7 +49,7 @@ export default async function CommercialPage({
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
               href="#request-bid"
-              className="inline-block bg-[#E8726A] hover:bg-[#d45f57] text-white font-extrabold text-sm uppercase tracking-widest px-8 py-4 rounded-full transition-colors"
+              className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-extrabold text-sm uppercase tracking-widest px-8 py-4 rounded-full transition-colors"
             >
               {tr.heroBtn}
             </a>
@@ -61,7 +61,7 @@ export default async function CommercialPage({
       <section className="px-4 py-16 bg-white">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0D2240] mb-3">{tr.industriesTitle}</h2>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--brand-primary)] mb-3">{tr.industriesTitle}</h2>
             <p className="text-gray-500 max-w-xl mx-auto text-sm leading-relaxed">
               {tr.industriesSub}
             </p>
@@ -70,10 +70,10 @@ export default async function CommercialPage({
             {tr.industries.map((ind) => (
               <div
                 key={ind.title}
-                className="bg-[#f7f8fb] rounded-2xl p-5 border border-gray-100 hover:border-[#E8726A]/30 hover:shadow-sm transition-all"
+                className="bg-[#f7f8fb] rounded-2xl p-5 border border-gray-100 hover:border-[var(--brand-accent)]/30 hover:shadow-sm transition-all"
               >
                 <div className="text-3xl mb-3">{ind.icon}</div>
-                <h3 className="font-extrabold text-[#0D2240] text-sm mb-1.5">{ind.title}</h3>
+                <h3 className="font-extrabold text-[var(--brand-primary)] text-sm mb-1.5">{ind.title}</h3>
                 <p className="text-gray-500 text-xs leading-relaxed">{ind.desc}</p>
               </div>
             ))}
@@ -85,16 +85,16 @@ export default async function CommercialPage({
       <section className="px-4 py-16 bg-[#f7f8fb]">
         <div className="mx-auto max-w-4xl">
           <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0D2240] mb-3">{tr.howTitle}</h2>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--brand-primary)] mb-3">{tr.howTitle}</h2>
             <p className="text-gray-500 text-sm">{tr.howSub}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {tr.steps.map((step) => (
               <div key={step.num} className="text-center">
-                <div className="w-14 h-14 rounded-full bg-[#0D2240] text-white font-extrabold text-xl flex items-center justify-center mx-auto mb-4">
+                <div className="w-14 h-14 rounded-full bg-[var(--brand-primary)] text-white font-extrabold text-xl flex items-center justify-center mx-auto mb-4">
                   {step.num}
                 </div>
-                <h3 className="font-extrabold text-[#0D2240] mb-2">{step.title}</h3>
+                <h3 className="font-extrabold text-[var(--brand-primary)] mb-2">{step.title}</h3>
                 <p className="text-gray-500 text-sm leading-relaxed">{step.desc}</p>
               </div>
             ))}
@@ -106,7 +106,7 @@ export default async function CommercialPage({
       <section className="px-4 py-16 bg-white">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0D2240] mb-3">{tr.benefitsTitle}</h2>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--brand-primary)] mb-3">{tr.benefitsTitle}</h2>
             <p className="text-gray-500 text-sm">{tr.benefitsSub}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -114,7 +114,7 @@ export default async function CommercialPage({
               <div key={b.title} className="flex gap-4 p-5 rounded-2xl bg-[#f7f8fb] border border-gray-100">
                 <div className="text-2xl shrink-0 mt-0.5">{b.icon}</div>
                 <div>
-                  <h3 className="font-extrabold text-[#0D2240] text-sm mb-1">{b.title}</h3>
+                  <h3 className="font-extrabold text-[var(--brand-primary)] text-sm mb-1">{b.title}</h3>
                   <p className="text-gray-500 text-xs leading-relaxed">{b.desc}</p>
                 </div>
               </div>
@@ -124,7 +124,7 @@ export default async function CommercialPage({
       </section>
 
       {/* ── Request a Bid Form ───────────────────────────────────────────────── */}
-      <section id="request-bid" className="bg-[#0D2240] px-4 py-16">
+      <section id="request-bid" className="bg-[var(--brand-primary)] px-4 py-16">
         <div className="mx-auto max-w-2xl">
           <div className="text-center mb-8">
             <div className="text-4xl mb-4">🧺</div>
@@ -143,7 +143,7 @@ export default async function CommercialPage({
       <section className="bg-[#f7f8fb] px-4 py-8 text-center border-t border-gray-100">
         <p className="text-gray-400 text-xs">
           WashFold Orlando · Commercial Laundry Pickup &amp; Delivery ·{" "}
-          <Link href={lang === "es" ? "/?lang=es" : "/"} className="text-[#E8726A] hover:underline">{tr.footerBack}</Link>
+          <Link href={lang === "es" ? "/?lang=es" : "/"} className="text-[var(--brand-accent)] hover:underline">{tr.footerBack}</Link>
         </p>
       </section>
 

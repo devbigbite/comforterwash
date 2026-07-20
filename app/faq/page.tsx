@@ -54,7 +54,7 @@ function renderAnswer(answer: string) {
             <span key={j}>
               {part}
               {j < parts.length - 1 && (
-                <a href="mailto:clean@washfoldorlando.com" className="text-[#E8726A] underline">
+                <a href="mailto:clean@washfoldorlando.com" className="text-[var(--brand-accent)] underline">
                   clean@washfoldorlando.com
                 </a>
               )}
@@ -71,10 +71,10 @@ function AccordionItem({ item }: { item: FaqItem }) {
   return (
     <details className="group border-b border-gray-100 last:border-0">
       <summary className="flex items-center justify-between py-4 px-1 cursor-pointer list-none select-none">
-        <span className="font-semibold text-[#0D2240] text-sm pr-4 group-open:text-[#E8726A] transition-colors">
+        <span className="font-semibold text-[var(--brand-primary)] text-sm pr-4 group-open:text-[var(--brand-accent)] transition-colors">
           {item.question}
         </span>
-        <span className="shrink-0 w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 group-open:text-[#E8726A] group-open:border-[#E8726A] group-open:rotate-45 transition-all text-sm">
+        <span className="shrink-0 w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 group-open:text-[var(--brand-accent)] group-open:border-[var(--brand-accent)] group-open:rotate-45 transition-all text-sm">
           +
         </span>
       </summary>
@@ -101,7 +101,7 @@ export default async function FaqPage({
   return (
     <main className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-[#0D2240] px-4 py-16 text-center">
+      <div className="bg-[var(--brand-primary)] px-4 py-16 text-center">
         <h1 className="text-4xl font-extrabold text-white tracking-tight">
           {tr.title}
         </h1>
@@ -119,10 +119,10 @@ export default async function FaqPage({
               <a
                 key={cat.key}
                 href={`#${cat.key}`}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:border-[#E8726A] hover:shadow-md transition-all group"
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:border-[var(--brand-accent)] hover:shadow-md transition-all group"
               >
                 <div className="text-2xl mb-2">{cat.icon}</div>
-                <p className="font-extrabold text-[#0D2240] text-sm group-hover:text-[#E8726A] transition-colors">
+                <p className="font-extrabold text-[var(--brand-primary)] text-sm group-hover:text-[var(--brand-accent)] transition-colors">
                   {cat.label}
                 </p>
                 <p className="text-xs text-gray-400 mt-1 leading-snug">{cat.description}</p>
@@ -144,7 +144,7 @@ export default async function FaqPage({
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-2xl">{cat.icon}</span>
                   <div>
-                    <h2 className="text-xl font-extrabold text-[#0D2240]">{cat.label}</h2>
+                    <h2 className="text-xl font-extrabold text-[var(--brand-primary)]">{cat.label}</h2>
                     <p className="text-xs text-gray-400 mt-0.5">{cat.description}</p>
                   </div>
                 </div>
@@ -159,12 +159,12 @@ export default async function FaqPage({
         </div>
 
         {/* Still have questions */}
-        <div className="bg-[#0D2240] rounded-2xl p-8 text-center mb-16">
+        <div className="bg-[var(--brand-primary)] rounded-2xl p-8 text-center mb-16">
           <p className="text-white font-extrabold text-lg">{tr.stillHave}</p>
           <p className="text-white/60 text-sm mt-2 mb-4">{tr.stillHaveSub}</p>
           <a
             href="mailto:clean@washfoldorlando.com"
-            className="inline-block bg-[#E8726A] text-white font-bold text-sm px-6 py-3 rounded-full hover:bg-[#d45f57] transition-colors"
+            className="inline-block bg-[var(--brand-accent)] text-white font-bold text-sm px-6 py-3 rounded-full hover:bg-[#d45f57] transition-colors"
           >
             {tr.emailUs}
           </a>
@@ -172,9 +172,9 @@ export default async function FaqPage({
 
         {/* Footer nav */}
         <div className="border-t border-gray-100 py-6 flex gap-4 text-xs text-gray-400">
-          <Link href={lang === "es" ? "/?lang=es" : "/"} className="hover:text-[#E8726A] transition-colors">{tr.backHome}</Link>
-          <Link href="/terms" className="hover:text-[#E8726A] transition-colors">{tr.terms}</Link>
-          <Link href="/privacy" className="hover:text-[#E8726A] transition-colors">{tr.privacy}</Link>
+          <Link href={lang === "es" ? "/?lang=es" : "/"} className="hover:text-[var(--brand-accent)] transition-colors">{tr.backHome}</Link>
+          <Link href="/terms" className="hover:text-[var(--brand-accent)] transition-colors">{tr.terms}</Link>
+          <Link href="/privacy" className="hover:text-[var(--brand-accent)] transition-colors">{tr.privacy}</Link>
         </div>
       </div>
     </main>

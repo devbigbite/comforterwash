@@ -40,9 +40,14 @@ export default async function RootLayout({
   // EN/ES toggle now writes to (see app/actions/site-lang.ts).
   const cookieStore = await cookies()
   const initialLocale: Locale = cookieStore.get("wf_locale")?.value === "es" ? "es" : "en"
+  const branding = await getBranding()
 
   return (
-    <html lang={initialLocale} className={inter.variable}>
+    <html
+      lang={initialLocale}
+      className={inter.variable}
+      style={{ "--brand-primary": branding.primary_color, "--brand-accent": branding.accent_color } as React.CSSProperties}
+    >
       <body className="font-sans antialiased">
         <LangProvider initialLocale={initialLocale}>
           <SiteNav />

@@ -45,16 +45,16 @@ function Steps({ current }: { current: number }) {
           <div key={label} className="flex items-center">
             <div className="flex flex-col items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
-                done    ? "bg-[#E8726A] text-white" :
-                active  ? "bg-[#0D2240] text-white" :
+                done    ? "bg-[var(--brand-accent)] text-white" :
+                active  ? "bg-[var(--brand-primary)] text-white" :
                           "bg-gray-100 text-gray-400"
               }`}>
                 {done ? <Check className="w-4 h-4" /> : num}
               </div>
-              <span className={`text-[10px] mt-1 font-semibold tracking-wide ${active ? "text-[#0D2240]" : "text-gray-400"}`}>{label}</span>
+              <span className={`text-[10px] mt-1 font-semibold tracking-wide ${active ? "text-[var(--brand-primary)]" : "text-gray-400"}`}>{label}</span>
             </div>
             {i < steps.length - 1 && (
-              <div className={`w-12 h-0.5 mx-1 mb-4 ${num < current ? "bg-[#E8726A]" : "bg-gray-200"}`} />
+              <div className={`w-12 h-0.5 mx-1 mb-4 ${num < current ? "bg-[var(--brand-accent)]" : "bg-gray-200"}`} />
             )}
           </div>
         )
@@ -66,12 +66,12 @@ function Steps({ current }: { current: number }) {
 // ── Plan banner shown on signup steps ─────────────────────────────────────────
 function PlanBanner({ plan }: { plan: SubscriptionPlan }) {
   return (
-    <div className="bg-[#0D2240] text-white rounded-2xl p-4 mb-6 flex justify-between items-center">
+    <div className="bg-[var(--brand-primary)] text-white rounded-2xl p-4 mb-6 flex justify-between items-center">
       <div>
         <p className="font-bold">{plan.name}</p>
         <p className="text-white/60 text-sm">{plan.lbs_included} lbs/mo · ${(plan.overage_rate_cents / 100).toFixed(2)}/lb overage</p>
       </div>
-      <p className="text-[#E8726A] font-extrabold text-xl">${(plan.monthly_price_cents / 100).toFixed(0)}<span className="text-xs font-normal text-white/50">/mo</span></p>
+      <p className="text-[var(--brand-accent)] font-extrabold text-xl">${(plan.monthly_price_cents / 100).toFixed(0)}<span className="text-xs font-normal text-white/50">/mo</span></p>
     </div>
   )
 }
@@ -91,7 +91,7 @@ function TimeSlotPicker({ value, onChange, windows }: {
           <button key={w.id} type="button" onClick={() => onChange(w.label)}
             className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
               value === w.label
-                ? "bg-[#E8726A] border-[#E8726A] text-white"
+                ? "bg-[var(--brand-accent)] border-[var(--brand-accent)] text-white"
                 : "border-gray-200 text-gray-600 hover:border-gray-300"
             }`}>
             {w.label}
@@ -111,7 +111,7 @@ function AddressBlock({ label, street, city, state, zip, onChange }: {
   zip: string
   onChange: (parts: { street?: string; city?: string; state?: string; zip?: string }) => void
 }) {
-  const inputCls = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+  const inputCls = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]/30"
   return (
     <div className="space-y-2">
       <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">{label} *</p>
@@ -270,7 +270,7 @@ export default function PricingClient({
       <div className="max-w-xl mx-auto px-4 py-20 text-center">
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-10">
           <CheckCircle2 className="w-14 h-14 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-extrabold text-[#0D2240] mb-2">You&apos;re all set! 🎉</h2>
+          <h2 className="text-2xl font-extrabold text-[var(--brand-primary)] mb-2">You&apos;re all set! 🎉</h2>
           <p className="text-gray-600 mb-2">Your <strong>{selectedPlan?.name}</strong> plan is active.</p>
           <p className="text-gray-500 text-sm">We&apos;ll reach out to confirm your first pickup. Check your email for confirmation.</p>
         </div>
@@ -285,7 +285,7 @@ export default function PricingClient({
         <Steps current={4} />
         {selectedPlan && <PlanBanner plan={selectedPlan} />}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-xl font-extrabold text-[#0D2240] mb-1">Complete your subscription</h2>
+          <h2 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">Complete your subscription</h2>
           <p className="text-sm text-gray-500 mb-6">Billed monthly · cancel anytime</p>
           <EmbeddedCheckoutProvider
             stripe={stripePromise}
@@ -293,7 +293,7 @@ export default function PricingClient({
           >
             <EmbeddedCheckout />
           </EmbeddedCheckoutProvider>
-          <button onClick={() => goTo(3)} className="mt-4 text-sm text-gray-400 hover:text-[#0D2240]">← Back</button>
+          <button onClick={() => goTo(3)} className="mt-4 text-sm text-gray-400 hover:text-[var(--brand-primary)]">← Back</button>
         </div>
       </div>
     )
@@ -307,22 +307,22 @@ export default function PricingClient({
         {selectedPlan && <PlanBanner plan={selectedPlan} />}
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-          <h2 className="text-xl font-extrabold text-[#0D2240]">Your details</h2>
+          <h2 className="text-xl font-extrabold text-[var(--brand-primary)]">Your details</h2>
 
           <div>
             <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Full Name *</label>
-            <input className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+            <input className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]/30"
               value={form.name} onChange={e => set("name", e.target.value)} placeholder="Jane Smith" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Email *</label>
-              <input type="email" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+              <input type="email" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]/30"
                 value={form.email} onChange={e => set("email", e.target.value)} />
             </div>
             <div>
               <label className="text-xs text-gray-600 font-medium uppercase tracking-wide">Phone *</label>
-              <input type="tel" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+              <input type="tel" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]/30"
                 value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="(407) 555-0100" />
             </div>
           </div>
@@ -352,23 +352,23 @@ export default function PricingClient({
           {/* Detergent preference */}
           {detergents.length > 0 && (
             <div>
-              <p className="text-sm font-bold text-[#0D2240] mb-3">Detergent Preference</p>
+              <p className="text-sm font-bold text-[var(--brand-primary)] mb-3">Detergent Preference</p>
               <div className="space-y-2">
                 {detergents.map(d => (
                   <button key={d.id} type="button"
                     onClick={() => set("detergentId", d.id)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors ${
                       form.detergentId === d.id
-                        ? "border-[#E8726A] bg-[#E8726A]/5"
+                        ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/5"
                         : "border-gray-200 hover:border-gray-300"
                     }`}>
                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      form.detergentId === d.id ? "border-[#E8726A]" : "border-gray-300"
+                      form.detergentId === d.id ? "border-[var(--brand-accent)]" : "border-gray-300"
                     }`}>
-                      {form.detergentId === d.id && <div className="w-2 h-2 rounded-full bg-[#E8726A]" />}
+                      {form.detergentId === d.id && <div className="w-2 h-2 rounded-full bg-[var(--brand-accent)]" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-[#0D2240]">{d.name}</p>
+                      <p className="text-sm font-semibold text-[var(--brand-primary)]">{d.name}</p>
                       {d.description && <p className="text-xs text-gray-500">{d.description}</p>}
                     </div>
                     <span className={`text-xs font-semibold shrink-0 ${d.price_cents === 0 ? "text-green-600" : "text-gray-600"}`}>
@@ -388,7 +388,7 @@ export default function PricingClient({
               ← Back
             </button>
             <button onClick={submitSignup} disabled={saving}
-              className="flex-[2] bg-[#0D2240] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#0D2240]/90 transition-colors disabled:opacity-50">
+              className="flex-[2] bg-[var(--brand-primary)] text-white py-3 rounded-xl font-bold text-sm hover:bg-[var(--brand-primary)]/90 transition-colors disabled:opacity-50">
               {saving ? "Setting up…" : "Continue: Payment →"}
             </button>
           </div>
@@ -408,8 +408,8 @@ export default function PricingClient({
           {/* Pickup */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-full bg-[#E8726A] text-white text-xs font-bold flex items-center justify-center">1</div>
-              <p className="font-bold text-[#0D2240]">Pickup Day &amp; Time</p>
+              <div className="w-6 h-6 rounded-full bg-[var(--brand-accent)] text-white text-xs font-bold flex items-center justify-center">1</div>
+              <p className="font-bold text-[var(--brand-primary)]">Pickup Day &amp; Time</p>
               <span className="text-xs text-gray-500 ml-1">— recurring weekly</span>
             </div>
             <p className="text-xs text-gray-500 mb-3">Which day should we pick up each week?</p>
@@ -418,7 +418,7 @@ export default function PricingClient({
                 <button key={d.id} type="button" onClick={() => set("pickupDay", d.id)}
                   className={`flex-1 py-3 rounded-xl border text-center transition-colors ${
                     form.pickupDay === d.id
-                      ? "bg-[#E8726A] border-[#E8726A] text-white"
+                      ? "bg-[var(--brand-accent)] border-[var(--brand-accent)] text-white"
                       : "border-gray-200 text-gray-600 hover:border-gray-300"
                   }`}>
                   <p className="text-[10px] font-bold">{d.short}</p>
@@ -433,8 +433,8 @@ export default function PricingClient({
           {/* Delivery */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-full bg-[#0D2240] text-white text-xs font-bold flex items-center justify-center">2</div>
-              <p className="font-bold text-[#0D2240]">Delivery Day &amp; Time</p>
+              <div className="w-6 h-6 rounded-full bg-[var(--brand-primary)] text-white text-xs font-bold flex items-center justify-center">2</div>
+              <p className="font-bold text-[var(--brand-primary)]">Delivery Day &amp; Time</p>
               <span className="text-xs text-gray-500 ml-1">— 48–72hrs after pickup</span>
             </div>
             <p className="text-xs text-gray-500 mb-3">Which day should we deliver each week?</p>
@@ -443,7 +443,7 @@ export default function PricingClient({
                 <button key={d.id} type="button" onClick={() => set("deliveryDay", d.id)}
                   className={`flex-1 py-3 rounded-xl border text-center transition-colors ${
                     form.deliveryDay === d.id
-                      ? "bg-[#E8726A] border-[#E8726A] text-white"
+                      ? "bg-[var(--brand-accent)] border-[var(--brand-accent)] text-white"
                       : "border-gray-200 text-gray-600 hover:border-gray-300"
                   }`}>
                   <p className="text-[10px] font-bold">{d.short}</p>
@@ -459,7 +459,7 @@ export default function PricingClient({
               ← Back
             </button>
             <button onClick={() => goTo(3)}
-              className="flex-[2] bg-[#0D2240] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#0D2240]/90 transition-colors">
+              className="flex-[2] bg-[var(--brand-primary)] text-white py-3 rounded-xl font-bold text-sm hover:bg-[var(--brand-primary)]/90 transition-colors">
               Continue: Your Info →
             </button>
           </div>
@@ -474,12 +474,12 @@ export default function PricingClient({
       <div className="flex flex-col lg:flex-row gap-12 items-start">
         {/* Left: features */}
         <div className="lg:w-72 shrink-0">
-          <h1 className="text-3xl font-extrabold text-[#0D2240] mb-2">Choose Your Plan</h1>
+          <h1 className="text-3xl font-extrabold text-[var(--brand-primary)] mb-2">Choose Your Plan</h1>
           <p className="text-gray-600 text-sm mb-6">All plans include:</p>
           <ul className="space-y-3">
             {FEATURES.map(f => (
               <li key={f} className="flex items-start gap-2.5 text-sm text-gray-700">
-                <Check className="w-4 h-4 text-[#E8726A] shrink-0 mt-0.5" />
+                <Check className="w-4 h-4 text-[var(--brand-accent)] shrink-0 mt-0.5" />
                 {f}
               </li>
             ))}
@@ -495,19 +495,19 @@ export default function PricingClient({
             plans.map(plan => (
               <div key={plan.id}
                 className={`bg-white rounded-2xl border shadow-sm p-6 relative transition-shadow hover:shadow-md ${
-                  plan.is_popular ? "border-[#E8726A]/40" : "border-gray-100"
+                  plan.is_popular ? "border-[var(--brand-accent)]/40" : "border-gray-100"
                 }`}>
                 {plan.is_popular && (
                   <div className="absolute -top-3 left-6">
-                    <span className="bg-[#E8726A]/10 text-[#E8726A] text-xs font-semibold px-3 py-1 rounded-full border border-[#E8726A]/20">
+                    <span className="bg-[var(--brand-accent)]/10 text-[var(--brand-accent)] text-xs font-semibold px-3 py-1 rounded-full border border-[var(--brand-accent)]/20">
                       Most Popular
                     </span>
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="font-extrabold text-[#0D2240] text-xl">{plan.name}</h3>
-                    <p className="text-[#E8726A] text-2xl font-extrabold mt-1">
+                    <h3 className="font-extrabold text-[var(--brand-primary)] text-xl">{plan.name}</h3>
+                    <p className="text-[var(--brand-accent)] text-2xl font-extrabold mt-1">
                       ${(plan.monthly_price_cents / 100).toFixed(0)}<span className="text-sm font-normal text-gray-500">/mo</span>
                     </p>
                   </div>
@@ -517,7 +517,7 @@ export default function PricingClient({
                   </div>
                 </div>
                 <button onClick={() => selectPlan(plan)}
-                  className="mt-4 w-full bg-[#0D2240] text-white py-3 rounded-xl font-bold hover:bg-[#0D2240]/90 transition-colors">
+                  className="mt-4 w-full bg-[var(--brand-primary)] text-white py-3 rounded-xl font-bold hover:bg-[var(--brand-primary)]/90 transition-colors">
                   Choose This Plan →
                 </button>
                 <p className="text-xs text-center text-gray-400 mt-2">

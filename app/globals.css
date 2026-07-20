@@ -14,6 +14,13 @@ body {
 }
 
 :root {
+  /* Per-tenant brand colors — overridden inline on <html> by app/layout.tsx
+     from the current location's branding row. These are what customer-
+     facing pages should reference (bg-[var(--brand-primary)], etc.)
+     instead of hardcoding #0D2240/#E8726A directly. */
+  --brand-primary: #0D2240;
+  --brand-accent: #E8726A;
+
   /* WashFold Orlando brand — Navy + Coral */
   --background: oklch(1 0 0);
   --foreground: oklch(0.15 0.04 240);

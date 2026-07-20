@@ -3,29 +3,33 @@
 // Brand colors: navy #0D2240, coral #E8726A, light bg #f7f8fb
 // ─────────────────────────────────────────────────────────────────
 
-const BASE_STYLES = `
+// Email clients (Outlook especially) don't reliably support CSS custom
+// properties, so unlike the site's Tailwind classes, these need the tenant's
+// actual hex values inlined at send time rather than var(--brand-primary).
+function baseStyles(primaryColor: string, accentColor: string): string {
+  return `
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #f7f8fb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .wrapper { max-width: 580px; margin: 0 auto; padding: 32px 16px; }
     .card { background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(13,34,64,.08); }
-    .header { background: #0D2240; padding: 28px 32px; text-align: center; }
+    .header { background: ${primaryColor}; padding: 28px 32px; text-align: center; }
     .logo-text { font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
-    .logo-coral { color: #E8726A; }
+    .logo-coral { color: ${accentColor}; }
     .body { padding: 32px; }
-    .hero-badge { display: inline-block; background: #f7f8fb; border-radius: 999px; padding: 6px 16px; font-size: 13px; font-weight: 600; color: #0D2240; margin-bottom: 20px; }
-    h1 { font-size: 24px; font-weight: 800; color: #0D2240; margin-bottom: 8px; line-height: 1.2; }
+    .hero-badge { display: inline-block; background: #f7f8fb; border-radius: 999px; padding: 6px 16px; font-size: 13px; font-weight: 600; color: ${primaryColor}; margin-bottom: 20px; }
+    h1 { font-size: 24px; font-weight: 800; color: ${primaryColor}; margin-bottom: 8px; line-height: 1.2; }
     .subtitle { font-size: 15px; color: #6b7280; margin-bottom: 28px; line-height: 1.5; }
     .detail-card { background: #f7f8fb; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
     .detail-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
     .detail-row:last-child { border-bottom: none; padding-bottom: 0; }
     .detail-label { font-size: 13px; color: #6b7280; font-weight: 500; min-width: 130px; }
     .detail-value { font-size: 14px; color: #111827; font-weight: 600; text-align: right; }
-    .cta-button { display: block; background: #E8726A; color: #ffffff !important; text-decoration: none; text-align: center; padding: 14px 28px; border-radius: 10px; font-size: 15px; font-weight: 700; margin: 24px 0; }
+    .cta-button { display: block; background: ${accentColor}; color: #ffffff !important; text-decoration: none; text-align: center; padding: 14px 28px; border-radius: 10px; font-size: 15px; font-weight: 700; margin: 24px 0; }
     .divider { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
     .footer { padding: 20px 32px; text-align: center; background: #f7f8fb; border-top: 1px solid #e5e7eb; }
     .footer p { font-size: 12px; color: #9ca3af; line-height: 1.6; }
-    .footer a { color: #E8726A; text-decoration: none; }
+    .footer a { color: ${accentColor}; text-decoration: none; }
     .status-pill { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.3px; }
     .pill-blue { background: #dbeafe; color: #1d4ed8; }
     .pill-green { background: #dcfce7; color: #16a34a; }
@@ -38,6 +42,7 @@ const BASE_STYLES = `
     }
   </style>
 `
+}
 
 // ─── Branding — passed in from lib/location.ts's getBranding() at send time.
 // Defaults keep every existing call site working unchanged if it doesn't
@@ -59,7 +64,7 @@ export const DEFAULT_EMAIL_BRANDING: EmailBranding = {
 }
 
 function emailShell(content: string, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): string {
-  const { businessName, accentColor, websiteDomain } = branding
+  const { businessName, primaryColor, accentColor, websiteDomain } = branding
   const [firstWord, ...restWords] = businessName.split(" ")
   const rest = restWords.join(" ")
   return `<!DOCTYPE html>
@@ -67,7 +72,7 @@ function emailShell(content: string, branding: EmailBranding = DEFAULT_EMAIL_BRA
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  ${BASE_STYLES}
+  ${baseStyles(primaryColor, accentColor)}
 </head>
 <body>
   <div class="wrapper">

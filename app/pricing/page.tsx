@@ -23,15 +23,15 @@ export default async function PricingPage() {
       {/* Header */}
       <header className="bg-white border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-5xl px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-[#0D2240] font-extrabold text-lg">
+          <Link href="/" className="flex items-center gap-2 text-[var(--brand-primary)] font-extrabold text-lg">
             <svg width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="24" cy="24" r="24" fill="#0D2240" />
+              <circle cx="24" cy="24" r="24" fill="var(--brand-primary)" />
               <path d="M8 24 Q11 19 14 24 Q17 29 20 24 Q23 19 26 24 Q29 29 32 24 Q35 19 38 24"
-                stroke="#E8726A" strokeWidth="3" strokeLinecap="round" fill="none" />
+                stroke="var(--brand-accent)" strokeWidth="3" strokeLinecap="round" fill="none" />
             </svg>
-            Wash<span className="text-[#E8726A]">Fold</span>
+            Wash<span className="text-[var(--brand-accent)]">Fold</span>
           </Link>
-          <Link href="/" className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors">
+          <Link href="/" className="text-sm text-gray-400 hover:text-[var(--brand-primary)] transition-colors">
             ← All Services
           </Link>
         </div>
@@ -40,9 +40,9 @@ export default async function PricingPage() {
       {!planEnabled ? (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
           <div className="text-5xl mb-4">🚧</div>
-          <h2 className="text-2xl font-extrabold text-[#0D2240] mb-2">Monthly plans are paused</h2>
+          <h2 className="text-2xl font-extrabold text-[var(--brand-primary)] mb-2">Monthly plans are paused</h2>
           <p className="text-gray-500 max-w-sm mb-6">We&apos;re not accepting new monthly plan subscribers right now. Check back soon or book a one-time or recurring pickup instead.</p>
-          <Link href="/" className="bg-[#0D2240] text-white font-bold px-6 py-3 rounded-xl hover:bg-[#1a3a5c] transition-colors">
+          <Link href="/" className="bg-[var(--brand-primary)] text-white font-bold px-6 py-3 rounded-xl hover:bg-[#1a3a5c] transition-colors">
             Book a pickup
           </Link>
         </div>
