@@ -1,9 +1,11 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { requireAdmin } from "@/lib/auth-guard"
 import { revalidatePath } from "next/cache"
 
 export async function addAccessWindow(formData: FormData) {
+  await requireAdmin()
   const facilityId = formData.get("facilityId") as string
   const label      = (formData.get("label") as string)?.trim() || null
   const daysRaw    = formData.get("days_of_week") as string
@@ -34,6 +36,7 @@ export async function addAccessWindow(formData: FormData) {
 }
 
 export async function deleteAccessWindow(id: string) {
+  await requireAdmin()
   const supabase = createAdminClient()
   await supabase.from("facility_access_windows").delete().eq("id", id)
   revalidatePath("/admin/facilities")

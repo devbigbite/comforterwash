@@ -146,11 +146,12 @@ export async function closeTipPool(
 /** Reopen (mark as open) a previously closed pool */
 export async function reopenTipPool(id: string): Promise<{ error?: string }> {
   await requireAdmin()
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { error } = await supabase
     .from("tip_pools")
     .update({ status: "open", paid_at: null })
     .eq("id", id)
+    .eq("location_id", locationId)
   if (error) return { error: error.message }
   revalidatePath("/admin/tips")
   return {}

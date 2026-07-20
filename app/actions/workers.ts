@@ -6,6 +6,29 @@ import { revalidatePath } from "next/cache"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 
+// ── Worker detail bundle (admin) ──────────────────────────────────────────────
+// Replaces direct anon-client reads on the worker detail page. workers /
+// worker_payouts carry PII + financial data and must never be read with the
+// anon key, so this is the only sanctioned way to fetch them.
+export async function getWorkerDetail(workerId: string) {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+
+  const [{ data: worker }, { data: payouts }, { data: documents }, { data: mileageReports }] = await Promise.all([
+    supabase.from("workers").select("*").eq("id", workerId).eq("location_id", locationId).single(),
+    supabase.from("worker_payouts").select("*").eq("worker_id", workerId).eq("location_id", locationId).order("created_at", { ascending: false }),
+    supabase.from("worker_documents").select("*").eq("worker_id", workerId).eq("location_id", locationId).order("created_at", { ascending: false }),
+    supabase.from("worker_mileage_reports").select("*").eq("worker_id", workerId).eq("location_id", locationId).order("report_date", { ascending: false }),
+  ])
+
+  return {
+    worker: worker ?? null,
+    payouts: payouts ?? [],
+    documents: documents ?? [],
+    mileageReports: mileageReports ?? [],
+  }
+}
+
 // ── Submit application (public) ───────────────────────────────────────────────
 export async function submitApplication(formData: FormData) {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
@@ -343,6 +366,13 @@ export async function addMileageReport(formData: FormData) {
   if (error) return { error: error.message }
   revalidatePath(`/admin/workers/${formData.get("worker_id") as string}`)
   return { success: true }
+}
+
+export async function deleteMileageReport(reportId: string, workerId: string) {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("worker_mileage_reports").delete().eq("id", reportId).eq("location_id", locationId)
+  revalidatePath(`/admin/workers/${workerId}`)
 }
 
 // ── Update worker roles ───────────────────────────────────────────────────────

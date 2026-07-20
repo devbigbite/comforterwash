@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
 
 export interface UnprintedOrder {
   id: string
@@ -17,10 +18,11 @@ export interface UnprintedOrder {
  * receipts printed yet. Powers the shared print station's queue.
  */
 export async function getUnprintedOrders(): Promise<UnprintedOrder[]> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("bookings")
     .select("id, short_code, output_bags, num_bags, hold_at_facility, delivery_date")
+    .eq("location_id", locationId)
     .not("hold_at_facility", "is", null)
     .is("receipts_printed_at", null)
     .not("status", "in", '("delivered","cancelled")')
@@ -41,18 +43,18 @@ export async function getUnprintedOrders(): Promise<UnprintedOrder[]> {
  * depend on any public RLS read access to bookings.
  */
 export async function findBookingForDriverLookup(cleanedDigits: string): Promise<{ id: string } | null> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data: byCode } = await supabase
-    .from("bookings").select("id").eq("short_code", cleanedDigits).maybeSingle()
+    .from("bookings").select("id").eq("short_code", cleanedDigits).eq("location_id", locationId).maybeSingle()
   if (byCode) return byCode
   const { data: byId } = await supabase
-    .from("bookings").select("id").ilike("id", `${cleanedDigits}%`).limit(1).maybeSingle()
+    .from("bookings").select("id").eq("location_id", locationId).ilike("id", `${cleanedDigits}%`).limit(1).maybeSingle()
   return byId ?? null
 }
 
 export async function markReceiptsPrinted(bookingId: string): Promise<void> {
-  const supabase = createAdminClient()
-  await supabase.from("bookings").update({ receipts_printed_at: new Date().toISOString() }).eq("id", bookingId)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("bookings").update({ receipts_printed_at: new Date().toISOString() }).eq("id", bookingId).eq("location_id", locationId)
 }
 
 export interface PrintedOrder extends UnprintedOrder {
@@ -61,10 +63,11 @@ export interface PrintedOrder extends UnprintedOrder {
 
 /** Recently-printed orders, most recent first — for the station's reprint list. */
 export async function getPrintedOrders(): Promise<PrintedOrder[]> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("bookings")
     .select("id, short_code, output_bags, num_bags, hold_at_facility, delivery_date, receipts_printed_at")
+    .eq("location_id", locationId)
     .not("receipts_printed_at", "is", null)
     .order("receipts_printed_at", { ascending: false })
     .limit(50)
@@ -108,13 +111,14 @@ const STATUS_ORDER = ["at_facility", "in_washer", "in_dryer", "folded", "ready"]
 export async function getOperatorQueue(workerId: string): Promise<OperatorOrder[]> {
   if (!workerId) return []
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   // Fetch active bookings (not partner_attendant), scoped to this operator
   // unless they're the owner (who can see the whole facility queue).
   let query = supabase
     .from("bookings")
     .select("id, short_code, customer_name, service_type, status, num_bags, facility_processing_mode, assigned_facility_id, assigned_operator_id, washer_label, dryer_label, actual_weight_lbs")
+    .eq("location_id", locationId)
     .in("status", ["in_progress"])
     .or("facility_processing_mode.is.null,facility_processing_mode.neq.partner_attendant")
 

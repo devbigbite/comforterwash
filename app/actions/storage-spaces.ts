@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 
 export interface StorageSpace {
   id: string
@@ -72,6 +73,7 @@ function revalidate(facilityId: string) {
 }
 
 export async function addStorageSpace(formData: FormData) {
+  await requireAdmin()
   const supabase = createAdminClient()
   const locationId = await getLocationId()
   const facilityId = formData.get("facility_id") as string
@@ -90,6 +92,7 @@ export async function addStorageSpace(formData: FormData) {
 }
 
 export async function updateStorageSpace(formData: FormData) {
+  await requireAdmin()
   const supabase = createAdminClient()
   const id         = formData.get("id") as string
   const facilityId = formData.get("facility_id") as string
@@ -103,6 +106,7 @@ export async function updateStorageSpace(formData: FormData) {
 }
 
 export async function toggleStorageSpaceActive(formData: FormData) {
+  await requireAdmin()
   const supabase = createAdminClient()
   const id         = formData.get("id") as string
   const facilityId = formData.get("facility_id") as string
@@ -112,6 +116,7 @@ export async function toggleStorageSpaceActive(formData: FormData) {
 }
 
 export async function deleteStorageSpace(formData: FormData) {
+  await requireAdmin()
   const supabase = createAdminClient()
   const id         = formData.get("id") as string
   const facilityId = formData.get("facility_id") as string

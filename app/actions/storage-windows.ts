@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { requireAdmin } from "@/lib/auth-guard"
 import { revalidatePath } from "next/cache"
 
 export interface StorageEntryWindow {
@@ -15,6 +16,7 @@ export interface StorageEntryWindow {
 }
 
 export async function addStorageEntryWindow(formData: FormData) {
+  await requireAdmin()
   const storageSpaceId = formData.get("storageSpaceId") as string
   const facilityId     = formData.get("facilityId") as string
   const label          = (formData.get("label") as string)?.trim() || null
@@ -44,6 +46,7 @@ export async function addStorageEntryWindow(formData: FormData) {
 }
 
 export async function deleteStorageEntryWindow(id: string) {
+  await requireAdmin()
   const supabase = createAdminClient()
   await supabase.from("storage_entry_windows").delete().eq("id", id)
   revalidatePath("/admin/facilities")

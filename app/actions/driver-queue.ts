@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
 
 export interface DriverOrder {
   id: string
@@ -20,13 +21,14 @@ export async function getDriverQueue(driverId: string): Promise<{
 }> {
   if (!driverId || driverId === "owner") return { pickups: [], deliveries: [] }
 
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
 
   const [{ data: pickups }, { data: deliveries }] = await Promise.all([
     supabase
       .from("bookings")
       .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
+      .eq("location_id", locationId)
       .eq("pickup_date", today)
       .in("status", ["confirmed", "picked_up"])
       .eq("assigned_driver_id", driverId)
@@ -34,6 +36,7 @@ export async function getDriverQueue(driverId: string): Promise<{
     supabase
       .from("bookings")
       .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
+      .eq("location_id", locationId)
       .eq("delivery_date", today)
       .in("status", ["ready", "ready_at_warehouse", "out_for_delivery"])
       .eq("assigned_driver_id", driverId)

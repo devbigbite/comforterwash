@@ -54,10 +54,11 @@ export interface ActiveWorker {
 // ── Workers ───────────────────────────────────────────────────────────────────
 
 export async function getActiveWorkers(): Promise<ActiveWorker[]> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("workers")
     .select("id, name, roles, hourly_wage_cents")
+    .eq("location_id", locationId)
     .eq("status", "active")
     .order("name")
   return (data ?? []) as ActiveWorker[]
@@ -70,11 +71,12 @@ export async function setWorkerPin(workerName: string, pin: string) {
   await requireAdmin()
 
   if (!/^\d{4}$/.test(pin)) return { error: "PIN must be exactly 4 digits" }
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { error } = await supabase
     .from("workers")
     .update({ clock_pin: pin })
     .eq("name", workerName)
+    .eq("location_id", locationId)
   if (error) return { error: "Failed to set PIN" }
   revalidatePath("/admin/workers")
   return { success: true }
@@ -84,8 +86,8 @@ export async function setWorkerPin(workerName: string, pin: string) {
 export async function clearWorkerPin(workerName: string) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
-  await supabase.from("workers").update({ clock_pin: null }).eq("name", workerName)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("workers").update({ clock_pin: null }).eq("name", workerName).eq("location_id", locationId)
   revalidatePath("/admin/workers")
   return { success: true }
 }
@@ -93,8 +95,8 @@ export async function clearWorkerPin(workerName: string) {
 /** Set a worker's app language preference (admin). */
 export async function setWorkerLang(workerId: string, lang: "en" | "es") {
   await requireAdmin()
-  const supabase = createAdminClient()
-  const { error } = await supabase.from("workers").update({ lang }).eq("id", workerId)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { error } = await supabase.from("workers").update({ lang }).eq("id", workerId).eq("location_id", locationId)
   if (error) return { error: "Failed to update language" }
   revalidatePath("/admin/workers")
   return { success: true }
@@ -102,11 +104,12 @@ export async function setWorkerLang(workerId: string, lang: "en" | "es") {
 
 /** Verify a worker's PIN. Returns true if correct or if no PIN is set yet. */
 export async function verifyWorkerPin(workerName: string, pin: string): Promise<{ valid: boolean; noPinSet: boolean; lang: string }> {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("workers")
     .select("clock_pin, lang")
     .eq("name", workerName)
+    .eq("location_id", locationId)
     .single()
   if (!data) return { valid: false, noPinSet: false, lang: "en" }
   if (!data.clock_pin) return { valid: true, noPinSet: true, lang: data.lang ?? "en" }
@@ -123,10 +126,11 @@ export async function verifyWorkerPinForRole(
   pin: string
 ): Promise<{ id: string; name: string; lang: string; roles: string[] } | null> {
   if (!/^\d{4}$/.test(pin)) return null
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("workers")
     .select("id, name, clock_pin, lang, roles")
+    .eq("location_id", locationId)
     .eq("status", "active")
   if (!data) return null
   const match = data.find((w: { clock_pin: string | null }) => w.clock_pin === pin)
@@ -312,6 +316,7 @@ export async function clockOut(formData: FormData) {
     .from("staff_time_punches")
     .select("worker_name, role")
     .eq("id", punchId)
+    .eq("location_id", locationId)
     .single()
 
   let outFlag: ScheduleFlag | null = null
@@ -349,6 +354,7 @@ export async function clockOut(formData: FormData) {
       ...(outFlag ? { schedule_flag: outFlag, flag_minutes: outFlagMinutes } : {}),
     })
     .eq("id", punchId)
+    .eq("location_id", locationId)
     .is("clocked_out_at", null)
 
   if (error) return { error: "Failed to clock out" }
@@ -441,8 +447,8 @@ export async function createShift(formData: FormData) {
 export async function deleteShift(shiftId: string) {
   await requireAdmin()
 
-  const supabase = createAdminClient()
-  await supabase.from("staff_scheduled_shifts").delete().eq("id", shiftId)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("staff_scheduled_shifts").delete().eq("id", shiftId).eq("location_id", locationId)
   revalidatePath("/admin/schedule")
 }
 
@@ -450,7 +456,7 @@ export async function deleteShift(shiftId: string) {
 export async function updatePunch(formData: FormData) {
   await requireAdmin()
 
-  const supabase       = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const punchId        = formData.get("punchId")        as string
   const clockedInAt    = formData.get("clockedInAt")    as string
   const clockedOutAt   = (formData.get("clockedOutAt")  as string) || null
@@ -466,6 +472,7 @@ export async function updatePunch(formData: FormData) {
       break_minutes:  isNaN(breakMinutes) ? 0 : breakMinutes,
     })
     .eq("id", punchId)
+    .eq("location_id", locationId)
 
   revalidatePath("/admin/schedule")
   return { success: true }

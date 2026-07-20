@@ -5,10 +5,9 @@ import Link from "next/link"
 import {
   createStripeConnectAccount, syncStripeStatus, issuePayout, updatePayRates,
   addWorkerDocument, deleteWorkerDocument, addMileageReport, deleteMileageReport,
-  updateWorkerRoles,
+  updateWorkerRoles, getWorkerDetail,
 } from "@/app/actions/workers"
 import { setWorkerPin, clearWorkerPin, setWorkerLang } from "@/app/actions/staff"
-import { createClient } from "@/lib/supabase/client"
 
 type Worker = {
   id: string
@@ -131,18 +130,12 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
 
   useEffect(() => {
     if (!workerId) return
-    const supabase = createClient()
-    Promise.all([
-      supabase.from("workers").select("*").eq("id", workerId).single(),
-      supabase.from("worker_payouts").select("*").eq("worker_id", workerId).order("created_at", { ascending: false }),
-      supabase.from("worker_documents").select("*").eq("worker_id", workerId).order("created_at", { ascending: false }),
-      supabase.from("worker_mileage_reports").select("*").eq("worker_id", workerId).order("report_date", { ascending: false }),
-    ]).then(([{ data: w }, { data: p }, { data: d }, { data: m }]) => {
-      setWorker(w)
-      setWorkerLang_((w?.lang ?? "en") as "en" | "es")
-      setPayouts(p ?? [])
-      setDocuments(d ?? [])
-      setMileageReports(m ?? [])
+    getWorkerDetail(workerId).then(({ worker: w, payouts: p, documents: d, mileageReports: m }) => {
+      setWorker(w as Worker | null)
+      setWorkerLang_(((w as Worker | null)?.lang ?? "en") as "en" | "es")
+      setPayouts(p as Payout[])
+      setDocuments(d as WorkerDocument[])
+      setMileageReports(m as MileageReport[])
       setLoading(false)
     })
 
@@ -153,28 +146,24 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
         setSyncLoading(false)
         setMsg({ type: "ok", text: "Stripe onboarding complete! Status synced." })
         window.history.replaceState({}, "", `/admin/workers/${workerId}`)
-        const supabase = createClient()
-        supabase.from("workers").select("*").eq("id", workerId).single().then(({ data }) => setWorker(data))
+        refreshWorker()
       })
     }
   }, [workerId])
 
   async function refreshWorker() {
-    const supabase = createClient()
-    const { data } = await supabase.from("workers").select("*").eq("id", workerId).single()
-    setWorker(data)
+    const { worker: w } = await getWorkerDetail(workerId)
+    setWorker(w as Worker | null)
   }
 
   async function refreshDocs() {
-    const supabase = createClient()
-    const { data } = await supabase.from("worker_documents").select("*").eq("worker_id", workerId).order("created_at", { ascending: false })
-    setDocuments(data ?? [])
+    const { documents: d } = await getWorkerDetail(workerId)
+    setDocuments(d as WorkerDocument[])
   }
 
   async function refreshMileage() {
-    const supabase = createClient()
-    const { data } = await supabase.from("worker_mileage_reports").select("*").eq("worker_id", workerId).order("report_date", { ascending: false })
-    setMileageReports(data ?? [])
+    const { mileageReports: m } = await getWorkerDetail(workerId)
+    setMileageReports(m as MileageReport[])
   }
 
   const totalPaid = payouts.filter(p => p.status === "transferred").reduce((s, p) => s + p.amount_cents, 0)
@@ -217,9 +206,8 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
     if (result.success) {
       setMsg({ type: "ok", text: `Payout of ${fmt(result.amountCents!)} transferred successfully.` })
       setMiles(""); setHours(""); setManualAmt(""); setPayNotes("")
-      const supabase = createClient()
-      const { data } = await supabase.from("worker_payouts").select("*").eq("worker_id", workerId).order("created_at", { ascending: false })
-      setPayouts(data ?? [])
+      const { payouts: p } = await getWorkerDetail(workerId)
+      setPayouts(p as Payout[])
     } else {
       setMsg({ type: "err", text: result.error ?? "Payout failed" })
     }

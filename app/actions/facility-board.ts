@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import { revalidatePath } from "next/cache"
 import { PHASES } from "@/lib/facility-phases"
 
@@ -69,6 +70,7 @@ export async function moveOrderPhase(
   workerId: string | null,
   workerName: string | null
 ): Promise<{ error?: string }> {
+  await requireAdmin()
   const supabase = createAdminClient()
   const locationId = await getLocationId()
 
@@ -158,6 +160,7 @@ export async function updateFacilityDetails(
     folded_bag_count?: number | null
   }
 ): Promise<{ error?: string }> {
+  await requireAdmin()
   const supabase = createAdminClient()
   const locationId = await getLocationId()
 

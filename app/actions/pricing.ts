@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import { revalidatePath } from "next/cache"
 
 export interface PricingConfig {
@@ -72,6 +73,7 @@ export async function getPricingConfig(): Promise<PricingConfig> {
 }
 
 export async function setPricingConfig(config: PricingConfig): Promise<void> {
+  await requireAdmin()
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const rows = (Object.entries(KEY_MAP) as [keyof PricingConfig, string][]).map(
     ([field, dbKey]) => ({
