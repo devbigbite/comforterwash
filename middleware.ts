@@ -59,8 +59,29 @@ async function getLocationIdForHost(hostname: string): Promise<string> {
   return id
 }
 
+// Both domains point at this same deployment, but browser cookies can't be
+// shared across two separate root domains — logging into /admin on one and
+// then visiting /super-admin on the other silently drops the session. So
+// admin/super-admin traffic is pinned to one canonical domain; visiting from
+// the other domain redirects here first, before any cookie is ever checked.
+const CANONICAL_ADMIN_HOST = "comforterwash.com"
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // ── -1. Pin /admin and /super-admin to one canonical domain ──────────────
+  const rawHost = (request.headers.get("host") ?? "").split(":")[0].replace(/^www\./, "")
+  if (
+    rawHost &&
+    rawHost !== CANONICAL_ADMIN_HOST &&
+    (pathname.startsWith("/admin") || pathname.startsWith("/super-admin"))
+  ) {
+    const url = request.nextUrl.clone()
+    url.protocol = "https:"
+    url.hostname = CANONICAL_ADMIN_HOST
+    url.port = ""
+    return NextResponse.redirect(url, 308)
+  }
 
   // ── 0. Rate limit /partner/ routes ───────────────────────────────────────
   if (pathname.startsWith("/partner/")) {
