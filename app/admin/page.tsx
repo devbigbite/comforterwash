@@ -2,7 +2,7 @@ import type React from "react"
 import { getBookings } from "@/app/actions/bookings"
 import { getFulfillmentMode } from "@/app/actions/walkin"
 import { getMyBillingStatus } from "@/app/actions/platform-billing"
-import { getBranding } from "@/lib/location"
+import { getBranding, getLocationId, ORLANDO_LOCATION_ID } from "@/lib/location"
 import { todayET } from "@/lib/pickup-cutoff"
 import {
   Truck,
@@ -40,11 +40,12 @@ type Module = {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function AdminHub() {
-  const [bookings, branding, fulfillmentMode, billingStatus] = await Promise.all([
-    getBookings(), getBranding(), getFulfillmentMode(), getMyBillingStatus(),
+  const [bookings, branding, fulfillmentMode, billingStatus, locationId] = await Promise.all([
+    getBookings(), getBranding(), getFulfillmentMode(), getMyBillingStatus(), getLocationId(),
   ])
   const today = todayET()
   const showWalkin = fulfillmentMode === "walkin" || fulfillmentMode === "both"
+  const isOrlando = locationId === ORLANDO_LOCATION_ID
 
   const stats = {
     total: bookings.length,
@@ -181,6 +182,24 @@ export default async function AdminHub() {
         { label: "🧪 Test Hub", href: "/admin/test" },
       ],
     },
+    // Only shown to the platform owner (Orlando's own admin session) — logging
+    // in here already grants super-admin access via single sign-on, this is
+    // just the visible door to it.
+    ...(isOrlando
+      ? [{
+          id: "saas-platform",
+          label: "SaaS Platform",
+          description: "Manage all tenant businesses, billing, and onboarding across the whole platform.",
+          color: "#b45309",
+          bg: "#fffbeb",
+          icon: <Briefcase className="h-7 w-7" style={{ color: "#b45309" }} />,
+          primaryHref: "/super-admin",
+          links: [
+            { label: "All Locations", href: "/super-admin" },
+            { label: "Add New Location", href: "/super-admin/locations/new" },
+          ],
+        } as Module]
+      : []),
   ]
 
   return (

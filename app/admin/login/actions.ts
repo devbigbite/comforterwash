@@ -3,7 +3,7 @@
 import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, ORLANDO_LOCATION_ID } from "@/lib/location"
 import { isAdminForCurrentLocation } from "@/lib/auth-guard"
 
 // ── Simple in-memory rate limiter (resets on cold start — fine for small app)
@@ -55,12 +55,28 @@ export async function loginAction(formData: FormData) {
     path: "/",
   })
 
+  // Single sign-on: logging into the original WashFold Orlando admin (the
+  // owner's own operational login) also grants super-admin/SaaS-platform
+  // access — no separate password to manage. Gated to the Orlando location
+  // specifically so this can't grant super-admin from any other tenant's
+  // subdomain even if they somehow guessed ADMIN_PASSWORD.
+  if ((await getLocationId()) === ORLANDO_LOCATION_ID) {
+    cookieStore.set("super_admin_auth", "authenticated", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 days — match admin_auth
+      path: "/",
+    })
+  }
+
   redirect("/admin")
 }
 
 export async function logoutAction() {
   const cookieStore = await cookies()
   cookieStore.delete("admin_auth")
+  cookieStore.delete("super_admin_auth")
   redirect("/admin/login")
 }
 
