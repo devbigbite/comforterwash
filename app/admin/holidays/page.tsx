@@ -62,11 +62,13 @@ function fmt(dateStr: string) {
 export default async function HolidaysPage() {
   await requireAdmin()
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
-  const { data: exclusions = [] } = await supabase
+  const { data: exclusionsData, error: exclusionsError } = await supabase
     .from("holiday_exclusions")
     .select("*")
     .eq("location_id", locationId)
     .order("date", { ascending: true })
+  if (exclusionsError) console.error("[admin/holidays] Failed to load exclusions:", exclusionsError.message)
+  const exclusions = exclusionsData ?? []
 
   // Load saved platform hours from settings
   const { data: hoursSetting } = await supabase

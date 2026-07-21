@@ -1,4 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import { DateFilter } from "./date-filter"
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -18,7 +20,7 @@ const SERVICE_LABEL: Record<string, string> = {
 }
 
 // ─── data fetching ───────────────────────────────────────────────────────────
-async function getReportData(from: string, to: string) {
+async function getReportData(from: string, to: string, locationId: string) {
   const supabase  = createAdminClient()
   const fromTs    = from + "T00:00:00"
   const toTs      = to   + "T23:59:59"
@@ -36,6 +38,7 @@ async function getReportData(from: string, to: string) {
     supabase
       .from("bookings")
       .select("id, created_at, customer_name, customer_email, customer_phone, service_type, status, total_amount, actual_weight_lbs, num_bags, promo_code, promo_discount_cents, pickup_date, delivery_date")
+      .eq("location_id", locationId)
       .neq("status", "cancelled")
       .gte("created_at", fromTs)
       .lte("created_at", toTs)
@@ -45,6 +48,7 @@ async function getReportData(from: string, to: string) {
     supabase
       .from("bookings")
       .select("id, created_at, customer_name, customer_email, customer_phone, service_type, total_amount, pickup_date")
+      .eq("location_id", locationId)
       .eq("status", "cancelled")
       .gte("created_at", fromTs)
       .lte("created_at", toTs)
@@ -55,27 +59,32 @@ async function getReportData(from: string, to: string) {
     supabase
       .from("bookings")
       .select("customer_email, customer_phone, customer_name, created_at")
+      .eq("location_id", locationId)
       .neq("status", "cancelled")
       .order("created_at", { ascending: false }),
 
     // All subscriptions
     supabase
       .from("subscriptions")
-      .select("id, status, created_at, customer_name, customer_email, frequency, price_per_lb_cents, next_pickup_date"),
+      .select("id, status, created_at, customer_name, customer_email, frequency, price_per_lb_cents, next_pickup_date")
+      .eq("location_id", locationId),
 
     supabase
       .from("workers")
-      .select("id, name, roles, status"),
+      .select("id, name, roles, status")
+      .eq("location_id", locationId),
 
     supabase
       .from("worker_payouts")
       .select("worker_id, amount_cents, payout_type, created_at")
+      .eq("location_id", locationId)
       .gte("created_at", fromTs)
       .lte("created_at", toTs),
 
     supabase
       .from("promo_codes")
-      .select("code, description, current_uses, discount_type, discount_value"),
+      .select("code, description, current_uses, discount_type, discount_value")
+      .eq("location_id", locationId),
   ])
 
   return {
@@ -119,6 +128,8 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>
 }) {
+  await requireAdmin()
+  const locationId = await getLocationId()
   const sp   = await searchParams
   const now  = new Date()
   const defaultTo   = now.toISOString().split("T")[0]
@@ -127,7 +138,7 @@ export default async function ReportsPage({
   const to   = sp.to   ?? defaultTo
 
   const { bookings, cancelled, allBookings, subs, workers, payouts, promoCodes } =
-    await getReportData(from, to)
+    await getReportData(from, to, locationId)
 
   // ── Derived: delivered orders in range ───────────────────────────────────
   const delivered = bookings.filter(b => b.status === "delivered")

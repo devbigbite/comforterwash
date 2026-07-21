@@ -1,4 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import Link from "next/link"
 
 const STATUS_BADGE: Record<string, string> = {
@@ -21,12 +23,14 @@ export default async function SearchPage({
 }: {
   searchParams: Promise<{ q?: string; name?: string; phone?: string; year?: string; month?: string }>
 }) {
+  await requireAdmin()
   const { q, name, phone, year, month } = await searchParams
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   let query = supabase
     .from("bookings")
     .select("id, short_code, created_at, customer_name, customer_email, customer_phone, customer_address, pickup_date, delivery_date, status, service_type, customer_final_cents, num_comforters, comforter_size")
+    .eq("location_id", locationId)
     .order("created_at", { ascending: false })
     .limit(50)
 
@@ -40,7 +44,9 @@ export default async function SearchPage({
   }
 
   const hasFilter = q || name || phone || year
-  const { data: results = [] } = hasFilter ? await query : { data: [] }
+  const { data: resultsData, error: resultsError } = hasFilter ? await query : { data: [], error: null }
+  if (resultsError) console.error("[admin/search] Failed to load results:", resultsError.message)
+  const results = resultsData ?? []
 
   const years = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i))
   const months = [

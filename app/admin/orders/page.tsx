@@ -1,4 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import Link from "next/link"
 
 export const dynamic = "force-dynamic"
@@ -33,22 +35,31 @@ export default async function OrdersPage({
 }: {
   searchParams: Promise<{ status?: string; q?: string }>
 }) {
+  await requireAdmin()
   const { status = "all", q } = await searchParams
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   let query = supabase
     .from("bookings")
     .select("id, short_code, created_at, customer_name, customer_email, customer_phone, pickup_date, delivery_date, status, service_type, customer_final_cents, num_comforters, comforter_size, num_bags")
+    .eq("location_id", locationId)
     .order("created_at", { ascending: false })
     .limit(200)
 
   if (status !== "all") query = query.eq("status", status)
   if (q) query = query.or(`short_code.ilike.%${q}%,customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%`)
 
-  const { data: orders = [] } = await query
+  const { data: ordersData, error: ordersError } = await query
+  if (ordersError) console.error("[admin/orders] Failed to load orders:", ordersError.message)
+  const orders = ordersData ?? []
 
   // Count per status for tab badges
-  const { data: allStatuses = [] } = await supabase.from("bookings").select("status")
+  const { data: allStatusesData, error: statusesError } = await supabase
+    .from("bookings")
+    .select("status")
+    .eq("location_id", locationId)
+  if (statusesError) console.error("[admin/orders] Failed to load status counts:", statusesError.message)
+  const allStatuses = allStatusesData ?? []
   const counts: Record<string, number> = { all: allStatuses.length }
   allStatuses.forEach(({ status: s }) => { counts[s] = (counts[s] ?? 0) + 1 })
 

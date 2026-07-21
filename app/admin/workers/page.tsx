@@ -37,12 +37,17 @@ export default async function WorkersPage({
     ? ["pending", "approved", "active", "rejected"]
     : ["pending"]
 
-  const { data: workers = [] } = await supabase
+  const { data: workersData, error: workersError } = await supabase
     .from("workers")
     .select("*, clock_pin")
     .eq("location_id", locationId)
     .in("status", statusFilter)
     .order("created_at", { ascending: false })
+
+  if (workersError) {
+    console.error("[admin/workers] Failed to load workers:", workersError.message)
+  }
+  const workers = workersData ?? []
 
   const { data: counts } = await supabase
     .from("workers")

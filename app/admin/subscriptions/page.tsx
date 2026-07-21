@@ -47,11 +47,13 @@ const DAY_LABEL: Record<string, string> = {
 export default async function SubscriptionsPage() {
   await requireAdmin()
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
-  const { data: subs = [] } = await supabase
+  const { data: subsData, error: subsError } = await supabase
     .from("subscriptions")
     .select("*")
     .eq("location_id", locationId)
     .order("created_at", { ascending: false })
+  if (subsError) console.error("[admin/subscriptions] Failed to load subscriptions:", subsError.message)
+  const subs = subsData ?? []
 
   const perPickup   = subs.filter(s => s.subscription_type !== "monthly_plan")
   const monthly     = subs.filter(s => s.subscription_type === "monthly_plan")
