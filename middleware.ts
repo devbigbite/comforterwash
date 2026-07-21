@@ -102,6 +102,21 @@ export async function middleware(request: NextRequest) {
     return res
   }
 
+  // ── 2b. Super-admin auth (cookie-based) ──────────────────────────────────
+  // Gated here (not in app/super-admin/layout.tsx) so /super-admin/login
+  // itself is never wrapped by the same check that redirects to it —
+  // avoids an ERR_TOO_MANY_REDIRECTS loop.
+  if (pathname.startsWith("/super-admin/login")) {
+    return NextResponse.next()
+  }
+  if (pathname.startsWith("/super-admin")) {
+    const superAuthCookie = request.cookies.get("super_admin_auth")
+    if (!superAuthCookie || superAuthCookie.value !== "authenticated") {
+      return NextResponse.redirect(new URL("/super-admin/login", request.url))
+    }
+    return NextResponse.next()
+  }
+
   // ── 3. Supabase session refresh + location header ────────────────────────
   // Clone headers and inject x-location-id so server components can read it
   const requestHeaders = new Headers(request.headers)

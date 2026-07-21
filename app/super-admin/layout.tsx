@@ -1,21 +1,15 @@
-import { redirect } from "next/navigation"
-import { cookies } from "next/headers"
 import Link from "next/link"
 
 export const metadata = { title: "Super Admin — WashFold Platform" }
 
-export default async function SuperAdminLayout({
+// Auth gating for /super-admin now lives in middleware.ts (so the login
+// page itself isn't wrapped by the same check that redirects to it — that
+// caused an ERR_TOO_MANY_REDIRECTS loop). This layout is just UI chrome.
+export default function SuperAdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const cookieStore = await cookies()
-  const superAdminAuth = cookieStore.get("super_admin_auth")
-
-  if (superAdminAuth?.value !== "authenticated") {
-    redirect("/super-admin/login")
-  }
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top bar */}
