@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getShipdayConfig } from "@/lib/location"
 import {
   patchShipdayOrder,
   deleteShipdayOrder,
@@ -49,10 +50,11 @@ export async function reschedulePickup(
   // Push to Shipday
   const { pickupId } = await getShipdayIds(bookingId)
   if (pickupId) {
+    const { apiKey } = await getShipdayConfig()
     await patchShipdayOrder(pickupId, {
       pickupDate: newPickupDate,
       pickupTimeWindow: newPickupTimeWindow,
-    })
+    }, apiKey)
   } else {
     console.warn(`[shipday-actions] No Shipday pickup ID for booking ${bookingId} — DB updated but Shipday not patched`)
   }
@@ -79,10 +81,11 @@ export async function rescheduleDelivery(
 
   const { deliveryId } = await getShipdayIds(bookingId)
   if (deliveryId) {
+    const { apiKey } = await getShipdayConfig()
     await patchShipdayOrder(deliveryId, {
       pickupDate: newDeliveryDate,
       pickupTimeWindow: newDeliveryTimeWindow,
-    })
+    }, apiKey)
   } else {
     console.warn(`[shipday-actions] No Shipday delivery ID for booking ${bookingId} — DB updated but Shipday not patched`)
   }
@@ -109,7 +112,8 @@ export async function switchPickupDropoff(
     return { ok: false, error: "No Shipday pickup order ID on record for this booking" }
   }
 
-  const ok = await patchShipdayOrder(pickupId, { customerAddress: newFacilityAddress })
+  const { apiKey } = await getShipdayConfig()
+  const ok = await patchShipdayOrder(pickupId, { customerAddress: newFacilityAddress }, apiKey)
   return { ok }
 }
 
@@ -122,10 +126,11 @@ export async function assignDriver(
   driverEmail: string
 ): Promise<{ ok: boolean; pickupAssigned: boolean; deliveryAssigned: boolean }> {
   const { pickupId, deliveryId } = await getShipdayIds(bookingId)
+  const { apiKey } = await getShipdayConfig()
 
   const [pickupAssigned, deliveryAssigned] = await Promise.all([
-    pickupId ? assignShipdayDriver(pickupId, driverEmail) : Promise.resolve(false),
-    deliveryId ? assignShipdayDriver(deliveryId, driverEmail) : Promise.resolve(false),
+    pickupId ? assignShipdayDriver(pickupId, driverEmail, apiKey) : Promise.resolve(false),
+    deliveryId ? assignShipdayDriver(deliveryId, driverEmail, apiKey) : Promise.resolve(false),
   ])
 
   return { ok: pickupAssigned || deliveryAssigned, pickupAssigned, deliveryAssigned }
@@ -139,10 +144,11 @@ export async function cancelShipdayOrders(
   bookingId: string
 ): Promise<{ ok: boolean; pickupCancelled: boolean; deliveryCancelled: boolean }> {
   const { pickupId, deliveryId } = await getShipdayIds(bookingId)
+  const { apiKey } = await getShipdayConfig()
 
   const [pickupCancelled, deliveryCancelled] = await Promise.all([
-    pickupId ? deleteShipdayOrder(pickupId) : Promise.resolve(false),
-    deliveryId ? deleteShipdayOrder(deliveryId) : Promise.resolve(false),
+    pickupId ? deleteShipdayOrder(pickupId, apiKey) : Promise.resolve(false),
+    deliveryId ? deleteShipdayOrder(deliveryId, apiKey) : Promise.resolve(false),
   ])
 
   return { ok: pickupCancelled || deliveryCancelled, pickupCancelled, deliveryCancelled }

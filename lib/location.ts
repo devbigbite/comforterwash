@@ -89,6 +89,36 @@ export async function getBranding() {
   }
 }
 
+// ── Per-tenant Shipday credentials + facility contact info ───────────────────
+// Each tenant brings their own Shipday account (their own API key) so driver
+// dispatch/tracking is fully isolated per business — no shared account across
+// tenants. Orlando is the one exception: until its own row is filled in via
+// the admin settings UI, it keeps working off the original global env vars
+// it's always used, so nothing breaks for the existing business.
+export interface ShipdayConfig {
+  apiKey: string | null
+  facilityAddress: string
+  facilityPhone: string
+}
+
+export async function getShipdayConfig(): Promise<ShipdayConfig> {
+  const locationId = await getLocationId()
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from("locations")
+    .select("shipday_api_key, business_address, business_phone")
+    .eq("id", locationId)
+    .single()
+
+  const isOrlando = locationId === ORLANDO_LOCATION_ID
+
+  return {
+    apiKey: data?.shipday_api_key ?? (isOrlando ? process.env.SHIPDAY_API_KEY ?? null : null),
+    facilityAddress: data?.business_address ?? (isOrlando ? process.env.BUSINESS_ADDRESS ?? "Orlando, FL" : "Orlando, FL"),
+    facilityPhone: data?.business_phone ?? (isOrlando ? process.env.BUSINESS_PHONE ?? "" : ""),
+  }
+}
+
 // ── Used in middleware (edge-safe, no next/headers) ───────────────────────────
 // Resolves a hostname to a location_id by slug or custom_domain.
 // Returns null if no match found.

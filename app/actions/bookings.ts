@@ -2,7 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getShipdayConfig, getBranding } from "@/lib/location"
 import { sendBookingNotification } from "@/lib/sms"
 import { createShipdayOrder } from "@/lib/shipday"
 import { format } from "date-fns"
@@ -151,23 +151,32 @@ export async function createBooking(data: BookingData) {
 
   // Dispatch to Shipday and store the returned order IDs for future patching
   try {
-    const { pickupOrderId, deliveryOrderId } = await createShipdayOrder({
-      id: booking.id,
-      short_code: booking.short_code ?? null,
-      customer_name: booking.customer_name,
-      customer_email: booking.customer_email,
-      customer_phone: booking.customer_phone,
-      customer_address: booking.customer_address,
-      pickup_date: booking.pickup_date,
-      pickup_time_window: booking.pickup_time_window,
-      delivery_date: booking.delivery_date,
-      delivery_time_window: booking.delivery_time_window,
-      num_comforters: booking.num_comforters ?? 0,
-      total_amount: booking.total_amount,
-      service_type: booking.service_type as "comforter_wash" | "wash_fold",
-      pounds: booking.pounds ?? undefined,
-      num_bags: booking.num_bags ?? undefined,
-    })
+    const [shipdayConfig, branding] = await Promise.all([getShipdayConfig(), getBranding()])
+    const { pickupOrderId, deliveryOrderId } = await createShipdayOrder(
+      {
+        id: booking.id,
+        short_code: booking.short_code ?? null,
+        customer_name: booking.customer_name,
+        customer_email: booking.customer_email,
+        customer_phone: booking.customer_phone,
+        customer_address: booking.customer_address,
+        pickup_date: booking.pickup_date,
+        pickup_time_window: booking.pickup_time_window,
+        delivery_date: booking.delivery_date,
+        delivery_time_window: booking.delivery_time_window,
+        num_comforters: booking.num_comforters ?? 0,
+        total_amount: booking.total_amount,
+        service_type: booking.service_type as "comforter_wash" | "wash_fold",
+        pounds: booking.pounds ?? undefined,
+        num_bags: booking.num_bags ?? undefined,
+      },
+      {
+        apiKey: shipdayConfig.apiKey,
+        facilityAddress: shipdayConfig.facilityAddress,
+        facilityPhone: shipdayConfig.facilityPhone,
+        businessName: branding.business_name || "Your Business",
+      }
+    )
 
     // Persist IDs so admin can patch or reassign routes later
     if (pickupOrderId || deliveryOrderId) {

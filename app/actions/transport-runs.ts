@@ -6,7 +6,7 @@ import { createShipdayRunOrder } from "@/lib/shipday"
 import { todayET } from "@/lib/date-et"
 import { getAllFacilityWindows } from "@/app/actions/facility-windows"
 import { isWithinAccessWindow } from "@/lib/facility-utils"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getShipdayConfig, getBranding } from "@/lib/location"
 
 export interface TransportRun {
   id: string
@@ -125,6 +125,8 @@ export async function createTransportRun(formData: FormData) {
 
   // ── Push to Shipday so driver sees it in their app ─────────────────────────
   try {
+    const [shipdayConfig, branding] = await Promise.all([getShipdayConfig(), getBranding()])
+
     // Resolve warehouse/storage address
     let warehouseAddress: string
     if (storageSpaceId) {
@@ -143,7 +145,7 @@ export async function createTransportRun(formData: FormData) {
           .eq("location_id", locationId)
           .eq("key", "warehouse_address")
           .single()
-        warehouseAddress = warehouseSetting?.value ?? process.env.BUSINESS_ADDRESS ?? "Orlando, FL"
+        warehouseAddress = warehouseSetting?.value ?? shipdayConfig.facilityAddress
       }
     } else {
       const { data: warehouseSetting } = await supabase
@@ -172,15 +174,22 @@ export async function createTransportRun(formData: FormData) {
 
     const today = todayET()
 
-    const shipdayOrderId = await createShipdayRunOrder({
-      runId:        run.id,
-      runType,
-      facilityName,
-      fromAddress,
-      toAddress,
-      orderSummary,
-      runDate:      today,
-    })
+    const shipdayOrderId = await createShipdayRunOrder(
+      {
+        runId:        run.id,
+        runType,
+        facilityName,
+        fromAddress,
+        toAddress,
+        orderSummary,
+        runDate:      today,
+      },
+      {
+        apiKey: shipdayConfig.apiKey,
+        facilityPhone: shipdayConfig.facilityPhone,
+        businessName: branding.business_name || "Your Business",
+      }
+    )
 
     if (shipdayOrderId) {
       await supabase

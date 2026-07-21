@@ -74,11 +74,11 @@ export async function patchShipdayOrder(
     pickupDate?: string
     expectedPickupTime?: string
     pickupTimeWindow?: string
-  }
+  },
+  apiKey?: string | null
 ): Promise<boolean> {
-  const apiKey = process.env.SHIPDAY_API_KEY
   if (!apiKey) {
-    console.error("[shipday] SHIPDAY_API_KEY not set — skipping patch")
+    console.error("[shipday] No Shipday API key configured for this tenant — skipping patch")
     return false
   }
 
@@ -119,10 +119,9 @@ export async function patchShipdayOrder(
 }
 
 /** DELETE /orders/{orderId} — remove a Shipday order from driver queues. */
-export async function deleteShipdayOrder(orderId: number): Promise<boolean> {
-  const apiKey = process.env.SHIPDAY_API_KEY
+export async function deleteShipdayOrder(orderId: number, apiKey?: string | null): Promise<boolean> {
   if (!apiKey) {
-    console.error("[shipday] SHIPDAY_API_KEY not set — skipping delete")
+    console.error("[shipday] No Shipday API key configured for this tenant — skipping delete")
     return false
   }
 
@@ -152,9 +151,9 @@ export async function deleteShipdayOrder(orderId: number): Promise<boolean> {
 /** POST /orders/{orderId}/assign — assign a carrier by their Shipday email. */
 export async function assignShipdayDriver(
   orderId: number,
-  carrierEmail: string
+  carrierEmail: string,
+  apiKey?: string | null
 ): Promise<boolean> {
-  const apiKey = process.env.SHIPDAY_API_KEY
   if (!apiKey) return false
 
   try {
@@ -182,17 +181,18 @@ export async function assignShipdayDriver(
   }
 }
 
-export async function createShipdayOrder(booking: ShipdayOrderInput): Promise<ShipdayOrderIds> {
-  const apiKey = process.env.SHIPDAY_API_KEY
+export async function createShipdayOrder(
+  booking: ShipdayOrderInput,
+  config: { apiKey: string | null; facilityAddress: string; facilityPhone: string; businessName: string }
+): Promise<ShipdayOrderIds> {
+  const { apiKey, facilityAddress, facilityPhone, businessName } = config
   if (!apiKey) {
-    console.error("[shipday] SHIPDAY_API_KEY not set — skipping dispatch")
+    console.error("[shipday] No Shipday API key configured for this tenant — skipping dispatch")
     return { pickupOrderId: null, deliveryOrderId: null }
   }
 
   const baseCode = booking.short_code ?? booking.id.slice(0, 6).toUpperCase()
   const total = (booking.total_amount / 100).toFixed(2)
-  const facilityAddress = process.env.BUSINESS_ADDRESS ?? "Orlando, FL"
-  const facilityPhone = process.env.BUSINESS_PHONE ?? ""
 
   const isWashFold = booking.service_type === "wash_fold"
   const isWashOnly = booking.service_type === "wash_only"
@@ -245,7 +245,7 @@ export async function createShipdayOrder(booking: ShipdayOrderInput): Promise<Sh
     customerAddress: booking.customer_address,
     customerEmail: booking.customer_email,
     customerPhoneNumber: booking.customer_phone,
-    restaurantName: "WashFold Orlando",
+    restaurantName: businessName,
     restaurantAddress: facilityAddress,
     restaurantPhoneNumber: facilityPhone,
     pickupDate: toShipdayDate(booking.pickup_date),
@@ -264,7 +264,7 @@ export async function createShipdayOrder(booking: ShipdayOrderInput): Promise<Sh
     customerAddress: booking.customer_address,
     customerEmail: booking.customer_email,
     customerPhoneNumber: booking.customer_phone,
-    restaurantName: "WashFold Orlando",
+    restaurantName: businessName,
     restaurantAddress: facilityAddress,
     restaurantPhoneNumber: facilityPhone,
     pickupDate: toShipdayDate(booking.delivery_date),
@@ -306,10 +306,13 @@ export interface ShipdayRunInput {
   runDate:      string   // YYYY-MM-DD (today)
 }
 
-export async function createShipdayRunOrder(run: ShipdayRunInput): Promise<number | null> {
-  const apiKey = process.env.SHIPDAY_API_KEY
+export async function createShipdayRunOrder(
+  run: ShipdayRunInput,
+  config: { apiKey: string | null; facilityPhone: string; businessName: string }
+): Promise<number | null> {
+  const { apiKey, facilityPhone, businessName } = config
   if (!apiKey) {
-    console.error("[shipday] SHIPDAY_API_KEY not set — skipping run dispatch")
+    console.error("[shipday] No Shipday API key configured for this tenant — skipping run dispatch")
     return null
   }
 
@@ -322,13 +325,13 @@ export async function createShipdayRunOrder(run: ShipdayRunInput): Promise<numbe
 
   const payload = {
     orderNumber:           orderNum,
-    customerName:          run.runType === "to_facility" ? run.facilityName : "WashFold Warehouse",
+    customerName:          run.runType === "to_facility" ? run.facilityName : `${businessName} Warehouse`,
     customerAddress:       run.toAddress,
     customerEmail:         "",
     customerPhoneNumber:   "",
-    restaurantName:        run.runType === "to_facility" ? "WashFold Warehouse" : run.facilityName,
+    restaurantName:        run.runType === "to_facility" ? `${businessName} Warehouse` : run.facilityName,
     restaurantAddress:     run.fromAddress,
-    restaurantPhoneNumber: process.env.BUSINESS_PHONE ?? "",
+    restaurantPhoneNumber: facilityPhone,
     pickupDate:            toShipdayDate(run.runDate),
     expectedPickupTime:    "09:00:00",
     paymentMethod:         "NO_PAYMENT",

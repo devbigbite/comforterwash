@@ -82,6 +82,50 @@ export async function setBrandingSettings(settings: BrandingSettings): Promise<{
   return {}
 }
 
+// ── Delivery dispatch (Shipday) ───────────────────────────────────────────────
+// Each tenant brings their own Shipday account for driver dispatch/tracking —
+// isolated per business, no shared account across tenants.
+export interface DispatchSettings {
+  shipday_api_key: string
+  business_address: string
+  business_phone: string
+}
+
+export async function getDispatchSettings(): Promise<DispatchSettings> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase
+    .from("locations")
+    .select("shipday_api_key, business_address, business_phone")
+    .eq("id", locationId)
+    .single()
+
+  return {
+    shipday_api_key: data?.shipday_api_key ?? "",
+    business_address: data?.business_address ?? "",
+    business_phone: data?.business_phone ?? "",
+  }
+}
+
+export async function setDispatchSettings(settings: DispatchSettings): Promise<{ error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+
+  const { error } = await supabase
+    .from("locations")
+    .update({
+      shipday_api_key: settings.shipday_api_key?.trim() || null,
+      business_address: settings.business_address?.trim() || null,
+      business_phone: settings.business_phone?.trim() || null,
+    })
+    .eq("id", locationId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/admin/branding")
+  return {}
+}
+
 export async function uploadBrandLogo(formData: FormData): Promise<{ url?: string; error?: string }> {
   await requireAdmin()
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]

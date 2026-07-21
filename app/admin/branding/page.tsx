@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { getBrandingSettings, setBrandingSettings, uploadBrandLogo, type BrandingSettings } from "@/app/actions/branding"
+import { getBrandingSettings, setBrandingSettings, uploadBrandLogo, getDispatchSettings, setDispatchSettings, type BrandingSettings, type DispatchSettings } from "@/app/actions/branding"
 import { getFulfillmentMode, setFulfillmentMode, type FulfillmentMode } from "@/app/actions/walkin"
 
 const FIELD_CLS = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#0D2240]/20 bg-white"
@@ -173,6 +173,87 @@ export default function BrandingPage() {
       </form>
 
       <FulfillmentSection />
+      <DispatchSection />
+    </div>
+  )
+}
+
+// ── Delivery dispatch (Shipday) — each tenant brings their own account so
+// driver dispatch/tracking is fully isolated, not shared across tenants ──────
+function DispatchSection() {
+  const [settings, setSettingsState] = useState<DispatchSettings | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getDispatchSettings().then(setSettingsState)
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!settings) return
+    setSaving(true)
+    setError(null)
+    const result = await setDispatchSettings(settings)
+    setSaving(false)
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  if (!settings) return null
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xl">🚚</span>
+        <h2 className="font-extrabold text-[#0D2240] text-base">Delivery Dispatch (Shipday)</h2>
+      </div>
+      <p className="text-xs text-gray-400 mb-5">
+        Connect your own{" "}
+        <a href="https://www.shipday.com" target="_blank" rel="noopener noreferrer" className="underline text-[#E8726A]">
+          Shipday
+        </a>{" "}
+        account so your drivers, routes, and live tracking are completely separate from any other business on this platform.
+        Find your API key under Shipday → Settings → API Keys. Leave blank and driver dispatch is simply skipped for new orders.
+      </p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className={LABEL_CLS}>Shipday API key</label>
+          <input type="password" className={FIELD_CLS} value={settings.shipday_api_key}
+            onChange={e => setSettingsState(s => s && { ...s, shipday_api_key: e.target.value })}
+            placeholder="Paste your Shipday API key" autoComplete="off" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={LABEL_CLS}>Facility phone</label>
+            <input className={FIELD_CLS} value={settings.business_phone}
+              onChange={e => setSettingsState(s => s && { ...s, business_phone: e.target.value })} />
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Facility address</label>
+            <input className={FIELD_CLS} value={settings.business_address}
+              onChange={e => setSettingsState(s => s && { ...s, business_address: e.target.value })} />
+          </div>
+        </div>
+        <p className="text-xs text-gray-400">
+          This is where drivers pick up processed orders from — it can differ from the public business address above.
+        </p>
+        {error && (
+          <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 border border-red-200 text-red-600">{error}</div>
+        )}
+        <div className="flex items-center gap-4">
+          <button type="submit" disabled={saving}
+            className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-8 py-3 rounded-xl transition-colors shadow-sm disabled:opacity-60">
+            {saving ? "Saving…" : "Save Dispatch Settings"}
+          </button>
+          {saved && <span className="text-green-600 text-sm font-semibold">✓ Saved</span>}
+        </div>
+      </form>
     </div>
   )
 }
