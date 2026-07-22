@@ -142,7 +142,7 @@ export async function inviteLocationAdmin(
   const magicLink = (linkData as { properties?: { action_link?: string } } | null)?.properties?.action_link
   if (magicLink) {
     const { sendAdminMagicLinkEmail } = await import("@/lib/email")
-    await sendAdminMagicLinkEmail(cleanEmail, magicLink)
+    await sendAdminMagicLinkEmail(cleanEmail, magicLink, locationId)
   }
 
   revalidatePath("/super-admin")
@@ -175,6 +175,35 @@ export async function getLocationAdmins(locationId: string): Promise<{ user_id: 
     role: m.role,
     is_super_admin: m.is_super_admin,
   }))
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+
+export interface DeleteLocationResult {
+  deleted: boolean
+  blocked?: boolean
+  error?: string
+  counts?: { bookings: number; workers: number; subscriptions: number }
+}
+
+// Permanently removes a location and all its data (bookings, workers,
+// facilities, settings, etc. — see admin_delete_location() in the DB).
+// Blocked by default if the location has any real bookings/workers/
+// subscriptions, unless `force` is passed — meant for cleaning up demo
+// tenants that never actually subscribed, not for offboarding live customers.
+export async function deleteLocation(
+  locationId: string,
+  force = false
+): Promise<DeleteLocationResult> {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+  const { data, error } = await supabase.rpc("admin_delete_location", {
+    target_location_id: locationId,
+    force,
+  })
+  if (error) return { deleted: false, error: error.message }
+  revalidatePath("/super-admin")
+  return data as DeleteLocationResult
 }
 
 export async function updateLocation(

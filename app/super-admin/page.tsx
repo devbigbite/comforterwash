@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
-import { getAllLocations, updateLocation, inviteLocationAdmin, getLocationAdmins, removeLocationAdmin } from "@/app/actions/super-admin"
+import { getAllLocations, updateLocation, inviteLocationAdmin, getLocationAdmins, removeLocationAdmin, deleteLocation, type DeleteLocationResult } from "@/app/actions/super-admin"
 import { setLocationPlanPrice, createBillingCheckoutLink, cancelLocationBilling } from "@/app/actions/platform-billing"
 
 type Location = {
@@ -64,6 +64,23 @@ export default function SuperAdminPage() {
   const [billSaving, setBillSaving] = useState(false)
   const [billMsg, setBillMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
+
+  // Delete
+  const [deleteForId, setDeleteForId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteResult, setDeleteResult] = useState<DeleteLocationResult | null>(null)
+
+  async function handleDelete(force: boolean) {
+    if (!deleteForId) return
+    setDeleting(true)
+    const res = await deleteLocation(deleteForId, force)
+    setDeleting(false)
+    setDeleteResult(res)
+    if (res.deleted) {
+      setDeleteForId(null)
+      startTransition(() => { load() })
+    }
+  }
 
   function openBilling(loc: Location) {
     setBillingForId(loc.id)
@@ -328,6 +345,12 @@ export default function SuperAdminPage() {
                         >
                           Billing
                         </button>
+                        <button
+                          onClick={() => { setDeleteForId(loc.id); setDeleteResult(null) }}
+                          className="text-xs font-medium text-slate-400 hover:text-red-600 transition-colors"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </>
@@ -481,6 +504,69 @@ export default function SuperAdminPage() {
                 </p>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete modal ─────────────────────────────────────────────── */}
+      {deleteForId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4" onClick={() => !deleting && setDeleteForId(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900">
+                Delete — {locations.find(l => l.id === deleteForId)?.name}
+              </h3>
+              <button onClick={() => setDeleteForId(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            {!deleteResult?.blocked ? (
+              <>
+                <p className="text-sm text-slate-500 mb-5">
+                  This permanently deletes the location and all of its data — bookings, workers, facilities, settings, everything. This cannot be undone.
+                </p>
+                {deleteResult?.error && (
+                  <p className="text-xs text-red-500 mb-3">{deleteResult.error}</p>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleDelete(false)}
+                    disabled={deleting}
+                    className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+                  >
+                    {deleting ? "Checking…" : "Delete Location"}
+                  </button>
+                  <button onClick={() => setDeleteForId(null)} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700">
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-700 mb-2 font-medium">
+                  This location has real data and can't be deleted by default:
+                </p>
+                <ul className="text-sm text-slate-500 mb-5 space-y-1">
+                  <li>{deleteResult.counts?.bookings ?? 0} bookings</li>
+                  <li>{deleteResult.counts?.workers ?? 0} workers</li>
+                  <li>{deleteResult.counts?.subscriptions ?? 0} subscriptions</li>
+                </ul>
+                <p className="text-xs text-red-500 mb-4">
+                  Forcing deletion here permanently wipes all of it — only do this if you're certain.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleDelete(true)}
+                    disabled={deleting}
+                    className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+                  >
+                    {deleting ? "Deleting…" : "Delete Anyway"}
+                  </button>
+                  <button onClick={() => setDeleteForId(null)} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700">
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -54,8 +54,13 @@ export async function getLocationId(): Promise<string> {
 }
 
 // ── Get the full location object ─────────────────────────────────────────────
-export async function getLocation(): Promise<Location | null> {
-  const locationId = await getLocationId()
+// Pass an explicit `overrideLocationId` when resolving branding for a tenant
+// OTHER than the one the current request is scoped to — e.g. super-admin
+// sending an invite email for a tenant it isn't currently browsing as.
+// Without it, this falls back to the ambient request's location (the normal
+// case for every customer/tenant-facing page).
+export async function getLocation(overrideLocationId?: string): Promise<Location | null> {
+  const locationId = overrideLocationId ?? (await getLocationId())
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("locations")
@@ -74,8 +79,8 @@ export async function getLocation(): Promise<Location | null> {
 }
 
 // ── Get just the branding subset (cheap, for headers/footers/emails) ─────────
-export async function getBranding() {
-  const loc = await getLocation()
+export async function getBranding(overrideLocationId?: string) {
+  const loc = await getLocation(overrideLocationId)
   if (!loc) return DEFAULT_BRANDING
   return {
     business_name: loc.business_name ?? loc.name,

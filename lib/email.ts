@@ -31,8 +31,8 @@ const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing_configure_in
 const SEND_DOMAIN = "clean@washfoldorlando.com"
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
 
-async function getEmailBranding(): Promise<EmailBranding> {
-  const b = await getBranding()
+async function getEmailBranding(overrideLocationId?: string): Promise<EmailBranding> {
+  const b = await getBranding(overrideLocationId)
   return {
     businessName: b.business_name,
     primaryColor: b.primary_color,
@@ -47,8 +47,8 @@ async function fromCustomer(): Promise<string> {
   return `${b.businessName} <${SEND_DOMAIN}>`
 }
 
-async function fromAdmin(): Promise<string> {
-  const b = await getEmailBranding()
+async function fromAdmin(overrideLocationId?: string): Promise<string> {
+  const b = await getEmailBranding(overrideLocationId)
   return `${b.businessName} <${SEND_DOMAIN}>`
 }
 
@@ -186,8 +186,8 @@ export async function sendAccountReadyEmail(
 // ─────────────────────────────────────────────────────────────────
 // 8b. Admin: Magic Link Login
 // ─────────────────────────────────────────────────────────────────
-export async function sendAdminMagicLinkEmail(toEmail: string, magicLink: string) {
-  const branding = await getEmailBranding()
+export async function sendAdminMagicLinkEmail(toEmail: string, magicLink: string, locationId?: string) {
+  const branding = await getEmailBranding(locationId)
   const subject = `🔑 Sign in to ${branding.businessName} Admin`
   const html = `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
@@ -203,7 +203,7 @@ export async function sendAdminMagicLinkEmail(toEmail: string, magicLink: string
       </p>
     </div>
   `
-  return safeSend({ from: await fromAdmin(), to: [toEmail], subject, html })
+  return safeSend({ from: await fromAdmin(locationId), to: [toEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
