@@ -324,7 +324,6 @@ export default function Home() {
               </Link>
             </div>
           </div>
-          <p className="text-[var(--brand-primary)]/30 text-center text-xs mt-6 uppercase tracking-wide">{tr.pricing.footerNote}</p>
         </div>
       </section>
 

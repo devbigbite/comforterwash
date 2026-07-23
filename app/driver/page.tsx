@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { PinGate, useWorkerSession } from "@/components/pin-gate"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import { getDriverQueue } from "@/app/actions/driver-queue"
 import { findBookingForDriverLookup } from "@/app/actions/operator-queue"
-import { getActiveWorkers } from "@/app/actions/staff"
-import type { ActiveWorker } from "@/app/actions/staff"
 import type { TransportRun } from "@/app/actions/transport-runs"
 import type { DriverOrder } from "@/app/actions/driver-queue"
 
@@ -19,19 +18,21 @@ const SERVICE_LABEL: Record<string, string> = {
   wash_only:      "Wash Only",
 }
 
+// PIN-gated like /operator — a worker must enter their real PIN (verified
+// server-side against the workers table) before seeing anyone's route,
+// customer names, or addresses. Previously this page had its own
+// unauthenticated "Who are you?" picker that granted access to any
+// driver's route just by clicking their name — no PIN required.
 export default function DriverHome() {
-  const [session, setSession] = useState<{ workerId: string; workerName: string } | null>(null)
+  return (
+    <PinGate role="driver">
+      <DriverHomeInner />
+    </PinGate>
+  )
+}
 
-  const [sessionChecked, setSessionChecked] = useState(false)
-
-  // Read session directly from localStorage (no PinGate context needed)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("washfold_driver_worker")
-      if (raw) setSession(JSON.parse(raw))
-    } catch {}
-    setSessionChecked(true)
-  }, [])
+function DriverHomeInner() {
+  const session = useWorkerSession()
 
   const [showKeypad, setShowKeypad]     = useState(false)
   const [code, setCode]                 = useState("")
@@ -44,13 +45,6 @@ export default function DriverHome() {
   const router = useRouter()
 
   const workerId = session?.workerId ?? null
-
-  const [drivers, setDrivers] = useState<ActiveWorker[]>([])
-
-  useEffect(() => {
-    // Always load driver list for the picker
-    getActiveWorkers().then(list => setDrivers(list.filter(w => w.roles?.includes("driver"))))
-  }, [])
 
   useEffect(() => {
     if (!workerId) { setRouteLoading(false); return }
@@ -105,35 +99,13 @@ export default function DriverHome() {
 
       <div className="px-4 pb-10 max-w-lg mx-auto space-y-4">
 
-        {(!sessionChecked || routeLoading) && (
+        {routeLoading && (
           <div className="text-center py-12">
             <p className="text-white/30 text-base animate-pulse">Loading your route…</p>
           </div>
         )}
 
-        {/* ── Driver picker when no session ── */}
-        {sessionChecked && !routeLoading && !workerId && (
-          <div className="bg-white/5 rounded-2xl p-6 mt-4">
-            <p className="text-white font-bold mb-3">Who are you?</p>
-            <div className="space-y-2">
-              {drivers.map(d => (
-                <button
-                  key={d.id}
-                  onClick={() => {
-                    const s = { workerId: d.id, workerName: d.name, lang: "en", roles: d.roles }
-                    localStorage.setItem("washfold_driver_worker", JSON.stringify(s))
-                    window.location.reload()
-                  }}
-                  className="w-full text-left bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-3 rounded-xl transition-colors"
-                >
-                  🚐 {d.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {sessionChecked && !routeLoading && !!workerId && totalTasks === 0 && (
+        {!routeLoading && !!workerId && totalTasks === 0 && (
           <div className="bg-white/5 rounded-2xl p-8 text-center mt-4">
             <p className="text-4xl mb-3">✅</p>
             <p className="text-white font-bold text-xl">No stops today</p>
