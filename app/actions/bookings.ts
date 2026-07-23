@@ -287,6 +287,24 @@ export async function updateBookingStatus(bookingId: string, status: string, not
   return booking
 }
 
+// Lets a home-based operator flag that a specific order needs a trip to one
+// of their saved laundromats (large orders, comforters that don't do well on
+// a home machine) — still the same person doing pickup through delivery,
+// just one step happens somewhere else. See app/actions/laundromats.ts.
+export async function setBookingFacilityRouting(
+  bookingId: string,
+  needsFacilityWash: boolean,
+  facilityId: string | null,
+): Promise<{ error?: string }> {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from("bookings")
+    .update({ needs_facility_wash: needsFacilityWash, routed_facility_id: needsFacilityWash ? facilityId : null })
+    .eq("id", bookingId)
+  if (error) return { error: error.message }
+  return {}
+}
+
 export async function getBookingsByDate(date: string) {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 

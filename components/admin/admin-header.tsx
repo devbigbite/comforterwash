@@ -27,7 +27,9 @@ function buildSimpleNav(lang: "en" | "es", operatingMode: OperatingMode): NavIte
     { type: "link", href: "/admin/branding",   label: es ? "Mi Negocio" : "My Business" },
     { type: "link", href: "/admin/pricing",    label: es ? "Precios" : "Pricing" },
     { type: "link", href: "/admin/zip-codes",  label: es ? "Área de Servicio" : "Service Area" },
-    ...(isHome ? [] : [{ type: "link" as const, href: "/admin/workers", label: es ? "Trabajadores" : "Workers" }]),
+    ...(isHome
+      ? [{ type: "link" as const, href: "/admin/laundromats", label: es ? "Mis Lavanderías" : "My Laundromats" }]
+      : [{ type: "link" as const, href: "/admin/workers", label: es ? "Trabajadores" : "Workers" }]),
     { type: "link", href: "/admin/settings",   label: es ? "Configuración" : "Settings" },
   ]
 }
@@ -62,6 +64,7 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
       label: es ? "Logística" : "Logistics",
       items: isHome
         ? [
+            { href: "/admin/laundromats",   label: es ? "Mis Lavanderías" : "My Laundromats" },
             { href: "/admin/zip-codes",     label: es ? "Códigos Postales" : "Zip Codes" },
             { href: "/admin/service-area",  label: es ? "Mapa de Área" : "Area Map" },
             { href: "/admin/holidays",      label: es ? "Días Festivos" : "Holidays" },
