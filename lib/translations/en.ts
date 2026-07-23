@@ -141,7 +141,7 @@ const en = {
     q1: "What's the difference between the services?",
     a1: "Comforter Wash is for comforters — from $33 each (price varies by size). Wash & Fold is for regular clothes: washed, dried, and folded at $2.40/lb (or $2.15/lb with a weekly/biweekly subscription). Wash Only is a lower-cost option at $1.99/lb — clothes are washed and returned clean in a bag, unfolded.",
     q2: "What days do you do pickups?",
-    a2: "Pickup and delivery days vary by your neighborhood and are shown when you book. Most customers have pickups available Monday through Friday in morning (9AM–1PM) or afternoon (3PM–7PM) windows.",
+    a2: "Pickup and delivery days and windows vary by your neighborhood and route, and are shown when you book.",
     q3: "How does the Wash & Fold weight work?",
     a3: "You estimate your weight when booking, and we weigh your laundry at pickup. We'll confirm the final price after weighing. 20 lb minimum applies.",
     q4: "What if I'm not home?",

@@ -38,9 +38,9 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "gen-3", category: "general", sort_order: 3, active: true,
     question: "What are your pickup and delivery windows?",
-    answer: "We offer two daily windows: Morning (9:00 AM – 1:00 PM) and Afternoon (3:00 PM – 7:00 PM). You choose a pickup window and a delivery window when you book. We'll text you when your driver is on the way.",
+    answer: "Pickup and delivery windows vary by neighborhood and route, and are shown when you book. You'll choose a specific window for your pickup and delivery at checkout, and we'll text you when your driver is on the way.",
     question_es: "¿Cuáles son sus horarios de recogida y entrega?",
-    answer_es: "Ofrecemos dos ventanas diarias: Mañana (9:00 AM – 1:00 PM) y Tarde (3:00 PM – 7:00 PM). Eliges una ventana de recogida y una de entrega al reservar. Te enviaremos un mensaje de texto cuando tu conductor esté en camino.",
+    answer_es: "Los horarios de recogida y entrega varían según el vecindario y la ruta, y se muestran al reservar. Eliges una ventana específica para tu recogida y entrega al pagar, y te enviaremos un mensaje de texto cuando tu conductor esté en camino.",
   },
   {
     id: "gen-4", category: "general", sort_order: 4, active: true,
