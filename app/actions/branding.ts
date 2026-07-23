@@ -276,6 +276,28 @@ export async function setEmailLocalPart(localPart: string): Promise<{ error?: st
   return {}
 }
 
+// ── Admin view mode (Simple / Advanced) ───────────────────────────────────────
+// Solo/home-based tenants can find the full admin overwhelming, so they land
+// on a condensed "Simple" nav + dashboard by default. The full nav/dashboard
+// (today's experience, unchanged) is always one click away as "Advanced".
+// Persisted per-tenant on `locations` since each tenant has a single shared
+// admin login, not per-user accounts.
+export type AdminViewMode = "simple" | "advanced"
+
+export async function getAdminViewMode(): Promise<AdminViewMode> {
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase.from("locations").select("admin_view_mode").eq("id", locationId).single()
+  return (data?.admin_view_mode as AdminViewMode) ?? "simple"
+}
+
+export async function setAdminViewMode(mode: AdminViewMode): Promise<{ error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("locations").update({ admin_view_mode: mode }).eq("id", locationId)
+  revalidatePath("/admin", "layout")
+  return {}
+}
+
 export async function uploadBrandLogo(formData: FormData): Promise<{ url?: string; error?: string }> {
   await requireAdmin()
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]

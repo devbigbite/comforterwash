@@ -373,25 +373,32 @@ function EmailDomainSection() {
 // driver dispatch/tracking is fully isolated, not shared across tenants ──────
 function DispatchSection() {
   const [settings, setSettingsState] = useState<DispatchSettings | null>(null)
+  const [usesDispatchApp, setUsesDispatchApp] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    getDispatchSettings().then(setSettingsState)
+    getDispatchSettings().then(s => {
+      setSettingsState(s)
+      setUsesDispatchApp(!!s.shipday_api_key)
+    })
   }, [])
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  async function handleSubmit() {
     if (!settings) return
     setSaving(true)
     setError(null)
-    const result = await setDispatchSettings(settings)
+    // If they've said "no", drop any previously-saved key rather than requiring
+    // them to clear the field themselves — the toggle is the source of truth.
+    const toSave = usesDispatchApp ? settings : { ...settings, shipday_api_key: "" }
+    const result = await setDispatchSettings(toSave)
     setSaving(false)
     if (result.error) {
       setError(result.error)
       return
     }
+    setSettingsState(toSave)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
@@ -402,49 +409,75 @@ function DispatchSection() {
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-xl">🚚</span>
-        <h2 className="font-extrabold text-[#0D2240] text-base">Delivery Dispatch (Shipday)</h2>
+        <h2 className="font-extrabold text-[#0D2240] text-base">Driver Dispatch</h2>
       </div>
       <p className="text-xs text-gray-400 mb-5">
-        Connect your own{" "}
-        <a href="https://www.shipday.com" target="_blank" rel="noopener noreferrer" className="underline text-[#E8726A]">
-          Shipday
-        </a>{" "}
-        account so your drivers, routes, and live tracking are completely separate from any other business on this platform.
-        Find your API key under Shipday → Settings → API Keys. Leave blank and driver dispatch is simply skipped for new orders.
+        Do you use a driver dispatch app (like Shipday) to route your drivers, or do you handle pickup and delivery yourself?
       </p>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className={LABEL_CLS}>Shipday API key</label>
-          <input type="password" className={FIELD_CLS} value={settings.shipday_api_key}
-            onChange={e => setSettingsState(s => s && { ...s, shipday_api_key: e.target.value })}
-            placeholder="Paste your Shipday API key" autoComplete="off" />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={LABEL_CLS}>Facility phone</label>
-            <input className={FIELD_CLS} value={settings.business_phone}
-              onChange={e => setSettingsState(s => s && { ...s, business_phone: e.target.value })} />
-          </div>
-          <div>
-            <label className={LABEL_CLS}>Facility address</label>
-            <input className={FIELD_CLS} value={settings.business_address}
-              onChange={e => setSettingsState(s => s && { ...s, business_address: e.target.value })} />
-          </div>
-        </div>
-        <p className="text-xs text-gray-400">
-          This is where drivers pick up processed orders from — it can differ from the public business address above.
+
+      <div className="flex gap-2 mb-5">
+        <button type="button" onClick={() => setUsesDispatchApp(false)}
+          className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold border transition-colors ${
+            !usesDispatchApp ? "border-[#0D2240] bg-[#0D2240]/5 text-[#0D2240]" : "border-gray-100 text-gray-400 hover:border-gray-200"
+          }`}>
+          No, I handle it myself
+        </button>
+        <button type="button" onClick={() => setUsesDispatchApp(true)}
+          className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold border transition-colors ${
+            usesDispatchApp ? "border-[#0D2240] bg-[#0D2240]/5 text-[#0D2240]" : "border-gray-100 text-gray-400 hover:border-gray-200"
+          }`}>
+          Yes, I use a dispatch app
+        </button>
+      </div>
+
+      {!usesDispatchApp ? (
+        <p className="text-xs text-gray-400 bg-gray-50 rounded-xl px-4 py-3 mb-1">
+          That's the default — new orders just won't be sent anywhere for routing. You can turn this on any time.
         </p>
-        {error && (
-          <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 border border-red-200 text-red-600">{error}</div>
-        )}
-        <div className="flex items-center gap-4">
-          <button type="submit" disabled={saving}
-            className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-8 py-3 rounded-xl transition-colors shadow-sm disabled:opacity-60">
-            {saving ? "Saving…" : "Save Dispatch Settings"}
-          </button>
-          {saved && <span className="text-green-600 text-sm font-semibold">✓ Saved</span>}
+      ) : (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-400">
+            Connect your own{" "}
+            <a href="https://www.shipday.com" target="_blank" rel="noopener noreferrer" className="underline text-[#E8726A]">
+              Shipday
+            </a>{" "}
+            account so your drivers, routes, and live tracking are completely separate from any other business on this platform.
+            Find your API key under Shipday → Settings → API Keys.
+          </p>
+          <div>
+            <label className={LABEL_CLS}>Shipday API key</label>
+            <input type="password" className={FIELD_CLS} value={settings.shipday_api_key}
+              onChange={e => setSettingsState(s => s && { ...s, shipday_api_key: e.target.value })}
+              placeholder="Paste your Shipday API key" autoComplete="off" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={LABEL_CLS}>Facility phone</label>
+              <input className={FIELD_CLS} value={settings.business_phone}
+                onChange={e => setSettingsState(s => s && { ...s, business_phone: e.target.value })} />
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Facility address</label>
+              <input className={FIELD_CLS} value={settings.business_address}
+                onChange={e => setSettingsState(s => s && { ...s, business_address: e.target.value })} />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400">
+            This is where drivers pick up processed orders from — it can differ from the public business address above.
+          </p>
         </div>
-      </form>
+      )}
+
+      {error && (
+        <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 border border-red-200 text-red-600 mt-4">{error}</div>
+      )}
+      <div className="flex items-center gap-4 mt-5">
+        <button type="button" disabled={saving} onClick={handleSubmit}
+          className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-8 py-3 rounded-xl transition-colors shadow-sm disabled:opacity-60">
+          {saving ? "Saving…" : "Save Dispatch Settings"}
+        </button>
+        {saved && <span className="text-green-600 text-sm font-semibold">✓ Saved</span>}
+      </div>
     </div>
   )
 }

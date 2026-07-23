@@ -1,7 +1,9 @@
 import { LogOut, ChevronDown } from "lucide-react"
 import { logoutAction } from "@/app/admin/login/actions"
 import { AdminLangToggle } from "@/components/admin/admin-lang-toggle"
+import { AdminViewToggle } from "@/components/admin/admin-view-toggle"
 import { getAdminLang } from "@/app/actions/admin-lang"
+import { getAdminViewMode } from "@/app/actions/branding"
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 
@@ -9,6 +11,23 @@ type NavLink = { href: string; label: string; external?: boolean }
 type NavItem =
   | { type: "link"; href: string; label: string }
   | { type: "dropdown"; label: string; items: NavLink[] }
+
+// Condensed nav for tenants who haven't opted into the full "Advanced" admin —
+// just the handful of things a solo/home-based operator touches day to day.
+// Everything here also exists in the Advanced nav; nothing is removed, only
+// hidden until the tenant wants more.
+function buildSimpleNav(lang: "en" | "es"): NavItem[] {
+  const es = lang === "es"
+  return [
+    { type: "link", href: "/admin/dispatch",  label: es ? "Despacho" : "Dispatch" },
+    { type: "link", href: "/admin/orders",     label: es ? "Órdenes" : "Orders" },
+    { type: "link", href: "/admin/branding",   label: es ? "Mi Negocio" : "My Business" },
+    { type: "link", href: "/admin/pricing",    label: es ? "Precios" : "Pricing" },
+    { type: "link", href: "/admin/zip-codes",  label: es ? "Área de Servicio" : "Service Area" },
+    { type: "link", href: "/admin/workers",    label: es ? "Trabajadores" : "Workers" },
+    { type: "link", href: "/admin/settings",   label: es ? "Configuración" : "Settings" },
+  ]
+}
 
 function buildNav(lang: "en" | "es"): NavItem[] {
   const es = lang === "es"
@@ -122,8 +141,8 @@ function Dropdown({ label, items }: { label: string; items: NavLink[] }) {
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export async function AdminHeader() {
-  const lang = await getAdminLang()
-  const navItems = buildNav(lang)
+  const [lang, viewMode] = await Promise.all([getAdminLang(), getAdminViewMode()])
+  const navItems = viewMode === "simple" ? buildSimpleNav(lang) : buildNav(lang)
 
   return (
     <header className="bg-[#0D2240] px-6 py-0 flex items-stretch min-h-[52px]">
@@ -163,8 +182,13 @@ export async function AdminHeader() {
         )}
       </nav>
 
-      {/* Language toggle */}
+      {/* Simple / Advanced toggle */}
       <div className="flex items-center px-3 shrink-0">
+        <AdminViewToggle mode={viewMode} lang={lang} />
+      </div>
+
+      {/* Language toggle */}
+      <div className="flex items-center px-3 shrink-0 border-l border-white/10">
         <AdminLangToggle lang={lang} />
       </div>
 

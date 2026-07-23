@@ -2,7 +2,9 @@ import type React from "react"
 import { getBookings } from "@/app/actions/bookings"
 import { getFulfillmentMode } from "@/app/actions/walkin"
 import { getMyBillingStatus } from "@/app/actions/platform-billing"
-import { getBranding, getLocationId, ORLANDO_LOCATION_ID } from "@/lib/location"
+import { getBranding, getLocationId, ORLANDO_LOCATION_ID, DEFAULT_BRANDING } from "@/lib/location"
+import { getAdminViewMode } from "@/app/actions/branding"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { todayET } from "@/lib/pickup-cutoff"
 import {
   Truck,
@@ -40,12 +42,99 @@ type Module = {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function AdminHub() {
-  const [bookings, branding, fulfillmentMode, billingStatus, locationId] = await Promise.all([
-    getBookings(), getBranding(), getFulfillmentMode(), getMyBillingStatus(), getLocationId(),
+  const [bookings, branding, fulfillmentMode, billingStatus, locationId, viewMode] = await Promise.all([
+    getBookings(), getBranding(), getFulfillmentMode(), getMyBillingStatus(), getLocationId(), getAdminViewMode(),
   ])
   const today = todayET()
   const showWalkin = fulfillmentMode === "walkin" || fulfillmentMode === "both"
   const isOrlando = locationId === ORLANDO_LOCATION_ID
+
+  if (viewMode === "simple") {
+    const supabase = createAdminClient()
+    const [{ count: zipCount }, { data: pricingRow }] = await Promise.all([
+      supabase.from("service_areas").select("id", { count: "exact", head: true }).eq("location_id", locationId).eq("active", true),
+      supabase.from("locations").select("business_name, logo_url").eq("id", locationId).single(),
+    ])
+
+    const checklist = [
+      {
+        label: "Add your business name & logo",
+        done: !!(pricingRow?.business_name && pricingRow.business_name !== DEFAULT_BRANDING.business_name) || !!pricingRow?.logo_url,
+        href: "/admin/branding",
+      },
+      { label: "Add at least one service area / ZIP code", done: (zipCount ?? 0) > 0, href: "/admin/zip-codes" },
+      { label: "Take your first order", done: bookings.length > 0, href: "/admin/dispatch" },
+    ]
+    const doneCount = checklist.filter(c => c.done).length
+
+    return (
+      <div className="bg-[#f0f4fa] min-h-screen">
+        <main className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+          <div>
+            <h1 className="text-2xl font-bold text-[#0D2240]">Welcome back</h1>
+            <p className="text-sm text-gray-400 mt-0.5">{branding.business_name || "WashFoldClean"} — here's what needs your attention.</p>
+          </div>
+
+          {(billingStatus === "past_due" || billingStatus === "canceled") && (
+            <div className={`rounded-2xl border px-5 py-4 flex items-center gap-3 ${
+              billingStatus === "canceled" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"
+            }`}>
+              <span className="text-xl">⚠️</span>
+              <p className={`text-sm font-semibold ${billingStatus === "canceled" ? "text-red-700" : "text-amber-700"}`}>
+                {billingStatus === "canceled"
+                  ? "Your subscription has been cancelled. Contact the platform to reactivate your account."
+                  : "Your last payment failed. Please update your billing to keep your account in good standing."}
+              </p>
+            </div>
+          )}
+
+          {doneCount < checklist.length && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-[#0D2240] text-sm">Getting set up ({doneCount}/{checklist.length})</h2>
+                <span className="text-xs text-gray-400">Optional — skip anything you don't need yet</span>
+              </div>
+              <div className="space-y-2">
+                {checklist.map((step) => (
+                  <a key={step.label} href={step.href} className={`flex items-center gap-3 rounded-xl px-4 py-3 border transition-colors ${
+                    step.done ? "border-green-100 bg-green-50/50" : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"
+                  }`}>
+                    <span className={`h-5 w-5 rounded-full flex items-center justify-center text-xs shrink-0 ${
+                      step.done ? "bg-green-500 text-white" : "bg-gray-200 text-gray-400"
+                    }`}>{step.done ? "✓" : ""}</span>
+                    <span className={`text-sm ${step.done ? "text-green-700 line-through" : "text-[#0D2240] font-medium"}`}>{step.label}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4">Quick Access</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { label: "Dispatch", href: "/admin/dispatch", icon: "🚚" },
+                { label: "Orders", href: "/admin/orders", icon: "📦" },
+                { label: "My Business", href: "/admin/branding", icon: "🏠" },
+                { label: "Pricing", href: "/admin/pricing", icon: "💵" },
+                { label: "Service Area", href: "/admin/zip-codes", icon: "📍" },
+                { label: "Workers", href: "/admin/workers", icon: "👷" },
+              ].map((item) => (
+                <a key={item.href} href={item.href} className="bg-white border border-gray-100 rounded-xl px-4 py-3.5 flex items-center gap-3 shadow-sm hover:shadow-md hover:border-gray-200 transition-all group">
+                  <span className="text-xl leading-none">{item.icon}</span>
+                  <span className="text-sm font-medium text-[#0D2240] group-hover:text-[#E8726A] transition-colors leading-tight">{item.label}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-gray-400">
+            Need more control? Switch to <span className="font-semibold text-gray-500">Advanced</span> in the top nav any time — nothing here goes away.
+          </p>
+        </main>
+      </div>
+    )
+  }
 
   const stats = {
     total: bookings.length,
