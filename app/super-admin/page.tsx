@@ -5,6 +5,10 @@ import Link from "next/link"
 import { getAllLocations, updateLocation, inviteLocationAdmin, getLocationAdmins, removeLocationAdmin, deleteLocation, type DeleteLocationResult } from "@/app/actions/super-admin"
 import { setLocationPlanPrice, createBillingCheckoutLink, cancelLocationBilling } from "@/app/actions/platform-billing"
 
+// Mirrors middleware.ts's PLATFORM_DOMAIN — used here just to build the
+// "View Site" link, not for any actual host resolution.
+const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfold.com"
+
 type Location = {
   id: string
   name: string
@@ -327,6 +331,14 @@ export default function SuperAdminPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
+                        <a
+                          href={`https://${loc.custom_domain || `${loc.slug}.${PLATFORM_DOMAIN}`}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+                        >
+                          View Site ↗
+                        </a>
                         <button
                           onClick={() => startEdit(loc)}
                           className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
