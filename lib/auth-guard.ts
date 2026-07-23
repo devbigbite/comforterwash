@@ -50,9 +50,29 @@ export async function isAdminForCurrentLocation(): Promise<boolean> {
   }
 
   // ── Legacy path: shared password, Orlando only ─────────────────────────────
+  const cookieStore = await cookies()
   if (locationId === ORLANDO_LOCATION_ID) {
-    const cookieStore = await cookies()
     if (cookieStore.get("admin_auth")?.value === "authenticated") return true
+  }
+
+  // ── Super-admin impersonation path ─────────────────────────────────────────
+  // enterTenantAdmin() (app/actions/super-admin.ts) sets this cookie only
+  // after requireSuperAdmin() has already verified the caller — but that
+  // check doesn't persist across requests, so re-verify super-admin status
+  // here too rather than trusting the marker cookie alone.
+  if (cookieStore.get("super_admin_impersonating")?.value === "1") {
+    if (user) {
+      const admin = createAdminClient()
+      const { data: superRow } = await admin
+        .from("location_users")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("is_super_admin", true)
+        .limit(1)
+        .maybeSingle()
+      if (superRow) return true
+    }
+    if (cookieStore.get("super_admin_auth")?.value === "authenticated") return true
   }
 
   return false
