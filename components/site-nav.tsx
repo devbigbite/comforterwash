@@ -38,6 +38,7 @@ const EXCLUDED_PREFIXES = [
   "/partner",
   "/track",
   "/book",
+  "/platform",
 ]
 
 export function SiteNav({ businessName = "WashFoldClean", logoUrl }: { businessName?: string; logoUrl?: string | null }) {
