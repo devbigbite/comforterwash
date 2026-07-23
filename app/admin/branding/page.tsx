@@ -414,10 +414,12 @@ function DispatchSection() {
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-xl">🚚</span>
-        <h2 className="font-extrabold text-[#0D2240] text-base">Driver Dispatch</h2>
+        <h2 className="font-extrabold text-[#0D2240] text-base">Delivery Tracking &amp; Dispatch</h2>
       </div>
       <p className="text-xs text-gray-400 mb-5">
-        Do you use a driver dispatch app (like Shipday) to route your drivers, or do you handle pickup and delivery yourself?
+        Do you use Shipday for delivery tracking and customer notifications? This isn't only for businesses with hired
+        drivers — plenty of solo/home-based operators use it too, just for the live tracking link and status texts it
+        sends customers, even while driving the orders themselves.
       </p>
 
       <div className="flex gap-2 mb-5">
@@ -425,19 +427,19 @@ function DispatchSection() {
           className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold border transition-colors ${
             !usesDispatchApp ? "border-[#0D2240] bg-[#0D2240]/5 text-[#0D2240]" : "border-gray-100 text-gray-400 hover:border-gray-200"
           }`}>
-          No, I handle it myself
+          No, skip this
         </button>
         <button type="button" onClick={() => setUsesDispatchApp(true)}
           className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold border transition-colors ${
             usesDispatchApp ? "border-[#0D2240] bg-[#0D2240]/5 text-[#0D2240]" : "border-gray-100 text-gray-400 hover:border-gray-200"
           }`}>
-          Yes, I use a dispatch app
+          Yes, connect Shipday
         </button>
       </div>
 
       {!usesDispatchApp ? (
         <p className="text-xs text-gray-400 bg-gray-50 rounded-xl px-4 py-3 mb-1">
-          That's the default — new orders just won't be sent anywhere for routing. You can turn this on any time.
+          That's the default — new orders won't be sent to Shipday for tracking or driver routing. You can turn this on any time, whether or not you use your own drivers.
         </p>
       ) : (
         <div className="space-y-4">
