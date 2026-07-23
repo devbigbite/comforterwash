@@ -1,7 +1,11 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { getBrandingSettings, setBrandingSettings, uploadBrandLogo, getDispatchSettings, setDispatchSettings, type BrandingSettings, type DispatchSettings } from "@/app/actions/branding"
+import {
+  getBrandingSettings, setBrandingSettings, uploadBrandLogo, getDispatchSettings, setDispatchSettings,
+  getEmailDomainStatus, addEmailDomain, checkEmailDomainVerification, removeEmailDomain, setEmailLocalPart,
+  type BrandingSettings, type DispatchSettings, type EmailDomainStatus,
+} from "@/app/actions/branding"
 import { getFulfillmentMode, setFulfillmentMode, type FulfillmentMode } from "@/app/actions/walkin"
 
 const FIELD_CLS = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#0D2240]/20 bg-white"
@@ -173,7 +177,194 @@ export default function BrandingPage() {
       </form>
 
       <FulfillmentSection />
+      <EmailDomainSection />
       <DispatchSection />
+    </div>
+  )
+}
+
+// ── Custom sending domain (Resend) — verify your own domain so emails come
+// from your brand instead of the shared clean@washfoldorlando.com address ──
+function EmailDomainSection() {
+  const [status, setStatus] = useState<EmailDomainStatus | null>(null)
+  const [domainInput, setDomainInput] = useState("")
+  const [localPart, setLocalPart] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
+
+  function load() {
+    getEmailDomainStatus().then(s => {
+      setStatus(s)
+      setLocalPart(s.fromEmail?.split("@")[0] ?? "hello")
+    })
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function handleAddDomain(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    const result = await addEmailDomain(domainInput)
+    setBusy(false)
+    if (result.error) { setError(result.error); return }
+    setDomainInput("")
+    load()
+  }
+
+  async function handleCheck() {
+    setBusy(true)
+    setError(null)
+    const result = await checkEmailDomainVerification()
+    setBusy(false)
+    if (result.error) setError(result.error)
+    setStatus(result)
+  }
+
+  async function handleRemove() {
+    if (!confirm("Remove this domain? Emails will go back to the shared sending address.")) return
+    setBusy(true)
+    await removeEmailDomain()
+    setBusy(false)
+    load()
+  }
+
+  async function handleSaveLocalPart() {
+    setBusy(true)
+    setError(null)
+    const result = await setEmailLocalPart(localPart)
+    setBusy(false)
+    if (result.error) { setError(result.error); return }
+    load()
+  }
+
+  function copy(value: string) {
+    navigator.clipboard?.writeText(value)
+    setCopied(value)
+    setTimeout(() => setCopied(null), 1500)
+  }
+
+  if (!status) return null
+
+  const STATUS_STYLES: Record<string, string> = {
+    verified: "bg-green-50 text-green-700 border-green-200",
+    pending: "bg-amber-50 text-amber-700 border-amber-200",
+    not_started: "bg-gray-50 text-gray-500 border-gray-200",
+    failed: "bg-red-50 text-red-700 border-red-200",
+    temporary_failure: "bg-red-50 text-red-700 border-red-200",
+    not_configured: "bg-gray-50 text-gray-500 border-gray-200",
+  }
+  const STATUS_LABELS: Record<string, string> = {
+    verified: "Verified — sending from your domain",
+    pending: "Pending — add the records below",
+    not_started: "Not started",
+    failed: "Failed",
+    temporary_failure: "Temporary failure",
+    not_configured: "Not configured",
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xl">✉️</span>
+        <h2 className="font-extrabold text-[#0D2240] text-base">Custom Sending Domain</h2>
+      </div>
+      <p className="text-xs text-gray-400 mb-5">
+        Send booking confirmations, reminders, and receipts from your own domain instead of the shared address.
+        Requires adding a few DNS records at your domain registrar to prove ownership.
+      </p>
+
+      {!status.domain ? (
+        <form onSubmit={handleAddDomain} className="space-y-3">
+          <div>
+            <label className={LABEL_CLS}>Domain</label>
+            <input className={FIELD_CLS} placeholder="mail.yourbusiness.com" value={domainInput}
+              onChange={e => setDomainInput(e.target.value)} />
+            <p className="text-xs text-gray-400 mt-1">
+              A subdomain (e.g. <span className="font-mono">mail.yourbusiness.com</span>) is recommended so it doesn&apos;t interfere with your existing website or inbox DNS.
+            </p>
+          </div>
+          {error && (
+            <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 border border-red-200 text-red-600">{error}</div>
+          )}
+          <button type="submit" disabled={busy}
+            className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-8 py-3 rounded-xl transition-colors shadow-sm disabled:opacity-60">
+            {busy ? "Adding…" : "Add Domain"}
+          </button>
+        </form>
+      ) : (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <p className="font-bold text-[#0D2240] text-sm">{status.domain}</p>
+              <span className={`inline-block mt-1 text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded-full border ${STATUS_STYLES[status.status]}`}>
+                {STATUS_LABELS[status.status] ?? status.status}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={handleCheck} disabled={busy}
+                className="text-xs font-bold text-[#0D2240] border border-gray-200 hover:border-[#0D2240] px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+                {busy ? "Checking…" : "Check Verification"}
+              </button>
+              <button type="button" onClick={handleRemove} disabled={busy}
+                className="text-xs text-gray-400 hover:text-red-500 underline transition-colors disabled:opacity-40">
+                Remove
+              </button>
+            </div>
+          </div>
+
+          {status.status !== "verified" && status.records.length > 0 && (
+            <div className="rounded-xl border border-gray-100 overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-[#f7f8fb] border-b border-gray-100">
+                    <th className="text-left px-3 py-2 font-bold text-gray-400 uppercase tracking-wide">Type</th>
+                    <th className="text-left px-3 py-2 font-bold text-gray-400 uppercase tracking-wide">Name</th>
+                    <th className="text-left px-3 py-2 font-bold text-gray-400 uppercase tracking-wide">Value</th>
+                    <th className="px-3 py-2" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {status.records.map((r, i) => (
+                    <tr key={i}>
+                      <td className="px-3 py-2 font-mono">{r.type}</td>
+                      <td className="px-3 py-2 font-mono break-all">{r.name}</td>
+                      <td className="px-3 py-2 font-mono break-all text-gray-500">{r.value}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <button type="button" onClick={() => copy(r.value)} className="text-[#E8726A] hover:text-[#d45f57] font-bold">
+                          {copied === r.value ? "✓" : "Copy"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-xs text-gray-400 px-3 py-2 bg-[#f7f8fb]">
+                Add these records at your domain&apos;s DNS provider, then click &quot;Check Verification&quot;. This can take a few minutes to a few hours to propagate.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className={LABEL_CLS}>Send from</label>
+              <div className="flex items-center gap-1.5">
+                <input className={FIELD_CLS} value={localPart} onChange={e => setLocalPart(e.target.value)} />
+                <span className="text-sm text-gray-400 font-mono">@{status.domain}</span>
+              </div>
+            </div>
+            <button type="button" onClick={handleSaveLocalPart} disabled={busy}
+              className="text-xs font-bold text-[#0D2240] border border-gray-200 hover:border-[#0D2240] px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50">
+              Save
+            </button>
+          </div>
+
+          {error && (
+            <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 border border-red-200 text-red-600">{error}</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -17,7 +17,8 @@ import {
   type DeliveredData,
 } from "./email-templates"
 import { getEmailTemplate } from "@/app/actions/email-templates"
-import { getBranding } from "@/lib/location"
+import { getBranding, getLocationId } from "@/lib/location"
+import { createAdminClient } from "@/lib/supabase/admin"
 import type { EmailBranding } from "./email-templates"
 
 // ─────────────────────────────────────────────────────────────────
@@ -25,9 +26,10 @@ import type { EmailBranding } from "./email-templates"
 // ─────────────────────────────────────────────────────────────────
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing_configure_in_vercel")
 
-// Sending address stays fixed to the verified domain — the display name in
-// front of it is what changes per tenant (real per-tenant sending domains
-// are a bigger Phase 3/4 lift).
+// Fallback sending address for any tenant that hasn't verified their own
+// domain yet (see /admin/branding → Custom Sending Domain). Once a tenant's
+// domain is verified with Resend, getSendingAddress() below uses their own
+// address instead — only the display name changed for everyone before that.
 const SEND_DOMAIN = "clean@washfoldorlando.com"
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
 
@@ -42,14 +44,32 @@ async function getEmailBranding(overrideLocationId?: string): Promise<EmailBrand
   }
 }
 
-async function fromCustomer(): Promise<string> {
-  const b = await getEmailBranding()
-  return `${b.businessName} <${SEND_DOMAIN}>`
+// Resolves the actual "from" address to send as — the tenant's own verified
+// domain if they've set one up and Resend has confirmed it, otherwise the
+// shared fallback address (display name is always tenant-specific either way).
+async function getSendingAddress(overrideLocationId?: string): Promise<string> {
+  const locationId = overrideLocationId ?? (await getLocationId())
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from("locations")
+    .select("sending_domain, sending_domain_status, sending_email_local_part")
+    .eq("id", locationId)
+    .single()
+
+  if (data?.sending_domain && data.sending_domain_status === "verified") {
+    return `${data.sending_email_local_part || "hello"}@${data.sending_domain}`
+  }
+  return SEND_DOMAIN
+}
+
+async function fromCustomer(overrideLocationId?: string): Promise<string> {
+  const [b, address] = await Promise.all([getEmailBranding(overrideLocationId), getSendingAddress(overrideLocationId)])
+  return `${b.businessName} <${address}>`
 }
 
 async function fromAdmin(overrideLocationId?: string): Promise<string> {
-  const b = await getEmailBranding(overrideLocationId)
-  return `${b.businessName} <${SEND_DOMAIN}>`
+  const [b, address] = await Promise.all([getEmailBranding(overrideLocationId), getSendingAddress(overrideLocationId)])
+  return `${b.businessName} <${address}>`
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -96,10 +116,10 @@ export async function sendPickupReminderEmail(data: PickupReminderData) {
   return { subject, html }  // returned so caller can add `to` — see sendPickupReminderToCustomer
 }
 
-export async function sendPickupReminderToCustomer(toEmail: string, data: PickupReminderData) {
-  const [ov, branding] = await Promise.all([getEmailTemplate("pickup_reminder"), getEmailBranding()])
+export async function sendPickupReminderToCustomer(toEmail: string, data: PickupReminderData, locationId?: string) {
+  const [ov, branding] = await Promise.all([getEmailTemplate("pickup_reminder"), getEmailBranding(locationId)])
   const { subject, html } = buildPickupReminderEmail(data, ov ?? {}, branding)
-  return safeSend({ from: await fromCustomer(), to: [toEmail], subject, html })
+  return safeSend({ from: await fromCustomer(locationId), to: [toEmail], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────

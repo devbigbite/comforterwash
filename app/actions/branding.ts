@@ -126,6 +126,156 @@ export async function setDispatchSettings(settings: DispatchSettings): Promise<{
   return {}
 }
 
+// ── Custom sending domain (Resend) ────────────────────────────────────────────
+// A tenant can verify their own domain so booking/reminder emails come from
+// their own brand (e.g. hello@theirbusiness.com) instead of the shared
+// clean@washfoldorlando.com address. Verification happens with Resend via
+// standard DNS records (SPF/DKIM/DMARC) the tenant adds at their own
+// registrar — same one Resend account/API key is used for every tenant,
+// this only concerns which domains are verified to send from it.
+export interface EmailDomainStatus {
+  domain: string | null
+  status: "not_configured" | "not_started" | "pending" | "verified" | "failed" | "temporary_failure"
+  records: { record: string; name: string; type: string; value: string; priority?: number; status?: string }[]
+  fromEmail: string | null
+}
+
+export async function getEmailDomainStatus(): Promise<EmailDomainStatus> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase
+    .from("locations")
+    .select("sending_domain, sending_domain_status, sending_domain_records, sending_email_local_part")
+    .eq("id", locationId)
+    .single()
+
+  if (!data?.sending_domain) {
+    return { domain: null, status: "not_configured", records: [], fromEmail: null }
+  }
+
+  return {
+    domain: data.sending_domain,
+    status: data.sending_domain_status ?? "not_configured",
+    records: (data.sending_domain_records as EmailDomainStatus["records"]) ?? [],
+    fromEmail: `${data.sending_email_local_part || "hello"}@${data.sending_domain}`,
+  }
+}
+
+export async function addEmailDomain(domain: string): Promise<{ error?: string }> {
+  await requireAdmin()
+  const cleanDomain = domain.trim().toLowerCase()
+  if (!cleanDomain || !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(cleanDomain)) {
+    return { error: "Enter a valid domain (e.g. mail.yourbusiness.com)" }
+  }
+
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { createResendDomain } = await import("@/lib/resend-domains")
+
+  try {
+    const result = await createResendDomain(cleanDomain)
+    await supabase
+      .from("locations")
+      .update({
+        resend_domain_id: result.id,
+        sending_domain: cleanDomain,
+        sending_domain_status: result.status,
+        sending_domain_records: result.records,
+      })
+      .eq("id", locationId)
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to create domain with Resend" }
+  }
+
+  revalidatePath("/admin/branding")
+  return {}
+}
+
+export async function checkEmailDomainVerification(): Promise<EmailDomainStatus & { error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase
+    .from("locations")
+    .select("resend_domain_id, sending_domain, sending_email_local_part")
+    .eq("id", locationId)
+    .single()
+
+  if (!data?.resend_domain_id || !data.sending_domain) {
+    return { domain: null, status: "not_configured", records: [], fromEmail: null, error: "No domain configured yet" }
+  }
+
+  const { verifyResendDomain, getResendDomain } = await import("@/lib/resend-domains")
+
+  try {
+    await verifyResendDomain(data.resend_domain_id)
+    const fresh = await getResendDomain(data.resend_domain_id)
+    await supabase
+      .from("locations")
+      .update({ sending_domain_status: fresh.status, sending_domain_records: fresh.records })
+      .eq("id", locationId)
+
+    revalidatePath("/admin/branding")
+    return {
+      domain: data.sending_domain,
+      status: fresh.status as EmailDomainStatus["status"],
+      records: fresh.records,
+      fromEmail: `${data.sending_email_local_part || "hello"}@${data.sending_domain}`,
+    }
+  } catch (err) {
+    return {
+      domain: data.sending_domain,
+      status: "not_configured",
+      records: [],
+      fromEmail: null,
+      error: err instanceof Error ? err.message : "Failed to check verification",
+    }
+  }
+}
+
+export async function removeEmailDomain(): Promise<{ error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase
+    .from("locations")
+    .select("resend_domain_id")
+    .eq("id", locationId)
+    .single()
+
+  if (data?.resend_domain_id) {
+    const { deleteResendDomain } = await import("@/lib/resend-domains")
+    try {
+      await deleteResendDomain(data.resend_domain_id)
+    } catch {
+      // Continue clearing our own records even if Resend's side fails
+      // (e.g. already deleted there) — don't leave the tenant stuck.
+    }
+  }
+
+  await supabase
+    .from("locations")
+    .update({
+      resend_domain_id: null,
+      sending_domain: null,
+      sending_domain_status: "not_configured",
+      sending_domain_records: null,
+    })
+    .eq("id", locationId)
+
+  revalidatePath("/admin/branding")
+  return {}
+}
+
+export async function setEmailLocalPart(localPart: string): Promise<{ error?: string }> {
+  await requireAdmin()
+  const clean = localPart.trim().toLowerCase()
+  if (!clean || !/^[a-z0-9._-]+$/.test(clean)) {
+    return { error: "Enter a valid email prefix (letters, numbers, dots, hyphens only)" }
+  }
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("locations").update({ sending_email_local_part: clean }).eq("id", locationId)
+  revalidatePath("/admin/branding")
+  return {}
+}
+
 export async function uploadBrandLogo(formData: FormData): Promise<{ url?: string; error?: string }> {
   await requireAdmin()
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
