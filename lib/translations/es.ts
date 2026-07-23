@@ -39,7 +39,7 @@ const es = {
     comforterTitle: "Lavado de Edredón",
     comforterDesc: "Lavado profesional para edredones de cualquier tamaño. Los recogemos sucios y los entregamos limpios — precio fijo, sin sorpresas.",
     washFoldTitle: "Lavado y Doblado",
-    washFoldDesc: "Entrega tu ropa sucia y recíbela limpia, clasificada, lavada, secada y perfectamente doblada.",
+    washFoldDesc: "Recogemos la ropa sucia de tu familia directamente en tu puerta y te la devolvemos clasificada, lavada, secada y perfectamente doblada.",
     washFoldUnit: "por lb · mín. 20 lb",
     details: "Programar Recogido",
     perComforter: "por edredón",
@@ -654,7 +654,7 @@ const es = {
   servicePages: {
     "wash-fold": {
       metaTitle: "Servicio de Lavado y Doblado — Recogida y Entrega Gratis",
-      metaDescription: "Servicio profesional de lavado y doblado con recogida y entrega gratis. Entrega tu ropa sucia, recíbela ordenada, lavada, secada y doblada. Agenda en línea en minutos.",
+      metaDescription: "Servicio profesional de lavado y doblado con recogida y entrega gratis. Recogemos tu ropa sucia y te la devolvemos ordenada, lavada, secada y doblada. Agenda en línea en minutos.",
       icon: "🧺",
       heading: "Lavado y Doblado, Recogido y Entregado",
       intro: "Olvídate de la lavandería. Recogemos la ropa sucia de tu familia directamente en tu puerta, la lavamos y secamos según tus preferencias, la doblamos con cuidado y te la entregamos — usualmente en un par de días. Sin ordenar, sin doblar, sin perder el fin de semana.",

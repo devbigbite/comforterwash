@@ -39,7 +39,7 @@ const en = {
     comforterTitle: "Comforter Wash",
     comforterDesc: "Fully water washed & delivered. Pick up dirty, get it back clean.",
     washFoldTitle: "Wash & Fold",
-    washFoldDesc: "Drop off your family's clothes dirty, get them back sorted, washed, dried, and neatly folded.",
+    washFoldDesc: "We pick up your family's dirty clothes right from your door, then bring them back sorted, washed, dried, and neatly folded.",
     washFoldUnit: "per lb · 20 lb min",
     details: "Book Now",
     perComforter: "per comforter",
@@ -655,7 +655,7 @@ const en = {
   servicePages: {
     "wash-fold": {
       metaTitle: "Wash & Fold Laundry Service — Free Pickup & Delivery",
-      metaDescription: "Professional wash & fold laundry service with free pickup and delivery. Drop off dirty, get it back sorted, washed, dried, and neatly folded. Schedule online in minutes.",
+      metaDescription: "Professional wash & fold laundry service with free pickup and delivery. We pick up your dirty laundry and bring it back sorted, washed, dried, and neatly folded. Schedule online in minutes.",
       icon: "🧺",
       heading: "Wash & Fold Laundry, Picked Up and Delivered",
       intro: "Skip the laundromat. We pick up your family's dirty laundry right from your door, wash and dry it to your exact preferences, fold it neatly, and deliver it back — usually within a couple of days. No sorting, no folding, no wasted weekends.",
