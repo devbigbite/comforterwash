@@ -5,6 +5,7 @@ import {
   getBrandingSettings, setBrandingSettings, uploadBrandLogo, getDispatchSettings, setDispatchSettings,
   getEmailDomainStatus, addEmailDomain, checkEmailDomainVerification, removeEmailDomain, setEmailLocalPart,
   getOperatingMode, setOperatingMode, getHomeDailyCapacity, setHomeDailyCapacity, type OperatingMode,
+  getAdminViewMode,
   type BrandingSettings, type DispatchSettings, type EmailDomainStatus,
 } from "@/app/actions/branding"
 import { getFulfillmentMode, setFulfillmentMode, type FulfillmentMode } from "@/app/actions/walkin"
@@ -18,10 +19,12 @@ export default function BrandingPage() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [isAdvanced, setIsAdvanced] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     getBrandingSettings().then(setSettings)
+    getAdminViewMode().then(m => setIsAdvanced(m === "advanced"))
   }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -179,7 +182,7 @@ export default function BrandingPage() {
 
       <OperatingModeSection />
       <FulfillmentSection />
-      <EmailDomainSection />
+      {isAdvanced && <EmailDomainSection />}
       <DispatchSection />
     </div>
   )
