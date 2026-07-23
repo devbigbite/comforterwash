@@ -13,6 +13,7 @@ const SEND_ADDRESS = "clean@washfoldorlando.com"
 export async function sendContactMessage(formData: FormData) {
   const name    = (formData.get("name")    as string ?? "").trim()
   const phone   = (formData.get("phone")   as string ?? "").trim()
+  const email   = (formData.get("email")   as string ?? "").trim()
   const message = (formData.get("message") as string ?? "").trim()
 
   if (!name || !message) {
@@ -25,6 +26,7 @@ export async function sendContactMessage(formData: FormData) {
     const result = await resend.emails.send({
       from: `${businessName} <${SEND_ADDRESS}>`,
       to: [ADMIN_EMAIL],
+      ...(email ? { replyTo: email } : {}),
       subject: `\u{1F4AC} New message from ${name}`,
       html: `
         <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
@@ -39,6 +41,10 @@ export async function sendContactMessage(formData: FormData) {
             <tr>
               <td style="padding:10px 12px;border-top:1px solid #eee;font-weight:700;color:#0D2240;">Phone</td>
               <td style="padding:10px 12px;border-top:1px solid #eee;">${phone || "—"}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 12px;border-top:1px solid #eee;background:#f8f8f8;font-weight:700;color:#0D2240;">Email</td>
+              <td style="padding:10px 12px;border-top:1px solid #eee;background:#f8f8f8;">${email || "—"}</td>
             </tr>
             <tr>
               <td style="padding:10px 12px;border-top:1px solid #eee;background:#f8f8f8;font-weight:700;color:#0D2240;vertical-align:top;">Message</td>

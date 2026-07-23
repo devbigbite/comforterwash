@@ -70,6 +70,14 @@ export function MessageUsModal({ label = "Message Us", className = "" }: { label
                     />
                   </div>
                   <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Email</label>
+                    <input
+                      name="email" type="email"
+                      placeholder="jane@example.com"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8726A]/40 focus:border-[#E8726A]"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Message <span className="text-[#E8726A]">*</span></label>
                     <textarea
                       name="message" required rows={4}
