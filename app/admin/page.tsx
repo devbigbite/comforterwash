@@ -3,7 +3,7 @@ import { getBookings } from "@/app/actions/bookings"
 import { getFulfillmentMode } from "@/app/actions/walkin"
 import { getMyBillingStatus } from "@/app/actions/platform-billing"
 import { getBranding, getLocationId, ORLANDO_LOCATION_ID, DEFAULT_BRANDING } from "@/lib/location"
-import { getAdminViewMode } from "@/app/actions/branding"
+import { getAdminViewMode, getOperatingModeConfirmed } from "@/app/actions/branding"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { todayET } from "@/lib/pickup-cutoff"
 import {
@@ -51,12 +51,18 @@ export default async function AdminHub() {
 
   if (viewMode === "simple") {
     const supabase = createAdminClient()
-    const [{ count: zipCount }, { data: pricingRow }] = await Promise.all([
+    const [{ count: zipCount }, { data: pricingRow }, operatingModeConfirmed] = await Promise.all([
       supabase.from("service_areas").select("id", { count: "exact", head: true }).eq("location_id", locationId).eq("active", true),
       supabase.from("locations").select("business_name, logo_url").eq("id", locationId).single(),
+      getOperatingModeConfirmed(),
     ])
 
     const checklist = [
+      {
+        label: "Tell us how you work — facility or home-based",
+        done: operatingModeConfirmed,
+        href: "/admin/branding",
+      },
       {
         label: "Add your business name & logo",
         done: !!(pricingRow?.business_name && pricingRow.business_name !== DEFAULT_BRANDING.business_name) || !!pricingRow?.logo_url,

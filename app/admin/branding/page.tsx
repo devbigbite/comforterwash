@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import {
   getBrandingSettings, setBrandingSettings, uploadBrandLogo, getDispatchSettings, setDispatchSettings,
   getEmailDomainStatus, addEmailDomain, checkEmailDomainVerification, removeEmailDomain, setEmailLocalPart,
+  getOperatingMode, setOperatingMode, getHomeDailyCapacity, setHomeDailyCapacity, type OperatingMode,
   type BrandingSettings, type DispatchSettings, type EmailDomainStatus,
 } from "@/app/actions/branding"
 import { getFulfillmentMode, setFulfillmentMode, type FulfillmentMode } from "@/app/actions/walkin"
@@ -176,6 +177,7 @@ export default function BrandingPage() {
         </div>
       </form>
 
+      <OperatingModeSection />
       <FulfillmentSection />
       <EmailDomainSection />
       <DispatchSection />
@@ -483,6 +485,100 @@ function DispatchSection() {
 }
 
 // ── Fulfillment mode — pickup/delivery vs. walk-in drop-off ───────────────────
+// ── Operating mode (Facility / Home) — how do you actually do the work? ──────
+// Distinct from Fulfillment above (which is about how orders get to/from the
+// customer) — this is about whether there's a facility/staff behind the
+// scenes or just one person and one washer/dryer. Drives which nav sections
+// show and whether a daily load cap applies to the booking calendar.
+function OperatingModeSection() {
+  const [mode, setMode] = useState<OperatingMode | null>(null)
+  const [capacity, setCapacity] = useState<string>("")
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    Promise.all([getOperatingMode(), getHomeDailyCapacity()]).then(([m, cap]) => {
+      setMode(m)
+      setCapacity(cap ? String(cap) : "")
+    })
+  }, [])
+
+  async function saveMode(next: OperatingMode) {
+    setSaving(true)
+    setMode(next)
+    await setOperatingMode(next)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function saveCapacity() {
+    setSaving(true)
+    await setHomeDailyCapacity(capacity.trim() ? parseInt(capacity, 10) : null)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  if (!mode) return null
+
+  const OPTIONS: { value: OperatingMode; label: string; desc: string }[] = [
+    { value: "facility", label: "I run a facility", desc: "Staff, a physical facility/rack system, and/or multiple drivers." },
+    { value: "home", label: "I work from home", desc: "Just me, my own washer & dryer — no facility, no staff to coordinate." },
+  ]
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xl">🏠</span>
+        <h2 className="font-extrabold text-[#0D2240] text-base">How You Work</h2>
+      </div>
+      <p className="text-xs text-gray-400 mb-5">This changes what shows up in your admin menu — nothing about pricing or bookings changes.</p>
+      <div className="grid sm:grid-cols-2 gap-3 mb-4">
+        {OPTIONS.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            disabled={saving}
+            onClick={() => saveMode(opt.value)}
+            className={`text-left rounded-xl border-2 p-4 transition-all disabled:opacity-50 ${
+              mode === opt.value ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 hover:border-gray-200"
+            }`}
+          >
+            <p className="font-bold text-[#0D2240] text-sm">{opt.label}</p>
+            <p className="text-xs text-gray-400 mt-1">{opt.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      {mode === "home" && (
+        <div className="border-t border-gray-100 pt-4">
+          <label className={LABEL_CLS}>Loads you can realistically do per day</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="number" min="1" value={capacity}
+              onChange={e => setCapacity(e.target.value)}
+              placeholder="Unlimited"
+              className={`${FIELD_CLS} max-w-[140px]`}
+            />
+            <button
+              type="button" disabled={saving} onClick={saveCapacity}
+              className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-colors disabled:opacity-60 uppercase tracking-wide"
+            >
+              Save
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Once a day hits this many loads, customers won't be able to book that day at all — leave blank for no limit.
+          </p>
+        </div>
+      )}
+
+      {saved && <p className="text-green-600 text-sm font-semibold mt-3">✓ Saved</p>}
+    </div>
+  )
+}
+
 function FulfillmentSection() {
   const [mode, setMode] = useState<FulfillmentMode | null>(null)
   const [saving, setSaving] = useState(false)

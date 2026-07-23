@@ -3,7 +3,7 @@ import { logoutAction } from "@/app/admin/login/actions"
 import { AdminLangToggle } from "@/components/admin/admin-lang-toggle"
 import { AdminViewToggle } from "@/components/admin/admin-view-toggle"
 import { getAdminLang } from "@/app/actions/admin-lang"
-import { getAdminViewMode } from "@/app/actions/branding"
+import { getAdminViewMode, getOperatingMode, type OperatingMode } from "@/app/actions/branding"
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 
@@ -16,27 +16,29 @@ type NavItem =
 // just the handful of things a solo/home-based operator touches day to day.
 // Everything here also exists in the Advanced nav; nothing is removed, only
 // hidden until the tenant wants more.
-function buildSimpleNav(lang: "en" | "es"): NavItem[] {
+function buildSimpleNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
   const es = lang === "es"
+  const isHome = operatingMode === "home"
   return [
-    { type: "link", href: "/admin/dispatch",  label: es ? "Despacho" : "Dispatch" },
+    isHome
+      ? { type: "link", href: "/admin/home-board", label: es ? "Trabajo de Hoy" : "Today's Work" }
+      : { type: "link", href: "/admin/dispatch",    label: es ? "Despacho" : "Dispatch" },
     { type: "link", href: "/admin/orders",     label: es ? "Órdenes" : "Orders" },
     { type: "link", href: "/admin/branding",   label: es ? "Mi Negocio" : "My Business" },
     { type: "link", href: "/admin/pricing",    label: es ? "Precios" : "Pricing" },
     { type: "link", href: "/admin/zip-codes",  label: es ? "Área de Servicio" : "Service Area" },
-    { type: "link", href: "/admin/workers",    label: es ? "Trabajadores" : "Workers" },
+    ...(isHome ? [] : [{ type: "link" as const, href: "/admin/workers", label: es ? "Trabajadores" : "Workers" }]),
     { type: "link", href: "/admin/settings",   label: es ? "Configuración" : "Settings" },
   ]
 }
 
-function buildNav(lang: "en" | "es"): NavItem[] {
+function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
   const es = lang === "es"
+  const isHome = operatingMode === "home"
   return [
-    {
-      type: "link",
-      href: "/admin/dispatch",
-      label: es ? "Despacho" : "Dispatch",
-    },
+    isHome
+      ? { type: "link", href: "/admin/home-board", label: es ? "Trabajo de Hoy" : "Today's Work" }
+      : { type: "link", href: "/admin/dispatch",    label: es ? "Despacho" : "Dispatch" },
     {
       type: "link",
       href: "/admin/orders",
@@ -58,16 +60,22 @@ function buildNav(lang: "en" | "es"): NavItem[] {
     {
       type: "dropdown",
       label: es ? "Logística" : "Logistics",
-      items: [
-        { href: "/admin/facility",      label: es ? "🏭 Tablero de Instalación" : "🏭 Facility Board" },
-        { href: "/admin/runs",          label: es ? "Transferencias" : "Facility Transfers" },
-        { href: "/admin/routes",        label: es ? "Rutas de Entrega" : "Delivery Routes" },
-        { href: "/admin/routing",       label: es ? "Optimizador de Rutas" : "Route Optimizer" },
-        { href: "/admin/facilities",    label: es ? "Instalaciones" : "Facilities" },
-        { href: "/admin/zip-codes",     label: es ? "Códigos Postales" : "Zip Codes" },
-        { href: "/admin/service-area",  label: es ? "Mapa de Área" : "Area Map" },
-        { href: "/admin/holidays",      label: es ? "Días Festivos" : "Holidays" },
-      ],
+      items: isHome
+        ? [
+            { href: "/admin/zip-codes",     label: es ? "Códigos Postales" : "Zip Codes" },
+            { href: "/admin/service-area",  label: es ? "Mapa de Área" : "Area Map" },
+            { href: "/admin/holidays",      label: es ? "Días Festivos" : "Holidays" },
+          ]
+        : [
+            { href: "/admin/facility",      label: es ? "🏭 Tablero de Instalación" : "🏭 Facility Board" },
+            { href: "/admin/runs",          label: es ? "Transferencias" : "Facility Transfers" },
+            { href: "/admin/routes",        label: es ? "Rutas de Entrega" : "Delivery Routes" },
+            { href: "/admin/routing",       label: es ? "Optimizador de Rutas" : "Route Optimizer" },
+            { href: "/admin/facilities",    label: es ? "Instalaciones" : "Facilities" },
+            { href: "/admin/zip-codes",     label: es ? "Códigos Postales" : "Zip Codes" },
+            { href: "/admin/service-area",  label: es ? "Mapa de Área" : "Area Map" },
+            { href: "/admin/holidays",      label: es ? "Días Festivos" : "Holidays" },
+          ],
     },
     {
       type: "dropdown",
@@ -97,13 +105,17 @@ function buildNav(lang: "en" | "es"): NavItem[] {
     {
       type: "dropdown",
       label: es ? "Personal" : "Staff",
-      items: [
-        { href: "/admin/workers",  label: es ? "Trabajadores" : "Workers" },
-        { href: "/admin/schedule", label: es ? "Horario" : "Schedule" },
-        { href: "/staff",          label: es ? "Reloj del Personal" : "Staff Clock" },
-        { href: "/driver",         label: es ? "App Conductor →" : "Driver App →", external: true },
-        { href: "/operator",       label: es ? "App Operador →" : "Operator App →", external: true },
-      ],
+      items: isHome
+        ? [
+            { href: "/admin/schedule", label: es ? "Horario" : "Schedule" },
+          ]
+        : [
+            { href: "/admin/workers",  label: es ? "Trabajadores" : "Workers" },
+            { href: "/admin/schedule", label: es ? "Horario" : "Schedule" },
+            { href: "/staff",          label: es ? "Reloj del Personal" : "Staff Clock" },
+            { href: "/driver",         label: es ? "App Conductor →" : "Driver App →", external: true },
+            { href: "/operator",       label: es ? "App Operador →" : "Operator App →", external: true },
+          ],
     },
   ]
 }
@@ -141,8 +153,8 @@ function Dropdown({ label, items }: { label: string; items: NavLink[] }) {
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export async function AdminHeader() {
-  const [lang, viewMode] = await Promise.all([getAdminLang(), getAdminViewMode()])
-  const navItems = viewMode === "simple" ? buildSimpleNav(lang) : buildNav(lang)
+  const [lang, viewMode, operatingMode] = await Promise.all([getAdminLang(), getAdminViewMode(), getOperatingMode()])
+  const navItems = viewMode === "simple" ? buildSimpleNav(lang, operatingMode) : buildNav(lang, operatingMode)
 
   return (
     <header className="bg-[#0D2240] px-6 py-0 flex items-stretch min-h-[52px]">

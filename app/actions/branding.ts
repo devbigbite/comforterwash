@@ -298,6 +298,52 @@ export async function setAdminViewMode(mode: AdminViewMode): Promise<{ error?: s
   return {}
 }
 
+// ── Operating mode (Facility / Home) ──────────────────────────────────────────
+// Distinct from admin_view_mode (Simple/Advanced nav complexity) and
+// fulfillment_mode (pickup-delivery vs walk-in) — this is about whether the
+// business has a facility/staff/multiple drivers ("facility") or is one
+// person working out of their own laundry room ("home"). Drives which nav
+// sections show (Facility Board, Transfer Runs, Route Optimizer are
+// meaningless with no facility) and whether a daily load cap applies.
+export type OperatingMode = "facility" | "home"
+
+export async function getOperatingMode(): Promise<OperatingMode> {
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase.from("locations").select("operating_mode").eq("id", locationId).single()
+  return (data?.operating_mode as OperatingMode) ?? "facility"
+}
+
+export async function setOperatingMode(mode: OperatingMode): Promise<{ error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("locations").update({ operating_mode: mode, operating_mode_confirmed: true }).eq("id", locationId)
+  revalidatePath("/admin", "layout")
+  return {}
+}
+
+// Distinguishes "never asked" from "explicitly chose facility (the default)"
+// so the Simple-hub setup checklist can nudge a tenant who never visited
+// this setting at all, without falsely nagging one who deliberately kept it.
+export async function getOperatingModeConfirmed(): Promise<boolean> {
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase.from("locations").select("operating_mode_confirmed").eq("id", locationId).single()
+  return data?.operating_mode_confirmed ?? false
+}
+
+export async function getHomeDailyCapacity(): Promise<number | null> {
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase.from("locations").select("home_daily_capacity").eq("id", locationId).single()
+  return data?.home_daily_capacity ?? null
+}
+
+export async function setHomeDailyCapacity(capacity: number | null): Promise<{ error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("locations").update({ home_daily_capacity: capacity }).eq("id", locationId)
+  revalidatePath("/admin/branding")
+  return {}
+}
+
 export async function uploadBrandLogo(formData: FormData): Promise<{ url?: string; error?: string }> {
   await requireAdmin()
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
