@@ -45,9 +45,11 @@ async function updateZip(formData: FormData) {
   const id = formData.get("id") as string
   const city = (formData.get("city") as string)?.trim() || "Orlando"
   const notes = (formData.get("notes") as string)?.trim() || null
+  const publicBlurb = (formData.get("public_blurb") as string)?.trim() || null
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
-  await supabase.from("service_areas").update({ city, notes }).eq("id", id).eq("location_id", locationId)
+  await supabase.from("service_areas").update({ city, notes, public_blurb: publicBlurb }).eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/zip-codes")
+  revalidatePath(`/service-areas/${(formData.get("zip_code") as string) ?? ""}`)
 }
 
 export default async function ZipCodesPage() {

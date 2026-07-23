@@ -651,6 +651,82 @@ const en = {
     rejected:           "Rejected",
   },
 
+  // ── Pages: Service Detail (SEO landing pages, linked from footer) ───────────
+  servicePages: {
+    "wash-fold": {
+      metaTitle: "Wash & Fold Laundry Service — Free Pickup & Delivery",
+      metaDescription: "Professional wash & fold laundry service with free pickup and delivery. Drop off dirty, get it back sorted, washed, dried, and neatly folded. Schedule online in minutes.",
+      icon: "🧺",
+      heading: "Wash & Fold Laundry, Picked Up and Delivered",
+      intro: "Skip the laundromat. We pick up your family's dirty laundry right from your door, wash and dry it to your exact preferences, fold it neatly, and deliver it back — usually within a couple of days. No sorting, no folding, no wasted weekends.",
+      bullets: [
+        { title: "Priced by the pound", desc: "Simple, transparent pricing with a low minimum — you only pay for what you send." },
+        { title: "Sorted & folded with care", desc: "Lights and darks separated, everything folded and packed neatly, ready to put away." },
+        { title: "Your detergent, your way", desc: "Choose standard or hypoallergenic detergent, plus optional extras like fabric softener." },
+        { title: "Free pickup & delivery", desc: "We come to you on a schedule that fits your neighborhood — no drop-off required." },
+      ],
+      faqs: [
+        { q: "How is Wash & Fold priced?", a: "By the pound, with a minimum order weight. You'll get an estimate when you book and a final price once we weigh it at pickup." },
+        { q: "How long does it take?", a: "Most Wash & Fold orders are delivered back within a couple of days of pickup, depending on your route schedule." },
+        { q: "Can I request a specific detergent?", a: "Yes — pick your detergent and any add-ons like fabric softener when you book." },
+      ],
+      ctaLabel: "Schedule a Wash & Fold Pickup",
+    },
+    "comforter-wash": {
+      metaTitle: "Comforter Cleaning Service — Free Pickup & Delivery",
+      metaDescription: "Professional comforter washing, any size, with free pickup and delivery. We deep clean bulky bedding that doesn't fit in a home washer — fast turnaround, delivered fresh.",
+      icon: "🛏️",
+      heading: "Comforter Cleaning, Made Easy",
+      intro: "Comforters, duvets, and bulky bedding need more than a home washing machine can give. We pick up your comforter, deep clean it properly, and deliver it back fresh and fluffy — no lugging it to a laundromat.",
+      bullets: [
+        { title: "Any size, one flat price", desc: "Twin, queen, king, or oversized — comforters are priced simply, no surprises." },
+        { title: "Deep, thorough cleaning", desc: "Commercial-grade washing gets out odors, dust, and allergens that home machines miss." },
+        { title: "Fast turnaround", desc: "Most comforters are back in your hands within a few days of pickup." },
+        { title: "Free pickup & delivery", desc: "We collect it from your door and bring it back clean — no extra trip needed." },
+      ],
+      faqs: [
+        { q: "Do you clean comforters of all sizes?", a: "Yes — from twin to oversized king, and pricing is straightforward regardless of size (may vary slightly by size)." },
+        { q: "Will my comforter shrink or get damaged?", a: "We use commercial equipment and care settings appropriate for bulky bedding to keep it in great shape." },
+        { q: "How long until I get it back?", a: "Turnaround is typically just a few days from pickup — you'll get a text update along the way." },
+      ],
+      ctaLabel: "Schedule a Comforter Pickup",
+    },
+    "wash-only": {
+      metaTitle: "Wash Only Laundry Service — Free Pickup & Delivery",
+      metaDescription: "Affordable wash-only laundry service with free pickup and delivery. Clothes washed and dried, returned clean in a bag — perfect if you prefer to fold your own.",
+      icon: "🌀",
+      heading: "Wash Only — Clean Laundry, Your Way to Fold",
+      intro: "Prefer to fold your own laundry your own way? Wash Only gets your clothes washed and dried and returned clean in a bag, unfolded — a lower-cost option for anyone who just wants the washing and drying handled.",
+      bullets: [
+        { title: "Our lowest per-pound price", desc: "Skip the folding step and save — ideal for budget-conscious households." },
+        { title: "Washed and dried, nothing more", desc: "Clean, dry clothes returned in a bag, ready for you to fold and put away." },
+        { title: "Same reliable pickup schedule", desc: "Runs on the same routes and days as our other services." },
+        { title: "Free pickup & delivery", desc: "No trip to the laundromat — we handle the washing and drying end to end." },
+      ],
+      faqs: [
+        { q: "What's the difference between Wash Only and Wash & Fold?", a: "Wash Only skips the folding step — clothes come back clean and dry in a bag, unfolded, at a lower price per pound." },
+        { q: "Is there a minimum order?", a: "Yes, a minimum weight applies, same as our other wash services — you'll see it when you book." },
+        { q: "Can I still choose my detergent?", a: "Yes — detergent and add-on options are available just like with Wash & Fold." },
+      ],
+      ctaLabel: "Schedule a Wash Only Pickup",
+    },
+  },
+
+  // ── Page: Service Area Detail (SEO landing page per ZIP) ────────────────────
+  serviceAreaDetail: {
+    metaTitleTemplate: "Laundry Pickup & Delivery in {city}, {zip}",
+    metaDescriptionTemplate: "Free laundry pickup and delivery service in {city} ({zip}). Wash & fold, comforter cleaning, and wash only — scheduled online in minutes.",
+    badge: "Service Area",
+    introTemplate: "{business} proudly offers free laundry pickup and delivery to {city}, ZIP code {zip}. Schedule a pickup online and we'll take care of the rest — no trip to the laundromat required.",
+    servicesHeading: "Services Available in This Area",
+    mapHeading: "Our Delivery Zone",
+    ctaHeading: "Ready to Schedule?",
+    ctaSub: "Book your first pickup in this area in just a few minutes.",
+    ctaButton: "Schedule a Pickup",
+    backToAreas: "← All Service Areas",
+    otherAreasHeading: "Other Areas We Serve",
+  },
+
 } as const
 
 export default en

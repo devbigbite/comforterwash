@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { ZipChecker } from "@/components/zip-checker"
 import { MessageUsModal } from "@/components/message-us-modal"
@@ -77,7 +78,11 @@ export default async function ServiceAreasPage({
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {activeAreas.map(area => (
-              <div key={area.zip_code} className="group rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md hover:border-[#E8726A]/30 transition-all p-6">
+              <Link
+                key={area.zip_code}
+                href={lang === "es" ? `/service-areas/${area.zip_code}?lang=es` : `/service-areas/${area.zip_code}`}
+                className="group rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md hover:border-[#E8726A]/30 transition-all p-6 block"
+              >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <span className="text-3xl">📍</span>
                   <span className="text-xs font-bold bg-[#0D2240]/5 text-[#0D2240] px-2.5 py-1 rounded-full">
@@ -85,14 +90,11 @@ export default async function ServiceAreasPage({
                   </span>
                 </div>
                 <p className="text-3xl font-extrabold text-[#0D2240] tracking-tight mb-1">{area.zip_code}</p>
-                {area.notes && (
-                  <p className="text-sm text-gray-500 font-medium leading-snug">{area.notes}</p>
-                )}
                 <div className="mt-4 pt-3 border-t border-gray-50 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-green-400 inline-block" />
                   <span className="text-xs font-semibold text-green-600">{tr.servingThis}</span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

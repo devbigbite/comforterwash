@@ -472,9 +472,9 @@ export default function Home() {
               <span className="text-white font-extrabold">{businessName}</span>
             </div>
             <div className="flex gap-5 text-white/40 text-xs">
-              <Link href="/book/comforter-wash" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.comforterWash}</Link>
-              <Link href="/book/wash-fold" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.washFold}</Link>
-              <Link href="/book/wash-only" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.washOnly}</Link>
+              <Link href="/services/comforter-wash" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.comforterWash}</Link>
+              <Link href="/services/wash-fold" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.washFold}</Link>
+              <Link href="/services/wash-only" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.washOnly}</Link>
               <Link href="/service-areas" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.serviceAreas}</Link>
               <Link href="/faq" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.faq}</Link>
               <Link href="/apply" className="hover:text-[var(--brand-accent)] transition-colors">Employment</Link>

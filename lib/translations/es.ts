@@ -650,6 +650,82 @@ const es = {
     rejected:           "Rechazado",
   },
 
+  // ── Pages: Service Detail (SEO landing pages, linked from footer) ───────────
+  servicePages: {
+    "wash-fold": {
+      metaTitle: "Servicio de Lavado y Doblado — Recogida y Entrega Gratis",
+      metaDescription: "Servicio profesional de lavado y doblado con recogida y entrega gratis. Entrega tu ropa sucia, recíbela ordenada, lavada, secada y doblada. Agenda en línea en minutos.",
+      icon: "🧺",
+      heading: "Lavado y Doblado, Recogido y Entregado",
+      intro: "Olvídate de la lavandería. Recogemos la ropa sucia de tu familia directamente en tu puerta, la lavamos y secamos según tus preferencias, la doblamos con cuidado y te la entregamos — usualmente en un par de días. Sin ordenar, sin doblar, sin perder el fin de semana.",
+      bullets: [
+        { title: "Precio por libra", desc: "Precios simples y transparentes con un mínimo bajo — solo pagas por lo que envías." },
+        { title: "Ordenado y doblado con cuidado", desc: "Ropa clara y oscura separada, todo doblado y empacado, listo para guardar." },
+        { title: "Tu detergente, a tu manera", desc: "Elige detergente estándar o hipoalergénico, más extras opcionales como suavizante." },
+        { title: "Recogida y entrega gratis", desc: "Vamos a tu puerta con un horario que se ajusta a tu vecindario — sin necesidad de dejar la ropa." },
+      ],
+      faqs: [
+        { q: "¿Cómo se cobra el Lavado y Doblado?", a: "Por libra, con un peso mínimo de pedido. Recibirás un estimado al reservar y un precio final al pesar tu ropa en la recogida." },
+        { q: "¿Cuánto tiempo toma?", a: "La mayoría de los pedidos se entregan en un par de días después de la recogida, según el horario de tu ruta." },
+        { q: "¿Puedo pedir un detergente específico?", a: "Sí — elige tu detergente y cualquier extra como suavizante al reservar." },
+      ],
+      ctaLabel: "Agendar Recogida de Lavado y Doblado",
+    },
+    "comforter-wash": {
+      metaTitle: "Servicio de Lavado de Edredones — Recogida y Entrega Gratis",
+      metaDescription: "Lavado profesional de edredones, de cualquier tamaño, con recogida y entrega gratis. Limpiamos ropa de cama voluminosa que no cabe en una lavadora casera — entrega rápida y fresca.",
+      icon: "🛏️",
+      heading: "Lavado de Edredones, Fácil y Sencillo",
+      intro: "Los edredones y ropa de cama voluminosa necesitan más de lo que una lavadora casera puede ofrecer. Recogemos tu edredón, lo limpiamos a fondo y te lo entregamos fresco y esponjoso — sin cargarlo hasta la lavandería.",
+      bullets: [
+        { title: "Cualquier tamaño, un precio simple", desc: "Individual, matrimonial, king o extra grande — precio simple, sin sorpresas." },
+        { title: "Limpieza profunda y minuciosa", desc: "Equipo de nivel comercial elimina olores, polvo y alérgenos que las lavadoras caseras no logran." },
+        { title: "Entrega rápida", desc: "La mayoría de los edredones regresan en pocos días después de la recogida." },
+        { title: "Recogida y entrega gratis", desc: "Lo recogemos en tu puerta y lo regresamos limpio — sin viajes adicionales." },
+      ],
+      faqs: [
+        { q: "¿Lavan edredones de todos los tamaños?", a: "Sí — desde individual hasta king extra grande, con precios simples sin importar el tamaño (puede variar levemente)." },
+        { q: "¿Se encogerá o dañará mi edredón?", a: "Usamos equipo comercial y configuraciones de cuidado apropiadas para ropa de cama voluminosa." },
+        { q: "¿Cuánto tiempo tarda en regresar?", a: "La entrega toma típicamente unos días desde la recogida — recibirás una actualización por mensaje de texto." },
+      ],
+      ctaLabel: "Agendar Recogida de Edredón",
+    },
+    "wash-only": {
+      metaTitle: "Servicio de Solo Lavado — Recogida y Entrega Gratis",
+      metaDescription: "Servicio de solo lavado asequible con recogida y entrega gratis. Ropa lavada y secada, devuelta limpia en una bolsa — perfecto si prefieres doblarla tú mismo.",
+      icon: "🌀",
+      heading: "Solo Lavado — Ropa Limpia, a Tu Manera de Doblar",
+      intro: "¿Prefieres doblar tu propia ropa a tu manera? Solo Lavado lava y seca tu ropa y te la devuelve limpia en una bolsa, sin doblar — una opción más económica para quienes solo necesitan el lavado y secado.",
+      bullets: [
+        { title: "Nuestro precio más bajo por libra", desc: "Omite el paso de doblado y ahorra — ideal para hogares con presupuesto ajustado." },
+        { title: "Lavado y secado, nada más", desc: "Ropa limpia y seca devuelta en una bolsa, lista para que la dobles y guardes." },
+        { title: "El mismo horario confiable de recogida", desc: "Funciona en las mismas rutas y días que nuestros otros servicios." },
+        { title: "Recogida y entrega gratis", desc: "Sin viajes a la lavandería — nosotros nos encargamos del lavado y secado." },
+      ],
+      faqs: [
+        { q: "¿Cuál es la diferencia entre Solo Lavado y Lavado y Doblado?", a: "Solo Lavado omite el doblado — la ropa regresa limpia y seca en una bolsa, sin doblar, a un precio más bajo por libra." },
+        { q: "¿Hay un pedido mínimo?", a: "Sí, aplica un peso mínimo, igual que nuestros otros servicios de lavado — lo verás al reservar." },
+        { q: "¿Puedo elegir mi detergente?", a: "Sí — las opciones de detergente y extras están disponibles igual que en Lavado y Doblado." },
+      ],
+      ctaLabel: "Agendar Recogida de Solo Lavado",
+    },
+  },
+
+  // ── Page: Service Area Detail (SEO landing page per ZIP) ────────────────────
+  serviceAreaDetail: {
+    metaTitleTemplate: "Recogida y Entrega de Lavandería en {city}, {zip}",
+    metaDescriptionTemplate: "Servicio gratuito de recogida y entrega de lavandería en {city} ({zip}). Lavado y doblado, lavado de edredones y solo lavado — agenda en línea en minutos.",
+    badge: "Área de Servicio",
+    introTemplate: "{business} ofrece con orgullo recogida y entrega gratuita de lavandería en {city}, código postal {zip}. Agenda una recogida en línea y nosotros nos encargamos del resto — sin necesidad de ir a la lavandería.",
+    servicesHeading: "Servicios Disponibles en Esta Área",
+    mapHeading: "Nuestra Zona de Entrega",
+    ctaHeading: "¿Listo para Agendar?",
+    ctaSub: "Reserva tu primera recogida en esta área en solo unos minutos.",
+    ctaButton: "Agendar una Recogida",
+    backToAreas: "← Todas las Áreas de Servicio",
+    otherAreasHeading: "Otras Áreas que Servimos",
+  },
+
 } as const
 
 export default es
