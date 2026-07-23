@@ -438,6 +438,79 @@ export function SiteImagesEditor({
         )
       })}
 
+      {/* ── Monthly Plans CTA (text-only, no image) ── */}
+      <div className="rounded-2xl border-2 border-[#0D2240]/10 bg-white shadow-sm overflow-hidden">
+        <div className="p-5 space-y-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="font-extrabold text-[#0D2240] text-sm">Monthly Plans CTA</p>
+              <p className="text-xs text-gray-400 mt-0.5">The banner promoting subscription plans, shown between pricing and testimonials.</p>
+            </div>
+            <LangTabs value={langTab} onChange={setLangTab} />
+          </div>
+          {langTab === "en" ? (
+            <>
+              <TextField label="Heading" value={text.plans_heading} defaultValue={DEFAULT_TEXT.plans_heading} placeholder="Monthly Laundry Plans" onSave={v => saveText("plans_heading", v)} />
+              <TextField label="Body" value={text.plans_body} defaultValue={DEFAULT_TEXT.plans_body} placeholder="Subscribe and save…" onSave={v => saveText("plans_body", v)} multiline />
+            </>
+          ) : (
+            <>
+              <p className="text-[10px] text-gray-400 italic">Leave blank to use the English text automatically.</p>
+              <TextField label="Encabezado (ES)" value={text.plans_heading_es} defaultValue="" placeholder="Planes Mensuales de Lavandería" onSave={v => saveText("plans_heading_es", v)} />
+              <TextField label="Cuerpo (ES)" value={text.plans_body_es} defaultValue="" placeholder="Suscríbete y ahorra…" onSave={v => saveText("plans_body_es", v)} multiline />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── Testimonials (text-only, no image) ── */}
+      <div className="rounded-2xl border-2 border-[#0D2240]/10 bg-white shadow-sm overflow-hidden">
+        <div className="p-5 space-y-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="font-extrabold text-[#0D2240] text-sm">Testimonials</p>
+              <p className="text-xs text-gray-400 mt-0.5">The 3 customer reviews shown on the homepage. Leave blank to use the generic default reviews.</p>
+            </div>
+            <LangTabs value={langTab} onChange={setLangTab} />
+          </div>
+          {langTab === "en" ? (
+            <>
+              <p className="text-[10px] text-gray-400 italic">Leave blank to use the default placeholder reviews.</p>
+              {[1, 2, 3].map(n => {
+                const quoteKey = `t${n}_quote` as const
+                const nameKey = `t${n}_name` as const
+                const labelKey = `t${n}_label` as const
+                return (
+                  <div key={n} className="rounded-xl bg-gray-50 p-3 space-y-2">
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Review {n}</p>
+                    <TextField label="Quote" value={text[quoteKey]} defaultValue="" placeholder="Amazing service, my clothes come back perfect every time!" onSave={v => saveText(quoteKey, v)} multiline />
+                    <TextField label="Name" value={text[nameKey]} defaultValue="" placeholder="Jane D." onSave={v => saveText(nameKey, v)} />
+                    <TextField label="Location / label" value={text[labelKey]} defaultValue="" placeholder="Local Customer" onSave={v => saveText(labelKey, v)} />
+                  </div>
+                )
+              })}
+            </>
+          ) : (
+            <>
+              <p className="text-[10px] text-gray-400 italic">Leave blank to use the English text automatically.</p>
+              {[1, 2, 3].map(n => {
+                const quoteKey = `t${n}_quote_es` as const
+                const nameKey = `t${n}_name_es` as const
+                const labelKey = `t${n}_label_es` as const
+                return (
+                  <div key={n} className="rounded-xl bg-gray-50 p-3 space-y-2">
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Reseña {n} (ES)</p>
+                    <TextField label="Cita (ES)" value={text[quoteKey]} defaultValue="" placeholder="¡Excelente servicio, mi ropa siempre queda perfecta!" onSave={v => saveText(quoteKey, v)} multiline />
+                    <TextField label="Nombre (ES)" value={text[nameKey]} defaultValue="" placeholder="Jane D." onSave={v => saveText(nameKey, v)} />
+                    <TextField label="Ubicación / etiqueta (ES)" value={text[labelKey]} defaultValue="" placeholder="Cliente Local" onSave={v => saveText(labelKey, v)} />
+                  </div>
+                )
+              })}
+            </>
+          )}
+        </div>
+      </div>
+
       <p className="text-xs text-gray-400 text-center pt-2">
         JPG, PNG or WebP · Max 5 MB per image · All changes go live instantly
       </p>

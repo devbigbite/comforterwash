@@ -331,9 +331,12 @@ export default function Home() {
         <div className="mx-auto max-w-3xl flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
           <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-3xl shrink-0">📅</div>
           <div className="flex-1">
-            <h2 className="text-xl font-extrabold text-white uppercase tracking-wide mb-1">Monthly Laundry Plans</h2>
+            <h2 className="text-xl font-extrabold text-white uppercase tracking-wide mb-1">
+              {(locale === "es" ? siteText.plans_heading_es : siteText.plans_heading) || "Monthly Laundry Plans"}
+            </h2>
             <p className="text-white/60 text-sm leading-relaxed">
-              Subscribe and save. Flat monthly fee with included pounds, auto-billed overage, and priority scheduling — no thinking required.
+              {(locale === "es" ? siteText.plans_body_es : siteText.plans_body) ||
+                "Subscribe and save. Flat monthly fee with included pounds, auto-billed overage, and priority scheduling — no thinking required."}
             </p>
           </div>
           <Link
@@ -352,9 +355,21 @@ export default function Home() {
           <div className="w-16 h-0.5 bg-[var(--brand-accent)] mx-auto mb-10" />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { quote: tr.testimonials.r1Quote, name: tr.testimonials.r1Name, label: tr.testimonials.r1Label },
-              { quote: tr.testimonials.r2Quote, name: tr.testimonials.r2Name, label: tr.testimonials.r2Label },
-              { quote: tr.testimonials.r3Quote, name: tr.testimonials.r3Name, label: tr.testimonials.r3Label },
+              {
+                quote: (locale === "es" ? siteText.t1_quote_es : siteText.t1_quote) || tr.testimonials.r1Quote,
+                name:  (locale === "es" ? siteText.t1_name_es  : siteText.t1_name)  || tr.testimonials.r1Name,
+                label: (locale === "es" ? siteText.t1_label_es : siteText.t1_label) || tr.testimonials.r1Label,
+              },
+              {
+                quote: (locale === "es" ? siteText.t2_quote_es : siteText.t2_quote) || tr.testimonials.r2Quote,
+                name:  (locale === "es" ? siteText.t2_name_es  : siteText.t2_name)  || tr.testimonials.r2Name,
+                label: (locale === "es" ? siteText.t2_label_es : siteText.t2_label) || tr.testimonials.r2Label,
+              },
+              {
+                quote: (locale === "es" ? siteText.t3_quote_es : siteText.t3_quote) || tr.testimonials.r3Quote,
+                name:  (locale === "es" ? siteText.t3_name_es  : siteText.t3_name)  || tr.testimonials.r3Name,
+                label: (locale === "es" ? siteText.t3_label_es : siteText.t3_label) || tr.testimonials.r3Label,
+              },
             ].map((r) => (
               <div key={r.name} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <div className="flex items-center gap-1 mb-4">
@@ -454,7 +469,7 @@ export default function Home() {
           <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
               <Logo size={28} />
-              <span className="text-white font-extrabold">Wash<span className="text-[var(--brand-accent)]">Fold</span> <span className="text-white/30 text-sm font-normal">Orlando</span></span>
+              <span className="text-white font-extrabold">{businessName}</span>
             </div>
             <div className="flex gap-5 text-white/40 text-xs">
               <Link href="/book/comforter-wash" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.comforterWash}</Link>

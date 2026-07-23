@@ -53,6 +53,32 @@ export interface SiteText {
   why_photo_tag_es: string
   why_photo_headline_es: string
   why_photo_cta_es: string
+  // Monthly Plans CTA — EN
+  plans_heading: string
+  plans_body: string
+  // Monthly Plans CTA — ES
+  plans_heading_es: string
+  plans_body_es: string
+  // Testimonials — EN (empty = falls back to translation string)
+  t1_quote: string
+  t1_name: string
+  t1_label: string
+  t2_quote: string
+  t2_name: string
+  t2_label: string
+  t3_quote: string
+  t3_name: string
+  t3_label: string
+  // Testimonials — ES
+  t1_quote_es: string
+  t1_name_es: string
+  t1_label_es: string
+  t2_quote_es: string
+  t2_name_es: string
+  t2_label_es: string
+  t3_quote_es: string
+  t3_name_es: string
+  t3_label_es: string
 }
 
 export const DEFAULT_TEXT: SiteText = {
@@ -98,4 +124,17 @@ export const DEFAULT_TEXT: SiteText = {
   why_photo_tag_es:      "",
   why_photo_headline_es: "",
   why_photo_cta_es:      "",
+
+  plans_heading: "Monthly Laundry Plans",
+  plans_body:    "Subscribe and save. Flat monthly fee with included pounds, auto-billed overage, and priority scheduling — no thinking required.",
+  plans_heading_es: "",
+  plans_body_es:    "",
+
+  // Testimonials — empty = falls back to translation string
+  t1_quote: "", t1_name: "", t1_label: "",
+  t2_quote: "", t2_name: "", t2_label: "",
+  t3_quote: "", t3_name: "", t3_label: "",
+  t1_quote_es: "", t1_name_es: "", t1_label_es: "",
+  t2_quote_es: "", t2_name_es: "", t2_label_es: "",
+  t3_quote_es: "", t3_name_es: "", t3_label_es: "",
 }
