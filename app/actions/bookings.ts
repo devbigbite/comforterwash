@@ -174,7 +174,7 @@ export async function createBooking(data: BookingData) {
         apiKey: shipdayConfig.apiKey,
         facilityAddress: shipdayConfig.facilityAddress,
         facilityPhone: shipdayConfig.facilityPhone,
-        businessName: branding.business_name || "Your Business",
+        businessName: branding.business_name || "WashFoldClean",
       }
     )
 

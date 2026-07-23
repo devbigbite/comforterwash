@@ -9,7 +9,7 @@ import { getBranding, getLocationId } from "@/lib/location"
 
 export async function generateMetadata() {
   const branding = await getBranding()
-  const name = branding.business_name || "Your Business"
+  const name = branding.business_name || "WashFoldClean"
   return {
     title: `Service Areas | ${name}`,
     description: `${name} provides free laundry pickup and delivery across the Orlando metro area. Check if we serve your ZIP code.`,
@@ -38,7 +38,7 @@ export default async function ServiceAreasPage({
   const activeAreas = areas ?? []
   const titleLines = tr.title.split("\n")
   const branding = await getBranding()
-  const badge = tr.badge === "WashFold Orlando" ? (branding.business_name || "Your Business") : tr.badge
+  const badge = tr.badge === "WashFold Orlando" ? (branding.business_name || "WashFoldClean") : tr.badge
 
   return (
     <main className="min-h-screen bg-white font-sans">

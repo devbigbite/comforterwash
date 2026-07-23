@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ zip: stri
     .single()
   if (!area) return {}
 
-  const name = branding.business_name || "Your Business"
+  const name = branding.business_name || "WashFoldClean"
   const vars = { city: area.city, zip: area.zip_code, business: name }
   return {
     title: fillTemplate(en.serviceAreaDetail.metaTitleTemplate, vars),
@@ -75,7 +75,7 @@ export default async function ServiceAreaDetailPage({
       .limit(8),
   ])
 
-  const name = branding.business_name || "Your Business"
+  const name = branding.business_name || "WashFoldClean"
   const vars = { city: area.city, zip: area.zip_code, business: name }
   const intro = area.public_blurb?.trim() || fillTemplate(tr.introTemplate, vars)
   const otherAreas = otherAreasData ?? []

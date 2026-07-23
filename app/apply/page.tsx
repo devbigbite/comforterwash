@@ -10,7 +10,7 @@ export default async function ApplyPage() {
         <div className="text-gray-400 text-sm">Loading…</div>
       </main>
     }>
-      <ApplyClient businessName={branding.business_name || "Your Business"} logoUrl={branding.logo_url} />
+      <ApplyClient businessName={branding.business_name || "WashFoldClean"} logoUrl={branding.logo_url} />
     </Suspense>
   )
 }

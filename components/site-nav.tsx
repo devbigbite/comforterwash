@@ -6,9 +6,10 @@ import { useLang } from "@/components/lang-provider"
 import { LangToggle } from "@/components/lang-toggle"
 
 // Renders a tenant's own uploaded logo (location.logo_url, set via
-// /admin/branding) when one exists; otherwise falls back to the generic
-// abstract wave mark so every tenant has a reasonable default logo even
-// before they've uploaded their own.
+// /admin/branding) when one exists; otherwise falls back to the default
+// WashFoldClean mark below — a "W" monogram folded like fabric, in the
+// tenant's own brand colors — so every un-customized tenant still has a
+// real, polished logo instead of a placeholder.
 export function Logo({ size = 40, src }: { size?: number; src?: string | null }) {
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element
@@ -17,10 +18,12 @@ export function Logo({ size = 40, src }: { size?: number; src?: string | null })
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <circle cx="24" cy="24" r="24" fill="var(--brand-primary)" />
-      <path d="M8 24 Q11 19 14 24 Q17 29 20 24 Q23 19 26 24 Q29 29 32 24 Q35 19 38 24"
-        stroke="var(--brand-accent)" strokeWidth="3" strokeLinecap="round" fill="none" />
-      <path d="M10 29 Q13 24 16 29 Q19 34 22 29 Q25 24 28 29 Q31 34 34 29"
-        stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.25" />
+      {/* Shadow fold, offset slightly for depth */}
+      <path d="M11 19 L17 32 L24 21 L31 32 L37 19"
+        stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.22" />
+      {/* Primary "W" monogram, folded like fabric */}
+      <path d="M10 17 L16 31 L24 19 L32 31 L38 17"
+        stroke="var(--brand-accent)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </svg>
   )
 }
@@ -37,7 +40,7 @@ const EXCLUDED_PREFIXES = [
   "/book",
 ]
 
-export function SiteNav({ businessName = "Your Business", logoUrl }: { businessName?: string; logoUrl?: string | null }) {
+export function SiteNav({ businessName = "WashFoldClean", logoUrl }: { businessName?: string; logoUrl?: string | null }) {
   const pathname = usePathname()
   const { translations: tr, locale } = useLang()
 

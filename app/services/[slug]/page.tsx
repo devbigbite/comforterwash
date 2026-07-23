@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   if (!isServiceSlug(slug)) return {}
   const branding = await getBranding()
-  const name = branding.business_name || "Your Business"
+  const name = branding.business_name || "WashFoldClean"
   const t = en.servicePages[slug]
   return {
     title: `${t.metaTitle} | ${name}`,
@@ -41,7 +41,7 @@ export default async function ServiceDetailPage({
   const tr = lang === "es" ? es.servicePages[slug] : en.servicePages[slug]
   const nav = lang === "es" ? es.faqPage : en.faqPage // reuse back/terms/privacy labels
   const branding = await getBranding()
-  const name = branding.business_name || "Your Business"
+  const name = branding.business_name || "WashFoldClean"
 
   const bookHref = lang === "es" ? `/book/${slug}?lang=es` : `/book/${slug}`
   const otherServices = SLUGS.filter(s => s !== slug)

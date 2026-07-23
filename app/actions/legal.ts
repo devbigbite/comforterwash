@@ -174,7 +174,7 @@ export async function getLegalPage(key: "terms" | "privacy"): Promise<LegalSecti
   }
   const defaults = key === "terms" ? TERMS_DEFAULTS : PRIVACY_DEFAULTS
   const branding = await getBranding()
-  return applyBranding(defaults, branding.business_name || "Your Business", branding.support_email)
+  return applyBranding(defaults, branding.business_name || "WashFoldClean", branding.support_email)
 }
 
 export async function saveLegalPage(key: "terms" | "privacy", sections: LegalSection[]) {

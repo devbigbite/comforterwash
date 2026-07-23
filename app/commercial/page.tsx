@@ -8,7 +8,7 @@ import { getBranding } from "@/lib/location"
 export async function generateMetadata() {
   const branding = await getBranding()
   return {
-    title: `Commercial Laundry Services — ${branding.business_name || "Your Business"}`,
+    title: `Commercial Laundry Services — ${branding.business_name || "WashFoldClean"}`,
     description:
       "Effective laundry pickup & delivery for local businesses. Hotels, Airbnb hosts, gyms, spas, restaurants, medical offices and more. Get a custom quote today.",
   }
@@ -34,7 +34,7 @@ export default async function CommercialPage({
   const lang = langParam ?? (await getSiteLangCookie())
   const tr = lang === "es" ? es.commercialPage : en.commercialPage
   const branding = await getBranding()
-  const businessName = branding.business_name || "Your Business"
+  const businessName = branding.business_name || "WashFoldClean"
 
   return (
     <main className="min-h-screen bg-[#f7f8fb]">

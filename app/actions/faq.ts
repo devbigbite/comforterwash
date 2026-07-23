@@ -254,11 +254,11 @@ export async function getFaqItems(lang?: string): Promise<FaqItem[]> {
       items = data as FaqItem[]
     } else {
       const branding = await getBranding()
-      items = applyBranding(DEFAULTS, branding.business_name || "Your Business", branding.support_email)
+      items = applyBranding(DEFAULTS, branding.business_name || "WashFoldClean", branding.support_email)
     }
   } catch {
     const branding = await getBranding()
-    items = applyBranding(DEFAULTS, branding.business_name || "Your Business", branding.support_email)
+    items = applyBranding(DEFAULTS, branding.business_name || "WashFoldClean", branding.support_email)
   }
 
   if (lang === "es") {

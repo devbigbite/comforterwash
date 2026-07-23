@@ -187,7 +187,7 @@ export async function createTransportRun(formData: FormData) {
       {
         apiKey: shipdayConfig.apiKey,
         facilityPhone: shipdayConfig.facilityPhone,
-        businessName: branding.business_name || "Your Business",
+        businessName: branding.business_name || "WashFoldClean",
       }
     )
 

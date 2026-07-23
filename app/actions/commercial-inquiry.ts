@@ -39,7 +39,7 @@ export async function submitCommercialInquiry(
   }
 
   const branding = await getBranding()
-  const businessName2 = branding.business_name || "Your Business"
+  const businessName2 = branding.business_name || "WashFoldClean"
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f7f8fb;padding:24px;border-radius:12px;">

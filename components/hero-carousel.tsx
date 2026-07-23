@@ -26,7 +26,7 @@ export default function HeroCarousel({
   images,
   text = DEFAULT_TEXT,
   lang = "en",
-  businessName = "Your Business",
+  businessName = "WashFoldClean",
 }: {
   tr?: HeroTr
   images?: CarouselImages | undefined

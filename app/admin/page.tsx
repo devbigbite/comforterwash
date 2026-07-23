@@ -223,7 +223,7 @@ export default async function AdminHub() {
         {/* ── Title ────────────────────────────────────────────────────────── */}
         <div>
           <h1 className="text-2xl font-bold text-[#0D2240]">Control Panel</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{branding.business_name || "Your Business"} — select a module to get started</p>
+          <p className="text-sm text-gray-400 mt-0.5">{branding.business_name || "WashFoldClean"} — select a module to get started</p>
         </div>
 
         {/* ── Stats row ────────────────────────────────────────────────────── */}

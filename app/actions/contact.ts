@@ -21,7 +21,7 @@ export async function sendContactMessage(formData: FormData) {
 
   try {
     const branding = await getBranding()
-    const businessName = branding.business_name || "Your Business"
+    const businessName = branding.business_name || "WashFoldClean"
     const result = await resend.emails.send({
       from: `${businessName} <${SEND_ADDRESS}>`,
       to: [ADMIN_EMAIL],

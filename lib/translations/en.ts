@@ -576,7 +576,7 @@ const en = {
   // ── Staff Clock (/staff) ─────────────────────────────────────────────────────
   staff_clock: {
     title:              "Staff Clock",
-    subtitle:           "Your Business",
+    subtitle:           "WashFoldClean",
     select_worker:      "Select your name",
     enter_pin:          "Enter your 4-digit PIN",
     clock_in:           "Clock In",

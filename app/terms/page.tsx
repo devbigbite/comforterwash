@@ -4,7 +4,7 @@ import { getBranding } from "@/lib/location"
 
 export async function generateMetadata() {
   const branding = await getBranding()
-  return { title: `Terms of Service — ${branding.business_name || "Your Business"}` }
+  return { title: `Terms of Service — ${branding.business_name || "WashFoldClean"}` }
 }
 export const revalidate = 60 // Re-fetch from DB at most every 60 seconds
 

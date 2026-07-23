@@ -9,7 +9,7 @@ import { getBranding } from "@/lib/location"
 export async function generateMetadata() {
   const branding = await getBranding()
   return {
-    title: `Monthly Plans — ${branding.business_name || "Your Business"}`,
+    title: `Monthly Plans — ${branding.business_name || "WashFoldClean"}`,
     description: "Choose a monthly laundry plan. Flat monthly fee, lbs included, free pickup & delivery.",
   }
 }

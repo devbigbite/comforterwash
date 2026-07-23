@@ -26,7 +26,7 @@ export function LoginForm() {
 
   const supabase = createClient()
 
-  const [businessName, setBusinessName] = useState("Your Business")
+  const [businessName, setBusinessName] = useState("WashFoldClean")
   useEffect(() => {
     getBrandingSettings().then(b => setBusinessName(b.business_name))
   }, [])

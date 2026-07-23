@@ -27,7 +27,7 @@ export default function Home() {
   const [services, setServices] = useState<ServicesConfig | null>(null)
   const [livePricing, setLivePricing] = useState<PricingConfig>(PRICING_DEFAULTS)
   const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState(true)
-  const [businessName, setBusinessName] = useState("Your Business")
+  const [businessName, setBusinessName] = useState("WashFoldClean")
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   useEffect(() => {
     getLandingOffers().then(setOffers)

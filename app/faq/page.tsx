@@ -7,7 +7,7 @@ import es from "@/lib/translations/es"
 
 export async function generateMetadata() {
   const branding = await getBranding()
-  return { title: `FAQ — ${branding.business_name || "Your Business"}` }
+  return { title: `FAQ — ${branding.business_name || "WashFoldClean"}` }
 }
 // force-dynamic instead of a plain revalidate window: this page reads the
 // wf_locale cookie (via getSiteLangCookie()) to follow the EN/ES toggle,

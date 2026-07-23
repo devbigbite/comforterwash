@@ -9,13 +9,13 @@ import { getBranding } from "@/lib/location"
 // "WashFold Orlando" so nothing changes if it's ever omitted.
 
 const SMS_TEMPLATES = {
-  booking_confirmed: (name: string, pickupDate: string, pickupTime: string, businessName = "Your Business") =>
+  booking_confirmed: (name: string, pickupDate: string, pickupTime: string, businessName = "WashFoldClean") =>
     `Hi ${name}! Your ${businessName} booking is confirmed. Pickup scheduled for ${pickupDate} between ${pickupTime}.`,
 
   pickup_reminder: (name: string, pickupTime: string) =>
     `Hi ${name}! Reminder: We'll be picking up your laundry today between ${pickupTime}. Just leave it by your door. See you soon!`,
 
-  picked_up: (name: string, deliveryDate: string, businessName = "Your Business") =>
+  picked_up: (name: string, deliveryDate: string, businessName = "WashFoldClean") =>
     `Hi ${name}! We've picked up your laundry. Estimated delivery: ${deliveryDate}. - ${businessName}`,
 
   // Not used in the current flow — kept for manual use if needed
@@ -25,7 +25,7 @@ const SMS_TEMPLATES = {
   out_for_delivery: (name: string, deliveryTime: string) =>
     `Hi ${name}! Your fresh, clean laundry is out for delivery! Expect it between ${deliveryTime} today.`,
 
-  delivered: (name: string, businessName = "Your Business") =>
+  delivered: (name: string, businessName = "WashFoldClean") =>
     `Hi ${name}! Your laundry has been delivered! Thanks for choosing ${businessName} 🧺`,
 }
 

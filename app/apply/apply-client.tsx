@@ -288,8 +288,10 @@ function Logo({ src }: { src?: string | null }) {
   return (
     <svg width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="24" cy="24" r="24" fill="#0D2240" />
-      <path d="M8 24 Q11 19 14 24 Q17 29 20 24 Q23 19 26 24 Q29 29 32 24 Q35 19 38 24"
-        stroke="#E8726A" strokeWidth="3" strokeLinecap="round" fill="none" />
+      <path d="M11 19 L17 32 L24 21 L31 32 L37 19"
+        stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.22" />
+      <path d="M10 17 L16 31 L24 19 L32 31 L38 17"
+        stroke="#E8726A" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </svg>
   )
 }
@@ -318,7 +320,7 @@ function YesNo({ name, label, t }: { name: string; label: string; t: (typeof T)[
   )
 }
 
-export function ApplyClient({ businessName = "Your Business", logoUrl }: { businessName?: string; logoUrl?: string | null }) {
+export function ApplyClient({ businessName = "WashFoldClean", logoUrl }: { businessName?: string; logoUrl?: string | null }) {
   const searchParams = useSearchParams()
   const lang: Lang = searchParams.get("lang") === "es" ? "es" : "en"
   const tBase = T[lang]
