@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { createRouteTimeWindow, deleteRouteTimeWindow } from "@/app/actions/routes"
+import { createRouteTimeWindow, updateRouteTimeWindow, deleteRouteTimeWindow } from "@/app/actions/routes"
 import type { TimeWindow } from "@/lib/route-availability"
 
 // Format "09:00" → "9:00 AM", "13:00" → "1:00 PM"
@@ -35,6 +35,7 @@ interface Props {
 export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
   const [windows, setWindows] = useState<TimeWindow[]>(initialWindows)
   const [adding, setAdding] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [startTime, setStartTime] = useState("09:00")
   const [endTime, setEndTime] = useState("13:00")
   const [maxBookings, setMaxBookings] = useState("")
@@ -51,33 +52,57 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
     setWindowType('both')
     setError("")
     setAdding(false)
+    setEditingId(null)
   }
 
-  function handleAdd() {
+  function startEdit(w: TimeWindow) {
+    setEditingId(w.id)
+    setStartTime(w.start_time)
+    setEndTime(w.end_time)
+    setMaxBookings(w.max_bookings ? String(w.max_bookings) : "")
+    setIsPrivate(w.is_private)
+    setWindowType(w.window_type ?? 'both')
+    setError("")
+    setAdding(true)
+  }
+
+  function handleSave() {
     if (startTime >= endTime) {
       setError("End time must be after start time.")
       return
     }
     setError("")
+    const label = buildLabel(startTime, endTime)
+    const max = maxBookings ? parseInt(maxBookings, 10) : null
+
     startTransition(async () => {
-      const label = buildLabel(startTime, endTime)
-      const max = maxBookings ? parseInt(maxBookings, 10) : null
-      const result = await createRouteTimeWindow(routeId, startTime, endTime, label, max, isPrivate, windowType)
-      if (result.error) {
-        setError(result.error)
-        return
+      if (editingId) {
+        const result = await updateRouteTimeWindow(editingId, startTime, endTime, label, max, isPrivate, windowType)
+        if (result.error) {
+          setError(result.error)
+          return
+        }
+        setWindows(prev => prev.map(w => w.id === editingId
+          ? { ...w, start_time: startTime, end_time: endTime, label, max_bookings: max, is_private: isPrivate, window_type: windowType }
+          : w))
+      } else {
+        const result = await createRouteTimeWindow(routeId, startTime, endTime, label, max, isPrivate, windowType)
+        if (result.error) {
+          setError(result.error)
+          return
+        }
+        setWindows(prev => [...prev, {
+          id: crypto.randomUUID(),
+          route_id: routeId,
+          start_time: startTime,
+          end_time: endTime,
+          label,
+          max_bookings: max,
+          is_private: isPrivate,
+          sort_order: prev.length,
+          window_type: windowType,
+        }])
       }
-      setWindows(prev => [...prev, {
-        id: crypto.randomUUID(),
-        route_id: routeId,
-        start_time: startTime,
-        end_time: endTime,
-        label,
-        max_bookings: max,
-        is_private: isPrivate,
-        sort_order: prev.length,
-        window_type: windowType,
-      }])
       resetForm()
     })
   }
@@ -136,14 +161,24 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => handleDelete(w.id)}
-              disabled={isPending}
-              className="text-[10px] text-red-400 hover:text-red-600 font-bold border border-red-100 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors uppercase disabled:opacity-40"
-            >
-              Remove
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => startEdit(w)}
+                disabled={isPending}
+                className="text-[10px] text-[#0D2240] hover:text-[#E8726A] font-bold border border-gray-200 bg-white hover:bg-gray-50 px-2 py-1 rounded-lg transition-colors uppercase disabled:opacity-40"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(w.id)}
+                disabled={isPending}
+                className="text-[10px] text-red-400 hover:text-red-600 font-bold border border-red-100 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors uppercase disabled:opacity-40"
+              >
+                Remove
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -151,7 +186,7 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
       {/* Add form */}
       {adding && (
         <div className="bg-[#f7f8fb] rounded-2xl border border-gray-200 p-4 space-y-4">
-          <p className="text-xs font-bold text-[#0D2240] uppercase tracking-wide">New Time Window</p>
+          <p className="text-xs font-bold text-[#0D2240] uppercase tracking-wide">{editingId ? "Edit Time Window" : "New Time Window"}</p>
 
           {/* Start / End time dropdowns */}
           <div className="grid grid-cols-2 gap-3">
@@ -259,11 +294,11 @@ export function RouteTimeWindowEditor({ routeId, initialWindows }: Props) {
             </button>
             <button
               type="button"
-              onClick={handleAdd}
+              onClick={handleSave}
               disabled={isPending || startTime >= endTime}
               className="flex-[2] text-xs font-bold text-white bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 px-4 py-2 rounded-xl transition-colors uppercase tracking-wide"
             >
-              {isPending ? "Saving…" : "Save Window"}
+              {isPending ? "Saving…" : editingId ? "Save Changes" : "Save Window"}
             </button>
           </div>
         </div>

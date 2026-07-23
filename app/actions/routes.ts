@@ -125,6 +125,36 @@ export async function createRouteTimeWindow(
   return {}
 }
 
+export async function updateRouteTimeWindow(
+  windowId: string,
+  startTime: string,
+  endTime: string,
+  label: string,
+  maxBookings: number | null,
+  isPrivate: boolean,
+  windowType: 'both' | 'pickup_only' | 'delivery_only' = 'both'
+): Promise<{ error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+
+  const { error } = await supabase
+    .from("route_time_windows")
+    .update({
+      start_time:   startTime,
+      end_time:     endTime,
+      label,
+      max_bookings: maxBookings,
+      is_private:   isPrivate,
+      window_type:  windowType,
+    })
+    .eq("id", windowId)
+    .eq("location_id", locationId)
+
+  if (error) return { error: error.message }
+  revalidatePath("/admin/routes")
+  return {}
+}
+
 export async function deleteRouteTimeWindow(windowId: string): Promise<void> {
   await requireAdmin()
 
