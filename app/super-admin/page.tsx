@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
-import { getAllLocations, updateLocation, inviteLocationAdmin, getLocationAdmins, removeLocationAdmin, deleteLocation, type DeleteLocationResult } from "@/app/actions/super-admin"
+import { getAllLocations, updateLocation, inviteLocationAdmin, getLocationAdmins, removeLocationAdmin, deleteLocation, enterTenantAdmin, type DeleteLocationResult } from "@/app/actions/super-admin"
 import { setLocationPlanPrice, createBillingCheckoutLink, cancelLocationBilling } from "@/app/actions/platform-billing"
 
 // Mirrors middleware.ts's PLATFORM_DOMAIN — used here just to build the
@@ -339,6 +339,14 @@ export default function SuperAdminPage() {
                         >
                           View Site ↗
                         </a>
+                        <form action={enterTenantAdmin.bind(null, loc.id)} className="inline">
+                          <button
+                            type="submit"
+                            className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+                          >
+                            Enter Admin →
+                          </button>
+                        </form>
                         <button
                           onClick={() => startEdit(loc)}
                           className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"

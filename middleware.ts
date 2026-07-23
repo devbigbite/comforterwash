@@ -70,6 +70,12 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // ── -1. Pin /admin and /super-admin to one canonical domain ──────────────
+  // /admin also needs the *tenant* the visitor was actually on before we lose
+  // that context by rewriting the hostname — otherwise every tenant's admin
+  // silently resolves to Orlando (the canonical host's own location). We
+  // resolve it from the original subdomain/custom-domain here and stash it in
+  // admin_location_id, which the /admin block below honors in place of the
+  // (now-useless) host-based lookup.
   const rawHost = (request.headers.get("host") ?? "").split(":")[0].replace(/^www\./, "")
   if (
     rawHost &&
@@ -80,7 +86,18 @@ export async function middleware(request: NextRequest) {
     url.protocol = "https:"
     url.hostname = CANONICAL_ADMIN_HOST
     url.port = ""
-    return NextResponse.redirect(url, 308)
+    const res = NextResponse.redirect(url, 308)
+    if (pathname.startsWith("/admin")) {
+      const tenantLocationId = await getLocationIdForHost(rawHost)
+      res.cookies.set("admin_location_id", tenantLocationId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 30,
+        path: "/",
+      })
+    }
+    return res
   }
 
   // ── 0. Rate limit /partner/ routes ───────────────────────────────────────
@@ -108,8 +125,16 @@ export async function middleware(request: NextRequest) {
   const locationId = await getLocationIdForHost(hostname)
 
   // ── 2. Admin auth (cookie-based) ─────────────────────────────────────────
+  // Under the canonical admin host, the hostname no longer tells us which
+  // tenant we're in — admin_location_id (set above, or by the magic-link
+  // callback / super-admin "Enter Admin") is the real source of truth here.
+  const adminLocationOverride = request.cookies.get("admin_location_id")?.value
+  const effectiveAdminLocationId = adminLocationOverride || locationId
+
   if (pathname.startsWith("/admin/login")) {
-    return NextResponse.next()
+    return NextResponse.next({
+      request: { headers: new Headers({ ...Object.fromEntries(request.headers), "x-location-id": effectiveAdminLocationId }) },
+    })
   }
   if (pathname.startsWith("/admin")) {
     const authCookie = request.cookies.get("admin_auth")
@@ -118,7 +143,7 @@ export async function middleware(request: NextRequest) {
     }
     // Forward location header into admin too
     const res = NextResponse.next({
-      request: { headers: new Headers({ ...Object.fromEntries(request.headers), "x-location-id": locationId }) },
+      request: { headers: new Headers({ ...Object.fromEntries(request.headers), "x-location-id": effectiveAdminLocationId }) },
     })
     return res
   }

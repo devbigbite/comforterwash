@@ -77,6 +77,8 @@ export async function logoutAction() {
   const cookieStore = await cookies()
   cookieStore.delete("admin_auth")
   cookieStore.delete("super_admin_auth")
+  cookieStore.delete("admin_location_id")
+  cookieStore.delete("super_admin_impersonating")
   redirect("/admin/login")
 }
 
@@ -112,7 +114,7 @@ export async function requestAdminMagicLink(email: string): Promise<{ error?: st
       const { data: linkData } = await admin.auth.admin.generateLink({
         type: "magiclink",
         email: cleanEmail,
-        options: { redirectTo: `${siteUrl}/admin/auth/callback` },
+        options: { redirectTo: `${siteUrl}/admin/auth/callback?location_id=${locationId}` },
       })
       const magicLink = (linkData as { properties?: { action_link?: string } } | null)?.properties?.action_link
       if (magicLink) {

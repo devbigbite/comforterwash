@@ -2,8 +2,54 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import type { Location } from "@/lib/location"
 import { requireSuperAdmin } from "@/lib/auth-guard"
+
+// ── Enter / exit a tenant's admin area as the super admin ────────────────────
+// Lets the platform owner view and operate any tenant's /admin without a
+// separate password or account for that tenant — sets the same override
+// cookie the real per-tenant login path uses (see middleware.ts + the
+// /admin/auth/callback route), plus a marker cookie so the admin UI can show
+// a "you're viewing as X — exit" banner instead of looking like a normal login.
+export async function enterTenantAdmin(locationId: string): Promise<void> {
+  await requireSuperAdmin()
+  const cookieStore = await cookies()
+  // The /admin gate itself just checks for this cookie regardless of auth
+  // mechanism — requireSuperAdmin() above is the real check, this just lets
+  // the already-verified super admin through the same gate a real tenant
+  // admin passes.
+  cookieStore.set("admin_auth", "authenticated", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 8,
+    path: "/",
+  })
+  cookieStore.set("admin_location_id", locationId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 8, // 8 hours — same lifetime as the super-admin session
+    path: "/",
+  })
+  cookieStore.set("super_admin_impersonating", "1", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 8,
+    path: "/",
+  })
+  redirect("/admin")
+}
+
+export async function exitTenantAdmin(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.delete("admin_location_id")
+  cookieStore.delete("super_admin_impersonating")
+  redirect("/super-admin")
+}
 
 // ── Read ──────────────────────────────────────────────────────────────────────
 
@@ -135,7 +181,7 @@ export async function inviteLocationAdmin(
   const { data: linkData, error: linkGenError } = await supabase.auth.admin.generateLink({
     type: "magiclink",
     email: cleanEmail,
-    options: { redirectTo: `${siteUrl}/admin/auth/callback` },
+    options: { redirectTo: `${siteUrl}/admin/auth/callback?location_id=${locationId}` },
   })
   if (linkGenError) return { error: linkGenError.message }
 
