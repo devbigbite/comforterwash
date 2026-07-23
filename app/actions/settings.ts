@@ -396,6 +396,30 @@ export async function setMonthlyPlanEnabled(enabled: boolean): Promise<void> {
   revalidatePath("/pricing")
 }
 
+export async function getFreePickupDeliveryLineEnabled(): Promise<boolean> {
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  const { data } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "free_pickup_delivery_line_enabled")
+    .eq("location_id", locationId)
+    .maybeSingle()
+  return data?.value !== "false"   // default true
+}
+
+export async function setFreePickupDeliveryLineEnabled(enabled: boolean): Promise<void> {
+  await requireAdmin()
+
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  await supabase.from("settings").upsert(
+    { key: "free_pickup_delivery_line_enabled", value: String(enabled), location_id: locationId, updated_at: new Date().toISOString() },
+    { onConflict: "location_id,key" }
+  )
+  revalidatePath("/admin/settings")
+}
+
 export async function getTipsEnabled(): Promise<boolean> {
   const supabase = createAdminClient()
   const locationId = await getLocationId()

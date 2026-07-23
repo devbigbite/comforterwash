@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react"
 import { getPricingConfig, setPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, type ServiceOption } from "@/app/actions/service-options"
 import { isSaleActive } from "@/lib/service-option-utils"
-import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getTipsEnabled, setTipsEnabled } from "@/app/actions/settings"
+import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getTipsEnabled, setTipsEnabled, getFreePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
 import Link from "next/link"
 
 function cents(val: number) { return `$${(val / 100).toFixed(2)}` }
@@ -315,6 +315,8 @@ export default function PricingPage() {
   const [tipsEnabled, setTipsEnabledState] = useState(true)
   const [savingTipsToggle, setSavingTipsToggle] = useState(false)
   const [savingPlanToggle, setSavingPlanToggle] = useState(false)
+  const [freePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabledState] = useState(true)
+  const [savingFreeLineToggle, setSavingFreeLineToggle] = useState(false)
 
   async function loadAll() {
     const [cfg, dets, exts, accs, fee, svcsCfg, planEnabled] = await Promise.all([
@@ -334,6 +336,7 @@ export default function PricingPage() {
     setSvcs(svcsCfg)
     setMonthlyPlanEnabledState(planEnabled)
     getTipsEnabled().then(setTipsEnabledState)
+    getFreePickupDeliveryLineEnabled().then(setFreePickupDeliveryLineEnabledState)
   }
 
   async function handleSaveSvcs() {
@@ -484,6 +487,33 @@ export default function PricingPage() {
                 aria-checked={tipsEnabled}
               >
                 <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${tipsEnabled ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </div>
+
+            {/* Free Pickup & Delivery line toggle */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#f0f4f9] border border-blue-100">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🚚</span>
+                <div>
+                  <p className="font-bold text-sm text-[#0D2240]">"Free Pick-Up & Delivery Included" Line</p>
+                  <p className="text-xs text-gray-400">Show this line on the booking estimate. Turn off if you charge for pickup/delivery.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={savingFreeLineToggle}
+                onClick={async () => {
+                  setSavingFreeLineToggle(true)
+                  const next = !freePickupDeliveryLineEnabled
+                  setFreePickupDeliveryLineEnabledState(next)
+                  await setFreePickupDeliveryLineEnabled(next)
+                  setSavingFreeLineToggle(false)
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${freePickupDeliveryLineEnabled ? "bg-[#0D2240]" : "bg-gray-200"}`}
+                role="switch"
+                aria-checked={freePickupDeliveryLineEnabled}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${freePickupDeliveryLineEnabled ? "translate-x-5" : "translate-x-0"}`} />
               </button>
             </div>
           </div>

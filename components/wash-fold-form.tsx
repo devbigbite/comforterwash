@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
-import { getMonthlyPlanEnabled, getComforterPromo } from "@/app/actions/settings"
+import { getMonthlyPlanEnabled, getComforterPromo, getFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
 import { effectivePrice, effectivePriceForOrder, isSaleActive } from "@/lib/service-option-utils"
@@ -271,6 +271,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
   const [tipOption, setTipOption] = useState<TipOption>("none")
   const [tipsEnabled, setTipsEnabled] = useState(true)
+  const [freePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled] = useState(true)
   const [customTipCents, setCustomTipCents] = useState(0)
   const [feeConfig, setFeeConfig] = useState<DeliveryFeeConfig>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
 
@@ -351,6 +352,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
     getComforterPromo().then(setComforterPromo)
     getDeliveryFeeSettings().then(s => setFeeConfig(s))
     getTipsEnabled().then(setTipsEnabled)
+    getFreePickupDeliveryLineEnabled().then(setFreePickupDeliveryLineEnabled)
     getPricingConfig().then(cfg => {
       FREQ_CENTS = { one_time: cfg.washFoldOneTimeCents, weekly: cfg.washFoldSubCents, biweekly: cfg.washFoldSubCents }
       MIN_POUNDS = cfg.washFoldMinLbs
@@ -882,7 +884,9 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                   <span className="font-bold">{tw.estimateNote}</span> {tw.chargedAt.replace("{priceLabel}", priceLabel).replace("20 lb", `${minLbs} lb`)}
                 </p>
               </div>
-              <p className="text-xs font-semibold text-green-600 pt-1">{tw.freePickupDelivery}</p>
+              {freePickupDeliveryLineEnabled && (
+                <p className="text-xs font-semibold text-green-600 pt-1">{tw.freePickupDelivery}</p>
+              )}
             </div>
 
             {/* ── DATE / SCHEDULE SECTION ── */}
