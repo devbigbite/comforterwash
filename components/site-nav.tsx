@@ -29,11 +29,18 @@ const EXCLUDED_PREFIXES = [
   "/book",
 ]
 
-export function SiteNav() {
+export function SiteNav({ businessName = "Your Business" }: { businessName?: string }) {
   const pathname = usePathname()
   const { translations: tr, locale } = useLang()
 
   if (EXCLUDED_PREFIXES.some(prefix => pathname.startsWith(prefix))) return null
+
+  // Split "WashFold Orlando" -> "WashFold" / "Orlando" so the existing
+  // two-line lockup style (bold word + small-caps subtitle) still renders
+  // correctly for the original business, while any other tenant's name
+  // (edited via /admin/branding) degrades gracefully to the same layout.
+  const [logoPrimary, ...logoRestParts] = businessName.split(" ")
+  const logoRest = logoRestParts.join(" ")
 
   // On homepage, nav links scroll to sections; on other pages they go to /#section
   const isHome = pathname === "/"
@@ -71,9 +78,11 @@ export function SiteNav() {
             <Logo size={42} />
             <div className="leading-tight">
               <span className="block text-[var(--brand-primary)] font-extrabold text-xl tracking-tight leading-none">
-                Wash<span className="text-[var(--brand-accent)]">Fold</span>
+                {logoPrimary}
               </span>
-              <span className="block text-[var(--brand-primary)]/40 text-[10px] font-semibold uppercase tracking-widest">Orlando</span>
+              {logoRest && (
+                <span className="block text-[var(--brand-primary)]/40 text-[10px] font-semibold uppercase tracking-widest">{logoRest}</span>
+              )}
             </div>
           </Link>
 

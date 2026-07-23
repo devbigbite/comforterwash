@@ -50,7 +50,7 @@ export default async function RootLayout({
     >
       <body className="font-sans antialiased">
         <LangProvider initialLocale={initialLocale}>
-          <SiteNav />
+          <SiteNav businessName={branding.business_name ?? undefined} />
           {children}
         </LangProvider>
         <Analytics />
