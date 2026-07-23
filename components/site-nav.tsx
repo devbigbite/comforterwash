@@ -5,7 +5,15 @@ import { usePathname } from "next/navigation"
 import { useLang } from "@/components/lang-provider"
 import { LangToggle } from "@/components/lang-toggle"
 
-export function Logo({ size = 40 }: { size?: number }) {
+// Renders a tenant's own uploaded logo (location.logo_url, set via
+// /admin/branding) when one exists; otherwise falls back to the generic
+// abstract wave mark so every tenant has a reasonable default logo even
+// before they've uploaded their own.
+export function Logo({ size = 40, src }: { size?: number; src?: string | null }) {
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt="" width={size} height={size} className="object-contain rounded-full" style={{ width: size, height: size }} />
+  }
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <circle cx="24" cy="24" r="24" fill="var(--brand-primary)" />
@@ -29,7 +37,7 @@ const EXCLUDED_PREFIXES = [
   "/book",
 ]
 
-export function SiteNav({ businessName = "Your Business" }: { businessName?: string }) {
+export function SiteNav({ businessName = "Your Business", logoUrl }: { businessName?: string; logoUrl?: string | null }) {
   const pathname = usePathname()
   const { translations: tr, locale } = useLang()
 
@@ -75,7 +83,7 @@ export function SiteNav({ businessName = "Your Business" }: { businessName?: str
       <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100">
         <div className="mx-auto max-w-7xl px-4 h-18 flex items-center gap-6 py-3">
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
-            <Logo size={42} />
+            <Logo size={42} src={logoUrl} />
             <div className="leading-tight">
               <span className="block text-[var(--brand-primary)] font-extrabold text-xl tracking-tight leading-none">
                 {logoPrimary}

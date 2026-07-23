@@ -280,7 +280,11 @@ This Agreement is governed by the laws of the State of Florida.`,
 
 type Role = "driver" | "operator" | "combo" | null
 
-function Logo() {
+function Logo({ src }: { src?: string | null }) {
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt="" width={32} height={32} className="object-contain rounded-full" style={{ width: 32, height: 32 }} />
+  }
   return (
     <svg width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="24" cy="24" r="24" fill="#0D2240" />
@@ -314,7 +318,7 @@ function YesNo({ name, label, t }: { name: string; label: string; t: (typeof T)[
   )
 }
 
-export function ApplyClient({ businessName = "Your Business" }: { businessName?: string }) {
+export function ApplyClient({ businessName = "Your Business", logoUrl }: { businessName?: string; logoUrl?: string | null }) {
   const searchParams = useSearchParams()
   const lang: Lang = searchParams.get("lang") === "es" ? "es" : "en"
   const tBase = T[lang]
@@ -457,8 +461,8 @@ export function ApplyClient({ businessName = "Your Business" }: { businessName?:
       <header className="bg-white border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-2xl px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-[#0D2240] font-extrabold text-lg">
-            <Logo />
-            Wash<span className="text-[#E8726A]">Fold</span>
+            <Logo src={logoUrl} />
+            {businessName}
           </Link>
           <Link href="/" className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors">
             {t.back}

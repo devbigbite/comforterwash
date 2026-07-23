@@ -29,6 +29,7 @@ export default function Home() {
   const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState(true)
   const [businessName, setBusinessName] = useState("Your Business")
   const [supportEmail, setSupportEmail] = useState("clean@washfoldorlando.com")
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   useEffect(() => {
     getLandingOffers().then(setOffers)
     getSiteImages().then(setImages)
@@ -39,6 +40,7 @@ export default function Home() {
     getBrandingSettings().then(b => {
       setBusinessName(b.business_name)
       if (b.support_email) setSupportEmail(b.support_email)
+      setLogoUrl(b.logo_url ?? null)
     })
   }, [])
   const visibleOffers = (offers ?? []).filter(o => o.enabled)
@@ -468,7 +470,7 @@ export default function Home() {
 
           <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <Logo size={28} />
+              <Logo size={28} src={logoUrl} />
               <span className="text-white font-extrabold">{businessName}</span>
             </div>
             <div className="flex gap-5 text-white/40 text-xs">
