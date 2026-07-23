@@ -10,7 +10,7 @@ export async function generateMetadata() {
   return {
     title: `Commercial Laundry Services — ${branding.business_name || "Your Business"}`,
     description:
-      "Effective laundry pickup & delivery for Orlando businesses. Hotels, Airbnb hosts, gyms, spas, restaurants, medical offices and more. Get a custom quote today.",
+      "Effective laundry pickup & delivery for local businesses. Hotels, Airbnb hosts, gyms, spas, restaurants, medical offices and more. Get a custom quote today.",
   }
 }
 
@@ -112,7 +112,7 @@ export default async function CommercialPage({
       <section className="px-4 py-16 bg-white">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--brand-primary)] mb-3">{tr.benefitsTitle}</h2>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--brand-primary)] mb-3">{tr.benefitsTitle.replace("WashFold", businessName)}</h2>
             <p className="text-gray-500 text-sm">{tr.benefitsSub}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

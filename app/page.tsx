@@ -28,7 +28,6 @@ export default function Home() {
   const [livePricing, setLivePricing] = useState<PricingConfig>(PRICING_DEFAULTS)
   const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState(true)
   const [businessName, setBusinessName] = useState("Your Business")
-  const [supportEmail, setSupportEmail] = useState("clean@washfoldorlando.com")
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   useEffect(() => {
     getLandingOffers().then(setOffers)
@@ -39,7 +38,6 @@ export default function Home() {
     getMonthlyPlanEnabled().then(setMonthlyPlanEnabled)
     getBrandingSettings().then(b => {
       setBusinessName(b.business_name)
-      if (b.support_email) setSupportEmail(b.support_email)
       setLogoUrl(b.logo_url ?? null)
     })
   }, [])
@@ -419,7 +417,7 @@ export default function Home() {
         <div className="mx-auto max-w-4xl">
 
           {/* Contact icons */}
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 mb-12 text-center">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 mb-12 text-center">
             <div className="flex flex-col items-center gap-3">
               <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
                 <svg className="w-6 h-6 text-[var(--brand-accent)]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -452,18 +450,6 @@ export default function Home() {
                   </svg>
                 </a>
               </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
-                <svg className="w-6 h-6 text-[var(--brand-accent)]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                </svg>
-              </div>
-              <p className="text-white/50 text-xs uppercase tracking-widest font-semibold">{tr.footer.sendNote}</p>
-              <a href={`mailto:${supportEmail}`} className="border border-[var(--brand-accent)] text-[var(--brand-accent)] hover:bg-[var(--brand-accent)] hover:text-white font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-full transition-all">
-                {tr.footer.contact}
-              </a>
             </div>
           </div>
 

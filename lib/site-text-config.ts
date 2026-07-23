@@ -83,7 +83,7 @@ export interface SiteText {
 
 export const DEFAULT_TEXT: SiteText = {
   slide_1_headline: "Laundry Service That Feels Like Family",
-  slide_1_subline:  "Free pickup & delivery · Wash, fold & comforter cleaning · Orlando FL",
+  slide_1_subline:  "Free pickup & delivery · Wash, fold & comforter cleaning",
   slide_1_cta:      "Schedule a Pickup",
   slide_1_headline_es: "",
   slide_1_subline_es:  "",

@@ -56,7 +56,7 @@ export interface EmailBranding {
 }
 
 export const DEFAULT_EMAIL_BRANDING: EmailBranding = {
-  businessName: "WashFold Orlando",
+  businessName: "Your Business",
   primaryColor: "#0D2240",
   accentColor: "#E8726A",
   supportPhone: "(407) 123-4567",

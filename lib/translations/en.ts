@@ -22,7 +22,7 @@ const en = {
   },
   hero: {
     slide1Headline: "Laundry Service That Feels Like Family",
-    slide1Sub: "Free pickup & delivery · Wash, fold & comforter cleaning · Orlando FL",
+    slide1Sub: "Free pickup & delivery · Wash, fold & comforter cleaning",
     slide1Cta: "Schedule a Pickup",
     slide2Order: "ORDER",
     slide2OrderDesc: "Schedule your pickup in seconds",
@@ -72,13 +72,13 @@ const en = {
   },
   offers: {
     heading: "Special Offers to Make Laundry Day Even Easier!",
-    subheading: "Laundry day has never looked this good. At WashFold Orlando, we believe convenience should come with rewards.",
+    subheading: "Laundry day has never looked this good. We believe convenience should come with rewards.",
     offer1Badge: "15% OFF",
     offer1Title: "15% Off Your First Order",
-    offer1Desc: "New to WashFold? Try us out and save big while experiencing the joy of laundry freedom. (Discount applied automatically)",
+    offer1Desc: "New here? Try us out and save big while experiencing the joy of laundry freedom. (Discount applied automatically)",
     offer2Badge: "FREE",
     offer2Title: "Free Premium Laundry Bag",
-    offer2Desc: "We'll deliver your first order in a custom WashFold Orlando bag — yours to keep!",
+    offer2Desc: "We'll deliver your first order in a custom branded laundry bag — yours to keep!",
     offer3Badge: "ALWAYS",
     offer3Title: "Always Free Pickup & Delivery",
     offer3Desc: "No gimmicks. No hidden fees. Just clean laundry, delivered free to your door every time.",
@@ -86,12 +86,12 @@ const en = {
   testimonials: {
     heading: "What Our Customers Say",
     subheading: "Real families. Real clean laundry.",
-    r1Quote: "I have three kids and laundry was eating my weekends. WashFold changed everything — I get my Sundays back now.",
+    r1Quote: "I have three kids and laundry was eating my weekends. This service changed everything — I get my Sundays back now.",
     r1Name: "Maria S.",
     r1Label: "Mom of 3 · Lake Nona",
     r2Quote: "The comforter wash is incredible. My king-size comforter came back fluffy and smelling amazing. Way more convenient than going to the laundromat.",
     r2Name: "James T.",
-    r2Label: "Customer · Orlando",
+    r2Label: "Customer",
     r3Quote: "They're always on time, the clothes are perfectly folded, and the tracking link is so reassuring. Highly recommend.",
     r3Name: "Keisha R.",
     r3Label: "Repeat Customer · Dr. Phillips",
@@ -150,7 +150,7 @@ const en = {
     a5: "Yes! Once your order is picked up you'll receive a tracking link via text so you can follow every step of the process.",
   },
   footer: {
-    tagline: "Orlando's friendliest laundry pickup & delivery service.",
+    tagline: "The friendliest laundry pickup & delivery service around.",
     contact: "Contact Us",
     callUs: "Give Us a Call",
     social: "Find Us on Social",
@@ -377,7 +377,7 @@ const en = {
   // ── Page: FAQ ───────────────────────────────────────────────────────────────
   faqPage: {
     title:       "Frequently Asked Questions",
-    subtitle:    "Everything you need to know about our laundry pickup & delivery service in Orlando.",
+    subtitle:    "Everything you need to know about our laundry pickup & delivery service.",
     catGeneral:        "General",
     catGeneralDesc:    "How it works, service areas, pickup & delivery, contact",
     catComforter:      "Comforter Washing",
@@ -398,13 +398,13 @@ const en = {
   serviceAreasPage: {
     badge:          "WashFold Orlando",
     title:          "Pickup & Delivery\nService Areas",
-    subtitle:       "We serve the greater Orlando metro — free pickup and delivery straight to your door.",
+    subtitle:       "We serve your local area — free pickup and delivery straight to your door.",
     scheduleBtn:    "Schedule a Pickup",
     checkZip:       "Check Your ZIP Code",
     areasTitle:     "Areas We Serve",
     zipCount:       "ZIP code",
     zipCounts:      "ZIP codes",
-    acrossOrlando:  "across the Orlando metro area",
+    acrossOrlando:  "across our service area",
     comingSoon:     "Service area details coming soon.",
     servingThis:    "Serving this area",
     noZip:          "Don't see your ZIP code?",
@@ -416,7 +416,7 @@ const en = {
   commercialPage: {
     badge:       "Commercial Services",
     heroTitle1:  "Effective Laundry Service for",
-    heroTitle2:  "Orlando Businesses",
+    heroTitle2:  "Local Businesses",
     heroSub:     "Reliable pickup & delivery laundry service for hotels, Airbnbs, gyms, spas, restaurants, and more. Custom pricing, flexible schedules, no contracts.",
     heroBtn:     "Request a Quote →",
     industriesTitle:   "Industries We Serve",
@@ -443,7 +443,7 @@ const en = {
       { icon: "💰", title: "Volume Pricing",         desc: "The more you wash, the more you save. Custom per-pound rates for commercial accounts." },
       { icon: "⚡", title: "Fast Turnaround",        desc: "24–48 hour turnaround as standard. Rush service available for urgent needs." },
       { icon: "🔒", title: "No Long-Term Contracts", desc: "Month-to-month service with no hidden fees. Cancel or adjust anytime." },
-      { icon: "📍", title: "Orlando-Based",          desc: "Local team, local reliability. We know Orlando and we show up on time, every time." },
+      { icon: "📍", title: "Locally Based",          desc: "Local team, local reliability. We know our service area and we show up on time, every time." },
       { icon: "🧺", title: "Dedicated Account Setup", desc: "We learn your preferences once — detergent, fold style, sorting — and repeat them every time." },
     ],
     steps: [
@@ -576,7 +576,7 @@ const en = {
   // ── Staff Clock (/staff) ─────────────────────────────────────────────────────
   staff_clock: {
     title:              "Staff Clock",
-    subtitle:           "WashFold Orlando",
+    subtitle:           "Your Business",
     select_worker:      "Select your name",
     enter_pin:          "Enter your 4-digit PIN",
     clock_in:           "Clock In",

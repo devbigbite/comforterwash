@@ -13,6 +13,7 @@ import {
   createPunch,
   getTimeSheet,
 } from "@/app/actions/staff"
+import { getBrandingSettings } from "@/app/actions/branding"
 import { minutesBetween, formatDuration } from "@/lib/staff-utils"
 import { getTranslations } from "@/lib/i18n"
 import type { Locale } from "@/lib/i18n"
@@ -316,10 +317,15 @@ export default function StaffClockPage() {
   const [pinError, setPinError] = useState("")
   const [warning, setWarning]   = useState<ScheduleWarning | null>(null)
   const [lang, setLang]         = useState<Locale>("en")
+  const [businessName, setBusinessName] = useState<string | null>(null)
+
+  useEffect(() => {
+    getBrandingSettings().then(b => setBusinessName(b.business_name))
+  }, [])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sc = (getTranslations(lang) as any).staff_clock as Record<string, string>
-  const t = (key: string) => sc?.[key] ?? key
+  const t = (key: string) => (key === "subtitle" && businessName) ? businessName : (sc?.[key] ?? key)
 
   const ROLE_LABELS: Record<string, string> = {
     driver:   t("role_driver"),

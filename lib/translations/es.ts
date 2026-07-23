@@ -22,7 +22,7 @@ const es = {
   },
   hero: {
     slide1Headline: "Servicio de Lavandería con Toque Familiar",
-    slide1Sub: "Recogida y entrega gratis · Lavado, secado y edredones · Orlando FL",
+    slide1Sub: "Recogida y entrega gratis · Lavado, secado y edredones",
     slide1Cta: "Programar Recogido",
     slide2Order: "ORDENA",
     slide2OrderDesc: "Programa tu recogida en segundos",
@@ -72,13 +72,13 @@ const es = {
   },
   offers: {
     heading: "¡Ofertas Especiales para Hacer el Día de Lavado Más Fácil!",
-    subheading: "El día de lavado nunca había lucido tan bien. En WashFold Orlando creemos que la comodidad debe venir con recompensas.",
+    subheading: "El día de lavado nunca había lucido tan bien. Creemos que la comodidad debe venir con recompensas.",
     offer1Badge: "15% OFF",
     offer1Title: "15% de Descuento en tu Primer Pedido",
-    offer1Desc: "¿Nuevo en WashFold? Pruébanos y ahorra mientras disfrutas la libertad de la lavandería. (Descuento aplicado automáticamente)",
+    offer1Desc: "¿Nuevo aquí? Pruébanos y ahorra mientras disfrutas la libertad de la lavandería. (Descuento aplicado automáticamente)",
     offer2Badge: "GRATIS",
     offer2Title: "Bolsa de Lavandería Premium GRATIS",
-    offer2Desc: "Entregaremos tu primer pedido en una bolsa personalizada de WashFold Orlando — ¡es tuya para siempre!",
+    offer2Desc: "Entregaremos tu primer pedido en una bolsa de lavandería personalizada — ¡es tuya para siempre!",
     offer3Badge: "SIEMPRE",
     offer3Title: "Recogida y Entrega SIEMPRE Gratis",
     offer3Desc: "Sin trucos. Sin cargos ocultos. Solo ropa limpia, entregada gratis en tu puerta, siempre.",
@@ -86,12 +86,12 @@ const es = {
   testimonials: {
     heading: "Lo Que Dicen Nuestros Clientes",
     subheading: "Familias reales. Ropa realmente limpia.",
-    r1Quote: "Tengo tres hijos y la lavandería me comía los fines de semana. WashFold lo cambió todo — ahora recupero mis domingos.",
+    r1Quote: "Tengo tres hijos y la lavandería me comía los fines de semana. Este servicio lo cambió todo — ahora recupero mis domingos.",
     r1Name: "Maria S.",
     r1Label: "Mamá de 3 · Lake Nona",
     r2Quote: "El lavado de edredón es increíble. Mi edredón king regresó esponjoso y con un olor increíble. Mucho más conveniente que ir a la lavandería.",
     r2Name: "James T.",
-    r2Label: "Cliente · Orlando",
+    r2Label: "Cliente",
     r3Quote: "Siempre son puntuales, la ropa queda perfectamente doblada y el enlace de rastreo es muy tranquilizador. Lo recomiendo mucho.",
     r3Name: "Keisha R.",
     r3Label: "Cliente Frecuente · Celebration",
@@ -150,7 +150,7 @@ const es = {
     a5: "¡Sí! Una vez recogido tu pedido, recibirás un enlace de rastreo por texto para seguir cada paso del proceso.",
   },
   footer: {
-    tagline: "El servicio de lavandería más amable de Orlando.",
+    tagline: "El servicio de lavandería más amable de la zona.",
     contact: "Contáctanos",
     callUs: "Llámanos",
     social: "Encuéntranos en Redes",
@@ -376,7 +376,7 @@ const es = {
   // ── Page: FAQ ───────────────────────────────────────────────────────────────
   faqPage: {
     title:       "Preguntas Frecuentes",
-    subtitle:    "Todo lo que necesitas saber sobre nuestro servicio de recogida y entrega de lavandería en Orlando.",
+    subtitle:    "Todo lo que necesitas saber sobre nuestro servicio de recogida y entrega de lavandería.",
     catGeneral:        "General",
     catGeneralDesc:    "Cómo funciona, áreas de servicio, recogida y entrega, contacto",
     catComforter:      "Lavado de Edredones",
@@ -397,13 +397,13 @@ const es = {
   serviceAreasPage: {
     badge:          "WashFold Orlando",
     title:          "Áreas de Servicio\nde Recogida y Entrega",
-    subtitle:       "Servimos el área metropolitana de Orlando — recogida y entrega gratuita a tu puerta.",
+    subtitle:       "Servimos tu área local — recogida y entrega gratuita a tu puerta.",
     scheduleBtn:    "Programar Recogida",
     checkZip:       "Verifica tu Código Postal",
     areasTitle:     "Áreas que Servimos",
     zipCount:       "código postal",
     zipCounts:      "códigos postales",
-    acrossOrlando:  "en el área metropolitana de Orlando",
+    acrossOrlando:  "en nuestra área de servicio",
     comingSoon:     "Detalles del área de servicio próximamente.",
     servingThis:    "Sirviendo esta área",
     noZip:          "¿No ves tu código postal?",
@@ -415,7 +415,7 @@ const es = {
   commercialPage: {
     badge:       "Servicios Comerciales",
     heroTitle1:  "Servicio de Lavandería Efectivo para",
-    heroTitle2:  "Negocios en Orlando",
+    heroTitle2:  "Negocios Locales",
     heroSub:     "Servicio confiable de recogida y entrega de lavandería para hoteles, Airbnbs, gimnasios, spas, restaurantes y más. Precios personalizados, horarios flexibles, sin contratos.",
     heroBtn:     "Solicitar Cotización →",
     industriesTitle:   "Industrias que Servimos",
@@ -442,7 +442,7 @@ const es = {
       { icon: "💰", title: "Precios por Volumen",         desc: "Cuanto más lavas, más ahorras. Tarifas por libra personalizadas para cuentas comerciales." },
       { icon: "⚡", title: "Entrega Rápida",        desc: "Entrega en 24–48 horas como estándar. Servicio urgente disponible para necesidades inmediatas." },
       { icon: "🔒", title: "Sin Contratos a Largo Plazo", desc: "Servicio mes a mes sin tarifas ocultas. Cancela o ajusta en cualquier momento." },
-      { icon: "📍", title: "Con Base en Orlando",          desc: "Equipo local, confiabilidad local. Conocemos Orlando y llegamos a tiempo, siempre." },
+      { icon: "📍", title: "Equipo Local",          desc: "Equipo local, confiabilidad local. Conocemos nuestra área de servicio y llegamos a tiempo, siempre." },
       { icon: "🧺", title: "Configuración de Cuenta Dedicada", desc: "Aprendemos tus preferencias una vez — detergente, forma de doblar, clasificación — y las repetimos cada vez." },
     ],
     steps: [
@@ -575,7 +575,7 @@ const es = {
   // ── Staff Clock (/staff) ─────────────────────────────────────────────────────
   staff_clock: {
     title:              "Reloj del Personal",
-    subtitle:           "WashFold Orlando",
+    subtitle:           "Tu Negocio",
     select_worker:      "Selecciona tu nombre",
     enter_pin:          "Ingresa tu PIN de 4 dígitos",
     clock_in:           "Registrar Entrada",
