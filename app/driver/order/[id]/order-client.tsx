@@ -37,7 +37,9 @@ interface Props {
   pickupDate: string | null
   deliveryDate: string | null
   assignedFacilityName: string | null
+  enrouteAlreadySent: boolean
   // server actions
+  notifyPickupEnroute: (fd: FormData) => Promise<void>
   confirmPickup:    (fd: FormData) => Promise<void>
   confirmDropoff:   (fd: FormData) => Promise<void>
   confirmDelivery:  (fd: FormData) => Promise<void>
@@ -61,7 +63,8 @@ export default function DriverOrderClient({
   allReady, allReadyAtWarehouse,
   allOutForDel, allDone,
   pickupDate, deliveryDate, assignedFacilityName,
-  confirmPickup, confirmDropoff, confirmDelivery, recordPhotoEvent,
+  enrouteAlreadySent,
+  notifyPickupEnroute, confirmPickup, confirmDropoff, confirmDelivery, recordPhotoEvent,
 }: Props) {
   const today         = new Date().toISOString().split("T")[0]
   const isPickupDay   = pickupDate  === today
@@ -119,6 +122,19 @@ export default function DriverOrderClient({
   }
   function addWeightSlot()        { setBagWeights(prev => [...prev, ""]) }
   function removeWeightSlot(i: number) { setBagWeights(prev => prev.filter((_, idx) => idx !== i)) }
+
+  const [enrouteSent, setEnrouteSent] = useState(enrouteAlreadySent)
+
+  async function handleNotifyEnroute() {
+    if (!requireName()) return
+    setSubmitting("enroute")
+    const fd = new FormData()
+    fd.append("bookingId",  bookingId)
+    fd.append("driverName", driverName.trim())
+    await notifyPickupEnroute(fd)
+    setEnrouteSent(true)
+    setSubmitting(null)
+  }
 
   async function handlePickup() {
     let valid = requireName()
@@ -224,6 +240,20 @@ export default function DriverOrderClient({
           </div>
 
           <div className="bg-white p-5 space-y-5">
+
+            {/* On my way — notify customer BEFORE arrival so they have time to put laundry out */}
+            {allPending && (
+              enrouteSent ? (
+                <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 text-center">
+                  <p className="text-teal-700 font-bold text-sm">✅ Customer notified you're on the way</p>
+                </div>
+              ) : (
+                <button type="button" onClick={handleNotifyEnroute} disabled={submitting === "enroute"}
+                  className="w-full bg-white border-2 border-[#E8726A] hover:bg-[#E8726A]/5 disabled:opacity-50 text-[#E8726A] font-extrabold py-3.5 rounded-2xl text-base transition-colors">
+                  {submitting === "enroute" ? "Notifying…" : "🚗 On My Way — Notify Customer"}
+                </button>
+              )
+            )}
 
             {/* Step 1: Collect from customer */}
             {allPending && (

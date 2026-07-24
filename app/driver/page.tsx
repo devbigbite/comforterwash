@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { PinGate, useWorkerSession } from "@/components/pin-gate"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
-import { getDriverQueue } from "@/app/actions/driver-queue"
+import { getDriverQueue, notifyRouteStart } from "@/app/actions/driver-queue"
 import { findBookingForDriverLookup } from "@/app/actions/operator-queue"
 import type { TransportRun } from "@/app/actions/transport-runs"
 import type { DriverOrder } from "@/app/actions/driver-queue"
@@ -42,6 +42,8 @@ function DriverHomeInner() {
   const [deliveries, setDeliveries]     = useState<RouteOrder[]>([])
   const [pendingRuns, setPendingRuns]   = useState<TransportRun[]>([])
   const [routeLoading, setRouteLoading] = useState(false)
+  const [routeStarted, setRouteStarted] = useState(false)
+  const [startingRoute, setStartingRoute] = useState(false)
   const router = useRouter()
 
   const workerId = session?.workerId ?? null
@@ -64,6 +66,17 @@ function DriverHomeInner() {
     }
     loadData()
   }, [workerId])
+
+  async function handleStartRoute() {
+    if (!pickups.length || startingRoute) return
+    setStartingRoute(true)
+    try {
+      await notifyRouteStart(pickups.map(p => p.id))
+      setRouteStarted(true)
+    } finally {
+      setStartingRoute(false)
+    }
+  }
 
   async function lookup() {
     const cleaned = code.trim().replace(/\D/g, "")
@@ -123,6 +136,19 @@ function DriverHomeInner() {
                 {pickups.length} stop{pickups.length !== 1 ? "s" : ""}
               </span>
             </div>
+
+            {/* Notify every pickup customer at once, before hitting the road */}
+            {routeStarted ? (
+              <div className="bg-teal-500/15 border border-teal-500/25 rounded-2xl px-4 py-3 mb-2 text-center">
+                <p className="text-teal-300 font-bold text-sm">✅ Route started — all customers notified</p>
+              </div>
+            ) : (
+              <button onClick={handleStartRoute} disabled={startingRoute}
+                className="w-full bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-50 text-white font-extrabold py-3.5 rounded-2xl text-base mb-2 transition-colors">
+                {startingRoute ? "Notifying customers…" : "🚗 Start Route — Notify All Customers"}
+              </button>
+            )}
+
             <div className="space-y-2">
               {pickups.map((o, i) => (
                 <button key={o.id} onClick={() => router.push(`/driver/order/${o.id}`)}

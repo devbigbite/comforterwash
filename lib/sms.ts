@@ -13,7 +13,7 @@ const SMS_TEMPLATES = {
     `Hi ${name}! Your ${businessName} booking is confirmed. Pickup scheduled for ${pickupDate} between ${pickupTime}.`,
 
   pickup_reminder: (name: string, pickupTime: string) =>
-    `Hi ${name}! Reminder: We'll be picking up your laundry today between ${pickupTime}. Just leave it by your door. See you soon!`,
+    `Hi ${name}! We'll be there soon to pick-up your laundry bags! Please leave them by your door. See you soon!`,
 
   picked_up: (name: string, deliveryDate: string, businessName = "WashFoldClean") =>
     `Hi ${name}! We've picked up your laundry. Estimated delivery: ${deliveryDate}. - ${businessName}`,

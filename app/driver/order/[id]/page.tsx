@@ -6,6 +6,7 @@ import LabelReference from "./label-reference"
 import DriverOrderClient from "./order-client"
 import { capturePayment } from "@/app/actions/stripe"
 import { updateBookingStatus } from "@/app/actions/bookings"
+import { sendBookingNotification } from "@/lib/sms"
 
 const CUSTOMER_MIN_LBS = 20
 const DEFAULT_RATE_CENTS: Record<string, number> = {
@@ -34,6 +35,41 @@ const STATUS_COLOR: Record<string, string> = {
   delivered: "bg-[#0D2240] text-white",
 }
 const ALL_STATUSES = ["pending","picked_up","at_warehouse","at_facility","in_washer","in_dryer","folded","ready","ready_at_warehouse","out_for_delivery","delivered"]
+
+// ── Notify customer the driver is on the way for pickup ──────────────────────
+// Fired BEFORE the driver arrives (not after collecting bags), so the
+// customer has a chance to actually put the laundry out. Just an SMS + an
+// audit event — it does not touch order_bags/booking status.
+async function notifyPickupEnroute(formData: FormData) {
+  "use server"
+  const bookingId  = formData.get("bookingId") as string
+  const driverName = (formData.get("driverName") as string) || "driver"
+  const supabase   = createAdminClient()
+
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("customer_name, pickup_time_window")
+    .eq("id", bookingId)
+    .single()
+
+  if (booking) {
+    try {
+      const firstName = booking.customer_name?.split(" ")[0] ?? "there"
+      await sendBookingNotification(bookingId, "pickup_reminder", firstName, booking.pickup_time_window ?? "your scheduled time")
+    } catch (err) {
+      console.error("[driver] Enroute pickup SMS failed:", err)
+    }
+  }
+
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "driver_enroute_pickup",
+    notes:      "Driver marked en route — customer notified to leave laundry out",
+    created_by: driverName,
+  })
+
+  revalidatePath(`/driver/order/${bookingId}`)
+}
 
 // ── Batch: confirm pickup of all pending bags ─────────────────────────────────
 async function confirmPickup(formData: FormData) {
@@ -232,6 +268,15 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
   if (!booking) notFound()
 
   const { data: bags } = await supabase.from("order_bags").select("*").eq("booking_id", id).order("bag_number")
+
+  const { data: enrouteEvent } = await supabase
+    .from("order_events")
+    .select("id")
+    .eq("booking_id", id)
+    .eq("event_type", "driver_enroute_pickup")
+    .limit(1)
+    .maybeSingle()
+  const enrouteAlreadySent = !!enrouteEvent
 
   // Colors already claimed by other orders on the same pickup date
   const { data: sameDay } = await supabase
@@ -468,6 +513,8 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
           pickupDate={booking.pickup_date ?? null}
           deliveryDate={booking.delivery_date ?? null}
           assignedFacilityName={(booking.assigned_facility as { name?: string } | null)?.name ?? null}
+          enrouteAlreadySent={enrouteAlreadySent}
+          notifyPickupEnroute={notifyPickupEnroute}
           confirmPickup={confirmPickup}
           confirmDropoff={confirmDropoff}
           confirmDelivery={confirmDelivery}
