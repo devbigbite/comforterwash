@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import LabelReference from "./label-reference"
 import DriverOrderClient from "./order-client"
 import { capturePayment } from "@/app/actions/stripe"
+import { updateBookingStatus } from "@/app/actions/bookings"
 
 const CUSTOMER_MIN_LBS = 20
 const DEFAULT_RATE_CENTS: Record<string, number> = {
@@ -88,10 +89,12 @@ async function confirmPickup(formData: FormData) {
   })
 
   await supabase.from("bookings").update({
-    status:    "picked_up",
     num_bags:  isNaN(actualBagCount) ? bookedCount : actualBagCount,
     ...(colorKey ? { color_key: colorKey } : {}),
   }).eq("id", bookingId)
+
+  // Sets status to "picked_up" and fires the "we've got your laundry" SMS.
+  await updateBookingStatus(bookingId, "picked_up")
 
   revalidatePath(`/driver/order/${bookingId}`)
 }
@@ -189,11 +192,9 @@ async function confirmDelivery(formData: FormData) {
     created_by: driverName,
   })
 
-  if (nextStatus === "delivered") {
-    await supabase.from("bookings").update({ status: "delivered" }).eq("id", bookingId)
-  } else {
-    await supabase.from("bookings").update({ status: "out_for_delivery" }).eq("id", bookingId)
-  }
+  // Sets the booking status and fires the matching customer SMS
+  // ("out for delivery" when the driver starts the run, "delivered" once confirmed).
+  await updateBookingStatus(bookingId, nextStatus === "delivered" ? "delivered" : "out_for_delivery")
 
   revalidatePath(`/driver/order/${bookingId}`)
 }
