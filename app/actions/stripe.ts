@@ -5,6 +5,21 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createBooking } from "./bookings"
 import { createSubscription } from "./subscriptions"
 import { sendBookingConfirmationEmail, sendAdminNewOrderEmail } from "@/lib/email"
+import { getLocationId } from "@/lib/location"
+import { getConnectStatusForLocation } from "@/lib/stripe-connect"
+
+// Only route money to the tenant's own bank account once they've actually
+// finished Stripe onboarding (status === "active"). Anything else — not
+// connected, or mid-setup — falls back to the shared platform account exactly
+// as it always has, so nothing breaks for tenants who haven't connected yet.
+async function connectDestinationFor(locationId: string): Promise<string | undefined> {
+  try {
+    const { status, accountId } = await getConnectStatusForLocation(locationId)
+    return status === "active" && accountId ? accountId : undefined
+  } catch {
+    return undefined
+  }
+}
 
 // ── Checkout session ──────────────────────────────────────────────────────────
 // amountCents: the pre-auth ceiling (already includes 25% buffer for wash-fold)
@@ -15,6 +30,9 @@ export async function startCheckoutSession(
   metadata?: Record<string, string>,
   manualCapture = false
 ) {
+  const locationId = await getLocationId()
+  const destination = await connectDestinationFor(locationId)
+
   const session = await stripe.checkout.sessions.create({
     ui_mode: "embedded",
     redirect_on_completion: "never",
@@ -32,6 +50,7 @@ export async function startCheckoutSession(
     payment_intent_data: {
       ...(manualCapture ? { capture_method: "manual" } : {}),
       setup_future_usage: "off_session",
+      ...(destination ? { transfer_data: { destination } } : {}),
     },
     metadata: metadata ?? {},
   })
@@ -140,6 +159,10 @@ export async function capturePayment(bookingId: string) {
     }
 
     try {
+      const overageDestination = booking.location_id
+        ? await connectDestinationFor(booking.location_id)
+        : undefined
+
       const overagePI = await stripe.paymentIntents.create({
         amount:         overageCents,
         currency:       "usd",
@@ -149,6 +172,7 @@ export async function capturePayment(bookingId: string) {
         off_session:    true,
         description:    `Weight overage charge — booking ${bookingId}`,
         metadata:       { bookingId, type: "weight_overage" },
+        ...(overageDestination ? { transfer_data: { destination: overageDestination } } : {}),
       })
 
       await supabase.from("bookings").update({

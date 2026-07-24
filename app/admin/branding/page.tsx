@@ -9,6 +9,7 @@ import {
   type BrandingSettings, type DispatchSettings, type EmailDomainStatus,
 } from "@/app/actions/branding"
 import { getFulfillmentMode, setFulfillmentMode, type FulfillmentMode } from "@/app/actions/walkin"
+import { getMyConnectStatus, startMyConnectOnboarding, refreshMyConnectStatus, type ConnectStatus } from "@/app/actions/stripe-connect"
 
 const FIELD_CLS = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#0D2240]/20 bg-white"
 const LABEL_CLS = "block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5"
@@ -180,6 +181,7 @@ export default function BrandingPage() {
         </div>
       </form>
 
+      <StripeConnectSection />
       <OperatingModeSection />
       <FulfillmentSection />
       {isAdvanced && <EmailDomainSection />}
@@ -490,6 +492,93 @@ function DispatchSection() {
 }
 
 // ── Fulfillment mode — pickup/delivery vs. walk-in drop-off ───────────────────
+// ── Get paid directly (Stripe Connect) ────────────────────────────────────────
+// Until a tenant connects their own Stripe account, their customer payments
+// keep landing in the shared platform Stripe account exactly as they always
+// have — nothing breaks, nothing is forced. Connecting routes future charges
+// straight to the tenant's own bank account instead.
+function StripeConnectSection() {
+  const [status, setStatus] = useState<ConnectStatus | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+
+  async function load() {
+    setStatus(await getMyConnectStatus())
+  }
+
+  useEffect(() => {
+    load()
+    // If we just came back from Stripe's hosted onboarding, re-check status
+    // immediately instead of waiting for a manual refresh click.
+    if (new URLSearchParams(window.location.search).get("stripe_connect")) {
+      setBusy(true)
+      refreshMyConnectStatus().then(s => { setStatus(s); setBusy(false) })
+    }
+  }, [])
+
+  async function connect() {
+    setBusy(true)
+    setError("")
+    const result = await startMyConnectOnboarding()
+    if (result.error) {
+      setError(result.error)
+      setBusy(false)
+      return
+    }
+    if (result.url) window.location.href = result.url
+  }
+
+  async function refresh() {
+    setBusy(true)
+    setStatus(await refreshMyConnectStatus())
+    setBusy(false)
+  }
+
+  if (!status) return null
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xl">💳</span>
+        <h2 className="font-extrabold text-[#0D2240] text-base">Get Paid Directly</h2>
+      </div>
+      <p className="text-xs text-gray-400 mb-5">
+        Connect your own Stripe account so customer payments go straight to your bank account instead of through us.
+        Until you connect, your orders keep working exactly as they do now.
+      </p>
+
+      <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 mb-4">
+        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+          status.status === "active" ? "bg-green-50 text-green-700 border border-green-200"
+          : status.status === "pending" ? "bg-yellow-50 text-yellow-700 border border-yellow-200"
+          : "bg-gray-100 text-gray-400 border border-gray-200"
+        }`}>
+          {status.status === "active" ? "✅ Connected & receiving payments"
+            : status.status === "pending" ? "⏳ Setup started — not finished yet"
+            : "Not connected"}
+        </span>
+      </div>
+
+      {error && (
+        <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 border border-red-200 text-red-600 mb-4">{error}</div>
+      )}
+
+      <div className="flex items-center gap-3">
+        <button type="button" disabled={busy} onClick={connect}
+          className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-6 py-3 rounded-xl transition-colors shadow-sm disabled:opacity-60">
+          {status.status === "active" ? "Manage Stripe Account" : status.status === "pending" ? "Finish Setup" : "Connect with Stripe"}
+        </button>
+        {status.status !== "not_connected" && (
+          <button type="button" disabled={busy} onClick={refresh}
+            className="text-xs font-bold text-gray-500 border border-gray-200 bg-white px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60">
+            {busy ? "Checking…" : "Refresh Status"}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Operating mode (Facility / Home) — how do you actually do the work? ──────
 // Distinct from Fulfillment above (which is about how orders get to/from the
 // customer) — this is about whether there's a facility/staff behind the
