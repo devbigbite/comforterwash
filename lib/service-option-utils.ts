@@ -47,3 +47,19 @@ export function effectivePriceForOrder(
     default:          return unitPrice
   }
 }
+
+// Customer-facing suffix appended to a price badge (e.g. "+$0.15/lb") so
+// shoppers understand a detergent/extra/accessory rate is per pound, per
+// item, or per load rather than a single flat add-on — previously the price
+// badge never said which, which was confusing for anything not per-order.
+export function unitSuffix(
+  unit: "per_order" | "per_pound" | "per_item" | "per_load" | null | undefined,
+  locale: "en" | "es" = "en"
+): string {
+  switch (unit) {
+    case "per_pound": return locale === "es" ? "/libra" : "/lb"
+    case "per_item":  return locale === "es" ? "/artículo" : "/item"
+    case "per_load":  return locale === "es" ? "/carga" : "/load"
+    default:          return ""
+  }
+}

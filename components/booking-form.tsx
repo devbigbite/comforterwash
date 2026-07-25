@@ -19,7 +19,7 @@ import { useLang } from "@/components/lang-provider"
 import { getComforterPromo, getDeliveryFeeSettings, getTipsEnabled } from "@/app/actions/settings"
 import { getPricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
-import { effectivePriceForOrder } from "@/lib/service-option-utils"
+import { effectivePriceForOrder, unitSuffix } from "@/lib/service-option-utils"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
@@ -743,7 +743,7 @@ export function BookingForm() {
                       </div>
                       {opt.price_cents === 0
                         ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                        : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}</span>
+                        : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}{unitSuffix(opt.pricing_unit, locale)}</span>
                       }
                     </label>
                   ))}
@@ -769,7 +769,7 @@ export function BookingForm() {
                       </div>
                       {addon.price_cents === 0
                         ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                        : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(addon.price_cents / 100).toFixed(2)}</span>
+                        : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(addon.price_cents / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
                       }
                     </label>
                   ))}
@@ -795,7 +795,7 @@ export function BookingForm() {
                       </div>
                       {addon.price_cents === 0
                         ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                        : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(addon.price_cents / 100).toFixed(2)}</span>
+                        : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(addon.price_cents / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
                       }
                     </label>
                   ))}

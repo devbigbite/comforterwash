@@ -17,7 +17,7 @@ import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getMonthlyPlanEnabled, getComforterPromo, getFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
-import { effectivePrice, effectivePriceForOrder, isSaleActive } from "@/lib/service-option-utils"
+import { effectivePrice, effectivePriceForOrder, isSaleActive, unitSuffix } from "@/lib/service-option-utils"
 import { getTipsEnabled, getDeliveryFeeSettings } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
 import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
@@ -1085,7 +1085,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                       </div>
                       {opt.price_cents === 0
                         ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                        : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}</span>
+                        : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}{unitSuffix(opt.pricing_unit, locale)}</span>
                       }
                     </label>
                   ))}
@@ -1111,7 +1111,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                       </div>
                       {addon.price_cents === 0
                         ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                        : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(addon.price_cents / 100).toFixed(2)}</span>
+                        : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(addon.price_cents / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
                       }
                     </label>
                   ))}
@@ -1144,11 +1144,11 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                             <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
                           ) : saleOn ? (
                             <div className="flex flex-col items-end gap-0.5">
-                              <span className="text-[10px] font-bold text-[var(--brand-accent)] bg-[#fdf6f3] px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}</span>
-                              <span className="text-[10px] text-gray-400 line-through">+${(addon.price_cents / 100).toFixed(2)}</span>
+                              <span className="text-[10px] font-bold text-[var(--brand-accent)] bg-[#fdf6f3] px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
+                              <span className="text-[10px] text-gray-400 line-through">+${(addon.price_cents / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
                             </div>
                           ) : (
-                            <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}</span>
+                            <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
                           )}
                         </label>
                       )

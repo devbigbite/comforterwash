@@ -17,7 +17,7 @@ import { PromoCodeField } from "@/components/promo-code-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
-import { effectivePriceForOrder } from "@/lib/service-option-utils"
+import { effectivePriceForOrder, unitSuffix } from "@/lib/service-option-utils"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
 import { getTipsEnabled, getDeliveryFeeSettings, getComforterPromo } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
@@ -567,7 +567,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                   </div>
                   {opt.price_cents === 0
                     ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                    : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-[var(--brand-primary)]/10 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}</span>
+                    : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-[var(--brand-primary)]/10 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}{unitSuffix(opt.pricing_unit, locale)}</span>
                   }
                 </label>
               ))}
@@ -588,7 +588,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                     </div>
                     {opt.price_cents === 0
                       ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                      : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-[var(--brand-primary)]/10 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}</span>
+                      : <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-[var(--brand-primary)]/10 px-2 py-0.5 rounded-full">+${(opt.price_cents / 100).toFixed(2)}{unitSuffix(opt.pricing_unit, locale)}</span>
                     }
                   </label>
                 ))}
