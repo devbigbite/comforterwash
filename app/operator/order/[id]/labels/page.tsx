@@ -35,6 +35,39 @@ export default async function OperatorLabelsPage({
   const { data: booking } = await supabase.from("bookings").select("*").eq("id", id).single()
   if (!booking) notFound()
 
+  // Which numbered order this is for this customer — drives the welcome-gift /
+  // repeat-customer coupon notice printed on the receipt below. Counts every
+  // non-cancelled booking for this customer_email at this location, in
+  // chronological order, so reprinting a receipt later still shows the same
+  // order number rather than drifting as new orders come in.
+  let orderNumber = 1
+  if (booking.customer_email) {
+    const { data: customerOrders } = await supabase
+      .from("bookings")
+      .select("id, created_at")
+      .eq("location_id", booking.location_id)
+      .eq("customer_email", booking.customer_email)
+      .neq("status", "cancelled")
+      .order("created_at", { ascending: true })
+    if (customerOrders) {
+      const idx = customerOrders.findIndex(o => o.id === booking.id)
+      orderNumber = idx >= 0 ? idx + 1 : customerOrders.length + 1
+    }
+  }
+  // Customer sees this receipt too, so the main line speaks directly to them
+  // (a warm thank-you), while the small tag above it is the operator's cue
+  // for what to slip into the bag.
+  const loyaltyNotice =
+    orderNumber === 1 ? { tag: "WELCOME GIFT INSIDE", text: "🎉 Welcome to the family — thank you for choosing us!" }
+    : orderNumber === 2 ? { tag: "20% OFF COUPON INSIDE", text: "🎁 Thanks for coming back — enjoy 20% off your next order!" }
+    : { tag: "LOYAL CUSTOMER", text: "⭐ We appreciate your support — thank you!!!" }
+
+  // Order number + customer name together, for staff to quickly match a bag
+  // back to the right customer (and as the internal identifier the loyalty
+  // notice above doesn't spell out once the numeric tag is dropped for 3rd+ orders).
+  const customerName = (booking.customer_name as string | null) ?? ""
+  const orderIdentifier = customerName ? `#${orderNumber} · ${customerName}` : `#${orderNumber}`
+
   // Floor vs Storage must be decided before receipts print — otherwise the
   // storage-marker instruction below would silently be wrong or missing.
   if (booking.hold_at_facility === null || booking.hold_at_facility === undefined) {
@@ -149,6 +182,14 @@ export default async function OperatorLabelsPage({
               .r-storage-flag { border: 2px solid #0D2240; background: #0D2240; color: white; border-radius: 4px; padding: 8px; text-align: center; margin-bottom: 8px; }
               .r-storage-flag span { font-size: 11px; font-weight: 900; letter-spacing: 0.5px; }
 
+              /* Customer loyalty notice — printed once per bag so the operator
+                 (or a bag-checker at delivery) can't miss it: this tells them
+                 whether to slip in a welcome gift, a 20%-off coupon, etc. */
+              .r-loyalty-flag { border: 2px dashed #0D2240; border-radius: 4px; padding: 6px 8px; margin-bottom: 8px; text-align: center; }
+              .r-loyalty-flag .r-tag { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #666; display: block; }
+              .r-loyalty-flag .r-loyalty-text { font-size: 11px; font-weight: 700; line-height: 1.35; display: block; margin-top: 2px; }
+              .r-loyalty-flag .r-order-id { font-size: 9px; color: #888; display: block; margin-top: 4px; letter-spacing: 0.3px; }
+
               .r-prefs { font-size: 11px; line-height: 1.5; margin-bottom: 8px; }
 
               .r-due { font-size: 12px; font-weight: 700; text-align: center; margin-top: 8px; }
@@ -191,6 +232,9 @@ export default async function OperatorLabelsPage({
               var GOING_TO_STORAGE = ${JSON.stringify(goingToStorage)};
               var EXTRAS = ${JSON.stringify(extras)};
               var DETERGENT = ${JSON.stringify(booking.detergent ?? null)};
+              var LOYALTY_TAG = ${JSON.stringify(loyaltyNotice.tag)};
+              var LOYALTY_TEXT = ${JSON.stringify(loyaltyNotice.text)};
+              var ORDER_IDENTIFIER = ${JSON.stringify(orderIdentifier)};
 
               function escapeHtml(str) {
                 return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -213,6 +257,9 @@ export default async function OperatorLabelsPage({
                 var addressHTML = ADDRESS
                   ? '<div class="r-section-title">Delivery Address</div><div class="r-address">' + escapeHtml(ADDRESS) + '</div>'
                   : '';
+                var loyaltyFlag = '<div class="r-loyalty-flag"><span class="r-tag">' + escapeHtml(LOYALTY_TAG) + '</span>' +
+                  '<span class="r-loyalty-text">' + escapeHtml(LOYALTY_TEXT) + '</span>' +
+                  '<span class="r-order-id">' + escapeHtml(ORDER_IDENTIFIER) + '</span></div>';
 
                 return '<div class="receipt">' +
                   '<div class="r-center">' +
@@ -223,6 +270,7 @@ export default async function OperatorLabelsPage({
                     '<div class="r-service">' + escapeHtml(SERVICE) + '</div>' +
                   '</div>' +
                   '<hr class="r-divider">' +
+                  loyaltyFlag +
                   addressHTML +
                   colorRow +
                   storageFlag +

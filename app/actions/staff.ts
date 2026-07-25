@@ -72,6 +72,22 @@ export async function setWorkerPin(workerName: string, pin: string) {
 
   if (!/^\d{4}$/.test(pin)) return { error: "PIN must be exactly 4 digits" }
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+
+  // Guard against PIN collisions — two workers sharing a PIN meant whichever
+  // one the lookup matched first got logged in, regardless of whose PIN was
+  // actually typed. Every active worker at this location must have a unique PIN.
+  const { data: collision } = await supabase
+    .from("workers")
+    .select("name")
+    .eq("location_id", locationId)
+    .eq("status", "active")
+    .eq("clock_pin", pin)
+    .neq("name", workerName)
+    .maybeSingle()
+  if (collision) {
+    return { error: `That PIN is already in use by ${collision.name}. Choose a different one.` }
+  }
+
   const { error } = await supabase
     .from("workers")
     .update({ clock_pin: pin })
@@ -133,8 +149,15 @@ export async function verifyWorkerPinForRole(
     .eq("location_id", locationId)
     .eq("status", "active")
   if (!data) return null
-  const match = data.find((w: { clock_pin: string | null }) => w.clock_pin === pin)
-  if (!match) return null
+
+  // Only consider workers actually assigned to this station's role — previously
+  // this matched on PIN alone across every active worker regardless of role,
+  // so a PIN could grant access to a station the worker wasn't assigned to
+  // (and if two workers ever shared a PIN, whichever one matched first won).
+  const candidates = data.filter((w: { roles?: string[] | null }) => (w.roles ?? []).includes(role))
+  const matches = candidates.filter((w: { clock_pin: string | null }) => w.clock_pin === pin)
+  if (matches.length !== 1) return null
+  const match = matches[0]
   return { id: match.id, name: match.name, lang: match.lang ?? "en", roles: match.roles ?? [] }
 }
 

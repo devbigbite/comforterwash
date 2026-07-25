@@ -1,7 +1,11 @@
 "use client"
 
 import { useState, useEffect, useRef, createContext, useContext } from "react"
-import { verifyWorkerPinForRole } from "@/app/actions/staff"
+import {
+  verifyWorkerPinForRole, getOpenPunch, clockIn, clockOut,
+  type TimePunch, type ScheduleWarning,
+} from "@/app/actions/staff"
+import { minutesBetween, formatDuration } from "@/lib/staff-utils"
 import { checkIsAdmin } from "@/app/admin/login/actions"
 import { getTranslations } from "@/lib/i18n"
 import type { Locale } from "@/lib/i18n"
@@ -56,6 +60,127 @@ function saveSession(role: string, session: WorkerSession) {
 
 function clearSession(role: string) {
   localStorage.removeItem(SESSION_KEY(role))
+}
+
+// ── Clock in/out widget — lets a worker clock in/out right on their station ───
+// page (driver/operator) instead of needing a separate trip to /staff first.
+// Reuses the exact same server actions and translation strings as /staff.
+function ClockWidget({ session, role }: { session: WorkerSession; role: "driver" | "operator" }) {
+  const [openPunch, setOpenPunch] = useState<TimePunch | null | undefined>(undefined)
+  const [elapsedMins, setElapsedMins] = useState(0)
+  const [breakMinutes, setBreakMinutes] = useState("0")
+  const [showBreak, setShowBreak] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [warning, setWarning] = useState<ScheduleWarning | null>(null)
+  const [done, setDone] = useState<"in" | "out" | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sc = (getTranslations(session.lang ?? "en") as any).staff_clock as Record<string, string>
+  const t = (key: string) => sc?.[key] ?? key
+
+  useEffect(() => {
+    if (session.workerId === "owner") return
+    getOpenPunch(session.workerName).then(punch => {
+      setOpenPunch(punch)
+      if (punch) setElapsedMins(minutesBetween(punch.clocked_in_at, null))
+    })
+  }, [session.workerName, session.workerId])
+
+  useEffect(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    if (openPunch) {
+      timerRef.current = setInterval(() => setElapsedMins(minutesBetween(openPunch.clocked_in_at, null)), 60000)
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [openPunch])
+
+  async function handleClockIn(confirmed = false) {
+    setSubmitting(true)
+    const fd = new FormData()
+    fd.append("workerName", session.workerName)
+    fd.append("role", role)
+    if (confirmed) fd.append("confirmed", "true")
+    const result = await clockIn(fd)
+    setSubmitting(false)
+    if (!result) return
+    if ("scheduleWarning" in result && result.scheduleWarning) { setWarning(result.scheduleWarning); return }
+    if ("punch" in result) {
+      setOpenPunch(result.punch ?? null); setElapsedMins(0); setWarning(null); setDone("in")
+      setTimeout(() => setDone(null), 2500)
+    }
+  }
+
+  async function handleClockOut(confirmed = false) {
+    if (!openPunch) return
+    setSubmitting(true)
+    const fd = new FormData()
+    fd.append("punchId", openPunch.id)
+    fd.append("breakMinutes", breakMinutes)
+    if (confirmed) fd.append("confirmed", "true")
+    const result = await clockOut(fd)
+    setSubmitting(false)
+    if (!result) return
+    if ("scheduleWarning" in result && result.scheduleWarning) { setWarning(result.scheduleWarning); return }
+    setOpenPunch(null); setElapsedMins(0); setWarning(null); setShowBreak(false); setBreakMinutes("0")
+    setDone("out"); setTimeout(() => setDone(null), 2500)
+  }
+
+  if (session.workerId === "owner" || openPunch === undefined) return null
+
+  // Schedule-warning confirm step — same copy as /staff
+  if (warning) {
+    return (
+      <div className="fixed top-3 left-3 z-50 max-w-[280px] bg-white rounded-2xl shadow-2xl px-4 py-3">
+        <p className="text-[#0D2240] font-bold text-xs mb-2">⚠️ {warning.message}</p>
+        <div className="flex gap-1.5">
+          <button onClick={() => setWarning(null)}
+            className="flex-1 py-2 rounded-lg text-xs font-bold bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
+            {t("back_btn")}
+          </button>
+          <button onClick={() => openPunch ? handleClockOut(true) : handleClockIn(true)} disabled={submitting}
+            className="flex-1 py-2 rounded-lg text-xs font-bold bg-[#0D2240] text-white hover:bg-[#1a3a5c] transition-colors disabled:opacity-50">
+            {t("warning_proceed")}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed top-3 left-3 z-50 flex items-center gap-2">
+      {done ? (
+        <div className="bg-white rounded-full px-4 py-1.5 text-xs font-bold text-green-600 shadow-lg">
+          {done === "in" ? `✅ ${t("success_in")}` : `👋 ${t("success_out")}`}
+        </div>
+      ) : openPunch ? (
+        showBreak ? (
+          <div className="bg-white rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-2">
+            <input type="number" min="0" value={breakMinutes} onChange={e => setBreakMinutes(e.target.value)}
+              placeholder={t("break_minutes")}
+              className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold text-[#0D2240] outline-none" />
+            <button onClick={() => handleClockOut()} disabled={submitting}
+              className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-colors">
+              {submitting ? "…" : t("clock_out")}
+            </button>
+            <button onClick={() => setShowBreak(false)} className="text-gray-300 hover:text-gray-500 text-xs px-1">✕</button>
+          </div>
+        ) : (
+          <button onClick={() => setShowBreak(true)}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur transition-colors border border-green-400/30">
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            {formatDuration(elapsedMins)}
+            <span className="text-white/40 font-normal">· {t("clock_out")}</span>
+          </button>
+        )
+      ) : (
+        <button onClick={() => handleClockIn()} disabled={submitting}
+          className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur transition-colors disabled:opacity-50">
+          <span>🕐</span> {submitting ? "…" : t("clock_in")}
+        </button>
+      )}
+    </div>
+  )
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -156,6 +281,8 @@ export function PinGate({ role, children }: PinGateProps) {
     return (
       <WorkerCtx.Provider value={session}>
         <div className="relative">
+          {/* Clock in/out — top-left, lets the worker clock in without visiting /staff first */}
+          <ClockWidget session={session} role={role} />
           {/* Session pill — top-right */}
           <div className="fixed top-3 right-3 z-50 flex items-center gap-2">
             {session.workerId === "owner" ? (
