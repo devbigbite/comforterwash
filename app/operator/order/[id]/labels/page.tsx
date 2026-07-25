@@ -275,7 +275,7 @@ export default async function OperatorLabelsPage({
                   colorRow +
                   storageFlag +
                   prefsHTML +
-                  '<div class="r-due">' + escapeHtml(DUE) + '<span>Ready / Due date</span></div>' +
+                  '<div class="r-due">' + escapeHtml(DUE) + '<span>Deliver to customer by</span></div>' +
                   '<div class="r-instruction">Do not remove · Match sticker to bag</div>' +
                 '</div>';
               }
