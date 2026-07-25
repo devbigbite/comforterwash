@@ -11,6 +11,41 @@ function cents(val: number) { return `$${(val / 100).toFixed(2)}` }
 function dollarsToField(val: number) { return (val / 100).toFixed(2) }
 function fieldToCents(str: string) { return Math.round(parseFloat(str) * 100) }
 
+// Plain <input type="number"> reformats its displayed value on every keystroke
+// (value={dollarsToField(cents)} recomputes from the parsed cents each render),
+// which fights the browser cursor mid-type — e.g. typing "0.05" would collapse
+// back to "0.00" the instant the "0" landed, before the "." could be entered.
+// This keeps its own local text buffer while focused/typing, and only snaps
+// back to the canonical "12.34" format on blur, so cents-only amounts like
+// $0.05 or $0.99 can actually be typed.
+function PriceInput({
+  cents, onChange, className, placeholder,
+}: {
+  cents: number | null
+  onChange: (cents: number | null) => void
+  className?: string
+  placeholder?: string
+}) {
+  const [text, setText] = useState(() => (cents == null ? "" : dollarsToField(cents)))
+
+  function handleChange(raw: string) {
+    // Allow only digits and up to one decimal point with up to 2 decimal places
+    // while the user is typing — reject anything else rather than reformatting.
+    if (raw !== "" && !/^\d*\.?\d{0,2}$/.test(raw)) return
+    setText(raw)
+    onChange(raw === "" || raw === "." ? null : fieldToCents(raw))
+  }
+
+  return (
+    <input
+      type="text" inputMode="decimal" className={className} placeholder={placeholder}
+      value={text}
+      onChange={e => handleChange(e.target.value)}
+      onBlur={() => setText(cents == null ? "" : dollarsToField(cents))}
+    />
+  )
+}
+
 const BLANK_OPTION = (type: "detergent" | "extra" | "accessory"): Partial<ServiceOption> => ({
   type, name: "", description: "", price_cents: 0, enabled: true, pricing_unit: "per_order",
 })
@@ -107,9 +142,9 @@ function OptionsSection({
           <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Regular price (0 = free)</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-            <input type="number" step="0.01" min="0" className={inputCls + " pl-6"}
-              value={dollarsToField(draft.price_cents ?? 0)}
-              onChange={e => setDraft(d => ({ ...d, price_cents: fieldToCents(e.target.value) }))} />
+            <PriceInput key={editingId ?? "new"} className={inputCls + " pl-6"}
+              cents={draft.price_cents ?? 0}
+              onChange={c => setDraft(d => ({ ...d, price_cents: c ?? 0 }))} />
           </div>
         </div>
       </div>
@@ -167,13 +202,10 @@ function OptionsSection({
             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Sale price</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-              <input type="number" step="0.01" min="0" className={inputCls + " pl-6"}
+              <PriceInput key={editingId ?? "new"} className={inputCls + " pl-6"}
                 placeholder="Leave blank to remove"
-                value={draft.sale_price_cents != null ? dollarsToField(draft.sale_price_cents) : ""}
-                onChange={e => setDraft(d => ({
-                  ...d,
-                  sale_price_cents: e.target.value === "" ? null : fieldToCents(e.target.value),
-                }))} />
+                cents={draft.sale_price_cents ?? null}
+                onChange={c => setDraft(d => ({ ...d, sale_price_cents: c }))} />
             </div>
           </div>
           <div>
@@ -372,6 +404,11 @@ export default function PricingPage() {
     setConfig({ ...config, [key]: fieldToCents(dollars) })
   }
 
+  function setFieldCents(key: keyof PricingConfig, val: number) {
+    if (!config) return
+    setConfig({ ...config, [key]: val })
+  }
+
   function setInt(key: keyof PricingConfig, val: string) {
     if (!config) return
     setConfig({ ...config, [key]: parseInt(val, 10) || 0 })
@@ -531,9 +568,9 @@ export default function PricingPage() {
                 <label className={labelCls}>One-time rate ($/lb)</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                  <input type="number" step="0.01" min="0" className={inputCls + " pl-7"}
-                    value={dollarsToField(config.washFoldOneTimeCents)}
-                    onChange={e => setField("washFoldOneTimeCents", e.target.value)} />
+                  <PriceInput className={inputCls + " pl-7"}
+                    cents={config.washFoldOneTimeCents}
+                    onChange={c => setFieldCents("washFoldOneTimeCents", c ?? 0)} />
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Currently {cents(config.washFoldOneTimeCents)}/lb</p>
               </div>
@@ -541,9 +578,9 @@ export default function PricingPage() {
                 <label className={labelCls}>Subscription rate ($/lb)</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                  <input type="number" step="0.01" min="0" className={inputCls + " pl-7"}
-                    value={dollarsToField(config.washFoldSubCents)}
-                    onChange={e => setField("washFoldSubCents", e.target.value)} />
+                  <PriceInput className={inputCls + " pl-7"}
+                    cents={config.washFoldSubCents}
+                    onChange={c => setFieldCents("washFoldSubCents", c ?? 0)} />
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Weekly &amp; biweekly · currently {cents(config.washFoldSubCents)}/lb</p>
               </div>
@@ -567,9 +604,9 @@ export default function PricingPage() {
                 <label className={labelCls}>Rate ($/lb)</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                  <input type="number" step="0.01" min="0" className={inputCls + " pl-7"}
-                    value={dollarsToField(config.washOnlyCents)}
-                    onChange={e => setField("washOnlyCents", e.target.value)} />
+                  <PriceInput className={inputCls + " pl-7"}
+                    cents={config.washOnlyCents}
+                    onChange={c => setFieldCents("washOnlyCents", c ?? 0)} />
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Currently {cents(config.washOnlyCents)}/lb</p>
               </div>
@@ -597,9 +634,9 @@ export default function PricingPage() {
                     <label className={labelCls}>{size}</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                      <input type="number" step="0.01" min="0" className={inputCls + " pl-7"}
-                        value={dollarsToField(config[key] as number)}
-                        onChange={e => setField(key, e.target.value)} />
+                      <PriceInput key={key} className={inputCls + " pl-7"}
+                        cents={config[key] as number}
+                        onChange={c => setFieldCents(key, c ?? 0)} />
                     </div>
                     <p className="text-xs text-gray-400 mt-1">Currently {cents(config[key] as number)}</p>
                   </div>
@@ -612,9 +649,9 @@ export default function PricingPage() {
                 <label className={labelCls}>Promo flat rate</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                  <input type="number" step="0.01" min="0" className={inputCls + " pl-7"}
-                    value={dollarsToField(config.comforterPromoCents)}
-                    onChange={e => setField("comforterPromoCents", e.target.value)} />
+                  <PriceInput className={inputCls + " pl-7"}
+                    cents={config.comforterPromoCents}
+                    onChange={c => setFieldCents("comforterPromoCents", c ?? 0)} />
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Shown when promo active · currently {cents(config.comforterPromoCents)}</p>
               </div>
@@ -655,11 +692,10 @@ export default function PricingPage() {
                 <p className="text-xs font-bold text-[#0D2240] mb-2">{icon} {label}</p>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                  <input
-                    type="number" step="0.01" min="0"
+                  <PriceInput key={key}
                     className={inputCls + " pl-7"}
-                    value={dollarsToField(deliveryFee[key])}
-                    onChange={e => setDeliveryFee(f => ({ ...f, [key]: fieldToCents(e.target.value) }))}
+                    cents={deliveryFee[key]}
+                    onChange={c => setDeliveryFee(f => ({ ...f, [key]: c ?? 0 }))}
                   />
                 </div>
                 <p className="text-[10px] text-gray-400 mt-1.5">
