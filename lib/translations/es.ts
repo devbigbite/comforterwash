@@ -227,6 +227,7 @@ const es = {
     },
     labelPickup:   "Recogida",
     labelDelivery: "Entrega",
+    dateTimeLabel: "Fecha y Hora",
     labelAddress:  "Dirección",
     labelAddOns:   "Extras",
     labelBags:     "Bolsas",

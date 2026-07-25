@@ -8,9 +8,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { format } from "date-fns"
 import { Info } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { dayAbbr, monthAbbr, formatShortDate } from "@/lib/i18n-date"
+import type { Locale } from "@/lib/i18n"
 import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "./promo-code-field"
@@ -41,9 +42,6 @@ function buildSizes() {
   ]
 }
 
-const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
-
 type SizeId = "twin" | "full" | "queen" | "king"
 type Quantities = Record<SizeId, number>
 
@@ -52,10 +50,11 @@ type Quantities = Record<SizeId, number>
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 function DateStrip({
-  label, sublabel, selected, onSelect, isAvailable, tomorrow,
+  label, sublabel, selected, onSelect, isAvailable, tomorrow, locale,
 }: {
   label: string; sublabel?: string; selected: Date | undefined
   onSelect: (d: Date) => void; isAvailable: (d: Date) => boolean; tomorrow: string
+  locale: Locale
 }) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const dates = Array.from({ length: 28 }, (_, i) => {
@@ -89,9 +88,9 @@ function DateStrip({
                     : avail ? "bg-white border-gray-200 text-[var(--brand-primary)] hover:border-[var(--brand-accent)] hover:shadow-sm cursor-pointer"
                     : "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
                 )}>
-                <span className={cn("text-[10px] font-bold uppercase tracking-wider", sel ? "text-white/80" : avail ? "text-gray-400" : "text-gray-300")}>{DAY_ABBR[d.getDay()]}</span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", sel ? "text-white/80" : avail ? "text-gray-400" : "text-gray-300")}>{dayAbbr(locale, d.getDay())}</span>
                 <span className={cn("text-xl font-extrabold leading-tight my-0.5", sel ? "text-white" : avail ? "text-[var(--brand-primary)]" : "text-gray-300")}>{d.getDate()}</span>
-                <span className={cn("text-[10px] font-bold uppercase", sel ? "text-white/70" : avail ? "text-gray-400" : "text-gray-300")}>{MON_ABBR[d.getMonth()]}</span>
+                <span className={cn("text-[10px] font-bold uppercase", sel ? "text-white/70" : avail ? "text-gray-400" : "text-gray-300")}>{monthAbbr(locale, d.getMonth())}</span>
                 {hint && <span className={cn("text-[9px] mt-0.5 font-medium", sel ? "text-white/60" : "text-[var(--brand-accent)]")}>{hint}</span>}
               </button>
             )
@@ -121,7 +120,7 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
 
 // ── Main component ───────────────────────────────────────────────────────────
 export function BookingForm() {
-  const { translations: tr } = useLang()
+  const { translations: tr, locale } = useLang()
   const tf = tr.form
   const tb = tr.bookingForm
 
@@ -406,8 +405,8 @@ export function BookingForm() {
             <h3 className="font-bold text-[var(--brand-primary)] text-sm uppercase tracking-wide mb-3">{tb.bookingSummary}</h3>
             {[
               { label: tf.labelName,     value: formData.name },
-              { label: tf.labelPickup,   value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
-              { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
+              { label: tf.labelPickup,   value: formData.pickupDate ? `${formatShortDate(formData.pickupDate, locale)} · ${formData.pickupTimeWindow}` : "" },
+              { label: tf.labelDelivery, value: formData.deliveryDate ? `${formatShortDate(formData.deliveryDate, locale)} · ${formData.deliveryTimeWindow}` : "" },
               { label: tf.pickupAddressLabel, value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
               ...(!formData.sameAddress ? [{ label: tf.deliveryAddressLabel, value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
               { label: tf.labelAddOns,   value: addOnsSummary },
@@ -669,7 +668,7 @@ export function BookingForm() {
                   <span className="text-xs text-gray-400">— {tb.pickupDaysNote}</span>
                 </div>
                 <p className="text-xs text-gray-400 mb-4 ml-6">{tb.pickupWhen}</p>
-                <DateStrip label="" selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} tomorrow={tf.tomorrow} />
+                <DateStrip label="" selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} tomorrow={tf.tomorrow} locale={locale} />
                 {formData.pickupDate && (
                   <TimeSlotPicker
                     label={tf.availableTimeSlots}
@@ -691,11 +690,11 @@ export function BookingForm() {
                     {tb.deliveryWhen}
                     {formData.deliveryDate && (
                       <span className="text-[var(--brand-accent)] font-medium ml-1">
-                        ({tb.deliverySuggested} {format(formData.deliveryDate, "EEE, MMM d")})
+                        ({tb.deliverySuggested} {formatShortDate(formData.deliveryDate, locale)})
                       </span>
                     )}
                   </p>
-                  <DateStrip label="" selected={formData.deliveryDate} onSelect={d => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} tomorrow={tf.tomorrow} />
+                  <DateStrip label="" selected={formData.deliveryDate} onSelect={d => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} tomorrow={tf.tomorrow} locale={locale} />
                   {formData.deliveryDate && (
                     <TimeSlotPicker
                       label={tf.availableTimeSlots}
@@ -1012,8 +1011,8 @@ export function BookingForm() {
 
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[
-                { label: tf.labelPickup,    value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
-                { label: tf.labelDelivery,  value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
+                { label: tf.labelPickup,    value: formData.pickupDate ? `${formatShortDate(formData.pickupDate, locale)} · ${formData.pickupTimeWindow}` : "" },
+                { label: tf.labelDelivery,  value: formData.deliveryDate ? `${formatShortDate(formData.deliveryDate, locale)} · ${formData.deliveryTimeWindow}` : "" },
                 { label: tf.pickupAddressLabel,  value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
                 ...(!formData.sameAddress ? [{ label: tf.deliveryAddressLabel, value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
                 { label: tf.labelAddOns,    value: addOnsSummary },

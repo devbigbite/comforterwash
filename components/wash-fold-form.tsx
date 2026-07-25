@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -26,6 +25,8 @@ import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsFor
 import { getActiveRoutes } from "@/app/actions/routes"
 import { useLang } from "@/components/lang-provider"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
+import { dayAbbr, monthAbbr, weekdayFull, formatShortDate } from "@/lib/i18n-date"
+import type { Locale } from "@/lib/i18n"
 
 // ─── constants ───────────────────────────────────────────────────────────────
 const LBS_PER_BAG = 20
@@ -61,17 +62,16 @@ function bagsToEstLbs(bags: number) {
   return Math.max(bags * LBS_PER_BAG, MIN_POUNDS)
 }
 
-const DAY_ABBR = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
-const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
-
 // ─── weekday schedule helpers ────────────────────────────────────────────────
+// Day/month display strings are locale-aware — see lib/i18n-date.ts —
+// rather than hardcoded to one language regardless of the site's EN/ES toggle.
 const WEEKDAYS = [
-  { id: "monday",    label: "Lunes",     short: "Lun", num: 1 },
-  { id: "tuesday",   label: "Martes",    short: "Mar", num: 2 },
-  { id: "wednesday", label: "Miércoles", short: "Mié", num: 3 },
-  { id: "thursday",  label: "Jueves",    short: "Jue", num: 4 },
-  { id: "friday",    label: "Viernes",   short: "Vie", num: 5 },
-  { id: "saturday",  label: "Sábado",    short: "Sáb", num: 6 },
+  { id: "monday",    num: 1 },
+  { id: "tuesday",   num: 2 },
+  { id: "wednesday", num: 3 },
+  { id: "thursday",  num: 4 },
+  { id: "friday",    num: 5 },
+  { id: "saturday",  num: 6 },
 ]
 
 function getValidDeliveryDays(pickupDayId: string): string[] {
@@ -109,11 +109,12 @@ function firstDeliveryDate(pickupDate: Date, deliveryDayId: string, pickupDayId:
 
 // ─── sub-components ──────────────────────────────────────────────────────────
 function DateStrip({
-  selected, onSelect, isAvailable,
+  selected, onSelect, isAvailable, locale,
 }: {
   selected: Date | undefined
   onSelect: (d: Date) => void
   isAvailable: (d: Date) => boolean
+  locale: Locale
 }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -138,9 +139,9 @@ function DateStrip({
                   : avail ? "bg-white border-gray-200 text-[var(--brand-primary)] hover:border-[var(--brand-accent)] hover:shadow-sm cursor-pointer"
                   : "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
               )}>
-              <span className={cn("text-[10px] font-bold uppercase tracking-wider", sel ? "text-white/80" : avail ? "text-gray-400" : "text-gray-300")}>{DAY_ABBR[d.getDay()]}</span>
+              <span className={cn("text-[10px] font-bold uppercase tracking-wider", sel ? "text-white/80" : avail ? "text-gray-400" : "text-gray-300")}>{dayAbbr(locale, d.getDay())}</span>
               <span className={cn("text-xl font-extrabold leading-tight my-0.5", sel ? "text-white" : avail ? "text-[var(--brand-primary)]" : "text-gray-300")}>{d.getDate()}</span>
-              <span className={cn("text-[10px] font-bold uppercase", sel ? "text-white/70" : avail ? "text-gray-400" : "text-gray-300")}>{MON_ABBR[d.getMonth()]}</span>
+              <span className={cn("text-[10px] font-bold uppercase", sel ? "text-white/70" : avail ? "text-gray-400" : "text-gray-300")}>{monthAbbr(locale, d.getMonth())}</span>
             </button>
           )
         })}
@@ -169,7 +170,7 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
 }
 
 function WeekdayPicker({
-  label, value, available, onChange, note, accent = "coral",
+  label, value, available, onChange, note, accent = "coral", locale,
 }: {
   label: string
   value: string
@@ -177,6 +178,7 @@ function WeekdayPicker({
   onChange: (id: string) => void
   note?: string
   accent?: "coral" | "navy"
+  locale: Locale
 }) {
   const selClass = accent === "navy"
     ? "bg-[var(--brand-primary)] border-[var(--brand-primary)] text-white shadow-md scale-105"
@@ -196,7 +198,7 @@ function WeekdayPicker({
                 : isAvail ? "bg-white border-gray-200 text-[var(--brand-primary)] hover:border-gray-400 hover:shadow-sm"
                 : "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
               )}>
-              {d.short}
+              {dayAbbr(locale, d.num)}
             </button>
           )
         })}
@@ -477,15 +479,15 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
   ].filter(Boolean).join(", ") || tw.standardNone
 
   const pickupSummary = isRecurring
-    ? `${tw.pickupEvery} ${WEEKDAYS.find(d => d.id === formData.recurringPickupDay)?.label} · ${formData.recurringPickupTime}`
+    ? `${tw.pickupEvery} ${weekdayFull(locale, WEEKDAYS.find(d => d.id === formData.recurringPickupDay)?.num ?? 1)} · ${formData.recurringPickupTime}`
     : formData.pickupDate
-      ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}`
+      ? `${formatShortDate(formData.pickupDate, locale)} · ${formData.pickupTimeWindow}`
       : ""
 
   const deliverySummary = isRecurring
-    ? `${tw.pickupEvery} ${WEEKDAYS.find(d => d.id === formData.recurringDeliveryDay)?.label} · ${formData.recurringDeliveryTime}`
+    ? `${tw.pickupEvery} ${weekdayFull(locale, WEEKDAYS.find(d => d.id === formData.recurringDeliveryDay)?.num ?? 1)} · ${formData.recurringDeliveryTime}`
     : formData.deliveryDate
-      ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}`
+      ? `${formatShortDate(formData.deliveryDate, locale)} · ${formData.deliveryTimeWindow}`
       : ""
 
   const checkoutMeta: Record<string, string> = {
@@ -567,8 +569,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
             {isRecurring && firstPickup && firstDelivery && (
               <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5 mt-1">
                 <p className="text-xs font-bold text-blue-700 mb-1">{tw.subscriptionSchedule}</p>
-                <p className="text-xs text-blue-600">{tw.firstPickupDate} <strong>{format(firstPickup, "EEE, MMM d")}</strong></p>
-                <p className="text-xs text-blue-600">{tw.firstDeliveryDate} <strong>{format(firstDelivery, "EEE, MMM d")}</strong></p>
+                <p className="text-xs text-blue-600">{tw.firstPickupDate} <strong>{formatShortDate(firstPickup, locale)}</strong></p>
+                <p className="text-xs text-blue-600">{tw.firstDeliveryDate} <strong>{formatShortDate(firstDelivery, locale)}</strong></p>
                 <p className="text-[10px] text-blue-500 mt-1">{tw.subscriptionCardCharge}</p>
               </div>
             )}
@@ -916,6 +918,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                         value={formData.recurringPickupDay}
                         available={WEEKDAYS.map(d => d.id)}
                         onChange={handlePickupDayChange}
+                        locale={locale}
                       />
                       {formData.recurringPickupDay && (
                         <div>
@@ -966,6 +969,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                           value={formData.recurringDeliveryDay}
                           available={validDeliveryDays}
                           onChange={(d) => setFormData(p => ({ ...p, recurringDeliveryDay: d }))}
+                          locale={locale}
                         />
                         {formData.recurringDeliveryDay && (
                           <div>
@@ -995,14 +999,14 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                       <div className="flex items-center gap-3">
                         <div className="flex-1 bg-white/10 rounded-xl px-4 py-3">
                           <p className="text-[var(--brand-accent)] text-[10px] font-bold uppercase tracking-wide mb-0.5">🚗 {tw.pickupLabel}</p>
-                          <p className="font-extrabold text-white text-base">{format(firstPickup, "EEE, MMM d")}</p>
+                          <p className="font-extrabold text-white text-base">{formatShortDate(firstPickup, locale)}</p>
                         </div>
                         <svg className="w-5 h-5 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                         </svg>
                         <div className="flex-1 bg-white/10 rounded-xl px-4 py-3">
                           <p className="text-blue-300 text-[10px] font-bold uppercase tracking-wide mb-0.5">📦 {tw.deliveryLabel}</p>
-                          <p className="font-extrabold text-white text-base">{format(firstDelivery, "EEE, MMM d")}</p>
+                          <p className="font-extrabold text-white text-base">{formatShortDate(firstDelivery, locale)}</p>
                         </div>
                       </div>
                       <p className="text-[10px] text-white/40 mt-3 text-center">
@@ -1018,9 +1022,9 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                   <div>
                     <div className="flex items-center gap-1.5 mb-3">
                       <span className="w-5 h-5 rounded-full bg-[var(--brand-accent)] text-white text-[10px] font-bold flex items-center justify-center">1</span>
-                      <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tf.labelPickup} Fecha y Hora</h4>
+                      <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tf.labelPickup} {tf.dateTimeLabel}</h4>
                     </div>
-                    <DateStrip selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} />
+                    <DateStrip selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} locale={locale} />
                     {formData.pickupDate && (
                       <TimeSlotPicker label={tf.availableTimeSlots} value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} windows={getTimeWindowsForDate(formData.pickupDate!, activeRoutes, "pickup")} />
                     )}
@@ -1029,14 +1033,14 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                     <div>
                       <div className="flex items-center gap-1.5 mb-3">
                         <span className="w-5 h-5 rounded-full bg-[var(--brand-accent)] text-white text-[10px] font-bold flex items-center justify-center">2</span>
-                        <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tf.labelDelivery} Fecha y Hora</h4>
+                        <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tf.labelDelivery} {tf.dateTimeLabel}</h4>
                       </div>
                       {formData.deliveryDate && (
                         <p className="text-xs text-[var(--brand-accent)] font-medium mb-3">
-                          {tw.suggested} {format(formData.deliveryDate, "EEE, MMM d")}
+                          {tw.suggested} {formatShortDate(formData.deliveryDate, locale)}
                         </p>
                       )}
-                      <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} />
+                      <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} locale={locale} />
                       {formData.deliveryDate && <TimeSlotPicker label={tf.availableTimeSlots} value={formData.deliveryTimeWindow} onChange={(v) => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} windows={getTimeWindowsForDate(formData.deliveryDate!, activeRoutes, "delivery")} />}
                     </div>
                   )}
@@ -1407,8 +1411,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
               {isRecurring && firstPickup && firstDelivery && (
                 <div className="bg-blue-50 rounded-xl px-3 py-2 mt-1">
                   <p className="text-xs text-blue-600">
-                    {tw.firstPickupDate} <strong>{format(firstPickup, "EEE, MMM d")}</strong> →
-                    {tw.firstDeliveryDate} <strong>{format(firstDelivery, "EEE, MMM d")}</strong>
+                    {tw.firstPickupDate} <strong>{formatShortDate(firstPickup, locale)}</strong> →
+                    {tw.firstDeliveryDate} <strong>{formatShortDate(firstDelivery, locale)}</strong>
                   </p>
                 </div>
               )}

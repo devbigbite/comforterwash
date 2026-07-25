@@ -227,6 +227,7 @@ const en = {
     },
     labelPickup:   "Pickup",
     labelDelivery: "Delivery",
+    dateTimeLabel: "Date & Time",
     labelAddress:  "Address",
     labelAddOns:   "Add-Ons",
     labelBags:     "Bags",

@@ -8,8 +8,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { dayAbbr, monthAbbr, formatShortDate } from "@/lib/i18n-date"
+import type { Locale } from "@/lib/i18n"
 import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
@@ -48,13 +49,11 @@ function bagsToEstLbs(bags: number) {
   return Math.max(bags * LBS_PER_BAG, MIN_POUNDS)
 }
 
-const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-const MON_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
-
-function DateStrip({ selected, onSelect, isAvailable }: {
+function DateStrip({ selected, onSelect, isAvailable, locale }: {
   selected: Date | undefined
   onSelect: (d: Date) => void
   isAvailable: (d: Date) => boolean
+  locale: Locale
 }) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const dates = Array.from({ length: 28 }, (_, i) => {
@@ -77,9 +76,9 @@ function DateStrip({ selected, onSelect, isAvailable }: {
                   : avail ? "bg-white border-gray-200 text-[var(--brand-primary)] hover:border-[var(--brand-accent)] hover:shadow-sm cursor-pointer"
                   : "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
               )}>
-              <span className={cn("text-[10px] font-bold uppercase tracking-wider", sel ? "text-white/80" : avail ? "text-gray-400" : "text-gray-300")}>{DAY_ABBR[d.getDay()]}</span>
+              <span className={cn("text-[10px] font-bold uppercase tracking-wider", sel ? "text-white/80" : avail ? "text-gray-400" : "text-gray-300")}>{dayAbbr(locale, d.getDay())}</span>
               <span className={cn("text-xl font-extrabold leading-tight my-0.5", sel ? "text-white" : avail ? "text-[var(--brand-primary)]" : "text-gray-300")}>{d.getDate()}</span>
-              <span className={cn("text-[10px] font-bold uppercase", sel ? "text-white/70" : avail ? "text-gray-400" : "text-gray-300")}>{MON_ABBR[d.getMonth()]}</span>
+              <span className={cn("text-[10px] font-bold uppercase", sel ? "text-white/70" : avail ? "text-gray-400" : "text-gray-300")}>{monthAbbr(locale, d.getMonth())}</span>
             </button>
           )
         })}
@@ -106,7 +105,7 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
 }
 
 export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfig }) {
-  const { translations: tr } = useLang()
+  const { translations: tr, locale } = useLang()
   const tf = tr.form
   const tw = tr.washFoldForm
   const tb = tr.bookingForm
@@ -331,8 +330,8 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                   .map(s => `${s.label} ×${comforterQtys[s.id as CSize]}`).join(", ")
                   + ` · +$${(comforterSubtotalCents/100).toFixed(2)}`
               }] : []),
-              { label: tf.labelPickup,   value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
-              { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
+              { label: tf.labelPickup,   value: formData.pickupDate ? `${formatShortDate(formData.pickupDate, locale)} · ${formData.pickupTimeWindow}` : "" },
+              { label: tf.labelDelivery, value: formData.deliveryDate ? `${formatShortDate(formData.deliveryDate, locale)} · ${formData.deliveryTimeWindow}` : "" },
               { label: "Pickup Address", value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
               ...(!formData.sameAddress ? [{ label: "Delivery Address", value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
             ].map((row) => (
@@ -520,7 +519,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                   <span className="w-5 h-5 rounded-full bg-[var(--brand-accent)] text-white text-[10px] font-bold flex items-center justify-center">1</span>
                   <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tb.pickupDateTitle}</h4>
                 </div>
-                <DateStrip selected={formData.pickupDate} onSelect={(d) => setFormData(p => ({ ...p, pickupDate: d, deliveryDate: getEarliestRouteDelivery(d, activeRoutes) }))} isAvailable={isPickupAvailable} />
+                <DateStrip selected={formData.pickupDate} onSelect={(d) => setFormData(p => ({ ...p, pickupDate: d, deliveryDate: getEarliestRouteDelivery(d, activeRoutes) }))} isAvailable={isPickupAvailable} locale={locale} />
                 {formData.pickupDate && <TimeSlotPicker value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} label={tf.availableTimeSlots} windows={getTimeWindowsForDate(formData.pickupDate, activeRoutes, "pickup")} />}
               </div>
               {formData.pickupDate && formData.pickupTimeWindow && (
@@ -530,7 +529,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                     <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tb.deliveryDateTitle}</h4>
                     <span className="text-xs text-gray-400">— {tb.deliveryGapNote}</span>
                   </div>
-                  <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} />
+                  <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} locale={locale} />
                   {formData.deliveryDate && <TimeSlotPicker value={formData.deliveryTimeWindow} onChange={(v) => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} label={tf.availableTimeSlots} windows={getTimeWindowsForDate(formData.deliveryDate, activeRoutes, "delivery")} />}
                 </div>
               )}
@@ -833,8 +832,8 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                     .map(s => `${s.label} ×${comforterQtys[s.id as CSize]}`).join(", ")
                     + ` · +$${(comforterSubtotalCents/100).toFixed(2)}`
                 }] : []),
-                { label: tf.labelPickup,   value: formData.pickupDate ? `${format(formData.pickupDate, "EEE, MMM d")} · ${formData.pickupTimeWindow}` : "" },
-                { label: tf.labelDelivery, value: formData.deliveryDate ? `${format(formData.deliveryDate, "EEE, MMM d")} · ${formData.deliveryTimeWindow}` : "" },
+                { label: tf.labelPickup,   value: formData.pickupDate ? `${formatShortDate(formData.pickupDate, locale)} · ${formData.pickupTimeWindow}` : "" },
+                { label: tf.labelDelivery, value: formData.deliveryDate ? `${formatShortDate(formData.deliveryDate, locale)} · ${formData.deliveryTimeWindow}` : "" },
                 { label: "Pickup Address", value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
                 ...(!formData.sameAddress ? [{ label: "Delivery Address", value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
               ].map((row) => (
