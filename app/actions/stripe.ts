@@ -7,6 +7,7 @@ import { createSubscription } from "./subscriptions"
 import { sendBookingConfirmationEmail, sendAdminNewOrderEmail } from "@/lib/email"
 import { getLocationId } from "@/lib/location"
 import { getConnectStatusForLocation } from "@/lib/stripe-connect"
+import { recordCheckoutAttempt, markCheckoutAttemptSucceeded } from "./checkout-attempts"
 
 // Only route money to the tenant's own bank account once they've actually
 // finished Stripe onboarding (status === "active"). Anything else — not
@@ -52,6 +53,18 @@ export async function startCheckoutSession(
       setup_future_usage: "off_session",
       ...(destination ? { transfer_data: { destination } } : {}),
     },
+    metadata: metadata ?? {},
+  })
+
+  // Record this attempt the moment the customer reaches checkout — before
+  // they've necessarily paid. Without this, a declined card or an abandoned
+  // checkout leaves zero trace anywhere (no booking is created until payment
+  // succeeds), so staff have no way to follow up on an order the customer
+  // clearly intended to place. Never blocks checkout on failure.
+  recordCheckoutAttempt({
+    stripeCheckoutSessionId: session.id,
+    stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+    amountCents,
     metadata: metadata ?? {},
   })
 
@@ -268,6 +281,9 @@ export async function handleSuccessfulPayment(sessionId: string) {
       if (booking?.id) {
         saveBookingPaymentMethod(booking.id, paymentIntent, meta.customerName ?? "", meta.customerEmail).catch(
           err => console.error("[stripe] saveBookingPaymentMethod failed:", err)
+        )
+        markCheckoutAttemptSucceeded(sessionId, booking.id).catch(
+          err => console.error("[stripe] markCheckoutAttemptSucceeded failed:", err)
         )
       }
 

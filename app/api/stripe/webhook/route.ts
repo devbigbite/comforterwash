@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { markCheckoutAttemptFailed } from "@/app/actions/checkout-attempts"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-04-10" })
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
@@ -169,6 +170,31 @@ export async function POST(req: NextRequest) {
           .from("locations")
           .update({ billing_status: "past_due" })
           .eq("stripe_subscription_id", stripeSubId)
+        break
+      }
+
+      // ── One-time checkout abandoned — session hit its expiry (24h default)
+      // without the customer completing payment. Marks the matching
+      // checkout_attempts row so staff can see it and follow up; never
+      // downgrades an attempt that already succeeded (see
+      // markCheckoutAttemptFailed's own "still pending" guard).
+      case "checkout.session.expired": {
+        const session = event.data.object as Stripe.Checkout.Session
+        await markCheckoutAttemptFailed({
+          stripeCheckoutSessionId: session.id,
+          status: "expired",
+        })
+        break
+      }
+
+      // ── Card declined / payment failed on a one-time checkout ─────────────
+      case "payment_intent.payment_failed": {
+        const pi = event.data.object as Stripe.PaymentIntent
+        await markCheckoutAttemptFailed({
+          stripePaymentIntentId: pi.id,
+          status: "failed",
+          failureReason: pi.last_payment_error?.message ?? null,
+        })
         break
       }
 

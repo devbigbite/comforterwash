@@ -166,6 +166,7 @@ export default async function AdminHub() {
         { label: "Dispatch Board", href: "/admin/dispatch" },
         { label: "Order Search", href: "/admin/search" },
         { label: "All Bookings", href: "/admin/orders" },
+        { label: "Abandoned Checkouts", href: "/admin/abandoned-checkouts" },
         ...(showWalkin ? [{ label: "Walk-In / Drop-Off", href: "/admin/walkin" }] : []),
       ],
     },
