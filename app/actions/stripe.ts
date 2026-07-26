@@ -8,6 +8,7 @@ import { sendBookingConfirmationEmail, sendAdminNewOrderEmail } from "@/lib/emai
 import { getLocationId } from "@/lib/location"
 import { getConnectStatusForLocation } from "@/lib/stripe-connect"
 import { recordCheckoutAttempt, markCheckoutAttemptSucceeded } from "./checkout-attempts"
+import { createGiftCardFromPurchase, redeemGiftCard } from "./gift-cards"
 
 // Only route money to the tenant's own bank account once they've actually
 // finished Stripe onboarding (status === "active"). Anything else — not
@@ -244,6 +245,31 @@ export async function handleSuccessfulPayment(sessionId: string) {
 
     if ((session.payment_status === "paid" || isManual) && session.metadata) {
       const meta = session.metadata
+
+      // ── Gift card purchase — a completely separate flow from booking
+      // checkout. No booking is created; instead a gift_cards row is issued
+      // and delivered by email. Bail out early so the booking-creation logic
+      // below never runs for these sessions. ──────────────────────────────
+      if (meta.type === "gift_card") {
+        const result = await createGiftCardFromPurchase({
+          amountCents:      session.amount_total ?? 0,
+          purchaserName:    meta.purchaserName || undefined,
+          purchaserEmail:   meta.purchaserEmail || undefined,
+          recipientName:    meta.recipientName || undefined,
+          recipientEmail:   meta.recipientEmail || undefined,
+          message:          meta.message || undefined,
+          stripeCheckoutSessionId: sessionId,
+        })
+        // Mark the funnel attempt as succeeded without a booking_id — gift
+        // card purchases never create a booking, so there's nothing to link.
+        await createAdminClient()
+          .from("checkout_attempts")
+          .update({ status: "succeeded", updated_at: new Date().toISOString() })
+          .eq("stripe_checkout_session_id", sessionId)
+        if ("error" in result) return { success: false, error: result.error }
+        return { success: true, giftCardCode: result.code }
+      }
+
       const preAuthCents  = session.amount_total ?? 0
       const frequency     = meta.subscriptionFrequency ?? "one_time"
       const paymentIntent = session.payment_intent as string
@@ -285,6 +311,14 @@ export async function handleSuccessfulPayment(sessionId: string) {
         markCheckoutAttemptSucceeded(sessionId, booking.id).catch(
           err => console.error("[stripe] markCheckoutAttemptSucceeded failed:", err)
         )
+
+        // ── Redeem any gift card applied at checkout — only now that payment
+        // has actually succeeded, never at quote time in the booking form. ──
+        if (meta.giftCardCode && meta.giftCardDiscountCents) {
+          redeemGiftCard(meta.giftCardCode, parseInt(meta.giftCardDiscountCents), booking.id).catch(
+            err => console.error("[stripe] redeemGiftCard failed:", err)
+          )
+        }
       }
 
       // ── If this is a recurring booking, create Stripe Customer + subscription ──

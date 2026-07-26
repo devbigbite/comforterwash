@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
+import { GiftCardField } from "@/components/gift-card-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getMonthlyPlanEnabled, getComforterPromo, getFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
@@ -275,6 +276,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
   const [activeRoutes, setActiveRoutes] = useState<Route[]>([])
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
+  const [giftCard, setGiftCard] = useState<{ code: string; discountCents: number } | null>(null)
   const [tipOption, setTipOption] = useState<TipOption>("none")
   const [tipsEnabled, setTipsEnabled] = useState(true)
   const [freePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled] = useState(true)
@@ -405,8 +407,13 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
   const afterDiscountCents = subtotalCents - discountCents
   const deliveryFeeCents = calcDeliveryFee(feeConfig, "wash_fold")
   const tipCents         = calcTip(tipOption, customTipCents, afterDiscountCents)
-  const totalCents       = afterDiscountCents + deliveryFeeCents + tipCents
-  const preAuthCents     = Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * 1.25)) + comforterSubtotalCents + tipCents
+  const totalBeforeGiftCardCents = afterDiscountCents + deliveryFeeCents + tipCents
+  // Stripe requires a minimum charge (~$0.50) — a gift card can cover the
+  // rest of an order but never zero it out entirely.
+  const giftCardDiscountCents = giftCard ? Math.min(giftCard.discountCents, Math.max(0, totalBeforeGiftCardCents - 50)) : 0
+  const totalCents       = totalBeforeGiftCardCents - giftCardDiscountCents
+  const preAuthCentsRaw  = Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * 1.25)) + comforterSubtotalCents + tipCents
+  const preAuthCents     = Math.max(50, preAuthCentsRaw - giftCardDiscountCents)
   const totalDisplay     = (totalCents / 100).toFixed(2)
   const priceLabel      = freqPricing[formData.frequency as keyof typeof freqPricing].label
 
@@ -536,6 +543,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
     smsConsent:      formData.smsConsent.toString(),
     promoCode:           promo?.code ?? "",
     promoDiscountCents:  String(discountCents),
+    giftCardCode:        giftCard?.code ?? "",
+    giftCardDiscountCents: String(giftCardDiscountCents),
     deliveryFeeCents:    String(deliveryFeeCents),
     tipCents:            String(tipCents),
   }
@@ -1380,6 +1389,12 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
               onRemove={() => setPromo(null)}
             />
 
+            <GiftCardField
+              subtotalCents={afterDiscountCents}
+              onApply={(code, dc) => setGiftCard({ code, discountCents: dc })}
+              onRemove={() => setGiftCard(null)}
+            />
+
             {/* Tip selector */}
             {tipsEnabled && <div className="rounded-2xl border border-gray-200 p-4">
               <p className="text-sm font-bold text-[var(--brand-primary)] mb-3">Add a Tip <span className="text-gray-400 font-normal">(optional — shared among all staff)</span></p>
@@ -1439,6 +1454,12 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                 <div className="flex justify-between gap-4 text-green-700">
                   <span className="shrink-0">{tf.promo} ({promo.code})</span>
                   <span className="font-semibold">−${(discountCents / 100).toFixed(2)}</span>
+                </div>
+              )}
+              {giftCard && giftCardDiscountCents > 0 && (
+                <div className="flex justify-between gap-4 text-purple-700">
+                  <span className="shrink-0">🎁 Gift card ({giftCard.code})</span>
+                  <span className="font-semibold">−${(giftCardDiscountCents / 100).toFixed(2)}</span>
                 </div>
               )}
               {deliveryFeeCents > 0 && (

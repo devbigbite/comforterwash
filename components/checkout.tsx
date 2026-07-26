@@ -15,7 +15,7 @@ interface CheckoutProps {
   label: string
   metadata?: Record<string, string>
   manualCapture?: boolean
-  onSuccess?: () => void
+  onSuccess?: (result?: { giftCardCode?: string }) => void
 }
 
 export default function Checkout({ amountCents, label, metadata, manualCapture = false, onSuccess }: CheckoutProps) {
@@ -41,7 +41,7 @@ export default function Checkout({ amountCents, label, metadata, manualCapture =
     const result = await handleSuccessfulPayment(sessionIdRef.current)
     if (result.success) {
       setPaymentComplete(true)
-      onSuccess?.()
+      onSuccess?.(result as { giftCardCode?: string })
     } else {
       setError(t.saveError)
     }

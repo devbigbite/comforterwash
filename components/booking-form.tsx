@@ -15,6 +15,7 @@ import type { Locale } from "@/lib/i18n"
 import Checkout from "./checkout"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "./promo-code-field"
+import { GiftCardField } from "./gift-card-field"
 import { useLang } from "@/components/lang-provider"
 import { getComforterPromo, getDeliveryFeeSettings, getTipsEnabled } from "@/app/actions/settings"
 import { getPricingConfig } from "@/app/actions/pricing"
@@ -281,6 +282,7 @@ export function BookingForm() {
   }
 
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
+  const [giftCard, setGiftCard] = useState<{ code: string; discountCents: number } | null>(null)
   const [tipOption, setTipOption] = useState<TipOption>("none")
   const [tipsEnabled, setTipsEnabled] = useState(true)
   const [customTipCents, setCustomTipCents] = useState(0)
@@ -332,7 +334,9 @@ export function BookingForm() {
   const afterDiscountCents = Math.max(0, subtotalCents - discountCents) + selectedAddonsCents
   const deliveryFeeCents   = calcDeliveryFee(feeConfig, "comforter_wash")
   const tipCents           = calcTip(tipOption, customTipCents, afterDiscountCents)
-  const totalCents         = afterDiscountCents + deliveryFeeCents + tipCents
+  const totalBeforeGiftCardCents = afterDiscountCents + deliveryFeeCents + tipCents
+  const giftCardDiscountCents = giftCard ? Math.min(giftCard.discountCents, Math.max(0, totalBeforeGiftCardCents - 50)) : 0
+  const totalCents         = totalBeforeGiftCardCents - giftCardDiscountCents
   const totalDisplay       = (totalCents / 100).toFixed(2)
 
   // ── Date helpers ─────────────────────────────────────────────────────────
@@ -491,6 +495,8 @@ export function BookingForm() {
               extras: selectedExtrasList.map(e => e.name).join(", "),
               promoCode: promo?.code ?? "",
               promoDiscountCents: String(discountCents),
+              giftCardCode: giftCard?.code ?? "",
+              giftCardDiscountCents: String(giftCardDiscountCents),
               deliveryFeeCents: String(deliveryFeeCents),
               tipCents: String(tipCents),
             }}
@@ -1047,6 +1053,12 @@ export function BookingForm() {
                   <span className="font-semibold">−${(discountCents / 100).toFixed(2)}</span>
                 </div>
               )}
+              {giftCard && giftCardDiscountCents > 0 && (
+                <div className="flex justify-between gap-4 text-purple-700">
+                  <span>🎁 Gift card ({giftCard.code})</span>
+                  <span className="font-semibold">−${(giftCardDiscountCents / 100).toFixed(2)}</span>
+                </div>
+              )}
               <div className="border-t border-[var(--brand-primary)]/10 pt-2.5 flex justify-between font-extrabold text-base">
                 <span className="text-[var(--brand-primary)]">{tf.total}</span>
                 <span className="text-[var(--brand-accent)]">${totalDisplay}</span>
@@ -1058,6 +1070,12 @@ export function BookingForm() {
               subtotalCents={subtotalCents}
               onApply={(code, dc) => setPromo({ code, discountCents: dc })}
               onRemove={() => setPromo(null)}
+            />
+
+            <GiftCardField
+              subtotalCents={afterDiscountCents}
+              onApply={(code, dc) => setGiftCard({ code, discountCents: dc })}
+              onRemove={() => setGiftCard(null)}
             />
 
             {/* Tip selector */}

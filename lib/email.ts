@@ -327,3 +327,44 @@ export async function sendAbandonedCheckoutAlertEmail(data: AbandonedCheckoutAle
   `
   return safeSend({ from: await fromAdmin(), to: [ADMIN_EMAIL], subject, html })
 }
+
+// ─────────────────────────────────────────────────────────────────
+// 11. Customer: Gift Card Delivery (sent right after purchase — to the
+// recipient if one was given, otherwise back to the purchaser to forward)
+// ─────────────────────────────────────────────────────────────────
+export interface GiftCardEmailData {
+  toEmail: string
+  recipientName?: string
+  purchaserName?: string
+  amountCents: number
+  code: string
+  message?: string
+}
+
+export async function sendGiftCardEmail(data: GiftCardEmailData) {
+  if (!data.toEmail) return null
+  const branding = await getEmailBranding()
+  const amount = `$${(data.amountCents / 100).toFixed(2)}`
+  const greeting = data.recipientName ? `Hi ${data.recipientName},` : "Hi there,"
+  const fromLine = data.purchaserName ? `${data.purchaserName} sent you a gift card!` : "You've received a gift card!"
+  const subject = `🎁 ${fromLine} (${amount}) — ${branding.businessName}`
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:${branding.primaryColor};margin-bottom:4px">${fromLine}</h2>
+      <p style="color:#666;font-size:14px;margin-bottom:24px">${greeting}</p>
+      <div style="background:${branding.primaryColor};border-radius:16px;padding:28px;text-align:center;margin-bottom:20px">
+        <p style="color:rgba(255,255,255,0.6);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin:0 0 8px">Gift Card Value</p>
+        <p style="color:white;font-size:36px;font-weight:800;margin:0 0 16px">${amount}</p>
+        <p style="color:rgba(255,255,255,0.6);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin:0 0 4px">Redemption Code</p>
+        <p style="color:${branding.accentColor};font-size:22px;font-weight:800;letter-spacing:2px;margin:0;font-family:monospace">${data.code}</p>
+      </div>
+      ${data.message ? `<p style="color:#555;font-size:14px;font-style:italic;background:#f8f8f8;border-radius:8px;padding:14px;margin-bottom:20px">"${data.message}"</p>` : ""}
+      <p style="color:#666;font-size:13px;line-height:1.6">
+        Use this code at checkout on any ${branding.websiteDomain} order — comforter wash, wash &amp; fold, or wash only.
+        It can be used across multiple orders until the balance runs out.
+      </p>
+      <p style="margin-top:24px;font-size:12px;color:#aaa">${branding.businessName} · ${branding.supportPhone}</p>
+    </div>
+  `
+  return safeSend({ from: await fromCustomer(), to: [data.toEmail], subject, html })
+}

@@ -347,6 +347,29 @@ export default function Home() {
         </div>
       </section>}
 
+      {/* ── Gift Cards ──────────────────────────────────────────────────── */}
+      <section className="bg-[#fdf6f3] px-4 py-14">
+        <div className="mx-auto max-w-3xl flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+          <div className="w-16 h-16 rounded-2xl bg-[var(--brand-accent)]/10 flex items-center justify-center text-3xl shrink-0">🎁</div>
+          <div className="flex-1">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--brand-primary)] uppercase tracking-wide mb-1">
+              {locale === "es" ? "Regala la Libertad de No Lavar Ropa" : "Give the Gift of Freedom from Laundry"}
+            </h2>
+            <p className="text-gray-500 text-sm leading-relaxed">
+              {locale === "es"
+                ? "Una tarjeta de regalo que pueden usar en cualquiera de nuestros servicios — sin vencimiento, sin condiciones."
+                : "A gift card they can use toward comforter wash, wash & fold, or wash only — no expiration, no strings attached."}
+            </p>
+          </div>
+          <Link
+            href="/gift-cards"
+            className="shrink-0 bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-extrabold text-sm uppercase tracking-widest px-7 py-3.5 rounded-full transition-colors whitespace-nowrap"
+          >
+            {locale === "es" ? "Comprar Tarjeta →" : "Buy a Gift Card →"}
+          </Link>
+        </div>
+      </section>
+
       {/* ── Testimonials ───────────────────────────────────────────────── */}
       <section className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
@@ -463,6 +486,7 @@ export default function Home() {
               <Link href="/services/wash-fold" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.washFold}</Link>
               <Link href="/services/wash-only" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.washOnly}</Link>
               <Link href="/service-areas" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.serviceAreas}</Link>
+              <Link href="/gift-cards" className="hover:text-[var(--brand-accent)] transition-colors">{locale === "es" ? "Tarjetas de Regalo" : "Gift Cards"}</Link>
               <Link href="/faq" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.faq}</Link>
               <Link href="/apply" className="hover:text-[var(--brand-accent)] transition-colors">Employment</Link>
             </div>

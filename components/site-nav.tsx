@@ -68,6 +68,7 @@ export function SiteNav({ businessName = "WashFoldClean", logoUrl }: { businessN
     { label: tr.nav.serviceAreas,   href: lp("/service-areas") },
     { label: tr.nav.faq,            href: lp("/faq") },
     { label: tr.nav.commercial,     href: lp("/commercial") },
+    { label: locale === "es" ? "Tarjetas de Regalo" : "Gift Cards", href: lp("/gift-cards") },
   ]
 
   return (

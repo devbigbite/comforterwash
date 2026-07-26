@@ -181,6 +181,7 @@ export default async function AdminHub() {
       links: [
         { label: "Subscriptions", href: "/admin/subscriptions" },
         { label: "Monthly Plans", href: "/admin/plans" },
+        { label: "Gift Cards", href: "/admin/gift-cards" },
       ],
     },
     {
