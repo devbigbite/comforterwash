@@ -253,23 +253,30 @@ export function buildAdminNewOrderEmail(d: AdminNewOrderData, ov: EmailTemplateO
   }
 }
 
-// ─── 3. PICKUP REMINDER (sent morning of pickup) ───────────────────
+// ─── 3. PICKUP REMINDER (sent morning of pickup, or the evening before) ────
 export interface PickupReminderData {
   customerName: string
   pickupDate: string
   pickupTimeWindow: string
   pickupAddress: string
   serviceType: string
+  // "today" (sent morning-of, via /api/cron/reminders) or "tomorrow" (sent
+  // the evening before, via /api/cron/next-day-reminders) — same template,
+  // just swaps the day word and badge so copy stays accurate either way.
+  when?: "today" | "tomorrow"
 }
 
 export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplateOverride = {}, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): { subject: string; html: string } {
   const firstName = d.customerName.split(" ")[0]
+  const when = d.when ?? "today"
+  const dayWord = when === "tomorrow" ? "tomorrow" : "today"
+  const badge = when === "tomorrow" ? "🚗 Pickup Tomorrow" : "🚗 Pickup Today"
 
   const html = emailShell(`
     <div class="body">
-      <div class="hero-badge">🚗 Pickup Today</div>
-      <h1>${ov.headline?.replace(/\{\{first_name\}\}/g, firstName) ?? `We're coming today, ${firstName}!`}</h1>
-      <p class="subtitle">${ov.body?.replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow) ?? "Just a reminder — your laundry pickup is scheduled for this morning. Please have everything ready to go."}</p>
+      <div class="hero-badge">${badge}</div>
+      <h1>${ov.headline?.replace(/\{\{first_name\}\}/g, firstName) ?? `We're coming ${dayWord}, ${firstName}!`}</h1>
+      <p class="subtitle">${ov.body?.replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow) ?? `Just a reminder — your laundry pickup is scheduled for ${dayWord}. Please have everything ready to go.`}</p>
 
       <div class="detail-card">
         ${detailRow("Service", serviceLabel(d.serviceType))}
@@ -294,16 +301,21 @@ export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplat
   `, branding)
 
   return {
-    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow) ?? `🚗 Pickup today ${d.pickupTimeWindow} — ${branding.businessName}`,
+    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow) ?? `🚗 Pickup ${dayWord} ${d.pickupTimeWindow} — ${branding.businessName}`,
     html,
   }
 }
 
 // ─── 4. ORDER PICKED UP CONFIRMATION ─────────────────────────────
+// No longer quotes an estimated delivery date/window — at pickup time the
+// driver hasn't weighed/inspected the load yet, so an estimate this early
+// was frequently wrong and confusing. deliveryDate/deliveryTimeWindow are
+// kept optional only so any saved {{delivery_date}}/{{delivery_time}}
+// template overrides don't hard-break; new copy shouldn't reference them.
 export interface OrderPickedUpData {
   customerName: string
-  deliveryDate: string
-  deliveryTimeWindow: string
+  deliveryDate?: string
+  deliveryTimeWindow?: string
   serviceType: string
   numComforters?: number
   pounds?: number
@@ -320,12 +332,11 @@ export function buildOrderPickedUpEmail(d: OrderPickedUpData, ov: EmailTemplateO
     <div class="body">
       <div class="hero-badge">✅ Picked Up</div>
       <h1>${ov.headline?.replace(/\{\{first_name\}\}/g, firstName) ?? `We've got ${itemText}!`}</h1>
-      <p class="subtitle">${ov.body?.replace(/\{\{delivery_date\}\}/g, d.deliveryDate).replace(/\{\{delivery_time\}\}/g, d.deliveryTimeWindow) ?? "Everything was picked up successfully. We're on it — your items are being professionally cleaned right now."}</p>
+      <p class="subtitle">${ov.body ?? "Everything was picked up successfully. We're on it — your items are being professionally cleaned right now."}</p>
 
       <div class="detail-card">
         ${detailRow("Service", serviceLabel(d.serviceType))}
         ${d.pounds ? detailRow("Weight", `${d.pounds} lbs`) : ""}
-        ${detailRow("Delivery", `${d.deliveryDate} · ${d.deliveryTimeWindow}`)}
       </div>
 
       <p style="font-size:14px;color:#374151;">We'll send another update when your order is out for delivery. Stay fresh! 👕</p>
@@ -337,7 +348,7 @@ export function buildOrderPickedUpEmail(d: OrderPickedUpData, ov: EmailTemplateO
   `, branding)
 
   return {
-    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{delivery_date\}\}/g, d.deliveryDate) ?? `✅ Picked up! Delivery on ${d.deliveryDate} — ${branding.businessName}`,
+    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName) ?? `✅ We've picked up your order — ${branding.businessName}`,
     html,
   }
 }

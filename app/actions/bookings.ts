@@ -247,7 +247,7 @@ export async function updateBookingStatus(bookingId: string, status: string, not
 
     switch (status) {
       case "picked_up": {
-        await sendBookingNotification(bookingId, "picked_up", customerName, deliveryDate)
+        await sendBookingNotification(bookingId, "picked_up", customerName)
         // Increment pickups_completed on the active subscription for this customer,
         // but only for recurring bookings (not one-time).
         if (booking.subscription_frequency && booking.subscription_frequency !== "one_time") {

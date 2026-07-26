@@ -15,8 +15,11 @@ const SMS_TEMPLATES = {
   pickup_reminder: (name: string, pickupTime: string) =>
     `Hi ${name}! We'll be there soon to pick-up your laundry bags! Please leave them by your door. See you soon!`,
 
-  picked_up: (name: string, deliveryDate: string, businessName = "WashFoldClean") =>
-    `Hi ${name}! We've picked up your laundry. Estimated delivery: ${deliveryDate}. - ${businessName}`,
+  // No longer mentions an estimated delivery date — the driver hasn't
+  // weighed/inspected the load yet at pickup time, so quoting a delivery
+  // date this early was frequently wrong and confusing.
+  picked_up: (name: string, businessName = "WashFoldClean") =>
+    `Hi ${name}! We've picked up your laundry. - ${businessName}`,
 
   // Not used in the current flow — kept for manual use if needed
   in_progress: (name: string) =>
