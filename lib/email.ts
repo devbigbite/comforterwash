@@ -280,3 +280,50 @@ export async function sendFacilityArrivalEmail(toEmail: string, data: FacilityAr
 
   return safeSend({ from: await fromAdmin(), to: [toEmail], subject, html })
 }
+
+// ─────────────────────────────────────────────────────────────────
+// 10. Admin: Abandoned/Failed Checkout Alert (sent once per attempt, the
+// moment it flips to failed/expired — see markCheckoutAttemptFailed)
+// ─────────────────────────────────────────────────────────────────
+export interface AbandonedCheckoutAlertData {
+  customerName: string | null
+  customerEmail: string | null
+  customerPhone: string | null
+  serviceType: string | null
+  amountCents: number | null
+  status: "failed" | "expired"
+  failureReason: string | null
+}
+
+const SERVICE_LABEL_MAP: Record<string, string> = {
+  comforter_wash: "Comforter Wash",
+  wash_fold:      "Wash & Fold",
+  wash_only:      "Wash Only",
+}
+
+export async function sendAbandonedCheckoutAlertEmail(data: AbandonedCheckoutAlertData) {
+  const branding = await getEmailBranding()
+  const reasonLine = data.status === "failed"
+    ? `Card declined${data.failureReason ? `: ${data.failureReason}` : ""}`
+    : "Customer never completed checkout (session expired after 24h)"
+  const amount = data.amountCents != null ? `$${(data.amountCents / 100).toFixed(2)}` : "—"
+  const subject = `⚠️ Missed order — ${data.customerName ?? "a customer"} didn't complete checkout`
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:${branding.primaryColor};margin-bottom:4px">Checkout not completed</h2>
+      <p style="color:#666;font-size:14px;margin-bottom:24px">${branding.businessName} · ${reasonLine}</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr><td style="padding:8px 0;color:#888;width:120px">Customer</td><td style="font-weight:600;color:${branding.primaryColor}">${data.customerName ?? "Unknown"}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Phone</td><td style="color:${branding.primaryColor}">${data.customerPhone ? `<a href="tel:${data.customerPhone}" style="color:${branding.accentColor}">${data.customerPhone}</a>` : "—"}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Email</td><td style="color:${branding.primaryColor}">${data.customerEmail ?? "—"}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Service</td><td style="color:${branding.primaryColor}">${SERVICE_LABEL_MAP[data.serviceType ?? ""] ?? data.serviceType ?? "—"}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Amount</td><td style="color:${branding.primaryColor}">${amount}</td></tr>
+      </table>
+      <p style="margin-top:24px;font-size:12px;color:#aaa">
+        This customer clearly intended to book — reach out before they go somewhere else.
+        Full list at /admin/abandoned-checkouts
+      </p>
+    </div>
+  `
+  return safeSend({ from: await fromAdmin(), to: [ADMIN_EMAIL], subject, html })
+}

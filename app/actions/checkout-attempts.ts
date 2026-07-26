@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
+import { sendAbandonedCheckoutAlertEmail } from "@/lib/email"
 
 // Tracks every checkout attempt from the moment the Stripe embedded checkout
 // session is created — separate from `bookings`, which only ever gets a row
@@ -94,7 +95,23 @@ export async function markCheckoutAttemptFailed(params: {
       ? query.eq("stripe_checkout_session_id", params.stripeCheckoutSessionId)
       : query.eq("stripe_payment_intent_id", params.stripePaymentIntentId ?? "__none__")
 
-    await query
+    // .select() returns the row(s) actually updated — only these genuinely
+    // just transitioned from pending, so this is also the trigger for the
+    // one-time staff alert email (avoids double-alerting on webhook retries,
+    // which Stripe does automatically if it doesn't get a fast 200 back).
+    const { data: updated } = await query.select()
+
+    for (const row of updated ?? []) {
+      sendAbandonedCheckoutAlertEmail({
+        customerName: row.customer_name,
+        customerEmail: row.customer_email,
+        customerPhone: row.customer_phone,
+        serviceType: row.service_type,
+        amountCents: row.amount_cents,
+        status: params.status,
+        failureReason: params.failureReason ?? null,
+      }).catch(err => console.error("[checkout-attempts] sendAbandonedCheckoutAlertEmail failed:", err))
+    }
   } catch (err) {
     console.error("[checkout-attempts] markCheckoutAttemptFailed failed:", err)
   }
