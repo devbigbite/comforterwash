@@ -57,6 +57,14 @@ const STRINGS = {
     demoTitle: "See it on your own business",
     demoSub: "Tell us a bit about your laundry business and we'll set up a walkthrough — whether you're running a full facility or washing out of your own home.",
     rights: "All rights reserved.",
+    pricingTitle: "Simple, Straightforward Pricing",
+    pricingSub: "One setup fee to get your branded site and dashboard live, then a flat monthly rate — no per-order fees, no surprises.",
+    setupLabel: "One-Time Setup",
+    setupNote: "Branded site, admin dashboard, and onboarding — billed once.",
+    monthlyLabel: "Monthly",
+    monthlyUnit: "/month",
+    monthlyNote: "Keeps your site, dashboard, and support running — cancel any time.",
+    pricingCta: "Get Started",
   },
   es: {
     demoBtn: "Solicitar una Demo",
@@ -73,6 +81,14 @@ const STRINGS = {
     demoTitle: "Míralo en tu propio negocio",
     demoSub: "Cuéntanos un poco sobre tu negocio de lavandería y organizaremos una demostración — ya sea que manejes una planta completa o laves desde tu propia casa.",
     rights: "Todos los derechos reservados.",
+    pricingTitle: "Precios Simples y Transparentes",
+    pricingSub: "Una cuota de instalación única para lanzar tu sitio y panel con tu marca, luego una tarifa mensual fija — sin cargos por pedido, sin sorpresas.",
+    setupLabel: "Instalación Única",
+    setupNote: "Sitio con tu marca, panel de administración, y configuración inicial — se cobra una sola vez.",
+    monthlyLabel: "Mensual",
+    monthlyUnit: "/mes",
+    monthlyNote: "Mantiene tu sitio, panel y soporte funcionando — cancela cuando quieras.",
+    pricingCta: "Comenzar",
   },
 }
 
@@ -177,6 +193,27 @@ export default function PlatformPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Pricing */}
+      <div id="pricing" className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <h2 className="text-2xl font-extrabold text-[#0D2240] mb-2">{s.pricingTitle}</h2>
+        <p className="text-sm text-gray-400 mb-10 max-w-lg mx-auto">{s.pricingSub}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+          <div className="rounded-2xl border-2 border-gray-100 p-8 text-center">
+            <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.2em] mb-3">{s.setupLabel}</p>
+            <p className="text-5xl font-extrabold text-[#0D2240] mb-1">$199</p>
+            <p className="text-gray-400 text-xs mt-3 leading-relaxed">{s.setupNote}</p>
+          </div>
+          <div className="rounded-2xl border-2 border-[#E8726A] p-8 text-center relative">
+            <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.2em] mb-3">{s.monthlyLabel}</p>
+            <p className="text-5xl font-extrabold text-[#0D2240] mb-1">$99<span className="text-xl font-bold text-gray-400">{s.monthlyUnit}</span></p>
+            <p className="text-gray-400 text-xs mt-3 leading-relaxed">{s.monthlyNote}</p>
+          </div>
+        </div>
+        <a href="#demo" className="inline-block mt-10 bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-10 py-4 rounded-full uppercase tracking-wide transition-colors shadow-lg">
+          {s.pricingCta}
+        </a>
       </div>
 
       {/* Demo request */}
