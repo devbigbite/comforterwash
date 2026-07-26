@@ -1,6 +1,8 @@
 import { WashOnlyForm } from "@/components/wash-only-form"
 import { LangToggle } from "@/components/lang-toggle"
 import { BookingPageTitle } from "@/components/booking-page-title"
+import { WashOnlyPageSubtitle } from "@/components/wash-only-page-subtitle"
+import { WashOnlyInfoBox } from "@/components/wash-only-info-box"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServicesConfig } from "@/app/actions/settings"
@@ -47,17 +49,11 @@ export default async function WashOnlyPage() {
           <span className="text-white font-bold text-sm">Wash Only</span>
         </div>
         <h1 className="text-3xl font-extrabold text-white mb-1"><BookingPageTitle /></h1>
-        <p className="text-white/60 text-sm">
-          ${(pricing.washOnlyCents / 100).toFixed(2)}/lb
-          {" · "}{pricing.washOnlyMinLbs} lb minimum
-          {" · "}Returned clean, unfolded
-        </p>
+        <WashOnlyPageSubtitle priceCents={pricing.washOnlyCents} minLbs={pricing.washOnlyMinLbs} />
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-10">
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 text-sm text-blue-700">
-          <strong>What is Wash Only?</strong> Your clothes are washed and dried using your preferred detergent, then returned clean in the bag — unfolded.
-        </div>
+        <WashOnlyInfoBox />
         <WashOnlyForm initialPricing={pricing} />
       </div>
     </main>
