@@ -131,7 +131,7 @@ function ClockWidget({ session, role }: { session: WorkerSession; role: "driver"
   // Schedule-warning confirm step — same copy as /staff
   if (warning) {
     return (
-      <div className="fixed top-3 left-3 z-50 max-w-[280px] bg-white rounded-2xl shadow-2xl px-4 py-3">
+      <div className="fixed top-14 right-3 z-50 max-w-[280px] bg-white rounded-2xl shadow-2xl px-4 py-3">
         <p className="text-[#0D2240] font-bold text-xs mb-2">⚠️ {warning.message}</p>
         <div className="flex gap-1.5">
           <button onClick={() => setWarning(null)}
@@ -147,8 +147,12 @@ function ClockWidget({ session, role }: { session: WorkerSession; role: "driver"
     )
   }
 
+  // Anchored top-right, just under the session pill — a solid dark pill so it
+  // stays legible whether the page underneath it has a light or dark header
+  // (previously top-left with a transparent white/10 background, which was
+  // illegible over light headers like the operator queue page).
   return (
-    <div className="fixed top-3 left-3 z-50 flex items-center gap-2">
+    <div className="fixed top-14 right-3 z-50 flex items-center gap-2">
       {done ? (
         <div className="bg-white rounded-full px-4 py-1.5 text-xs font-bold text-green-600 shadow-lg">
           {done === "in" ? `✅ ${t("success_in")}` : `👋 ${t("success_out")}`}
@@ -167,7 +171,7 @@ function ClockWidget({ session, role }: { session: WorkerSession; role: "driver"
           </div>
         ) : (
           <button onClick={() => setShowBreak(true)}
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur transition-colors border border-green-400/30">
+            className="flex items-center gap-2 bg-[#0D2240] hover:bg-[#1a3a5c] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg transition-colors border border-green-400/30">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             {formatDuration(elapsedMins)}
             <span className="text-white/40 font-normal">· {t("clock_out")}</span>
@@ -175,7 +179,7 @@ function ClockWidget({ session, role }: { session: WorkerSession; role: "driver"
         )
       ) : (
         <button onClick={() => handleClockIn()} disabled={submitting}
-          className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur transition-colors disabled:opacity-50">
+          className="flex items-center gap-2 bg-[#0D2240] hover:bg-[#1a3a5c] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg transition-colors disabled:opacity-50">
           <span>🕐</span> {submitting ? "…" : t("clock_in")}
         </button>
       )}
@@ -281,7 +285,7 @@ export function PinGate({ role, children }: PinGateProps) {
     return (
       <WorkerCtx.Provider value={session}>
         <div className="relative">
-          {/* Clock in/out — top-left, lets the worker clock in without visiting /staff first */}
+          {/* Clock in/out — top-right, under the session pill, lets the worker clock in without visiting /staff first */}
           <ClockWidget session={session} role={role} />
           {/* Session pill — top-right */}
           <div className="fixed top-3 right-3 z-50 flex items-center gap-2">
