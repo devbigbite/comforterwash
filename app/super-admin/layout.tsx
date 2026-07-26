@@ -29,6 +29,9 @@ export default function SuperAdminLayout({
               <Link href="/super-admin/outreach" className="text-sm text-slate-500 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">
                 📋 Outreach
               </Link>
+              <Link href="/super-admin/demo-requests" className="text-sm text-slate-500 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">
+                📩 Demo Requests
+              </Link>
             </nav>
           </div>
           <span className="text-sm text-slate-500">Super Admin</span>

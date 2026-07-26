@@ -1,6 +1,7 @@
 "use server"
 
 import { Resend } from "resend"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing")
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
@@ -19,6 +20,18 @@ export async function requestPlatformDemo(formData: FormData) {
 
   if (!name || !email) {
     return { error: "Name and email are required." }
+  }
+
+  // Persist first — the running list at /super-admin/demo-requests is the
+  // durable record; the email below is just the immediate ping. If the
+  // insert fails we still try to send the email so nothing is silently lost.
+  try {
+    const supabase = createAdminClient()
+    await supabase.from("platform_demo_requests").insert({
+      name, email, phone: phone || null, business: business || null, message: message || null,
+    })
+  } catch (err) {
+    console.error("[platform-contact] Failed to record demo request:", err)
   }
 
   try {
