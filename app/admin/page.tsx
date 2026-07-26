@@ -244,6 +244,7 @@ export default async function AdminHub() {
         { label: "Workers", href: "/admin/workers" },
         { label: "Hiring", href: "/admin/hiring" },
         { label: "Schedule", href: "/admin/schedule" },
+        { label: "Timesheet", href: "/admin/schedule?tab=timesheet" },
         { label: "Staff Clock", href: "/staff" },
         { label: "Driver App →", href: "/driver", external: true },
         { label: "Operator App →", href: "/operator", external: true },

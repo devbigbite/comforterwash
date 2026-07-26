@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   getCurrentPunches,
   getShiftsForWeek,
@@ -61,8 +62,25 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+// useSearchParams (used below to support the ?tab=timesheet deep link from
+// the admin home page) requires a Suspense boundary around it in the app
+// router, otherwise the build fails — so the real page body lives in
+// AdminScheduleInner and the default export just wraps it.
 export default function AdminSchedulePage() {
-  const [tab, setTab] = useState<"now" | "schedule" | "timesheet">("now")
+  return (
+    <Suspense fallback={null}>
+      <AdminScheduleInner />
+    </Suspense>
+  )
+}
+
+function AdminScheduleInner() {
+  const searchParams = useSearchParams()
+  // Lets other pages (e.g. the admin home "Timesheet" quick link) deep-link
+  // straight into the timesheet tab via /admin/schedule?tab=timesheet.
+  const initialTab = searchParams.get("tab") === "timesheet" ? "timesheet"
+    : searchParams.get("tab") === "schedule" ? "schedule" : "now"
+  const [tab, setTab] = useState<"now" | "schedule" | "timesheet">(initialTab)
 
   // ── Right Now state ────────────────────────────────────────────────────────
   const [currentPunches, setCurrentPunches] = useState<TimePunch[]>([])
