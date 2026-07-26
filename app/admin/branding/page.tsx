@@ -442,6 +442,9 @@ function DispatchSection() {
       {!usesDispatchApp ? (
         <p className="text-xs text-gray-400 bg-gray-50 rounded-xl px-4 py-3 mb-1">
           That's the default — new orders won't be sent to Shipday for tracking or driver routing. You can turn this on any time, whether or not you use your own drivers.
+          {" "}Don't want a Shipday subscription at all? Head to{" "}
+          <a href="/admin/dispatch" className="underline text-[#E8726A]">Dispatch</a>{" "}
+          and use <span className="font-semibold">📥 Export to Excel/CSV</span> to download each day's pickups &amp; deliveries as a spreadsheet you can print or hand to your driver directly.
         </p>
       ) : (
         <div className="space-y-4">

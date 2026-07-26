@@ -291,7 +291,16 @@ export default async function DispatchPage({
             <h1 className="text-2xl font-extrabold text-[#0D2240]">Dispatch</h1>
             <p className="text-sm text-gray-400 mt-0.5">{displayDate}</p>
           </div>
-          <SeedDispatchButton />
+          <div className="flex items-center gap-2">
+            <a
+              href={`/api/admin/dispatch-export?date=${today}`}
+              className="text-xs font-bold text-[#0D2240] border border-gray-200 hover:border-[#0D2240] px-3 py-2 rounded-xl transition-colors"
+              title="Download today's pickups & deliveries as a spreadsheet — no Shipday required"
+            >
+              📥 Export to Excel/CSV
+            </a>
+            <SeedDispatchButton />
+          </div>
         </div>
 
         {/* Stats row */}
