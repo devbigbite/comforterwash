@@ -65,7 +65,11 @@ function clearSession(role: string) {
 // ── Clock in/out widget — lets a worker clock in/out right on their station ───
 // page (driver/operator) instead of needing a separate trip to /staff first.
 // Reuses the exact same server actions and translation strings as /staff.
-function ClockWidget({ session, role }: { session: WorkerSession; role: "driver" | "operator" }) {
+// Renders inline (no fixed positioning) so the consuming page can place it
+// wherever it fits in its own header row, next to that page's other buttons —
+// it previously self-positioned as a fixed overlay, which drifted out of sync
+// with each station page's real header and covered other header buttons.
+export function ClockWidget({ session, role }: { session: WorkerSession; role: "driver" | "operator" }) {
   const [openPunch, setOpenPunch] = useState<TimePunch | null | undefined>(undefined)
   const [elapsedMins, setElapsedMins] = useState(0)
   const [breakMinutes, setBreakMinutes] = useState("0")
@@ -128,50 +132,60 @@ function ClockWidget({ session, role }: { session: WorkerSession; role: "driver"
 
   if (session.workerId === "owner" || openPunch === undefined) return null
 
-  // Schedule-warning confirm step — same copy as /staff
+  // Schedule-warning confirm step — same copy as /staff. Dropdown-anchored
+  // below the pill (relative wrapper) instead of a page-fixed overlay, so it
+  // stays attached to wherever the pill is placed inline in the header.
   if (warning) {
     return (
-      <div className="fixed top-14 right-3 z-50 max-w-[280px] bg-white rounded-2xl shadow-2xl px-4 py-3">
-        <p className="text-[#0D2240] font-bold text-xs mb-2">⚠️ {warning.message}</p>
-        <div className="flex gap-1.5">
-          <button onClick={() => setWarning(null)}
-            className="flex-1 py-2 rounded-lg text-xs font-bold bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
-            {t("back_btn")}
-          </button>
-          <button onClick={() => openPunch ? handleClockOut(true) : handleClockIn(true)} disabled={submitting}
-            className="flex-1 py-2 rounded-lg text-xs font-bold bg-[#0D2240] text-white hover:bg-[#1a3a5c] transition-colors disabled:opacity-50">
-            {t("warning_proceed")}
-          </button>
+      <div className="relative inline-block">
+        <div className="absolute right-0 top-full mt-2 max-w-[280px] w-64 bg-white rounded-2xl shadow-2xl px-4 py-3 z-50">
+          <p className="text-[#0D2240] font-bold text-xs mb-2">⚠️ {warning.message}</p>
+          <div className="flex gap-1.5">
+            <button onClick={() => setWarning(null)}
+              className="flex-1 py-2 rounded-lg text-xs font-bold bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
+              {t("back_btn")}
+            </button>
+            <button onClick={() => openPunch ? handleClockOut(true) : handleClockIn(true)} disabled={submitting}
+              className="flex-1 py-2 rounded-lg text-xs font-bold bg-[#0D2240] text-white hover:bg-[#1a3a5c] transition-colors disabled:opacity-50">
+              {t("warning_proceed")}
+            </button>
+          </div>
         </div>
       </div>
     )
   }
 
-  // Anchored top-right, just under the session pill — a solid dark pill so it
-  // stays legible whether the page underneath it has a light or dark header
-  // (previously top-left with a transparent white/10 background, which was
-  // illegible over light headers like the operator queue page).
+  // Renders inline — a solid dark pill so it stays legible on either a light
+  // header (operator) or a dark header (driver). The consuming page places
+  // this alongside its own header buttons (e.g. left of "Print Station").
   return (
-    <div className="fixed top-14 right-3 z-50 flex items-center gap-2">
+    <div className="inline-flex items-center gap-2">
       {done ? (
-        <div className="bg-white rounded-full px-4 py-1.5 text-xs font-bold text-green-600 shadow-lg">
+        <div className="bg-white rounded-full px-4 py-1.5 text-xs font-bold text-green-600 shadow-sm">
           {done === "in" ? `✅ ${t("success_in")}` : `👋 ${t("success_out")}`}
         </div>
       ) : openPunch ? (
         showBreak ? (
-          <div className="bg-white rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-2">
-            <input type="number" min="0" value={breakMinutes} onChange={e => setBreakMinutes(e.target.value)}
-              placeholder={t("break_minutes")}
-              className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold text-[#0D2240] outline-none" />
-            <button onClick={() => handleClockOut()} disabled={submitting}
-              className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-colors">
-              {submitting ? "…" : t("clock_out")}
+          <div className="relative inline-block">
+            <div className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-2 z-50">
+              <input type="number" min="0" value={breakMinutes} onChange={e => setBreakMinutes(e.target.value)}
+                placeholder={t("break_minutes")}
+                className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold text-[#0D2240] outline-none" />
+              <button onClick={() => handleClockOut()} disabled={submitting}
+                className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-colors">
+                {submitting ? "…" : t("clock_out")}
+              </button>
+              <button onClick={() => setShowBreak(false)} className="text-gray-300 hover:text-gray-500 text-xs px-1">✕</button>
+            </div>
+            <button onClick={() => setShowBreak(false)}
+              className="flex items-center gap-2 bg-[#0D2240] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm border border-green-400/30">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              {formatDuration(elapsedMins)}
             </button>
-            <button onClick={() => setShowBreak(false)} className="text-gray-300 hover:text-gray-500 text-xs px-1">✕</button>
           </div>
         ) : (
           <button onClick={() => setShowBreak(true)}
-            className="flex items-center gap-2 bg-[#0D2240] hover:bg-[#1a3a5c] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg transition-colors border border-green-400/30">
+            className="flex items-center gap-2 bg-[#0D2240] hover:bg-[#1a3a5c] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm transition-colors border border-green-400/30">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             {formatDuration(elapsedMins)}
             <span className="text-white/40 font-normal">· {t("clock_out")}</span>
@@ -179,7 +193,7 @@ function ClockWidget({ session, role }: { session: WorkerSession; role: "driver"
         )
       ) : (
         <button onClick={() => handleClockIn()} disabled={submitting}
-          className="flex items-center gap-2 bg-[#0D2240] hover:bg-[#1a3a5c] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg transition-colors disabled:opacity-50">
+          className="flex items-center gap-2 bg-[#0D2240] hover:bg-[#1a3a5c] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm transition-colors disabled:opacity-50">
           <span>🕐</span> {submitting ? "…" : t("clock_in")}
         </button>
       )}
@@ -285,9 +299,10 @@ export function PinGate({ role, children }: PinGateProps) {
     return (
       <WorkerCtx.Provider value={session}>
         <div className="relative">
-          {/* Clock in/out — top-right, under the session pill, lets the worker clock in without visiting /staff first */}
-          <ClockWidget session={session} role={role} />
-          {/* Session pill — top-right */}
+          {/* Session pill — top-right. Clock in/out now renders inline inside
+              each station page's own header (see app/operator/page.tsx and
+              app/driver/page.tsx) instead of as a fixed overlay here, so it
+              can't drift out of place or cover that page's real buttons. */}
           <div className="fixed top-3 right-3 z-50 flex items-center gap-2">
             {session.workerId === "owner" ? (
               <a

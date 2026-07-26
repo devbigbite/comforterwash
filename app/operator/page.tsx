@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { PinGate, useWorkerSession } from "@/components/pin-gate"
+import { PinGate, useWorkerSession, ClockWidget } from "@/components/pin-gate"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import { getOperatorQueue } from "@/app/actions/operator-queue"
@@ -119,6 +119,7 @@ function OperatorHomeInner() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            {session && <ClockWidget session={session} role="operator" />}
             <a
               href="/operator/station"
               className="text-sm text-white bg-[#E8726A] hover:bg-[#d45f57] px-3 py-1.5 rounded-full transition-colors font-bold"

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { PinGate, useWorkerSession } from "@/components/pin-gate"
+import { PinGate, useWorkerSession, ClockWidget } from "@/components/pin-gate"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { getPendingRunsForRole } from "@/app/actions/transport-runs"
 import { getDriverQueue, notifyRouteStart } from "@/app/actions/driver-queue"
@@ -107,7 +107,10 @@ function DriverHomeInner() {
             {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
           </p>
         </div>
-        <RoleSwitcher currentRole="driver" />
+        <div className="flex items-center gap-2">
+          {session && <ClockWidget session={session} role="driver" />}
+          <RoleSwitcher currentRole="driver" />
+        </div>
       </div>
 
       <div className="px-4 pb-10 max-w-lg mx-auto space-y-4">
