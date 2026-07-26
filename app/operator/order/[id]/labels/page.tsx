@@ -3,13 +3,13 @@ import { notFound } from "next/navigation"
 import { PinGate } from "@/components/pin-gate"
 import { OperatorOrderGate } from "@/components/operator-order-gate"
 
-// Color keys and the yellow storage marker are physical stickers applied by
-// hand — the thermal printer is monochrome, so the receipt only ever names
-// the color as text ("COLOR KEY: BLUE"), never renders it visually.
+// Color keys are physical stickers applied by hand — the thermal printer is
+// monochrome, so the receipt only ever names the color as text
+// ("COLOR KEY: BLUE"), never renders it visually.
 const COLOR_LABEL: Record<string, string> = {
   red: "Red", blue: "Blue", sky: "Sky Blue", green: "Green",
   lime: "Lime", pink: "Pink", hotpink: "Hot Pink",
-  orange: "Orange", purple: "Purple",
+  orange: "Orange", purple: "Purple", yellow: "Yellow",
 }
 /**
  * Operator bag receipts — printed one per output bag on a standard 80mm

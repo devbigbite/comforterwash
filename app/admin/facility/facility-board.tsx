@@ -13,9 +13,6 @@ import { createClient } from "@/lib/supabase/client"
 
 // ── Color key palette (matching the label roll set) ──────────────────────────
 
-// "yellow" is intentionally excluded — it is reserved exclusively for the
-// remote-storage marker sticker (see the Floor vs Storage panel below) so it
-// never collides with a per-order color key on the same day.
 export const COLOR_KEYS = [
   { key: "red",      label: "Red",       hex: "#ef4444" },
   { key: "blue",     label: "Blue",      hex: "#3b82f6" },
@@ -26,6 +23,7 @@ export const COLOR_KEYS = [
   { key: "hotpink",  label: "Hot Pink",  hex: "#ec4899" },
   { key: "orange",   label: "Orange",    hex: "#f97316" },
   { key: "purple",   label: "Purple",    hex: "#a855f7" },
+  { key: "yellow",   label: "Yellow",    hex: "#eab308" },
 ] as const
 
 export const STORAGE_MARKER_HEX = "#eab308"

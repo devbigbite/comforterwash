@@ -41,8 +41,7 @@ const STATUS_LABEL: Record<string, string> = {
 const PIPELINE = [
   { keys: ["pending"],                                              label: "Confirmed",      icon: "✅" },
   { keys: ["picked_up"],                                           label: "Picked Up",      icon: "🚚" },
-  { keys: ["at_warehouse"],                                        label: "At Warehouse",   icon: "🏪" },
-  { keys: ["at_facility","in_washer","in_dryer","folded"],        label: "Being Cleaned",  icon: "🫧" },
+  { keys: ["at_warehouse","at_facility","in_washer","in_dryer","folded"], label: "Being Cleaned",  icon: "🫧" },
   { keys: ["ready","ready_at_warehouse"],                          label: "Ready",          icon: "👕" },
   { keys: ["out_for_delivery"],                                    label: "Out for Delivery", icon: "🚐" },
   { keys: ["delivered"],                                           label: "Delivered",      icon: "🎉" },

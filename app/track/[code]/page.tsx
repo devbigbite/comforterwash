@@ -13,8 +13,7 @@ const PIPELINE: {
 }[] = [
   { key: ["pending"],           label: "Booking Confirmed",  icon: "✅", sub: "We have your order!" },
   { key: ["picked_up"],         label: "Picked Up",          icon: "🚚", sub: "Your laundry is on the way to us" },
-  { key: ["at_warehouse"],      label: "At Warehouse",       icon: "🏪", sub: "Checked in and ready for processing" },
-  { key: ["at_facility","in_washer","in_dryer","folded"], label: "Being Cleaned", icon: "🫧", sub: "Washing, drying & folding in progress" },
+  { key: ["at_warehouse","at_facility","in_washer","in_dryer","folded"], label: "Being Cleaned", icon: "🫧", sub: "Washing, drying & folding in progress" },
   { key: ["ready","ready_at_warehouse"], label: "Ready",     icon: "👕", sub: "Your order is clean and folded" },
   { key: ["out_for_delivery"],  label: "Out for Delivery",   icon: "🚐", sub: "Your driver is on the way!" },
   { key: ["delivered"],         label: "Delivered",          icon: "🎉", sub: "Enjoy your fresh laundry!" },
