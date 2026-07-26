@@ -15,7 +15,7 @@ export async function generateMetadata() {
   const branding = await getBranding()
   return {
     title: `Book Wash Only — ${branding.business_name || "WashFoldClean"}`,
-    description: "Clothes washed and returned clean in a bag. $1.99/lb, 20 lb minimum.",
+    description: "Clothes washed and returned clean in a bag. $1.99/lb, 18 lb minimum.",
   }
 }
 

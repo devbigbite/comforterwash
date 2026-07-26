@@ -9,7 +9,7 @@ export interface PricingConfig {
   // Wash & Fold
   washFoldOneTimeCents: number   // default 240
   washFoldSubCents:     number   // default 215
-  washFoldMinLbs:       number   // default 20
+  washFoldMinLbs:       number   // default 18
   // Wash Only
   washOnlyCents:        number   // default 199
   washOnlyMinLbs:       number   // default 20
@@ -24,9 +24,9 @@ export interface PricingConfig {
 const DEFAULTS: PricingConfig = {
   washFoldOneTimeCents: 255,
   washFoldSubCents:     245,
-  washFoldMinLbs:       20,
+  washFoldMinLbs:       18,
   washOnlyCents:        199,
-  washOnlyMinLbs:       20,
+  washOnlyMinLbs:       18,
   comforterTwinCents:   2900,
   comforterFullCents:   3300,
   comforterQueenCents:  3800,

@@ -28,7 +28,7 @@ import { useLang } from "@/components/lang-provider"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 let PRICE_PER_LB = 199  // $1.99 in cents — overwritten on mount
-let MIN_POUNDS = 20
+let MIN_POUNDS = 18
 const LBS_PER_BAG = 15
 // ── Comforter add-on ─────────────────────────────────────────────────────────
 type CSize = "twin" | "full" | "queen" | "king"
@@ -362,7 +362,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
               <span className="text-[var(--brand-primary)]">{tf.preAuthEst}</span>
               <span className="text-[var(--brand-accent)]">${totalDisplay}</span>
             </div>
-            <p className="text-[10px] text-gray-400">{tw.chargedAtSummary.replace("{priceLabel}", priceLabel).replace("20 lb", `${minLbs} lb`)}</p>
+            <p className="text-[10px] text-gray-400">{tw.chargedAtSummary.replace("{priceLabel}", priceLabel).replace("18 lb", `${minLbs} lb`)}</p>
           </div>
           <Checkout
             amountCents={preAuthCents}

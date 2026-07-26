@@ -36,7 +36,7 @@ import type { Locale } from "@/lib/i18n"
 const LBS_PER_BAG = 15
 
 // Dynamic — overwritten on mount from Supabase
-let MIN_POUNDS = 20
+let MIN_POUNDS = 18
 let FREQ_CENTS = { one_time: 240, weekly: 215, biweekly: 215 }
 
 // ── Comforter add-on (same prices as standalone comforter booking) ─────────────
@@ -616,7 +616,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
               <span className="text-[var(--brand-accent)]">${totalDisplay}</span>
             </div>
             <p className="text-[10px] text-gray-400 leading-relaxed">
-              {tw.chargedAtSummary.replace("{priceLabel}", priceLabel).replace("20 lb", `${minLbs} lb`)}
+              {tw.chargedAtSummary.replace("{priceLabel}", priceLabel).replace("18 lb", `${minLbs} lb`)}
             </p>
           </div>
           <Checkout
@@ -890,7 +890,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{tw.estimatedWeight}</p>
-                  <p className="text-sm font-bold text-[var(--brand-primary)]">~{formData.pounds} lbs ({formData.numBags} {formData.numBags > 1 ? tf.bags : tf.bag} × ~20 lbs)</p>
+                  <p className="text-sm font-bold text-[var(--brand-primary)]">~{formData.pounds} lbs ({formData.numBags} {formData.numBags > 1 ? tf.bags : tf.bag} × ~{LBS_PER_BAG} lbs)</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{tw.preAuth}</p>
@@ -902,7 +902,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
                 <p className="text-xs text-amber-700 leading-relaxed">
-                  <span className="font-bold">{tw.estimateNote}</span> {tw.chargedAt.replace("{priceLabel}", priceLabel).replace("20 lb", `${minLbs} lb`)}
+                  <span className="font-bold">{tw.estimateNote}</span> {tw.chargedAt.replace("{priceLabel}", priceLabel).replace("18 lb", `${minLbs} lb`)}
                 </p>
               </div>
               {freePickupDeliveryLineEnabled && (
