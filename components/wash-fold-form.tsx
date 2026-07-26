@@ -890,7 +890,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{tw.estimatedWeight}</p>
-                  <p className="text-sm font-bold text-[var(--brand-primary)]">~{formData.pounds} lbs ({formData.numBags} {formData.numBags > 1 ? tf.bags : tf.bag} × ~{LBS_PER_BAG} lbs)</p>
+                  <p className="text-sm font-bold text-[var(--brand-primary)]">({formData.numBags} {formData.numBags > 1 ? tf.bags : tf.bag} × ~{LBS_PER_BAG} lbs)</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{tw.preAuth}</p>
