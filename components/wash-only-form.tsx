@@ -111,6 +111,12 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
   const tb = tr.bookingForm
   const two = tr.washOnlyForm
 
+  // Detergent/extra names & descriptions are admin-entered per option (service_options
+  // table) with optional name_es/description_es columns — fall back to the English
+  // value when no Spanish translation was entered for that option.
+  function optName(opt: ServiceOption) { return (locale === "es" && opt.name_es) ? opt.name_es : opt.name }
+  function optDesc(opt: ServiceOption) { return (locale === "es" && opt.description_es) ? opt.description_es : opt.description }
+
   const STEPS = [
     { id: 1, label: tf.stepService },
     { id: 2, label: tf.stepDetergent },
@@ -562,8 +568,8 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                     checked={formData.detergentId === opt.id}
                     onChange={() => setFormData(p => ({ ...p, detergentId: opt.id }))} />
                   <div className="flex-1">
-                    <p className="font-semibold text-[var(--brand-primary)] text-sm">{opt.name}</p>
-                    <p className="text-xs text-gray-400">{opt.description}</p>
+                    <p className="font-semibold text-[var(--brand-primary)] text-sm">{optName(opt)}</p>
+                    <p className="text-xs text-gray-400">{optDesc(opt)}</p>
                   </div>
                   {opt.price_cents === 0
                     ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
@@ -583,8 +589,8 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                       className="shrink-0"
                     />
                     <div className="flex-1">
-                      <p className="font-semibold text-[var(--brand-primary)] text-sm">{opt.name}</p>
-                      <p className="text-xs text-gray-400">{opt.description}</p>
+                      <p className="font-semibold text-[var(--brand-primary)] text-sm">{optName(opt)}</p>
+                      <p className="text-xs text-gray-400">{optDesc(opt)}</p>
                     </div>
                     {opt.price_cents === 0
                       ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
@@ -599,8 +605,8 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
             <div className="border-2 border-gray-100 rounded-2xl p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-bold text-[var(--brand-primary)] text-sm">🛏️ Add Comforters to this Pickup?</h4>
-                  <p className="text-xs text-gray-400 mt-0.5">Flat rate per item · by size · same pickup run</p>
+                  <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tf.addComfortersTitle}</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">{tf.addComfortersSub}</p>
                 </div>
                 <button
                   type="button"

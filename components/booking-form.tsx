@@ -122,6 +122,11 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
 export function BookingForm() {
   const { translations: tr, locale } = useLang()
   const tf = tr.form
+  // Detergent/extra/accessory names & descriptions are admin-entered per option
+  // (service_options table) with optional name_es/description_es columns — fall
+  // back to the English value when no Spanish translation was entered.
+  function optName(opt: ServiceOption) { return (locale === "es" && opt.name_es) ? opt.name_es : opt.name }
+  function optDesc(opt: ServiceOption) { return (locale === "es" && opt.description_es) ? opt.description_es : opt.description }
   const tb = tr.bookingForm
 
   const STEPS = [
@@ -738,8 +743,8 @@ export function BookingForm() {
                         checked={formData.detergentId === opt.id}
                         onChange={() => setFormData(p => ({ ...p, detergentId: opt.id }))} />
                       <div className="flex-1">
-                        <p className="font-semibold text-[var(--brand-primary)] text-sm">{opt.name}</p>
-                        {opt.description && <p className="text-xs text-gray-400">{opt.description}</p>}
+                        <p className="font-semibold text-[var(--brand-primary)] text-sm">{optName(opt)}</p>
+                        {opt.description && <p className="text-xs text-gray-400">{optDesc(opt)}</p>}
                       </div>
                       {opt.price_cents === 0
                         ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
@@ -764,8 +769,8 @@ export function BookingForm() {
                         onCheckedChange={c => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [addon.id]: c as boolean } }))}
                         className="shrink-0" />
                       <div className="flex-1">
-                        <p className="font-semibold text-[var(--brand-primary)] text-sm">{addon.name}</p>
-                        {addon.description && <p className="text-xs text-gray-400">{addon.description}</p>}
+                        <p className="font-semibold text-[var(--brand-primary)] text-sm">{optName(addon)}</p>
+                        {addon.description && <p className="text-xs text-gray-400">{optDesc(addon)}</p>}
                       </div>
                       {addon.price_cents === 0
                         ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
@@ -790,8 +795,8 @@ export function BookingForm() {
                         onCheckedChange={c => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [addon.id]: c as boolean } }))}
                         className="shrink-0" />
                       <div className="flex-1">
-                        <p className="font-semibold text-[var(--brand-primary)] text-sm">{addon.name}</p>
-                        {addon.description && <p className="text-xs text-gray-400">{addon.description}</p>}
+                        <p className="font-semibold text-[var(--brand-primary)] text-sm">{optName(addon)}</p>
+                        {addon.description && <p className="text-xs text-gray-400">{optDesc(addon)}</p>}
                       </div>
                       {addon.price_cents === 0
                         ? <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>

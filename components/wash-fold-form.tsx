@@ -437,10 +437,25 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
   const firstDelivery = (firstPickup && formData.recurringDeliveryDay && formData.recurringPickupDay)
     ? firstDeliveryDate(firstPickup, formData.recurringDeliveryDay, formData.recurringPickupDay)
     : undefined
-  const validDeliveryDays = formData.recurringPickupDay ? getValidDeliveryDays(formData.recurringPickupDay) : []
+
+  // Recurring pickup/delivery day pickers must respect the SAME active routes
+  // as the one-time date strip — previously they always offered every weekday
+  // regardless of which days actually have a route configured, so a customer
+  // could "successfully" pick a recurring day with no route to serve it.
+  // Falls back to all weekdays while routes are still loading (activeRoutes
+  // empty), matching isPickupAvailable/isDeliveryAvailable's own fallback.
+  const availablePickupDays = activeRoutes.length > 0
+    ? Array.from(new Set(activeRoutes.filter(r => r.active).flatMap(r => r.pickup_days ?? [])))
+    : WEEKDAYS.map(d => d.id)
+  const routeDeliveryDays = activeRoutes.length > 0
+    ? Array.from(new Set(activeRoutes.filter(r => r.active).flatMap(r => r.delivery_days ?? [])))
+    : WEEKDAYS.map(d => d.id)
+  const validDeliveryDays = formData.recurringPickupDay
+    ? getValidDeliveryDays(formData.recurringPickupDay).filter(d => routeDeliveryDays.includes(d))
+    : []
 
   const handlePickupDayChange = (day: string) => {
-    const valid = getValidDeliveryDays(day)
+    const valid = getValidDeliveryDays(day).filter(d => routeDeliveryDays.includes(d))
     setFormData(p => ({
       ...p,
       recurringPickupDay:   day,
@@ -916,7 +931,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                         accent="coral"
                         label={tw.pickupDay}
                         value={formData.recurringPickupDay}
-                        available={WEEKDAYS.map(d => d.id)}
+                        available={availablePickupDays}
                         onChange={handlePickupDayChange}
                         locale={locale}
                       />
