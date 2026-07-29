@@ -15,6 +15,13 @@ import { createAdminClient } from "@/lib/supabase/admin"
 // Used during local dev and as a safe default when no header is present.
 export const ORLANDO_LOCATION_ID = "8b95bcee-d145-4d74-974c-ff3745aeff01"
 
+// The internal "WashFoldDemo" tenant — used as the fallback for any
+// *.washfoldclean.com subdomain that doesn't match a real tenant slug (e.g.
+// a mistyped or stale demo link), so a broken/unknown subdomain shows a
+// generic sandbox instead of silently serving WashFold Orlando's real,
+// paying-customer site. See middleware.ts's getLocationIdForHost().
+export const WASHFOLD_DEMO_LOCATION_ID = "832b1605-cb3c-48d6-b8bc-125125834e19"
+
 export interface Location {
   id: string
   slug: string

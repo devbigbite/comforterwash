@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
-import { resolveLocationFromHost, ORLANDO_LOCATION_ID } from "@/lib/location"
+import { resolveLocationFromHost, ORLANDO_LOCATION_ID, WASHFOLD_DEMO_LOCATION_ID } from "@/lib/location"
 
 // ── Platform domain (set in env or fallback) ─────────────────────────────────
 // e.g. "washfold.com" → subdomains like orlando.washfold.com are resolved
@@ -51,7 +51,19 @@ async function getLocationIdForHost(hostname: string): Promise<string> {
 
   // Resolve from DB
   const location = await resolveLocationFromHost(host, PLATFORM_DOMAIN)
-  const id = location?.id ?? ORLANDO_LOCATION_ID
+
+  let id: string
+  if (location) {
+    id = location.id
+  } else {
+    // No matching tenant. A *subdomain* of the platform domain that doesn't
+    // match any real slug (e.g. a stale/mistyped or made-up demo link) falls
+    // back to the internal WashFoldDemo sandbox — never to Orlando's real,
+    // paying-customer site. The bare platform domain / an unmatched custom
+    // domain still falls back to Orlando, same as before.
+    const isUnmatchedSubdomain = new RegExp(`^[a-z0-9-]+\\.${PLATFORM_DOMAIN.replace(".", "\\.")}$`).test(host)
+    id = isUnmatchedSubdomain ? WASHFOLD_DEMO_LOCATION_ID : ORLANDO_LOCATION_ID
+  }
 
   // Cache the result
   locationCache.set(host, { id, expiresAt: Date.now() + CACHE_TTL_MS })
