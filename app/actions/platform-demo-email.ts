@@ -74,6 +74,7 @@ export async function sendPlatformDemoGuideEmail(params: {
       <p style="font-size:15px;font-weight:700;color:#0D2240;margin-bottom:8px">Why laundry businesses choose WashFoldClean:</p>
       <ul style="font-size:14px;line-height:1.9;color:#555;padding-left:20px;margin-top:0">
         <li><strong>Built for operators without a laundromat</strong> — run everything from home, or route orders to a local laundromat you partner with as your processing facility. Most platforms assume you own a facility; we don't.</li>
+        <li><strong>A dedicated comforter service, built in</strong> — comforters get their own booking flow, pricing, and handling, not just another "item" on a wash & fold list. Most competing platforms have no idea what to do with a comforter order.</li>
         <li><strong>An admin dashboard that fits you</strong> — a simple mode for solo operators, a full toolset for teams running a facility, same platform either way.</li>
         <li><strong>Your own branded site</strong> — your name, logo, and colors, bilingual out of the box.</li>
         <li><strong>Billing handled for you</strong> — Stripe-powered one-time orders, subscriptions, tips, and promo codes.</li>
