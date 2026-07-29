@@ -168,9 +168,9 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "wf-3", category: "wash_fold", sort_order: 3, active: true,
     question: "Do I need to sort my clothes?",
-    answer: "No sorting needed — that's our job. We wash mixed loads with color-trapping sheets (dye-grabber sheets) that absorb loose dye, so darks, lights, and colors can safely be washed together without bleeding. If you have specific preferences (e.g., all in cold water together), note it in your order instructions.",
+    answer: "No sorting needed. We wash mixed loads with color-trapping sheets (dye-grabber sheets) that absorb loose dye, so darks, lights, and colors can safely be washed together without bleeding.",
     question_es: "¿Necesito separar mi ropa?",
-    answer_es: "No es necesario separar — ese es nuestro trabajo. Lavamos cargas mixtas con hojas atrapadoras de tinte que absorben el tinte suelto, para que oscuros, claros y colores puedan lavarse juntos de forma segura sin que se corran los colores. Si tienes preferencias específicas (p. ej., todo junto en agua fría), indícalo en las instrucciones de tu pedido.",
+    answer_es: "No es necesario separar. Lavamos cargas mixtas con hojas atrapadoras de tinte que absorben el tinte suelto, para que oscuros, claros y colores puedan lavarse juntos de forma segura sin que se corran los colores.",
   },
   {
     id: "wf-4", category: "wash_fold", sort_order: 4, active: true,
@@ -210,9 +210,9 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "wf-9", category: "wash_fold", sort_order: 9, active: true,
     question: "How are my clothes packaged for return?",
-    answer: "Clothes are neatly folded and returned in our sanitary clear bags — not the bag(s) you dropped off in.",
+    answer: "Clothes are neatly folded and returned in our sanitary clear bags.",
     question_es: "¿Cómo se empaca mi ropa para la devolución?",
-    answer_es: "La ropa se dobla cuidadosamente y se devuelve en nuestras bolsas transparentes sanitarias — no en la(s) bolsa(s) en que la dejaste.",
+    answer_es: "La ropa se dobla cuidadosamente y se devuelve en nuestras bolsas transparentes sanitarias.",
   },
   {
     id: "wf-10", category: "wash_fold", sort_order: 10, active: true,
@@ -224,9 +224,9 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "wf-11", category: "wash_fold", sort_order: 11, active: true,
     question: "What if my laundry arrives damp or wet?",
-    answer: "Wash & Fold and Wash Only pricing is based on the weight received at pickup, and we're not able to make an adjustment for wet or damp items — the water weight is included in what you're charged. Please make sure your laundry is fully dry before pickup so you're only paying for the laundry itself. (Note: this doesn't apply to Comforter Wash, which is priced by size, not weight.)",
+    answer: "Wash & Fold and Wash Only pricing is based on the weight received at pickup. Please make sure your laundry is fully dry before pickup so you're only paying for the laundry itself. (Note: this doesn't apply to Comforter Wash, which is priced by size, not weight.)",
     question_es: "¿Qué pasa si mi ropa llega húmeda o mojada?",
-    answer_es: "El precio de Lavar y Doblar y Solo Lavar se basa en el peso recibido en la recogida, y no podemos hacer ningún ajuste por artículos húmedos o mojados — el peso del agua queda incluido en lo que se te cobra. Por favor asegúrate de que tu ropa esté completamente seca antes de la recogida para que solo pagues por la ropa en sí. (Nota: esto no aplica al Lavado de Edredones, que se cobra por tamaño, no por peso.)",
+    answer_es: "El precio de Lavar y Doblar y Solo Lavar se basa en el peso recibido en la recogida. Por favor asegúrate de que tu ropa esté completamente seca antes de la recogida para que solo pagues por la ropa en sí. (Nota: esto no aplica al Lavado de Edredones, que se cobra por tamaño, no por peso.)",
   },
 ]
 
