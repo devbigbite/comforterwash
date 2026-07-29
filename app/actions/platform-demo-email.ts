@@ -1,6 +1,8 @@
 "use server"
 
 import { Resend } from "resend"
+import { readFile } from "fs/promises"
+import path from "path"
 import { requireSuperAdmin } from "@/lib/auth-guard"
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing")
@@ -27,7 +29,8 @@ export async function sendPlatformDemoGuideEmail(params: {
       <p style="font-size:15px;line-height:1.6">Hi ${firstName},</p>
       <p style="font-size:15px;line-height:1.6">
         Thanks for requesting a demo of WashFoldClean${params.business ? ` for <strong>${params.business}</strong>` : ""} —
-        we're excited to show you around. Here's everything you need to explore it yourself, right now.
+        we're excited to show you around. Here's everything you need to explore it yourself, right now, plus a
+        PDF guide attached to this email covering the same steps in more depth.
       </p>
       <p style="font-size:15px;line-height:1.6">
         A little about us: we're laundry pickup &amp; delivery operators ourselves — not a software company guessing at what
@@ -90,11 +93,23 @@ export async function sendPlatformDemoGuideEmail(params: {
     </div>
   `
 
+  // Attach the standalone PDF guide (public/demo-guide.pdf) — same content as
+  // the email itself, but something they can save, print, or forward to a
+  // partner without digging back through their inbox.
+  let attachments: { filename: string; content: Buffer }[] | undefined
+  try {
+    const pdfBuffer = await readFile(path.join(process.cwd(), "public", "demo-guide.pdf"))
+    attachments = [{ filename: "WashFoldClean-Demo-Guide.pdf", content: pdfBuffer }]
+  } catch (err) {
+    console.error("[platform-demo-email] Could not attach PDF guide:", err)
+  }
+
   const result = await resend.emails.send({
     from: `WashFoldClean <${SEND_ADDRESS}>`,
     to: [params.email],
     subject,
     html,
+    ...(attachments ? { attachments } : {}),
   })
 
   if (result.error) {
