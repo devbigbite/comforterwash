@@ -23,20 +23,22 @@ const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfoldclea
 
 // New tenants otherwise fall back to the same generic /hero-banner.jpg for all
 // 3 hero slides (see lib/site-images-config.ts's DEFAULT_IMAGES) — repeated,
-// obviously-a-placeholder-looking hero. Copying the WashFoldDemo tenant's own
-// uploaded hero/offer photos gives every prospect's demo site a polished,
-// varied look out of the box instead of that repeated placeholder.
-async function copySiteImagesFromWashFoldDemo(supabase: ReturnType<typeof createAdminClient>, newLocationId: string): Promise<void> {
-  const { data: demoImages } = await supabase
+// obviously-a-placeholder-looking hero, with generic "Comforter Wash &
+// Delivery" copy underneath. Copying the WashFoldDemo tenant's own uploaded
+// hero/offer photos AND its hero headline/subline/CTA text (settings keys
+// "img_%" and "txt_slide_%") gives every prospect's demo site a polished,
+// cohesive hero out of the box instead of that mismatched placeholder.
+async function copyHeroContentFromWashFoldDemo(supabase: ReturnType<typeof createAdminClient>, newLocationId: string): Promise<void> {
+  const { data: demoRows } = await supabase
     .from("settings")
     .select("key, value")
     .eq("location_id", WASHFOLD_DEMO_LOCATION_ID)
-    .like("key", "img_%")
+    .or("key.like.img_%,key.like.txt_slide_%")
 
-  if (!demoImages?.length) return
+  if (!demoRows?.length) return
 
   await supabase.from("settings").upsert(
-    demoImages.map(({ key, value }) => ({ location_id: newLocationId, key, value })),
+    demoRows.map(({ key, value }) => ({ location_id: newLocationId, key, value })),
     { onConflict: "location_id,key" }
   )
 }
@@ -112,7 +114,7 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
   }
 
   await seedNewLocation(location.id)
-  await copySiteImagesFromWashFoldDemo(supabase, location.id)
+  await copyHeroContentFromWashFoldDemo(supabase, location.id)
 
   await supabase
     .from("platform_demo_requests")
