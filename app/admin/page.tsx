@@ -296,6 +296,7 @@ export default async function AdminHub() {
             { label: "All Locations", href: "/super-admin" },
             { label: "Add New Location", href: "/super-admin/locations/new" },
             { label: "Demo Requests", href: "/super-admin/demo-requests" },
+            { label: "Demo Guide (PDF)", href: "/demo-guide.pdf", external: true },
             { label: "Promo Site →", href: "/platform", external: true },
           ],
         } as Module]
