@@ -6,7 +6,7 @@ import { createBooking } from "./bookings"
 import { createSubscription } from "./subscriptions"
 import { sendBookingConfirmationEmail, sendAdminNewOrderEmail } from "@/lib/email"
 import { getLocationId } from "@/lib/location"
-import { getConnectStatusForLocation } from "@/lib/stripe-connect"
+import { getConnectStatusForLocation, isCheckoutBlockedByConnectRequirement } from "@/lib/stripe-connect"
 import { recordCheckoutAttempt, markCheckoutAttemptSucceeded } from "./checkout-attempts"
 import { createGiftCardFromPurchase, redeemGiftCard } from "./gift-cards"
 
@@ -33,6 +33,17 @@ export async function startCheckoutSession(
   manualCapture = false
 ) {
   const locationId = await getLocationId()
+
+  // Tenants past their grandfather window must finish their own Stripe
+  // onboarding before this site can take a real charge — see
+  // lib/stripe-connect.ts. Returns a typed error instead of throwing so the
+  // Checkout component can show a friendly message rather than a crash.
+  if (await isCheckoutBlockedByConnectRequirement(locationId)) {
+    return {
+      error: "This business hasn't finished setting up online payments yet. Please check back soon, or contact them directly to book.",
+    }
+  }
+
   const destination = await connectDestinationFor(locationId)
 
   const session = await stripe.checkout.sessions.create({
@@ -70,6 +81,15 @@ export async function startCheckoutSession(
   })
 
   return { clientSecret: session.client_secret!, sessionId: session.id }
+}
+
+// Lightweight pre-check so the Checkout component can avoid ever mounting the
+// embedded Stripe form when the tenant hasn't finished Connect onboarding —
+// startCheckoutSession itself also re-checks (defense in depth), but that
+// would mean creating a real Stripe Checkout Session just to reject it.
+export async function checkCheckoutAllowed(): Promise<boolean> {
+  const locationId = await getLocationId()
+  return !(await isCheckoutBlockedByConnectRequirement(locationId))
 }
 
 // ── Capture actual payment after weight is confirmed ──────────────────────────

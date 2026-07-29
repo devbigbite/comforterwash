@@ -122,7 +122,14 @@ export async function middleware(request: NextRequest) {
 
   // ── 1. Resolve location from hostname ────────────────────────────────────
   const hostname = request.headers.get("host") ?? "localhost"
-  const locationId = await getLocationIdForHost(hostname)
+  const hostResolvedLocationId = await getLocationIdForHost(hostname)
+
+  // Public-facing demo override — set by /demo (see app/demo/route.ts) so a
+  // prospect exploring the sandbox sees the isolated WashFoldDemo tenant
+  // instead of whatever real tenant this hostname would normally resolve to.
+  // Never applies to /admin or /super-admin (those use admin_location_id).
+  const demoLocationOverride = request.cookies.get("demo_location_id")?.value
+  const locationId = demoLocationOverride || hostResolvedLocationId
 
   // ── 2. Admin auth (cookie-based) ─────────────────────────────────────────
   // Under the canonical admin host, the hostname no longer tells us which

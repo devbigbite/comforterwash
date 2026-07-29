@@ -547,8 +547,13 @@ function StripeConnectSection() {
       </div>
       <p className="text-xs text-gray-400 mb-5">
         Connect your own Stripe account so customer payments go straight to your bank account instead of through us.
-        Until you connect, your orders keep working exactly as they do now.
       </p>
+
+      {status.required && status.status !== "active" && (
+        <div className="rounded-xl px-4 py-3 text-sm font-medium bg-amber-50 border border-amber-200 text-amber-700 mb-4">
+          ⚠️ Required before you can go live — your booking site won't accept real payments until this is connected.
+        </div>
+      )}
 
       <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 mb-4">
         <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${

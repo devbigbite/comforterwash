@@ -91,7 +91,7 @@ const STARTER_SERVICE_OPTIONS: {
   { type: "accessory", name: "Premium Comforter Bag", description: "Reusable branded comforter storage bag", price_cents: 700, enabled: true, sort_order: 1, is_hypoallergenic: false, requires_comforter: true },
 ]
 
-async function seedNewLocation(locationId: string): Promise<void> {
+export async function seedNewLocation(locationId: string): Promise<void> {
   const supabase = createAdminClient()
   await supabase.from("service_options").insert(
     STARTER_SERVICE_OPTIONS.map(o => ({ ...o, location_id: locationId, pricing_unit: "per_order" }))

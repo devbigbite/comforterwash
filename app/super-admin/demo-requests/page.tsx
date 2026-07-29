@@ -7,6 +7,7 @@ import {
   type PlatformDemoRequest,
 } from "@/app/actions/platform-demo-requests"
 import { resendDemoGuideEmail } from "@/app/actions/platform-demo-email"
+import { enterTenantAdmin } from "@/app/actions/super-admin"
 
 const STATUS_COLORS: Record<string, string> = {
   new:       "bg-indigo-100 text-indigo-700",
@@ -68,7 +69,7 @@ export default function DemoRequestsPage() {
         <h2 className="text-2xl font-bold text-slate-900">Demo Requests</h2>
         <p className="text-sm text-slate-500 mt-1">
           {requests.length} total{newCount > 0 ? ` · ${newCount} new` : ""} — submitted via the "Request a Demo" form on /platform.
-          Each one automatically gets a thank-you + demo guide email.
+          Each one automatically gets its own live demo site (name.washfoldclean.com), an admin login, and a guide email.
         </p>
       </div>
 
@@ -104,6 +105,18 @@ export default function DemoRequestsPage() {
                 </p>
               </div>
               <div className="shrink-0 flex flex-col items-end gap-1.5">
+                {r.demo_slug ? (
+                  <a
+                    href={`https://${r.demo_slug}.${process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfoldclean.com"}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-mono text-indigo-600 hover:underline whitespace-nowrap"
+                  >
+                    {r.demo_slug}.{process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfoldclean.com"} ↗
+                  </a>
+                ) : (
+                  <span className="text-[11px] font-medium text-amber-600 whitespace-nowrap">No demo site yet</span>
+                )}
                 {r.demo_email_sent_at ? (
                   <span className="text-[11px] font-medium text-green-600 whitespace-nowrap">
                     ✓ Demo email sent {new Date(r.demo_email_sent_at).toLocaleDateString()}
@@ -111,13 +124,23 @@ export default function DemoRequestsPage() {
                 ) : (
                   <span className="text-[11px] font-medium text-amber-600 whitespace-nowrap">Demo email not sent</span>
                 )}
-                <button
-                  onClick={() => handleResend(r.id)}
-                  disabled={sendingId === r.id}
-                  className="text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50 whitespace-nowrap"
-                >
-                  {sendingId === r.id ? "Sending…" : r.demo_email_sent_at ? "Resend guide" : "Send guide"}
-                </button>
+                <div className="flex items-center gap-3">
+                  {r.demo_location_id && (
+                    <button
+                      onClick={() => enterTenantAdmin(r.demo_location_id!)}
+                      className="text-xs font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap"
+                    >
+                      Enter their admin
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleResend(r.id)}
+                    disabled={sendingId === r.id}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {sendingId === r.id ? "Working…" : r.demo_location_id ? "Resend guide" : "Create demo site"}
+                  </button>
+                </div>
                 {sentMsg[r.id] && (
                   <span className={`text-[11px] ${sentMsg[r.id].startsWith("Failed") ? "text-red-500" : "text-green-600"}`}>
                     {sentMsg[r.id]}

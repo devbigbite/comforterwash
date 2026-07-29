@@ -21,20 +21,42 @@ import { createAdminClient } from "@/lib/supabase/admin"
 export interface ConnectStatus {
   accountId: string | null
   status: "not_connected" | "pending" | "active"
+  required: boolean
 }
 
 export async function getConnectStatusForLocation(locationId: string): Promise<ConnectStatus> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("locations")
-    .select("stripe_connect_account_id, stripe_connect_status")
+    .select("stripe_connect_account_id, stripe_connect_status, stripe_connect_required")
     .eq("id", locationId)
     .single()
 
   return {
     accountId: data?.stripe_connect_account_id ?? null,
     status: (data?.stripe_connect_status as ConnectStatus["status"]) ?? "not_connected",
+    required: data?.stripe_connect_required ?? true,
   }
+}
+
+// ── "Going live" gate ────────────────────────────────────────────────────────
+// New tenants (stripe_connect_required = true, the default) must finish their
+// own Stripe onboarding before their site can process a real customer charge —
+// their money should never sit in the platform's shared Stripe balance. Two
+// tenants are grandfathered false: WashFold Orlando (predates this policy,
+// already live on the shared account) and the internal WashFoldDemo tenant
+// (never takes real money — prospects should never hit a payment gate while
+// just exploring the system).
+export async function isCheckoutBlockedByConnectRequirement(locationId: string): Promise<boolean> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from("locations")
+    .select("stripe_connect_required, stripe_connect_status")
+    .eq("id", locationId)
+    .single()
+
+  if (!data?.stripe_connect_required) return false
+  return data.stripe_connect_status !== "active"
 }
 
 // Creates a Stripe Express account for this tenant if one doesn't already
@@ -89,12 +111,14 @@ export async function refreshConnectStatusForLocation(locationId: string): Promi
   const supabase = createAdminClient()
   const { data: location } = await supabase
     .from("locations")
-    .select("stripe_connect_account_id")
+    .select("stripe_connect_account_id, stripe_connect_required")
     .eq("id", locationId)
     .single()
 
+  const required = location?.stripe_connect_required ?? true
+
   if (!location?.stripe_connect_account_id) {
-    return { accountId: null, status: "not_connected" }
+    return { accountId: null, status: "not_connected", required }
   }
 
   const account = await stripe.accounts.retrieve(location.stripe_connect_account_id)
@@ -105,5 +129,5 @@ export async function refreshConnectStatusForLocation(locationId: string): Promi
     .update({ stripe_connect_status: status })
     .eq("id", locationId)
 
-  return { accountId: location.stripe_connect_account_id, status }
+  return { accountId: location.stripe_connect_account_id, status, required }
 }

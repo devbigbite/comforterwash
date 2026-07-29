@@ -41,6 +41,7 @@ export default async function RootLayout({
   const cookieStore = await cookies()
   const initialLocale: Locale = cookieStore.get("wf_locale")?.value === "es" ? "es" : "en"
   const branding = await getBranding()
+  const isDemo = !!cookieStore.get("demo_location_id")?.value
 
   return (
     <html
@@ -50,6 +51,14 @@ export default async function RootLayout({
     >
       <body className="font-sans antialiased">
         <LangProvider initialLocale={initialLocale}>
+          {isDemo && (
+            <div className="sticky top-0 z-[60] bg-[#0D2240] text-white text-sm font-semibold text-center py-2 px-4">
+              👋 You're viewing the WashFoldClean Demo — no real orders or payments happen here.{" "}
+              <a href="/demo/exit" className="underline underline-offset-2 hover:opacity-80">
+                Exit Demo
+              </a>
+            </div>
+          )}
           <SiteNav businessName={branding.business_name ?? undefined} logoUrl={branding.logo_url} />
           {children}
         </LangProvider>

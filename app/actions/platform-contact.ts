@@ -34,10 +34,11 @@ export async function requestPlatformDemo(formData: FormData) {
       .select("id")
       .single()
 
-    // Fire-and-forget the thank-you + demo guide email to the requester —
-    // never blocks the admin alert below or the form response.
+    // Fire-and-forget: provisions a real demo tenant site (its own
+    // subdomain, seeded content, admin login) and emails the guide to the
+    // requester. Never blocks the admin alert below or the form response.
     if (inserted?.id) {
-      autoSendDemoGuideEmail(inserted.id, { name, email, business: business || null }).catch(
+      autoSendDemoGuideEmail(inserted.id).catch(
         err => console.error("[platform-contact] autoSendDemoGuideEmail failed:", err)
       )
     }

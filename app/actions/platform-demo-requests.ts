@@ -19,6 +19,8 @@ export interface PlatformDemoRequest {
   status: "new" | "contacted" | "closed"
   created_at: string
   demo_email_sent_at: string | null
+  demo_location_id: string | null
+  demo_slug: string | null
 }
 
 export async function getPlatformDemoRequests(): Promise<PlatformDemoRequest[]> {
@@ -26,9 +28,12 @@ export async function getPlatformDemoRequests(): Promise<PlatformDemoRequest[]> 
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("platform_demo_requests")
-    .select("*")
+    .select("*, locations(slug)")
     .order("created_at", { ascending: false })
-  return (data ?? []) as PlatformDemoRequest[]
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    ...row,
+    demo_slug: (row.locations as { slug?: string } | null)?.slug ?? null,
+  })) as PlatformDemoRequest[]
 }
 
 export async function setDemoRequestStatus(id: string, status: "new" | "contacted" | "closed") {

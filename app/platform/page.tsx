@@ -49,7 +49,7 @@ const STRINGS = {
     heroSub: "A branded booking site, an admin dashboard built for one person or a full team, billing, dispatch, and everything in between — whether you wash from your own home or partner with a local laundromat as your processing facility.",
     founderNote: "We're laundry pickup & delivery operators ourselves, not a software company guessing at what this business needs — and unlike most platforms in this space, we built it for small operators who don't own a laundromat.",
     liveTitle: "See It Running Live",
-    liveSub: "WashFold Orlando runs entirely on this platform — every page below is a real, live business, not a mockup.",
+    liveSub: "Explore a live sandbox running on the same platform WashFold Orlando uses every day — browse freely, nothing you do here is a real order or charge.",
     liveLink: "Open the live example ↗",
     featuresTitle: "Everything You Need, Built In",
     featuresSub: "Every tenant gets their own site and dashboard — features below are all part of the same platform.",
@@ -74,7 +74,7 @@ const STRINGS = {
     heroSub: "Un sitio de reservas con tu marca, un panel de administración diseñado para una persona o un equipo completo, facturación, despacho y todo lo demás — ya sea que laves desde tu propia casa o te asocies con una lavandería local como tu instalación de procesamiento.",
     founderNote: "Somos operadores de recogida y entrega de lavandería nosotros mismos, no una empresa de software adivinando lo que este negocio necesita — y a diferencia de la mayoría de plataformas, la construimos para operadores pequeños que no son dueños de una lavandería.",
     liveTitle: "Míralo Funcionando en Vivo",
-    liveSub: "WashFold Orlando funciona completamente en esta plataforma — cada página de abajo es un negocio real y en vivo, no una simulación.",
+    liveSub: "Explora una demostración en vivo que corre sobre la misma plataforma que usa WashFold Orlando cada día — navega libremente, nada de lo que hagas aquí es un pedido o cobro real.",
     liveLink: "Abrir el ejemplo en vivo ↗",
     featuresTitle: "Todo lo que Necesitas, Incluido",
     featuresSub: "Cada negocio tiene su propio sitio y panel — las funciones de abajo son parte de la misma plataforma.",
@@ -148,17 +148,17 @@ export default function PlatformPage() {
             <span className="w-3 h-3 rounded-full bg-red-300" />
             <span className="w-3 h-3 rounded-full bg-yellow-300" />
             <span className="w-3 h-3 rounded-full bg-green-300" />
-            <span className="ml-3 text-xs text-gray-400 font-mono">comforterwash.com</span>
+            <span className="ml-3 text-xs text-gray-400 font-mono">comforterwash.com/demo</span>
           </div>
           <iframe
-            src="https://www.comforterwash.com"
+            src="https://www.comforterwash.com/demo"
             title="Live example tenant site"
             className="w-full h-[520px] border-0"
             loading="lazy"
           />
         </div>
         <div className="text-center mt-4">
-          <a href="https://www.comforterwash.com" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-[#E8726A] hover:underline">
+          <a href="https://www.comforterwash.com/demo" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-[#E8726A] hover:underline">
             {s.liveLink}
           </a>
         </div>
