@@ -59,9 +59,9 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "gen-6", category: "general", sort_order: 6, active: true,
     question: "Can I leave special instructions?",
-    answer: "Yes. You can add a note in the booking form for one-time instructions. For permanent preferences on recurring orders — detergent type, fabric softener, special care items — email us at clean@washfoldorlando.com and we'll add it to your account.",
+    answer: "Yes. There's a special instructions field in the booking form where you can leave one-time notes for our team (gate codes, where to leave your bags, etc.) — it goes straight to whoever handles your order. Your detergent and add-on choices are also remembered automatically for next time, based on your phone number.",
     question_es: "¿Puedo dejar instrucciones especiales?",
-    answer_es: "Sí. Puedes agregar una nota en el formulario de reserva para instrucciones de una sola vez. Para preferencias permanentes en pedidos recurrentes — tipo de detergente, suavizante, artículos de cuidado especial — escríbenos a clean@washfoldorlando.com y lo agregaremos a tu cuenta.",
+    answer_es: "Sí. Hay un campo de instrucciones especiales en el formulario de reserva donde puedes dejar notas de una sola vez para nuestro equipo (códigos de portón, dónde dejar tus bolsas, etc.) — llega directamente a quien procese tu pedido. Tus elecciones de detergente y complementos también se recuerdan automáticamente para la próxima vez, según tu número de teléfono.",
   },
   {
     id: "gen-7", category: "general", sort_order: 7, active: true,

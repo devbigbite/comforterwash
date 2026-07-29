@@ -139,6 +139,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
     pounds: bagsToEstLbs(2),
     detergentId: "" as string,
     selectedExtras: {} as Record<string, boolean>,
+    specialInstructions: "",
     signature: "",
     agreedToTerms: false,
     smsConsent: false,
@@ -412,6 +413,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
               giftCardDiscountCents: String(giftCardDiscountCents),
               deliveryFeeCents: String(deliveryFeeCents),
               tipCents: String(tipCents),
+              specialInstructions: formData.specialInstructions,
             }}
           />
 
@@ -666,6 +668,18 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
                   )}
                 </div>
               )}
+            </div>
+            <div>
+              <h4 className="font-bold text-[var(--brand-primary)] text-sm mb-2">{tf.specialInstructionsLabel}</h4>
+              <textarea
+                value={formData.specialInstructions}
+                onChange={e => setFormData(p => ({ ...p, specialInstructions: e.target.value.slice(0, 500) }))}
+                placeholder={tf.specialInstructionsPlaceholder}
+                rows={3}
+                maxLength={500}
+                className="w-full rounded-2xl border-2 border-gray-100 p-4 text-sm focus:outline-none focus:border-[var(--brand-accent)] resize-none"
+              />
+              <p className="text-[11px] text-gray-300 mt-1 text-right">{formData.specialInstructions.length}/500</p>
             </div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>{tf.back}</Button>

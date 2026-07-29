@@ -321,6 +321,7 @@ export async function handleSuccessfulPayment(sessionId: string) {
         detergent:           meta.detergent ?? undefined,
         extras:              meta.extras ?? undefined,
         comforterSizes:      meta.comforterSizes ?? undefined,
+        specialInstructions: meta.specialInstructions ?? undefined,
       })
 
       // ── Save payment method for future overage charges ──────────────────────

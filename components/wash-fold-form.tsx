@@ -268,6 +268,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
     frequency:   "one_time" as "one_time" | "weekly" | "biweekly",
     detergentId:    "" as string,
     selectedExtras: {} as Record<string, boolean>,
+    specialInstructions: "",
+    savePreferencesForFuture: true,
     signature:        "",
     agreedToTerms:    false,
     smsConsent:       false,
@@ -547,6 +549,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
     giftCardDiscountCents: String(giftCardDiscountCents),
     deliveryFeeCents:    String(deliveryFeeCents),
     tipCents:            String(tipCents),
+    specialInstructions: formData.specialInstructions,
   }
   if (isRecurring) {
     checkoutMeta.recurringPickupDay      = formData.recurringPickupDay
@@ -635,7 +638,12 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
             onSuccess={() => {
               if (!isRecurring && emailCheckState !== "verified") setShowAccountPrompt(true)
               const chosenExtraIds = [...extraOptions, ...accessoryOptions].filter(e => formData.selectedExtras[e.id]).map(e => e.id)
-              saveCustomerPreferences(formData.phone, formData.detergentId || null, chosenExtraIds)
+              // Recurring customers get an explicit checkbox (default on) since these
+              // preferences will apply to every future order — one-time customers
+              // still get the convenience of it being remembered for next time.
+              if (!isRecurring || formData.savePreferencesForFuture) {
+                saveCustomerPreferences(formData.phone, formData.detergentId || null, chosenExtraIds)
+              }
             }}
             metadata={checkoutMeta}
           />
@@ -1250,6 +1258,32 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                 </div>
               )}
             </div>
+
+            <div>
+              <h4 className="font-bold text-[var(--brand-primary)] text-sm mb-2">{tf.specialInstructionsLabel}</h4>
+              <textarea
+                value={formData.specialInstructions}
+                onChange={e => setFormData(p => ({ ...p, specialInstructions: e.target.value.slice(0, 500) }))}
+                placeholder={tf.specialInstructionsPlaceholder}
+                rows={3}
+                maxLength={500}
+                className="w-full rounded-2xl border-2 border-gray-100 p-4 text-sm focus:outline-none focus:border-[var(--brand-accent)] resize-none"
+              />
+              <p className="text-[11px] text-gray-300 mt-1 text-right">{formData.specialInstructions.length}/500</p>
+            </div>
+
+            {isRecurring && (
+              <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-gray-100 bg-[#f7f8fb] cursor-pointer">
+                <Checkbox
+                  checked={formData.savePreferencesForFuture}
+                  onCheckedChange={c => setFormData(p => ({ ...p, savePreferencesForFuture: c as boolean }))}
+                  className="mt-0.5 shrink-0" />
+                <span className="text-sm text-[var(--brand-primary)]">
+                  <span className="font-semibold">{tf.savePreferencesLabel}</span>
+                  <span className="block text-xs text-gray-400 mt-0.5">{tf.savePreferencesSub}</span>
+                </span>
+              </label>
+            )}
 
             <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1 h-12 text-sm" onClick={() => setStep(1)}>{tf.back}</Button>

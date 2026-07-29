@@ -382,6 +382,14 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
           )}
         </div>
 
+        {/* Customer-supplied note from the booking form — e.g. gate code, where to leave bags */}
+        {booking.customer_instructions && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide mb-1">Customer Note</p>
+            <p className="text-sm text-amber-900 whitespace-pre-wrap">{booking.customer_instructions}</p>
+          </div>
+        )}
+
         {/* Customer wash preferences — detergent, softener, dryer sheets, extras */}
         {(booking.detergent || booking.extras) && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">

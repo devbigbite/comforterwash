@@ -36,6 +36,7 @@ export interface BookingData {
   detergent?: string
   extras?: string
   comforterSizes?: string   // e.g. "Queen:1,King:2"
+  specialInstructions?: string  // customer-supplied note at booking time — surfaced to the operator, distinct from the internal status-timeline `notes` column
 }
 
 function toDateString(val: string): string {
@@ -114,6 +115,7 @@ export async function createBooking(data: BookingData) {
       detergent: data.detergent ?? null,
       extras: data.extras ?? null,
       comforter_sizes: data.comforterSizes ?? null,
+      customer_instructions: data.specialInstructions?.trim() || null,
       color_key: colorKey,
     })
     .select()
