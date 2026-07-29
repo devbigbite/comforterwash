@@ -17,8 +17,29 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { seedNewLocation } from "@/app/actions/super-admin"
 import { sendPlatformDemoGuideEmail } from "@/app/actions/platform-demo-email"
+import { WASHFOLD_DEMO_LOCATION_ID } from "@/lib/location"
 
 const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfoldclean.com"
+
+// New tenants otherwise fall back to the same generic /hero-banner.jpg for all
+// 3 hero slides (see lib/site-images-config.ts's DEFAULT_IMAGES) — repeated,
+// obviously-a-placeholder-looking hero. Copying the WashFoldDemo tenant's own
+// uploaded hero/offer photos gives every prospect's demo site a polished,
+// varied look out of the box instead of that repeated placeholder.
+async function copySiteImagesFromWashFoldDemo(supabase: ReturnType<typeof createAdminClient>, newLocationId: string): Promise<void> {
+  const { data: demoImages } = await supabase
+    .from("settings")
+    .select("key, value")
+    .eq("location_id", WASHFOLD_DEMO_LOCATION_ID)
+    .like("key", "img_%")
+
+  if (!demoImages?.length) return
+
+  await supabase.from("settings").upsert(
+    demoImages.map(({ key, value }) => ({ location_id: newLocationId, key, value })),
+    { onConflict: "location_id,key" }
+  )
+}
 
 function slugify(input: string): string {
   return input
@@ -91,6 +112,7 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
   }
 
   await seedNewLocation(location.id)
+  await copySiteImagesFromWashFoldDemo(supabase, location.id)
 
   await supabase
     .from("platform_demo_requests")
