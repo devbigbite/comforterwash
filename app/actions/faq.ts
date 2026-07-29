@@ -24,9 +24,9 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "gen-1", category: "general", sort_order: 1, active: true,
     question: "How does the service work?",
-    answer: "It's simple: book online, leave your laundry outside, and we take care of the rest. Our driver picks up your bag during your chosen window, we wash and fold everything at our facility, and return it to your door — typically the next day. You'll receive text updates at every step.",
+    answer: "It's simple: book online, leave your laundry outside, and we take care of the rest. Our driver picks up your bag during your chosen window, we wash and fold everything at our facility, and return it to your door within your selected delivery window. You'll receive text updates at every step.",
     question_es: "¿Cómo funciona el servicio?",
-    answer_es: "Es sencillo: reserva en línea, deja tu ropa fuera y nosotros nos encargamos del resto. Nuestro conductor recoge tu bolsa durante la ventana que elijas, lavamos y doblamos todo en nuestra instalación, y lo devolvemos a tu puerta — generalmente al día siguiente. Recibirás actualizaciones por texto en cada paso.",
+    answer_es: "Es sencillo: reserva en línea, deja tu ropa fuera y nosotros nos encargamos del resto. Nuestro conductor recoge tu bolsa durante la ventana que elijas, lavamos y doblamos todo en nuestra instalación, y lo devolvemos a tu puerta dentro de tu ventana de entrega seleccionada. Recibirás actualizaciones por texto en cada paso.",
   },
   {
     id: "gen-2", category: "general", sort_order: 2, active: true,
@@ -45,16 +45,16 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "gen-4", category: "general", sort_order: 4, active: true,
     question: "What do I put my laundry in?",
-    answer: "Any bag works — trash bags, tote bags, laundry bags, whatever you have. You don't need to label anything; our driver will tag your order at pickup. The only thing we can't accept is loose items or open laundry baskets.",
+    answer: "Any closed bag works, but a regular trash bag or laundry bag is preferred. You don't need to label anything; our driver will tag your order at pickup. We cannot accept loose items, laundry baskets, or hampers.",
     question_es: "¿En qué pongo mi ropa?",
-    answer_es: "Cualquier bolsa funciona — bolsas de basura, tote bags, bolsas de lavandería, lo que tengas. No necesitas etiquetar nada; nuestro conductor registrará tu pedido en la recogida. Lo único que no podemos aceptar son artículos sueltos o canastas abiertas.",
+    answer_es: "Cualquier bolsa cerrada funciona, aunque preferimos una bolsa de basura regular o bolsa de lavandería. No necesitas etiquetar nada; nuestro conductor registrará tu pedido en la recogida. No podemos aceptar artículos sueltos, canastas de lavandería ni cestos.",
   },
   {
     id: "gen-5", category: "general", sort_order: 5, active: true,
     question: "Do you check pockets?",
-    answer: "We do our best, but with high order volume we cannot guarantee every pocket is checked before washing. Please remove all items from pockets before sending your laundry — pens, chapstick, gum, coins, lighters. We are not responsible for damage to your garments or others in your order caused by items left in pockets.",
+    answer: "We do not check pockets. Please remove all items from pockets before sending your laundry — pens, chapstick, gum, coins, lighters. We are not responsible for damage to your garments or others in your order caused by items left in pockets.",
     question_es: "¿Revisan los bolsillos?",
-    answer_es: "Hacemos nuestro mejor esfuerzo, pero con el alto volumen de pedidos no podemos garantizar que cada bolsillo sea revisado antes de lavar. Por favor retira todos los artículos de los bolsillos — bolígrafos, chapstick, chicle, monedas, encendedores. No somos responsables de daños causados por artículos dejados en los bolsillos.",
+    answer_es: "No revisamos los bolsillos. Por favor retira todos los artículos de los bolsillos antes de enviar tu ropa — bolígrafos, chapstick, chicle, monedas, encendedores. No somos responsables de daños a tus prendas o a las de otros en tu pedido causados por artículos dejados en los bolsillos.",
   },
   {
     id: "gen-6", category: "general", sort_order: 6, active: true,
