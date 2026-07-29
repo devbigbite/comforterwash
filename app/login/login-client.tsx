@@ -88,7 +88,7 @@ export function LoginForm() {
           <div className="w-16 h-16 rounded-2xl bg-[var(--brand-accent)] flex items-center justify-center text-3xl mx-auto mb-4">
             🧺
           </div>
-          <h1 className="text-2xl font-extrabold text-[var(--brand-primary)]">Sign in to WashFold</h1>
+          <h1 className="text-2xl font-extrabold text-[var(--brand-primary)]">Sign in to {businessName}</h1>
           <p className="text-sm text-gray-400 mt-1">Track orders · Rebook · Manage your account</p>
         </div>
 

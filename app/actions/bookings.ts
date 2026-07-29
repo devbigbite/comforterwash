@@ -255,6 +255,7 @@ export async function updateBookingStatus(bookingId: string, status: string, not
             const { data: sub } = await supabase
               .from("subscriptions")
               .select("id, pickups_completed")
+              .eq("location_id", booking.location_id)
               .eq("customer_email", booking.customer_email)
               .eq("status", "active")
               .in("frequency", ["weekly", "biweekly"])

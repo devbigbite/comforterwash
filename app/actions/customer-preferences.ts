@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
 
 // Sticky wash preferences (detergent + extras/softener/dryer sheets) keyed by
 // customer phone number — the one identifier present on every order, guest
@@ -19,10 +20,12 @@ export async function getCustomerPreferences(phone: string): Promise<CustomerPre
   const normalized = normalizePhone(phone)
   if (normalized.length < 10) return null
 
+  const locationId = await getLocationId()
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("customer_preferences")
     .select("detergent_id, extra_ids")
+    .eq("location_id", locationId)
     .eq("phone", normalized)
     .maybeSingle()
 
@@ -38,15 +41,17 @@ export async function saveCustomerPreferences(
   const normalized = normalizePhone(phone)
   if (normalized.length < 10) return { error: "Invalid phone" }
 
+  const locationId = await getLocationId()
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("customer_preferences")
     .upsert({
+      location_id: locationId,
       phone: normalized,
       detergent_id: detergentId,
       extra_ids: extraIds,
       updated_at: new Date().toISOString(),
-    })
+    }, { onConflict: "location_id,phone" })
 
   if (error) return { error: error.message }
   return {}

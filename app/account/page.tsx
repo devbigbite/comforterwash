@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { format } from "date-fns"
@@ -79,6 +80,7 @@ export default async function AccountPage() {
   if (!user) redirect("/login")
 
   const admin = createAdminClient()
+  const locationId = await getLocationId()
 
   // Profile
   const { data: profile } = await admin
@@ -87,17 +89,23 @@ export default async function AccountPage() {
     .eq("id", user.id)
     .maybeSingle()
 
-  // Bookings — match by user_id OR email (catches pre-auth history)
+  // Bookings — match by user_id OR email, scoped to this tenant only.
+  // Without the location_id filter, a customer who used the same Google/phone
+  // login (or email) across two different tenants would see both businesses'
+  // orders mixed together here — auth is shared across all tenants (one
+  // Supabase project), so tenant isolation has to happen at the query level.
   const { data: bookings } = await admin
     .from("bookings")
     .select("*, order_bags(id, bag_number, label_code, status)")
+    .eq("location_id", locationId)
     .or(`user_id.eq.${user.id},customer_email.eq.${user.email}`)
     .order("created_at", { ascending: false })
 
-  // Monthly plan subscription
+  // Monthly plan subscription — same cross-tenant leak risk, same fix.
   const { data: monthlyPlan } = await admin
     .from("subscriptions")
     .select("*, subscription_plans(name)")
+    .eq("location_id", locationId)
     .eq("customer_email", user.email ?? "")
     .eq("subscription_type", "monthly_plan")
     .in("status", ["active", "paused"])
