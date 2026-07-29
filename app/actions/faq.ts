@@ -203,9 +203,9 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "wf-8", category: "wash_fold", sort_order: 8, active: true,
     question: "When will I get my clothes back?",
-    answer: "Turnaround is typically 48 hours onwards, depending on the delivery schedule you select at booking. You'll get a text update once your order is on its way back to you.",
+    answer: "Turnaround is typically 48 hours onwards, depending on the delivery schedule you select at booking. You'll get timely updates throughout the process, plus pickup and delivery reminders and confirmations.",
     question_es: "¿Cuándo recibiré mi ropa?",
-    answer_es: "El tiempo de entrega es típicamente de 48 horas en adelante, dependiendo del horario de entrega que selecciones al reservar. Recibirás una actualización por mensaje de texto cuando tu pedido esté en camino de regreso.",
+    answer_es: "El tiempo de entrega es típicamente de 48 horas en adelante, dependiendo del horario de entrega que selecciones al reservar. Recibirás actualizaciones oportunas durante todo el proceso, además de recordatorios y confirmaciones de recogida y entrega.",
   },
   {
     id: "wf-9", category: "wash_fold", sort_order: 9, active: true,
