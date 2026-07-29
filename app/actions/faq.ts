@@ -31,9 +31,9 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "gen-2", category: "general", sort_order: 2, active: true,
     question: "What areas do you serve?",
-    answer: "We serve the greater Orlando area. Enter your zip code at the start of the booking to confirm availability in your neighborhood. If you're outside our current service area, email us at clean@washfoldorlando.com and we'll add you to the waitlist.",
+    answer: "We serve your local area — enter your zip code at the start of the booking to confirm availability in your neighborhood. If you're outside our current service area, email us at clean@washfoldorlando.com and we'll add you to the waitlist.",
     question_es: "¿Qué áreas atienden?",
-    answer_es: "Atendemos el área metropolitana de Orlando. Ingresa tu código postal al inicio de la reserva para confirmar disponibilidad en tu vecindario. Si estás fuera de nuestra área de servicio, escríbenos a clean@washfoldorlando.com y te añadiremos a la lista de espera.",
+    answer_es: "Atendemos tu área local — ingresa tu código postal al inicio de la reserva para confirmar disponibilidad en tu vecindario. Si estás fuera de nuestra área de servicio, escríbenos a clean@washfoldorlando.com y te añadiremos a la lista de espera.",
   },
   {
     id: "gen-3", category: "general", sort_order: 3, active: true,
