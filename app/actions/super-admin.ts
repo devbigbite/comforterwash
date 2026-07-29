@@ -87,6 +87,7 @@ const STARTER_SERVICE_OPTIONS: {
   { type: "detergent", name: "Fragrance-Free / Hypoallergenic", description: "Gentle on sensitive skin, no added fragrance", price_cents: 100, enabled: true, sort_order: 1, is_hypoallergenic: true, requires_comforter: false },
   { type: "extra", name: "Fabric Softener", description: "Adds softness and a light scent", price_cents: 0, enabled: false, sort_order: 0, is_hypoallergenic: false, requires_comforter: false },
   { type: "extra", name: "OxyClean", description: "Extra stain-fighting boost", price_cents: 0, enabled: false, sort_order: 1, is_hypoallergenic: false, requires_comforter: false },
+  { type: "extra", name: "Stain Removal", description: "Extra stain treatment for visible stains — no guarantee on deep-set or old stains", price_cents: 900, enabled: true, sort_order: 12, is_hypoallergenic: false, requires_comforter: false },
   { type: "accessory", name: "Premium Laundry Bag", description: "Reusable branded laundry bag", price_cents: 1000, enabled: true, sort_order: 0, is_hypoallergenic: false, requires_comforter: false },
   { type: "accessory", name: "Premium Comforter Bag", description: "Reusable branded comforter storage bag", price_cents: 700, enabled: true, sort_order: 1, is_hypoallergenic: false, requires_comforter: true },
 ]

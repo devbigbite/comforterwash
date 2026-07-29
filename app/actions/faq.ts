@@ -124,16 +124,16 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "cw-5", category: "comforter_wash", sort_order: 5, active: true,
     question: "What if my comforter arrives damp or wet?",
-    answer: "We charge based on the weight received at pickup. If your comforter arrives noticeably wet or damp, our team will flag it and may adjust the order to reflect a fair dry estimate. We'll always notify you before any adjustment is applied. Please ensure your comforter is dry before pickup.",
+    answer: "Comforter Wash pricing is based on size, not weight, so a damp or wet comforter won't change your price. That said, please make sure it's not soaking wet before pickup — a heavily saturated comforter is harder for our team to handle safely and can affect wash quality.",
     question_es: "¿Qué pasa si mi edredón llega húmedo o mojado?",
-    answer_es: "Cobramos según el peso recibido en la recogida. Si tu edredón llega notablemente mojado o húmedo, nuestro equipo lo marcará y podrá ajustar el pedido para reflejar una estimación seca justa. Siempre te notificaremos antes de aplicar cualquier ajuste. Por favor asegúrate de que tu edredón esté seco antes de la recogida.",
+    answer_es: "El precio del Lavado de Edredones se basa en el tamaño, no en el peso, así que un edredón húmedo o mojado no cambiará tu precio. Aun así, asegúrate de que no esté empapado antes de la recogida — un edredón muy saturado es más difícil de manejar de forma segura para nuestro equipo y puede afectar la calidad del lavado.",
   },
   {
     id: "cw-6", category: "comforter_wash", sort_order: 6, active: true,
     question: "How quickly will I get it back?",
-    answer: "Comforters booked today are returned the next day within your selected delivery window. Turnaround is typically 24 hours.",
+    answer: "Comforter Wash turnaround is typically 48 to 72 hours from pickup, depending on your route day and current volume. You'll get a text update once it's on its way back to you.",
     question_es: "¿Qué tan rápido me lo devuelven?",
-    answer_es: "Los edredones reservados hoy se devuelven al día siguiente dentro de tu ventana de entrega seleccionada. El tiempo de respuesta es típicamente de 24 horas.",
+    answer_es: "El tiempo de entrega del Lavado de Edredones es típicamente de 48 a 72 horas desde la recogida, dependiendo de tu día de ruta y el volumen actual. Recibirás una actualización por mensaje de texto cuando esté en camino de regreso.",
   },
   {
     id: "cw-7", category: "comforter_wash", sort_order: 7, active: true,
@@ -145,9 +145,9 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "cw-8", category: "comforter_wash", sort_order: 8, active: true,
     question: "Do you guarantee stain removal?",
-    answer: "We treat visible stains as part of our comforter wash service, but we cannot guarantee full removal. Deep-set, old, or heat-set stains may not come out completely. If you have a heavily stained comforter, note it in your booking and we'll give it extra attention.",
+    answer: "Stain removal is an optional add-on you can select when booking — it isn't included in the standard wash. Even with stain treatment, we can't guarantee full removal: deep-set, old, or heat-set stains may not come out completely. If you have a heavily stained comforter, add the stain removal option and note it in your booking so we can give it extra attention.",
     question_es: "¿Garantizan la eliminación de manchas?",
-    answer_es: "Tratamos las manchas visibles como parte de nuestro servicio de lavado de edredones, pero no podemos garantizar la eliminación total. Las manchas profundas, antiguas o fijadas por calor puede que no salgan completamente. Si tienes un edredón muy manchado, indícalo en tu reserva y le daremos atención extra.",
+    answer_es: "La eliminación de manchas es un servicio adicional opcional que puedes elegir al reservar — no está incluido en el lavado estándar. Incluso con el tratamiento de manchas, no podemos garantizar la eliminación total: las manchas profundas, antiguas o fijadas por calor puede que no salgan completamente. Si tienes un edredón muy manchado, agrega la opción de eliminación de manchas e indícalo en tu reserva para darle atención extra.",
   },
 
   // ── Wash & Fold ───────────────────────────────────────────────────────────
@@ -220,6 +220,13 @@ const DEFAULTS: FaqItem[] = [
     answer: "We offer weekly and biweekly recurring Wash & Fold plans at a slightly reduced per-pound rate. Recurring customers get priority scheduling and a fixed route day. You can pause or cancel anytime through your account or by emailing us.",
     question_es: "¿Qué hay de las suscripciones recurrentes de Lavar y Doblar?",
     answer_es: "Ofrecemos planes recurrentes semanales y quincenales de Lavar y Doblar a una tarifa por libra ligeramente reducida. Los clientes recurrentes obtienen programación prioritaria y un día de ruta fijo. Puedes pausar o cancelar en cualquier momento a través de tu cuenta o escribiéndonos.",
+  },
+  {
+    id: "wf-11", category: "wash_fold", sort_order: 11, active: true,
+    question: "What if my laundry arrives damp or wet?",
+    answer: "Wash & Fold and Wash Only pricing is based on the weight received at pickup. If your laundry arrives noticeably wet or damp, our team will flag it and may adjust the order to reflect a fair dry-weight estimate. We'll always notify you before any adjustment is applied. Please make sure your laundry is dry before pickup. (Note: this doesn't apply to Comforter Wash, which is priced by size, not weight.)",
+    question_es: "¿Qué pasa si mi ropa llega húmeda o mojada?",
+    answer_es: "El precio de Lavar y Doblar y Solo Lavar se basa en el peso recibido en la recogida. Si tu ropa llega notablemente mojada o húmeda, nuestro equipo la marcará y podrá ajustar el pedido para reflejar una estimación justa de peso seco. Siempre te notificaremos antes de aplicar cualquier ajuste. Por favor asegúrate de que tu ropa esté seca antes de la recogida. (Nota: esto no aplica al Lavado de Edredones, que se cobra por tamaño, no por peso.)",
   },
 ]
 
