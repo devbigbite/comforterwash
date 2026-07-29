@@ -18,6 +18,7 @@ export interface PlatformDemoRequest {
   message: string | null
   status: "new" | "contacted" | "closed"
   created_at: string
+  demo_email_sent_at: string | null
 }
 
 export async function getPlatformDemoRequests(): Promise<PlatformDemoRequest[]> {

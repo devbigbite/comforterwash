@@ -6,6 +6,7 @@ import {
   setDemoRequestStatus,
   type PlatformDemoRequest,
 } from "@/app/actions/platform-demo-requests"
+import { resendDemoGuideEmail } from "@/app/actions/platform-demo-email"
 
 const STATUS_COLORS: Record<string, string> = {
   new:       "bg-indigo-100 text-indigo-700",
@@ -22,6 +23,8 @@ const STATUS_CYCLE: Record<string, "new" | "contacted" | "closed"> = {
 export default function DemoRequestsPage() {
   const [requests, setRequests] = useState<PlatformDemoRequest[]>([])
   const [loading, setLoading] = useState(true)
+  const [sendingId, setSendingId] = useState<string | null>(null)
+  const [sentMsg, setSentMsg] = useState<Record<string, string>>({})
   const [, startTransition] = useTransition()
 
   async function load() {
@@ -36,6 +39,15 @@ export default function DemoRequestsPage() {
   async function cycleStatus(r: PlatformDemoRequest) {
     const next = STATUS_CYCLE[r.status]
     await setDemoRequestStatus(r.id, next)
+    startTransition(() => { load() })
+  }
+
+  async function handleResend(id: string) {
+    setSendingId(id)
+    setSentMsg(m => ({ ...m, [id]: "" }))
+    const result = await resendDemoGuideEmail(id)
+    setSendingId(null)
+    setSentMsg(m => ({ ...m, [id]: "error" in result ? `Failed: ${result.error}` : "Sent!" }))
     startTransition(() => { load() })
   }
 
@@ -55,7 +67,8 @@ export default function DemoRequestsPage() {
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Demo Requests</h2>
         <p className="text-sm text-slate-500 mt-1">
-          {requests.length} total{newCount > 0 ? ` · ${newCount} new` : ""} — submitted via the "Request a Demo" form on /platform
+          {requests.length} total{newCount > 0 ? ` · ${newCount} new` : ""} — submitted via the "Request a Demo" form on /platform.
+          Each one automatically gets a thank-you + demo guide email.
         </p>
       </div>
 
@@ -89,6 +102,27 @@ export default function DemoRequestsPage() {
                 <p className="text-xs text-slate-300 mt-2">
                   {new Date(r.created_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
                 </p>
+              </div>
+              <div className="shrink-0 flex flex-col items-end gap-1.5">
+                {r.demo_email_sent_at ? (
+                  <span className="text-[11px] font-medium text-green-600 whitespace-nowrap">
+                    ✓ Demo email sent {new Date(r.demo_email_sent_at).toLocaleDateString()}
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-medium text-amber-600 whitespace-nowrap">Demo email not sent</span>
+                )}
+                <button
+                  onClick={() => handleResend(r.id)}
+                  disabled={sendingId === r.id}
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {sendingId === r.id ? "Sending…" : r.demo_email_sent_at ? "Resend guide" : "Send guide"}
+                </button>
+                {sentMsg[r.id] && (
+                  <span className={`text-[11px] ${sentMsg[r.id].startsWith("Failed") ? "text-red-500" : "text-green-600"}`}>
+                    {sentMsg[r.id]}
+                  </span>
+                )}
               </div>
             </div>
           ))}

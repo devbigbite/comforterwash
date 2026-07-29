@@ -2,6 +2,7 @@
 
 import { Resend } from "resend"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { autoSendDemoGuideEmail } from "./platform-demo-email"
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing")
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
@@ -23,13 +24,23 @@ export async function requestPlatformDemo(formData: FormData) {
   }
 
   // Persist first — the running list at /super-admin/demo-requests is the
-  // durable record; the email below is just the immediate ping. If the
-  // insert fails we still try to send the email so nothing is silently lost.
+  // durable record; the emails below are just the immediate pings. If the
+  // insert fails we still try to send the admin alert so nothing is silently lost.
   try {
     const supabase = createAdminClient()
-    await supabase.from("platform_demo_requests").insert({
-      name, email, phone: phone || null, business: business || null, message: message || null,
-    })
+    const { data: inserted } = await supabase
+      .from("platform_demo_requests")
+      .insert({ name, email, phone: phone || null, business: business || null, message: message || null })
+      .select("id")
+      .single()
+
+    // Fire-and-forget the thank-you + demo guide email to the requester —
+    // never blocks the admin alert below or the form response.
+    if (inserted?.id) {
+      autoSendDemoGuideEmail(inserted.id, { name, email, business: business || null }).catch(
+        err => console.error("[platform-contact] autoSendDemoGuideEmail failed:", err)
+      )
+    }
   } catch (err) {
     console.error("[platform-contact] Failed to record demo request:", err)
   }

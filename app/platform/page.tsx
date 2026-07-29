@@ -9,14 +9,14 @@ import { useLang } from "@/components/lang-provider"
 // components can't export `metadata`.
 
 const FEATURES: { icon: string; en: { title: string; desc: string }; es: { title: string; desc: string } }[] = [
+  { icon: "🏠", en: { title: "No Laundromat Required", desc: "Built for operators who don't own a facility — run everything from home, or partner with a local laundromat as your processing facility for anything that doesn't fit a home machine. Most platforms assume you own a plant; we don't." },
+    es: { title: "No Necesitas una Lavandería Propia", desc: "Diseñado para operadores que no son dueños de una planta — maneja todo desde casa, o asóciate con una lavandería local como tu instalación de procesamiento para lo que no quepa en una máquina casera. La mayoría de plataformas asumen que tienes una planta; la nuestra no." } },
   { icon: "🎨", en: { title: "Your Own Branded Site", desc: "Your business name, logo, and colors — plus a bilingual English/Spanish site out of the box." },
     es: { title: "Tu Propio Sitio de Marca", desc: "El nombre, logo y colores de tu negocio — además de un sitio bilingüe en inglés y español desde el primer día." } },
   { icon: "📅", en: { title: "Booking & Scheduling", desc: "Pickup/delivery time windows, route capacity limits, holiday blackout dates — all self-service." },
     es: { title: "Reservas y Horarios", desc: "Ventanas de recogida/entrega, límites de capacidad por ruta, días festivos bloqueados — todo autogestionable." } },
   { icon: "🧭", en: { title: "Simple or Advanced Admin", desc: "A condensed dashboard for solo operators who don't want the clutter, or the full toolset for teams running a facility." },
     es: { title: "Panel Simple o Avanzado", desc: "Un panel reducido para operadores individuales que no quieren complicaciones, o el set completo de herramientas para equipos que manejan una planta." } },
-  { icon: "🏠", en: { title: "Built for Home-Based Operators", desc: "A single-lane \"Today's Work\" board, a daily load cap so you never overbook, and the option to route large orders or comforters to your own saved laundromat when they don't fit a home machine." },
-    es: { title: "Diseñado para Operadores Caseros", desc: "Un tablero de \"Trabajo de Hoy\" de un solo carril, un límite diario de cargas para nunca sobrevender, y la opción de enviar pedidos grandes o edredones a tu propia lavandería guardada cuando no quepan en una máquina casera." } },
   { icon: "💳", en: { title: "Billing & Subscriptions", desc: "Stripe-powered one-time orders, recurring plans, tips, and promo codes." },
     es: { title: "Facturación y Suscripciones", desc: "Pedidos únicos y planes recurrentes con Stripe, propinas y códigos promocionales." } },
   { icon: "🚚", en: { title: "Driver Dispatch & Tracking", desc: "Optional Shipday integration for live tracking and customer notifications — useful whether you hire drivers or deliver yourself." },
@@ -44,9 +44,10 @@ const INTEGRATIONS = [
 const STRINGS = {
   en: {
     demoBtn: "Request a Demo",
-    eyebrow: "For Laundry Pickup & Delivery Businesses",
+    eyebrow: "For Home-Based & Small Laundry Operators — No Laundromat Required",
     heroTitle: "Run your laundry business on software that grows with you",
-    heroSub: "A branded booking site, an admin dashboard built for one person or a full team, billing, dispatch, and everything in between — whether you run a facility or wash out of your own home.",
+    heroSub: "A branded booking site, an admin dashboard built for one person or a full team, billing, dispatch, and everything in between — whether you wash from your own home or partner with a local laundromat as your processing facility.",
+    founderNote: "We're laundry pickup & delivery operators ourselves, not a software company guessing at what this business needs — and unlike most platforms in this space, we built it for small operators who don't own a laundromat.",
     liveTitle: "See It Running Live",
     liveSub: "WashFold Orlando runs entirely on this platform — every page below is a real, live business, not a mockup.",
     liveLink: "Open the live example ↗",
@@ -68,9 +69,10 @@ const STRINGS = {
   },
   es: {
     demoBtn: "Solicitar una Demo",
-    eyebrow: "Para Negocios de Recogida y Entrega de Lavandería",
+    eyebrow: "Para Operadores Caseros y Pequeños — No Necesitas una Lavandería Propia",
     heroTitle: "Maneja tu negocio de lavandería con software que crece contigo",
-    heroSub: "Un sitio de reservas con tu marca, un panel de administración diseñado para una persona o un equipo completo, facturación, despacho y todo lo demás — ya sea que operes una planta o laves desde tu propia casa.",
+    heroSub: "Un sitio de reservas con tu marca, un panel de administración diseñado para una persona o un equipo completo, facturación, despacho y todo lo demás — ya sea que laves desde tu propia casa o te asocies con una lavandería local como tu instalación de procesamiento.",
+    founderNote: "Somos operadores de recogida y entrega de lavandería nosotros mismos, no una empresa de software adivinando lo que este negocio necesita — y a diferencia de la mayoría de plataformas, la construimos para operadores pequeños que no son dueños de una lavandería.",
     liveTitle: "Míralo Funcionando en Vivo",
     liveSub: "WashFold Orlando funciona completamente en esta plataforma — cada página de abajo es un negocio real y en vivo, no una simulación.",
     liveLink: "Abrir el ejemplo en vivo ↗",
@@ -130,6 +132,9 @@ export default function PlatformPage() {
         <a href="#demo" className="inline-block mt-8 bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-10 py-4 rounded-full uppercase tracking-wide transition-colors shadow-lg">
           {s.demoBtn}
         </a>
+        <p className="text-white/40 text-xs mt-8 max-w-lg mx-auto leading-relaxed italic">
+          {s.founderNote}
+        </p>
       </div>
 
       {/* Live example */}
