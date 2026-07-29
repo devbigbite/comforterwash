@@ -203,16 +203,16 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "wf-8", category: "wash_fold", sort_order: 8, active: true,
     question: "When will I get my clothes back?",
-    answer: "Your order is returned the next day within your selected delivery window — typically within 24 hours of pickup.",
+    answer: "Turnaround is typically 48 hours onwards, depending on the delivery schedule you select at booking. You'll get a text update once your order is on its way back to you.",
     question_es: "¿Cuándo recibiré mi ropa?",
-    answer_es: "Tu pedido se devuelve al día siguiente dentro de tu ventana de entrega seleccionada — típicamente dentro de las 24 horas de la recogida.",
+    answer_es: "El tiempo de entrega es típicamente de 48 horas en adelante, dependiendo del horario de entrega que selecciones al reservar. Recibirás una actualización por mensaje de texto cuando tu pedido esté en camino de regreso.",
   },
   {
     id: "wf-9", category: "wash_fold", sort_order: 9, active: true,
     question: "How are my clothes packaged for return?",
-    answer: "Clothes are neatly folded and returned in the same bag(s) they were picked up in. If you included a separate bag for delicates or special-care items, those are returned in their original bag.",
+    answer: "Clothes are neatly folded and returned in our sanitary clear bags — not the bag(s) you dropped off in.",
     question_es: "¿Cómo se empaca mi ropa para la devolución?",
-    answer_es: "La ropa se dobla cuidadosamente y se devuelve en la(s) misma(s) bolsa(s) en que fue recogida. Si incluiste una bolsa separada para prendas delicadas o de cuidado especial, esas se devuelven en su bolsa original.",
+    answer_es: "La ropa se dobla cuidadosamente y se devuelve en nuestras bolsas transparentes sanitarias — no en la(s) bolsa(s) en que la dejaste.",
   },
   {
     id: "wf-10", category: "wash_fold", sort_order: 10, active: true,
@@ -224,9 +224,9 @@ const DEFAULTS: FaqItem[] = [
   {
     id: "wf-11", category: "wash_fold", sort_order: 11, active: true,
     question: "What if my laundry arrives damp or wet?",
-    answer: "Wash & Fold and Wash Only pricing is based on the weight received at pickup. If your laundry arrives noticeably wet or damp, our team will flag it and may adjust the order to reflect a fair dry-weight estimate. We'll always notify you before any adjustment is applied. Please make sure your laundry is dry before pickup. (Note: this doesn't apply to Comforter Wash, which is priced by size, not weight.)",
+    answer: "Wash & Fold and Wash Only pricing is based on the weight received at pickup, and we're not able to make an adjustment for wet or damp items — the water weight is included in what you're charged. Please make sure your laundry is fully dry before pickup so you're only paying for the laundry itself. (Note: this doesn't apply to Comforter Wash, which is priced by size, not weight.)",
     question_es: "¿Qué pasa si mi ropa llega húmeda o mojada?",
-    answer_es: "El precio de Lavar y Doblar y Solo Lavar se basa en el peso recibido en la recogida. Si tu ropa llega notablemente mojada o húmeda, nuestro equipo la marcará y podrá ajustar el pedido para reflejar una estimación justa de peso seco. Siempre te notificaremos antes de aplicar cualquier ajuste. Por favor asegúrate de que tu ropa esté seca antes de la recogida. (Nota: esto no aplica al Lavado de Edredones, que se cobra por tamaño, no por peso.)",
+    answer_es: "El precio de Lavar y Doblar y Solo Lavar se basa en el peso recibido en la recogida, y no podemos hacer ningún ajuste por artículos húmedos o mojados — el peso del agua queda incluido en lo que se te cobra. Por favor asegúrate de que tu ropa esté completamente seca antes de la recogida para que solo pagues por la ropa en sí. (Nota: esto no aplica al Lavado de Edredones, que se cobra por tamaño, no por peso.)",
   },
 ]
 
