@@ -41,6 +41,15 @@ export async function POST(req: NextRequest) {
             stripe_subscription_id: stripeSubId ?? null,
             billing_status: "active",
           }).eq("id", locationId)
+
+          // If this location started life as a demo request, this is the
+          // moment it actually became a paying tenant — auto-close the
+          // sales funnel entry as "won" instead of leaving it stuck on
+          // whatever stage a human last set (usually "negotiating").
+          await supabase
+            .from("platform_demo_requests")
+            .update({ status: "won", updated_at: new Date().toISOString() })
+            .eq("demo_location_id", locationId)
           break
         }
 

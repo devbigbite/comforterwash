@@ -13,10 +13,13 @@
 // succeeds and keeps billing_status in sync afterward.
 
 import { stripe } from "@/lib/stripe"
+import { Resend } from "resend"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireSuperAdmin, requireAdmin } from "@/lib/auth-guard"
 import { getLocationId, ORLANDO_LOCATION_ID } from "@/lib/location"
 import { revalidatePath } from "next/cache"
+
+const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing")
 
 export interface LocationBilling {
   stripe_customer_id: string | null
@@ -110,6 +113,80 @@ export async function getMyBillingStatus(): Promise<"none" | "trialing" | "activ
   const supabase = createAdminClient()
   const { data } = await supabase.from("locations").select("billing_status").eq("id", locationId).single()
   return (data?.billing_status as "none" | "trialing" | "active" | "past_due" | "canceled") ?? "none"
+}
+
+// ── Sales funnel: send a signup/checkout link to a demo-request lead ──────
+// Sets the plan price on their demo tenant (if given), generates the Stripe
+// Checkout link via createBillingCheckoutLink above, and emails it straight
+// to the lead — this is the "invoicing" step in the sales flow: converting
+// a demo into an actual paid subscription. Marking the lead "won" happens
+// automatically off the Stripe webhook once they actually complete checkout
+// (see app/api/stripe/webhook/route.ts), not here — this only sends the link.
+export async function sendSignupLinkToLead(params: {
+  requestId: string
+  leadEmail: string
+  leadName: string
+  business?: string | null
+  locationId: string
+  planName: string
+  planPriceCents: number
+}): Promise<{ error?: string; success?: true }> {
+  await requireSuperAdmin()
+
+  const priceResult = await setLocationPlanPrice(params.locationId, params.planName, params.planPriceCents)
+  if (priceResult.error) return { error: priceResult.error }
+
+  const linkResult = await createBillingCheckoutLink(params.locationId)
+  if (linkResult.error || !linkResult.url) return { error: linkResult.error ?? "Could not generate checkout link" }
+
+  const firstName = params.leadName.trim().split(" ")[0] || params.leadName
+  const bizPart = params.business ? ` for ${params.business}` : ""
+  const priceDisplay = `$${(params.planPriceCents / 100).toFixed(2)}/mo`
+
+  const result = await resend.emails.send({
+    from: "WashFoldClean <clean@washfoldorlando.com>",
+    to: [params.leadEmail],
+    subject: `${firstName}, here's your WashFoldClean signup link`,
+    html: `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#333">
+        <p style="font-size:15px;line-height:1.6">Hi ${firstName},</p>
+        <p style="font-size:15px;line-height:1.6">
+          Ready to move forward${bizPart}? Here's your signup link for the <strong>${params.planName}</strong> plan
+          (${priceDisplay}) — your demo site becomes your real, live site the moment you complete checkout, nothing
+          to migrate or reconfigure.
+        </p>
+        <div style="text-align:center;margin:24px 0">
+          <a href="${linkResult.url}" style="display:inline-block;background:#E8726A;color:white;font-weight:800;font-size:14px;text-decoration:none;padding:12px 28px;border-radius:999px;text-transform:uppercase;letter-spacing:0.5px">
+            Complete Signup →
+          </a>
+        </div>
+        <p style="font-size:14px;color:#888;line-height:1.6">
+          Questions before you sign up? Just reply to this email.
+        </p>
+        <p style="font-size:14px;color:#888;margin-top:24px">— The WashFoldClean Team</p>
+      </div>
+    `,
+  })
+
+  if (result.error) return { error: result.error.message }
+
+  // Move the funnel entry to "negotiating" if it isn't further along already
+  // (won/lost) — sending a signup link is a clear signal a deal is active.
+  const supabase = createAdminClient()
+  const { data: req } = await supabase
+    .from("platform_demo_requests")
+    .select("status")
+    .eq("id", params.requestId)
+    .single()
+  if (req && req.status !== "won" && req.status !== "lost") {
+    await supabase
+      .from("platform_demo_requests")
+      .update({ status: "negotiating", updated_at: new Date().toISOString() })
+      .eq("id", params.requestId)
+  }
+
+  revalidatePath("/super-admin/demo-requests")
+  return { success: true }
 }
 
 // Cancels a tenant's platform subscription immediately (e.g. offboarding).

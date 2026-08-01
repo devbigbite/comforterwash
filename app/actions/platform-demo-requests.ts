@@ -9,6 +9,20 @@ import { revalidatePath } from "next/cache"
 // happened to serve the page. Only the super admin (platform owner) can see
 // this list.
 
+// Standard SaaS sales pipeline. "demo_viewed" and "negotiating" are set
+// manually by whoever's working the lead today — there's no page-view
+// tracking wired up yet to set demo_viewed automatically.
+export type DemoRequestStatus = "new" | "contacted" | "demo_viewed" | "negotiating" | "won" | "lost"
+
+export const DEMO_REQUEST_STAGES: { value: DemoRequestStatus; label: string }[] = [
+  { value: "new",         label: "New" },
+  { value: "contacted",   label: "Contacted" },
+  { value: "demo_viewed", label: "Demo Viewed" },
+  { value: "negotiating", label: "Negotiating" },
+  { value: "won",         label: "Won" },
+  { value: "lost",        label: "Lost" },
+]
+
 export interface PlatformDemoRequest {
   id: string
   name: string
@@ -16,8 +30,12 @@ export interface PlatformDemoRequest {
   phone: string | null
   business: string | null
   message: string | null
-  status: "new" | "contacted" | "closed"
+  status: DemoRequestStatus
+  lost_reason: string | null
+  follow_up_count: number
+  last_follow_up_sent_at: string | null
   created_at: string
+  updated_at: string
   demo_email_sent_at: string | null
   demo_location_id: string | null
   demo_slug: string | null
@@ -36,12 +54,19 @@ export async function getPlatformDemoRequests(): Promise<PlatformDemoRequest[]> 
   })) as PlatformDemoRequest[]
 }
 
-export async function setDemoRequestStatus(id: string, status: "new" | "contacted" | "closed") {
+// lostReason is only meaningful (and only stored) when status === "lost" —
+// passing it for any other status is ignored so a stale reason from a
+// previous "lost" classification never lingers on the record.
+export async function setDemoRequestStatus(id: string, status: DemoRequestStatus, lostReason?: string) {
   await requireSuperAdmin()
   const supabase = createAdminClient()
   await supabase
     .from("platform_demo_requests")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({
+      status,
+      lost_reason: status === "lost" ? (lostReason?.trim() || null) : null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", id)
   revalidatePath("/super-admin/demo-requests")
 }
