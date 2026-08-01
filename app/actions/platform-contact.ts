@@ -1,6 +1,7 @@
 "use server"
 
 import { Resend } from "resend"
+import { after } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { autoSendDemoGuideEmail } from "./platform-demo-email"
 
@@ -34,12 +35,20 @@ export async function requestPlatformDemo(formData: FormData) {
       .select("id")
       .single()
 
-    // Fire-and-forget: provisions a real demo tenant site (its own
-    // subdomain, seeded content, admin login) and emails the guide to the
-    // requester. Never blocks the admin alert below or the form response.
+    // Provisions a real demo tenant site (its own subdomain, seeded content,
+    // admin login) and emails the guide to the requester. Scheduled via
+    // Next.js's after() rather than a bare un-awaited promise — on Vercel's
+    // serverless runtime, a fire-and-forget promise can get silently killed
+    // once the response is sent, which is exactly what was happening here:
+    // the site (fast) would get created but the email (slower, several
+    // sequential Supabase/Resend calls later in the chain) never went out.
+    // after() keeps the function alive until this work actually finishes.
     if (inserted?.id) {
-      autoSendDemoGuideEmail(inserted.id).catch(
-        err => console.error("[platform-contact] autoSendDemoGuideEmail failed:", err)
+      const requestId = inserted.id
+      after(() =>
+        autoSendDemoGuideEmail(requestId).catch(
+          err => console.error("[platform-contact] autoSendDemoGuideEmail failed:", err)
+        )
       )
     }
   } catch (err) {
