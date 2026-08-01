@@ -4,10 +4,9 @@ import { useEffect, useState, useTransition } from "react"
 import {
   getPlatformDemoRequests,
   setDemoRequestStatus,
-  DEMO_REQUEST_STAGES,
   type PlatformDemoRequest,
-  type DemoRequestStatus,
 } from "@/app/actions/platform-demo-requests"
+import { DEMO_REQUEST_STAGES, type DemoRequestStatus } from "@/lib/demo-request-stages"
 import { resendDemoGuideEmail } from "@/app/actions/platform-demo-email"
 import { sendSignupLinkToLead } from "@/app/actions/platform-billing"
 import { enterTenantAdmin } from "@/app/actions/super-admin"

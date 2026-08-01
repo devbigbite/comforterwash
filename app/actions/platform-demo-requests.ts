@@ -3,25 +3,12 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireSuperAdmin } from "@/lib/auth-guard"
 import { revalidatePath } from "next/cache"
+import type { DemoRequestStatus } from "@/lib/demo-request-stages"
 
 // Platform-wide (not tenant-scoped) — every "Request a Demo" submission from
 // the /platform promo site lands here, regardless of which tenant's hostname
 // happened to serve the page. Only the super admin (platform owner) can see
 // this list.
-
-// Standard SaaS sales pipeline. "demo_viewed" and "negotiating" are set
-// manually by whoever's working the lead today — there's no page-view
-// tracking wired up yet to set demo_viewed automatically.
-export type DemoRequestStatus = "new" | "contacted" | "demo_viewed" | "negotiating" | "won" | "lost"
-
-export const DEMO_REQUEST_STAGES: { value: DemoRequestStatus; label: string }[] = [
-  { value: "new",         label: "New" },
-  { value: "contacted",   label: "Contacted" },
-  { value: "demo_viewed", label: "Demo Viewed" },
-  { value: "negotiating", label: "Negotiating" },
-  { value: "won",         label: "Won" },
-  { value: "lost",        label: "Lost" },
-]
 
 export interface PlatformDemoRequest {
   id: string
