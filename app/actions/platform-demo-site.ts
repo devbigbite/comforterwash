@@ -82,7 +82,11 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
 
   if (!reqRow) return { error: "Demo request not found." }
 
-  // Already created for this request — just recompute the URL and return it.
+  // Site already exists for this request — skip re-provisioning, but still
+  // actually (re)send the guide email. This branch is what "Resend guide"
+  // hits for any lead whose demo site was already created, so it must not
+  // just recompute the URL and bail — that previously made "Resend guide"
+  // report success without sending anything.
   if (reqRow.demo_location_id) {
     const { data: existing } = await supabase
       .from("locations")
@@ -90,7 +94,19 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
       .eq("id", reqRow.demo_location_id)
       .maybeSingle()
     if (existing) {
-      return { success: true, demoUrl: `https://${existing.slug}.${PLATFORM_DOMAIN}`, locationId: reqRow.demo_location_id }
+      const demoUrl = `https://${existing.slug}.${PLATFORM_DOMAIN}`
+      const emailResult = await sendPlatformDemoGuideEmail({
+        name: reqRow.name,
+        email: reqRow.email,
+        business: reqRow.business,
+        demoUrl,
+      })
+      if (emailResult.error) return { error: emailResult.error }
+      await supabase
+        .from("platform_demo_requests")
+        .update({ demo_email_sent_at: new Date().toISOString() })
+        .eq("id", requestId)
+      return { success: true, demoUrl, locationId: reqRow.demo_location_id }
     }
   }
 
