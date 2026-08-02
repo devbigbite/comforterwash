@@ -344,6 +344,24 @@ export async function setHomeDailyCapacity(capacity: number | null): Promise<{ e
   return {}
 }
 
+// "YYYY-MM-DD" or null. Every date before this is blocked from the pickup
+// calendar on all 3 booking forms (see getExcludedDates in
+// app/actions/holidays.ts) — for a tenant that's promoting the service
+// before it's actually ready to run its first route.
+export async function getFirstAvailablePickupDate(): Promise<string | null> {
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase.from("locations").select("first_available_pickup_date").eq("id", locationId).single()
+  return data?.first_available_pickup_date ?? null
+}
+
+export async function setFirstAvailablePickupDate(date: string | null): Promise<{ error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("locations").update({ first_available_pickup_date: date || null }).eq("id", locationId)
+  revalidatePath("/admin/branding")
+  return {}
+}
+
 export async function uploadBrandLogo(formData: FormData): Promise<{ url?: string; error?: string }> {
   await requireAdmin()
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]

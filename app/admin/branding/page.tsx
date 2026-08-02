@@ -5,6 +5,7 @@ import {
   getBrandingSettings, setBrandingSettings, uploadBrandLogo, getDispatchSettings, setDispatchSettings,
   getEmailDomainStatus, addEmailDomain, checkEmailDomainVerification, removeEmailDomain, setEmailLocalPart,
   getOperatingMode, setOperatingMode, getHomeDailyCapacity, setHomeDailyCapacity, type OperatingMode,
+  getFirstAvailablePickupDate, setFirstAvailablePickupDate,
   getAdminViewMode,
   type BrandingSettings, type DispatchSettings, type EmailDomainStatus,
 } from "@/app/actions/branding"
@@ -183,6 +184,7 @@ export default function BrandingPage() {
 
       <StripeConnectSection />
       <OperatingModeSection />
+      <LaunchDateSection />
       <FulfillmentSection />
       {isAdvanced && <EmailDomainSection />}
       <DispatchSection />
@@ -676,6 +678,55 @@ function OperatingModeSection() {
         </div>
       )}
 
+      {saved && <p className="text-green-600 text-sm font-semibold mt-3">✓ Saved</p>}
+    </div>
+  )
+}
+
+// ── First available pickup date — for promoting the site before service
+// actually starts. Every date up to (not including) this one is blocked
+// from the pickup calendar on all 3 booking forms, same mechanism as a
+// holiday block (see getExcludedDates in app/actions/holidays.ts).
+function LaunchDateSection() {
+  const [date, setDate] = useState<string>("")
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    getFirstAvailablePickupDate().then(d => setDate(d ?? ""))
+  }, [])
+
+  async function save() {
+    setSaving(true)
+    await setFirstAvailablePickupDate(date || null)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xl">🚀</span>
+        <h2 className="font-extrabold text-[#0D2240] text-base">First Available Pickup Date</h2>
+      </div>
+      <p className="text-xs text-gray-400 mb-5">
+        Promoting your site before you're ready to run your first pickup? Set the earliest date customers can book —
+        every day before it is blocked on the booking calendar, same as a holiday. Leave blank once you're open with no restriction.
+      </p>
+      <div className="flex items-center gap-3">
+        <input
+          type="date" value={date}
+          onChange={e => setDate(e.target.value)}
+          className={`${FIELD_CLS} max-w-[200px]`}
+        />
+        <button
+          type="button" disabled={saving} onClick={save}
+          className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-colors disabled:opacity-60 uppercase tracking-wide"
+        >
+          Save
+        </button>
+      </div>
       {saved && <p className="text-green-600 text-sm font-semibold mt-3">✓ Saved</p>}
     </div>
   )

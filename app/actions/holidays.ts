@@ -20,6 +20,12 @@ export async function getExcludedDates(): Promise<string[]> {
 
   const excluded: string[] = []
 
+  // "Not open yet" — e.g. a tenant that's promoting the service before their
+  // first real pickup day. Every date from today up to (but not including)
+  // this one gets excluded, same mechanism as a holiday block. Reads the
+  // same `locations` row already fetched below for home_daily_capacity, so
+  // this doesn't add an extra query.
+
   if (data) {
     for (const row of data) {
       const start = row.date as string
@@ -45,9 +51,18 @@ export async function getExcludedDates(): Promise<string[]> {
   // cap by default, so this is a no-op for them.
   const { data: loc } = await supabase
     .from("locations")
-    .select("operating_mode, home_daily_capacity")
+    .select("operating_mode, home_daily_capacity, first_available_pickup_date")
     .eq("id", locationId)
     .single()
+
+  if (loc?.first_available_pickup_date && loc.first_available_pickup_date > todayET()) {
+    const cur = new Date(todayET() + "T00:00:00")
+    const firstAvailable = new Date(loc.first_available_pickup_date + "T00:00:00")
+    while (cur < firstAvailable) {
+      excluded.push(cur.toISOString().split("T")[0])
+      cur.setDate(cur.getDate() + 1)
+    }
+  }
 
   if (loc?.operating_mode === "home" && loc.home_daily_capacity) {
     const { data: counts } = await supabase
