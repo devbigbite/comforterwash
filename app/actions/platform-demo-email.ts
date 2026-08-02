@@ -238,6 +238,8 @@ export async function runDemoFollowUpSequence(): Promise<{ checked: number; sent
         .from("platform_demo_requests")
         .update({ follow_up_count: step, last_follow_up_sent_at: new Date().toISOString() })
         .eq("id", lead.id)
+      const { logAutomatedActivity } = await import("@/app/actions/platform-demo-activities")
+      await logAutomatedActivity(lead.id, "email_sent", `Automated follow-up #${step} sent`)
       sent++
     } catch (err) {
       errors.push(`${lead.email}: ${err instanceof Error ? err.message : "unknown error"}`)

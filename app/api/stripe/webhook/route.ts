@@ -46,10 +46,16 @@ export async function POST(req: NextRequest) {
           // moment it actually became a paying tenant — auto-close the
           // sales funnel entry as "won" instead of leaving it stuck on
           // whatever stage a human last set (usually "negotiating").
-          await supabase
+          const { data: wonRequest } = await supabase
             .from("platform_demo_requests")
             .update({ status: "won", updated_at: new Date().toISOString() })
             .eq("demo_location_id", locationId)
+            .select("id")
+            .maybeSingle()
+          if (wonRequest) {
+            const { logAutomatedActivity } = await import("@/app/actions/platform-demo-activities")
+            await logAutomatedActivity(wonRequest.id, "status_change", "Moved to Won — Stripe checkout completed")
+          }
           break
         }
 

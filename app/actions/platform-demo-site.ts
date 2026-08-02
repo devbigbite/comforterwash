@@ -106,6 +106,8 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
         .from("platform_demo_requests")
         .update({ demo_email_sent_at: new Date().toISOString() })
         .eq("id", requestId)
+      const { logAutomatedActivity } = await import("@/app/actions/platform-demo-activities")
+      await logAutomatedActivity(requestId, "email_sent", "Demo guide email resent")
       return { success: true, demoUrl, locationId: reqRow.demo_location_id }
     }
   }
@@ -155,6 +157,10 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
     .from("platform_demo_requests")
     .update({ demo_email_sent_at: new Date().toISOString() })
     .eq("id", requestId)
+  {
+    const { logAutomatedActivity } = await import("@/app/actions/platform-demo-activities")
+    await logAutomatedActivity(requestId, "email_sent", "Demo guide email sent (auto-provisioned)")
+  }
 
   return { success: true, demoUrl, locationId: location.id }
 }

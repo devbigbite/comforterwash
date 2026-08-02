@@ -185,6 +185,9 @@ export async function sendSignupLinkToLead(params: {
       .eq("id", params.requestId)
   }
 
+  const { logAutomatedActivity } = await import("@/app/actions/platform-demo-activities")
+  await logAutomatedActivity(params.requestId, "email_sent", `Signup link sent — ${params.planName} plan, $${(params.planPriceCents / 100).toFixed(2)}/mo`)
+
   revalidatePath("/super-admin/demo-requests")
   return { success: true }
 }

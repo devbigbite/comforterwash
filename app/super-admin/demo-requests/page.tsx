@@ -10,6 +10,7 @@ import { DEMO_REQUEST_STAGES, type DemoRequestStatus } from "@/lib/demo-request-
 import { resendDemoGuideEmail } from "@/app/actions/platform-demo-email"
 import { sendSignupLinkToLead } from "@/app/actions/platform-billing"
 import { enterTenantAdmin } from "@/app/actions/super-admin"
+import { ActivityPanel } from "./activity-panel"
 
 const STATUS_COLORS: Record<DemoRequestStatus, string> = {
   new:         "bg-indigo-100 text-indigo-700",
@@ -35,6 +36,7 @@ export default function DemoRequestsPage() {
   const [sendingId, setSendingId] = useState<string | null>(null)
   const [sentMsg, setSentMsg] = useState<Record<string, string>>({})
   const [signupPanelId, setSignupPanelId] = useState<string | null>(null)
+  const [activityPanelId, setActivityPanelId] = useState<string | null>(null)
   const [planName, setPlanName] = useState("Standard")
   const [planPrice, setPlanPrice] = useState("99")
   const [, startTransition] = useTransition()
@@ -165,7 +167,23 @@ export default function DemoRequestsPage() {
                   <p className="text-xs text-slate-300 mt-2">
                     {new Date(r.created_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
                     {r.follow_up_count > 0 && <> · {r.follow_up_count} follow-up{r.follow_up_count > 1 ? "s" : ""} sent</>}
+                    {" · "}
+                    <button
+                      onClick={() => setActivityPanelId(activityPanelId === r.id ? null : r.id)}
+                      className="text-indigo-500 hover:underline font-medium"
+                    >
+                      {activityPanelId === r.id ? "Hide activity" : "Activity & Contact"}
+                    </button>
                   </p>
+
+                  {activityPanelId === r.id && (
+                    <ActivityPanel
+                      requestId={r.id}
+                      leadEmail={r.email}
+                      leadName={r.name}
+                      onTouched={() => startTransition(() => { load() })}
+                    />
+                  )}
 
                   {signupPanelId === r.id && (
                     <div className="mt-3 bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex items-end gap-2 flex-wrap">

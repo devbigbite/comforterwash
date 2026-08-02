@@ -55,5 +55,11 @@ export async function setDemoRequestStatus(id: string, status: DemoRequestStatus
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
+
+  // Log the change to the activity timeline so "why did this move?" is
+  // always answerable later, not just "it's Lost now" with no context.
+  const { logAutomatedActivity } = await import("@/app/actions/platform-demo-activities")
+  await logAutomatedActivity(id, "status_change", status === "lost" && lostReason ? `Moved to Lost — ${lostReason.trim()}` : `Moved to ${status}`)
+
   revalidatePath("/super-admin/demo-requests")
 }
