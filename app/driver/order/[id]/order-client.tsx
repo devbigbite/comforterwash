@@ -442,22 +442,6 @@ export default function DriverOrderClient({
                   </div>
                 </div>
 
-                {/* Floor photo — internal only */}
-                <div className={`rounded-xl overflow-hidden border-2 ${warehouseDropoffPhotoErr ? "border-red-400" : hasWarehouseDropoffPhoto ? "border-green-400" : "border-gray-200"}`}>
-                  <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
-                    eventType="photo_facility_dropoff"
-                    label={`📷 Photo — where you placed the bags (internal)`}
-                    onPhotoUploaded={(url?: string) => {
-                      setHasWarehouseDropoffPhoto(true)
-                      setWarehouseDropoffPhotoErr(false)
-                      if (url) setFloorPhotoUrl(url)
-                    }} />
-                  <PhotoRequired taken={hasWarehouseDropoffPhoto} error={warehouseDropoffPhotoErr} />
-                  {hasWarehouseDropoffPhoto && (
-                    <p className="text-[10px] text-gray-400 px-3 pb-2">🔒 Internal only — not visible to customer</p>
-                  )}
-                </div>
-
                 <div>
                   <label className="block text-sm font-bold text-gray-600 uppercase tracking-wide mb-2">
                     Bag Weights (lbs) <span className="text-[#E8726A]">*</span>
@@ -498,6 +482,25 @@ export default function DriverOrderClient({
                   <input type="hidden" name="weightLbs" value={totalWeight.toFixed(1)} />
                   {weightError && (
                     <p className="text-red-500 text-sm font-semibold mt-2">⚠ Enter weight for all bags before confirming — weighing is required</p>
+                  )}
+                </div>
+
+                {/* Floor photo — internal only. Placed right before the
+                    confirm button, after weighing, so the driver photographs
+                    the bags in their final placed/weighed state rather than
+                    mid-process. */}
+                <div className={`rounded-xl overflow-hidden border-2 ${warehouseDropoffPhotoErr ? "border-red-400" : hasWarehouseDropoffPhoto ? "border-green-400" : "border-gray-200"}`}>
+                  <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
+                    eventType="photo_facility_dropoff"
+                    label={`📷 Photo — where you placed the bags (internal)`}
+                    onPhotoUploaded={(url?: string) => {
+                      setHasWarehouseDropoffPhoto(true)
+                      setWarehouseDropoffPhotoErr(false)
+                      if (url) setFloorPhotoUrl(url)
+                    }} />
+                  <PhotoRequired taken={hasWarehouseDropoffPhoto} error={warehouseDropoffPhotoErr} />
+                  {hasWarehouseDropoffPhoto && (
+                    <p className="text-[10px] text-gray-400 px-3 pb-2">🔒 Internal only — not visible to customer</p>
                   )}
                 </div>
 
