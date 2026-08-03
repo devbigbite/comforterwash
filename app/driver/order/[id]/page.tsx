@@ -141,7 +141,13 @@ async function confirmDropoff(formData: FormData) {
   const bookingId       = formData.get("bookingId") as string
   const weightLbs       = parseFloat(formData.get("weightLbs") as string)
   const driverName      = (formData.get("driverName") as string) || "driver"
-  const dropoffLocation = (formData.get("dropoffLocation") as string) || "warehouse"
+  // Facility, not warehouse, is the default drop-off — warehouse is only the
+  // right call for home-based operators routing through a transport run to a
+  // partner laundromat (see getDriverQueue callers / the page-level default
+  // below). Falling back to warehouse here silently mis-routed nearly every
+  // pickup for facility-mode tenants, since most bookings never had
+  // assigned_facility_id pre-set at pickup time.
+  const dropoffLocation = (formData.get("dropoffLocation") as string) || "facility"
   const floorPhotoUrl   = (formData.get("floorPhotoUrl") as string) || null
   if (isNaN(weightLbs) || weightLbs <= 0) return
 
@@ -150,9 +156,23 @@ async function confirmDropoff(formData: FormData) {
   // Look up booking to get locked-in rate for customer billing
   const { data: bk } = await supabase
     .from("bookings")
-    .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents")
+    .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents, assigned_facility_id, location_id")
     .eq("id", bookingId)
     .single()
+
+  // Auto-assign the tenant's own facility if this booking isn't pointed at
+  // one yet — for a facility-mode tenant with exactly one facility (the
+  // overwhelmingly common case), there's no ambiguity to ask the driver
+  // about, and downstream facility-cost billing needs assigned_facility_id
+  // set as soon as possible rather than waiting on a separate admin step.
+  let assignedFacilityId = bk?.assigned_facility_id ?? null
+  if (dropoffLocation === "facility" && !assignedFacilityId && bk?.location_id) {
+    const { data: facilities } = await supabase
+      .from("facilities")
+      .select("id")
+      .eq("location_id", bk.location_id)
+    if (facilities?.length === 1) assignedFacilityId = facilities[0].id
+  }
 
   const ratePerLbCents = bk?.price_per_lb_cents
     ?? DEFAULT_RATE_CENTS[bk?.service_type ?? "wash_fold"]
@@ -172,6 +192,7 @@ async function confirmDropoff(formData: FormData) {
     weight_entered_by:      driverName,
     weight_entered_at:      new Date().toISOString(),
     status:                 newStatus,
+    ...(assignedFacilityId ? { assigned_facility_id: assignedFacilityId } : {}),
     ...(floorPhotoUrl ? { facility_floor_photo_url: floorPhotoUrl } : {}),
   }).eq("id", bookingId)
 
@@ -266,6 +287,21 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
 
   const { data: booking } = await supabase.from("bookings").select("*").eq("id", id).single()
   if (!booking) notFound()
+
+  // Facility is the default drop-off for a facility-mode tenant — warehouse
+  // routing is only correct for home-based operators who transport through a
+  // partner laundromat. Previously this defaulted to warehouse for any
+  // booking that didn't already have a facility pre-assigned, which was
+  // nearly every booking, silently mis-routing almost all pickups.
+  const { data: driverLoc } = await supabase
+    .from("locations")
+    .select("operating_mode")
+    .eq("id", booking.location_id)
+    .maybeSingle()
+  const defaultDropoffLocation: "warehouse" | "facility" =
+    driverLoc?.operating_mode === "home"
+      ? (booking.assigned_facility_id ? "facility" : "warehouse")
+      : "facility"
 
   const { data: bags } = await supabase.from("order_bags").select("*").eq("booking_id", id).order("bag_number")
 
@@ -500,7 +536,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
           estimatedLbs={estimatedLbs}
           takenColors={takenColors}
           existingColorKey={booking.color_key ?? null}
-          dropoffLocation={(booking.assigned_facility_id ? "facility" : "warehouse") as "warehouse" | "facility"}
+          dropoffLocation={defaultDropoffLocation}
           allPending={allPending}
           allPickedUp={allPickedUp}
           somePickedUp={somePickedUp}

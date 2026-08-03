@@ -57,7 +57,7 @@ function PhotoRequired({ taken, error }: { taken: boolean; error: boolean }) {
 export default function DriverOrderClient({
   bookingId, bags, estimatedLbs,
   takenColors = [], existingColorKey,
-  dropoffLocation = "warehouse",
+  dropoffLocation = "facility",
   allPending, allPickedUp, somePickedUp,
   allAtWarehouse, allAtFacility,
   allReady, allReadyAtWarehouse,
