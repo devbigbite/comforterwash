@@ -18,6 +18,43 @@ const COLORS = [
   { key: "purple",  label: "Purple",   hex: "#a855f7" },
 ]
 
+// Grid of color swatches — used both for the initial "no color assigned"
+// error state and the "out of stock, pick another" override. Colors already
+// used by another order today (takenColors) are shown disabled so a driver
+// can't accidentally create a same-day collision, except the order's own
+// currently-selected color, which always stays selectable.
+function ColorPicker({
+  selectedColor, takenColors, onSelect,
+}: {
+  selectedColor: string
+  takenColors: string[]
+  onSelect: (colorKey: string) => void
+}) {
+  return (
+    <div className="grid grid-cols-5 gap-2">
+      {COLORS.map(c => {
+        const isTaken = takenColors.includes(c.key) && c.key !== selectedColor
+        const isSelected = c.key === selectedColor
+        return (
+          <button
+            key={c.key}
+            type="button"
+            disabled={isTaken}
+            onClick={() => onSelect(c.key)}
+            title={isTaken ? `${c.label} — already used by another order today` : c.label}
+            className={`aspect-square rounded-xl flex items-center justify-center transition-all ${
+              isSelected ? "ring-4 ring-[#0D2240] ring-offset-1" : "ring-1 ring-black/5"
+            } ${isTaken ? "opacity-25 cursor-not-allowed" : "hover:scale-105"}`}
+            style={{ background: c.hex }}
+          >
+            {isSelected && <span className="text-white text-lg font-black drop-shadow">✓</span>}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 interface Props {
   bookingId: string
   bags: Bag[]
@@ -75,6 +112,7 @@ export default function DriverOrderClient({
   const [actualBagCount, setActualBagCount] = useState(bags.length)
   const [selectedColor, setSelectedColor]   = useState<string>(existingColorKey ?? "")
   const [colorError, setColorError]         = useState(false)
+  const [showColorPicker, setShowColorPicker] = useState(false)
 
   // Per-bag weights for dropoff
   const [bagWeights, setBagWeights]   = useState<string[]>(() => bags.map(() => ""))
@@ -279,20 +317,37 @@ export default function DriverOrderClient({
                   <PhotoRequired taken={hasCustomerPickupPhoto} error={customerPickupPhotoErr} />
                 </div>
 
-                {/* Color key — pre-assigned, driver just matches */}
+                {/* Color key — pre-assigned, driver just matches. If they're
+                    physically out of that color's stickers, "Change color"
+                    lets them pick a different one still unused by another
+                    order today, rather than being stuck. */}
                 {(() => {
                   const color = COLORS.find(c => c.key === selectedColor)
                   if (!color) return (
-                    <div className="rounded-xl p-4 border-2 border-red-400 bg-red-50">
+                    <div className="rounded-xl p-4 border-2 border-red-400 bg-red-50 space-y-2">
                       <p className="text-sm font-bold text-red-600 uppercase tracking-wide">⚠ No color assigned</p>
-                      <p className="text-sm text-red-500 mt-1">Contact dispatch — this order has no color key assigned.</p>
+                      <p className="text-sm text-red-500">Pick a color below to continue.</p>
+                      <ColorPicker
+                        selectedColor={selectedColor}
+                        takenColors={takenColors}
+                        onSelect={c => { setSelectedColor(c); setColorError(false) }}
+                      />
                     </div>
                   )
                   return (
                     <div className="rounded-xl overflow-hidden border-2 border-gray-200">
                       {/* Header */}
                       <div className="px-4 pt-4 pb-3" style={{ background: color.hex + "18" }}>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Color Key Sticker</p>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Color Key Sticker</p>
+                          <button
+                            type="button"
+                            onClick={() => setShowColorPicker(o => !o)}
+                            className="text-[11px] font-bold text-[#0D2240]/60 hover:text-[#0D2240] underline underline-offset-2 shrink-0"
+                          >
+                            {showColorPicker ? "Cancel" : "Out of stock? Change color"}
+                          </button>
+                        </div>
                         {/* Big swatch + label */}
                         <div className="flex items-center gap-4">
                           <span className="w-16 h-16 rounded-2xl shadow-md ring-4 ring-white shrink-0"
@@ -306,11 +361,21 @@ export default function DriverOrderClient({
                           </div>
                         </div>
                       </div>
-                      <div className="bg-gray-50 px-4 py-2.5 border-t border-gray-100">
-                        <p className="text-sm text-gray-500">
-                          Apply <span className="font-bold" style={{ color: color.hex }}>{color.label}</span> stickers to all {bags.length} bag{bags.length !== 1 ? "s" : ""} in this order. Each order uses a unique color.
-                        </p>
-                      </div>
+                      {showColorPicker ? (
+                        <div className="bg-white px-4 py-3 border-t border-gray-100">
+                          <ColorPicker
+                            selectedColor={selectedColor}
+                            takenColors={takenColors}
+                            onSelect={c => { setSelectedColor(c); setShowColorPicker(false); setColorError(false) }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 px-4 py-2.5 border-t border-gray-100">
+                          <p className="text-sm text-gray-500">
+                            Apply <span className="font-bold" style={{ color: color.hex }}>{color.label}</span> stickers to all {bags.length} bag{bags.length !== 1 ? "s" : ""} in this order. Each order uses a unique color.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )
                 })()}
