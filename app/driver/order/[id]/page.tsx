@@ -288,20 +288,15 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
   const { data: booking } = await supabase.from("bookings").select("*").eq("id", id).single()
   if (!booking) notFound()
 
-  // Facility is the default drop-off for a facility-mode tenant — warehouse
-  // routing is only correct for home-based operators who transport through a
-  // partner laundromat. Previously this defaulted to warehouse for any
-  // booking that didn't already have a facility pre-assigned, which was
-  // nearly every booking, silently mis-routing almost all pickups.
-  const { data: driverLoc } = await supabase
-    .from("locations")
-    .select("operating_mode")
-    .eq("id", booking.location_id)
-    .maybeSingle()
-  const defaultDropoffLocation: "warehouse" | "facility" =
-    driverLoc?.operating_mode === "home"
-      ? (booking.assigned_facility_id ? "facility" : "warehouse")
-      : "facility"
+  // Facility is the default drop-off for every tenant, home-based or not.
+  // For a home operator, "their facility" is almost always just their own
+  // home setup — the "Warehouse"/"transport run" path only makes sense once
+  // they've actually added a partner laundromat (see app/actions/laundromats.ts
+  // and the home-board's "Needs laundromat" toggle), which is the deliberate
+  // exception, not the default. If there's exactly one facility on file for
+  // this tenant (the overwhelmingly common case either way), auto-assign it
+  // below in confirmDropoff so there's no ambiguity to ask the driver about.
+  const defaultDropoffLocation: "warehouse" | "facility" = "facility"
 
   const { data: bags } = await supabase.from("order_bags").select("*").eq("booking_id", id).order("bag_number")
 

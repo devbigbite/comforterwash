@@ -193,16 +193,26 @@ export default function DriverOrderClient({
   }
 
   // Phase logic
-  const inPickupFlow   = allPending || somePickedUp || (allPickedUp && !allAtWarehouse)
+  // "Needs drop-off" is a genuinely different state from "hasn't been picked
+  // up yet" — the old inPickupFlow lumped both together, so an order that
+  // was 100% untouched (allPending, e.g. overdue and never started) showed
+  // the exact same "Pickup in progress / Complete drop-off" banner as one
+  // the driver had actually picked up and was en route with. That's what
+  // made an untouched order look like it was already mid-flow.
+  const needsDropoff   = somePickedUp || (allPickedUp && !allAtWarehouse && !allAtFacility)
+  const inPickupFlow   = allPending || needsDropoff
   const inDeliveryFlow = allReadyAtWarehouse || allOutForDel
   const showPickup     = inPickupFlow   && !isDeliveryDay
   const showDelivery   = inDeliveryFlow && !isPickupDay
+  const dropoffWord    = dropoffLocation === "facility" ? "facility" : "warehouse"
+  const isPastPickup   = !!pickupDate && pickupDate < today
 
   // Banner
   const todayBanner =
-    isPickupDay     ? { label: "Today: Pickup",     sub: `Weigh + drop at warehouse · delivery ${deliveryDate}`,      bg: "bg-[#E8726A]", icon: "📦" }
+    isPickupDay     ? { label: "Today: Pickup",     sub: `Weigh + drop at ${dropoffWord} · delivery ${deliveryDate}`,  bg: "bg-[#E8726A]", icon: "📦" }
   : isDeliveryDay   ? { label: "Today: Delivery",   sub: "Collect clean bags from warehouse · return to customer",     bg: "bg-[#0D2240]", icon: "🚐" }
-  : inPickupFlow    ? { label: "Pickup in progress",sub: "Complete warehouse drop-off",                                bg: "bg-orange-500", icon: "⏳" }
+  : needsDropoff    ? { label: "Pickup in progress",sub: `Complete ${dropoffWord} drop-off`,                           bg: "bg-orange-500", icon: "⏳" }
+  : allPending      ? { label: isPastPickup ? "Pickup Overdue" : "Upcoming Pickup", sub: "Pick up from customer",     bg: isPastPickup ? "bg-red-500" : "bg-orange-500", icon: isPastPickup ? "⚠️" : "📦" }
   : allAtWarehouse  ? { label: "At Warehouse",      sub: "Waiting for transport run to assign to facility",            bg: "bg-amber-500",  icon: "🏪" }
   : allAtFacility && !allReady
                     ? { label: "Being Processed",   sub: `At facility${assignedFacilityName ? ` (${assignedFacilityName})` : ""} · delivery ${deliveryDate}`, bg: "bg-purple-600", icon: "🏭" }
@@ -235,7 +245,7 @@ export default function DriverOrderClient({
             <span className="text-2xl">📦</span>
             <div>
               <p className="text-white font-extrabold text-lg uppercase tracking-wide">Pickup Phase</p>
-              <p className="text-white/80 text-sm">Collect bags from customer · weigh · drop at warehouse</p>
+              <p className="text-white/80 text-sm">Collect bags from customer · weigh · drop at {dropoffWord}</p>
             </div>
           </div>
 
