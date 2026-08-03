@@ -74,6 +74,7 @@ function KanbanCard({
   const bagCount = b.num_bags ?? b.num_comforters ?? 1
   const synced = type === "pickup" ? !!b.shipday_pickup_order_id : !!b.shipday_delivery_order_id
   const window = type === "pickup" ? b.pickup_time_window : b.delivery_time_window
+  const isUnassigned = !currentDriverId
 
   function flash(msg: string) {
     setToast(msg)
@@ -165,6 +166,21 @@ function KanbanCard({
             else if (isTomorrow(parseISO(d))) dateLabel = " · Tomorrow"
             else dateLabel = " · " + format(parseISO(d), "MMM d")
           }
+          // Unassigned cards get a plain "needs a driver" flag instead of the
+          // driver-workflow arrow (e.g. "→ Facility or Warehouse") — that
+          // badge describes what happens once someone's actually driving the
+          // order, which reads as confusing/already-in-motion when nobody's
+          // assigned yet. This makes the actual blocker obvious at a glance.
+          if (isUnassigned) {
+            return (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <span className="text-[9px] font-bold text-[#0D2240]/50">Needs a driver{dateLabel}</span>
+                <span className="text-[9px] font-black text-amber-600 ml-auto border border-amber-300 bg-amber-50 px-1.5 py-0.5 rounded">
+                  ⚠ Unassigned
+                </span>
+              </div>
+            )
+          }
           return action ? (
             <div className="flex items-center gap-1.5 mt-1.5">
               <span className="text-[9px] font-bold text-[#0D2240]/50">{action.label}{dateLabel}</span>
@@ -185,70 +201,102 @@ function KanbanCard({
         </div>
       </button>
 
-      {/* Expanded assign panel */}
+      {/* Always-visible quick-assign — the actual next step for an unassigned
+          order shouldn't be hidden behind an expand click. Skipped entirely
+          if there are no drivers yet (that empty-state banner already tells
+          the admin what to do instead). */}
+      {isUnassigned && drivers.length > 0 && (
+        <div className="px-3 pb-2.5">
+          <select
+            defaultValue=""
+            disabled={isPending}
+            onChange={e => { if (e.target.value) handleAssign(e.target.value) }}
+            className="w-full text-[11px] font-bold text-[#0D2240] border-2 border-amber-300 bg-amber-50 rounded-lg px-2 py-1.5 disabled:opacity-50"
+          >
+            <option value="" disabled>Assign to driver…</option>
+            {drivers.map(d => (
+              <option key={d.id} value={d.id}>
+                {d.name}{!d.shipday_email ? " (no Shipday email)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Expanded panel */}
       {open && (
         <div className="border-t border-gray-100 bg-gray-50 rounded-b-xl px-3 py-2.5 space-y-2">
-          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Quick actions</p>
-          <div className="grid grid-cols-2 gap-1">
-            {ROUTE_ACTIONS.map(a => {
-              const isCurrent = a.status === b.status
-              return (
-                <button
-                  key={a.status}
-                  type="button"
-                  disabled={statusPending}
-                  onClick={() => setStatus(a.status, a.note)}
-                  className={`text-[10px] font-bold py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
-                    isCurrent
-                      ? "bg-[#0D2240] text-white border-[#0D2240]"
-                      : "bg-white text-gray-500 border-gray-200 hover:border-[#0D2240] hover:text-[#0D2240]"
-                  }`}
-                >
-                  {a.label}
-                </button>
-              )
-            })}
-          </div>
-          <p className="text-[9px] text-gray-400 -mt-1">Routing/status only — no billing or payment effect.</p>
+          {isUnassigned ? (
+            // Routing actions (send to facility, mark delivered, etc.) don't
+            // apply yet — nobody's actually driving this order. Keep the
+            // expand panel focused on the one thing that unblocks it.
+            <p className="text-[10px] text-gray-400">
+              Pick a driver above to move this into their route. Routing actions (send to facility, mark delivered, etc.)
+              unlock once a driver is assigned.
+            </p>
+          ) : (
+            <>
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Quick actions</p>
+              <div className="grid grid-cols-2 gap-1">
+                {ROUTE_ACTIONS.map(a => {
+                  const isCurrent = a.status === b.status
+                  return (
+                    <button
+                      key={a.status}
+                      type="button"
+                      disabled={statusPending}
+                      onClick={() => setStatus(a.status, a.note)}
+                      className={`text-[10px] font-bold py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+                        isCurrent
+                          ? "bg-[#0D2240] text-white border-[#0D2240]"
+                          : "bg-white text-gray-500 border-gray-200 hover:border-[#0D2240] hover:text-[#0D2240]"
+                      }`}
+                    >
+                      {a.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-[9px] text-gray-400 -mt-1">Routing/status only — no billing or payment effect.</p>
 
-          <button
-            type="button"
-            disabled={statusPending}
-            onClick={removeFromDriver}
-            className="w-full text-[10px] font-bold text-red-500 hover:text-red-700 border border-red-200 hover:border-red-300 bg-red-50 rounded-lg py-1.5 transition-colors disabled:opacity-50"
-          >
-            ✕ Remove from driver — pickup failed
-          </button>
-          <p className="text-[9px] text-gray-400 -mt-1">Customer didn't leave items out, wasn't home, etc. Unassigns the driver and returns this to Confirmed for reassignment.</p>
-
-          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide pt-1">Assign driver</p>
-          <div className="grid gap-1">
-            {drivers.map(d => (
               <button
-                key={d.id}
+                type="button"
+                disabled={statusPending}
+                onClick={removeFromDriver}
+                className="w-full text-[10px] font-bold text-red-500 hover:text-red-700 border border-red-200 hover:border-red-300 bg-red-50 rounded-lg py-1.5 transition-colors disabled:opacity-50"
+              >
+                ✕ Remove from driver — pickup failed
+              </button>
+              <p className="text-[9px] text-gray-400 -mt-1">Customer didn't leave items out, wasn't home, etc. Unassigns the driver and returns this to Confirmed for reassignment.</p>
+
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide pt-1">Reassign to a different driver</p>
+              <div className="grid gap-1">
+                {drivers.map(d => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => handleAssign(d.id)}
+                    className={`w-full text-left text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors ${
+                      d.id === currentDriverId
+                        ? "bg-[#E8726A] text-white border-[#E8726A]"
+                        : "bg-white text-[#0D2240] border-gray-200 hover:border-[#E8726A] hover:bg-red-50"
+                    } disabled:opacity-50`}
+                  >
+                    {d.id === currentDriverId ? "✓ " : ""}{d.name}
+                    {!d.shipday_email && <span className="ml-1 text-[9px] text-amber-500">(no Shipday email)</span>}
+                  </button>
+                ))}
+              </div>
+              <button
                 type="button"
                 disabled={isPending}
-                onClick={() => handleAssign(d.id)}
-                className={`w-full text-left text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors ${
-                  d.id === currentDriverId
-                    ? "bg-[#E8726A] text-white border-[#E8726A]"
-                    : "bg-white text-[#0D2240] border-gray-200 hover:border-[#E8726A] hover:bg-red-50"
-                } disabled:opacity-50`}
+                onClick={handleUnassign}
+                className="w-full text-[10px] text-red-400 hover:text-red-600 font-semibold py-1 transition-colors disabled:opacity-50"
               >
-                {d.id === currentDriverId ? "✓ " : ""}{d.name}
-                {!d.shipday_email && <span className="ml-1 text-[9px] text-amber-500">(no Shipday email)</span>}
+                Remove driver assignment
               </button>
-            ))}
-          </div>
-          {currentDriverId && (
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={handleUnassign}
-              className="w-full text-[10px] text-red-400 hover:text-red-600 font-semibold py-1 transition-colors disabled:opacity-50"
-            >
-              Remove driver assignment
-            </button>
+            </>
           )}
           <Link href={`/admin/orders/${b.id}`} className="block text-center text-[10px] text-gray-400 hover:text-[#0D2240] font-semibold pt-0.5">
             View full order →
@@ -302,6 +350,11 @@ function DriverColumn({
             isUnassigned ? "bg-amber-200 text-amber-700" : "bg-gray-100 text-gray-500"
           }`}>{total}</span>
         </div>
+        {isUnassigned && total > 0 && (
+          <p className="text-[10px] text-amber-700 mt-0.5">
+            Pick a driver on each card below to send it into that driver's route.
+          </p>
+        )}
         {!isUnassigned && (
           <p className="text-[10px] text-gray-400 mt-0.5 truncate">
             {driver!.shipday_email ?? <span className="text-amber-500">No Shipday email</span>}
@@ -319,7 +372,7 @@ function DriverColumn({
       <div className="p-2 flex-1 overflow-y-auto max-h-[70vh]">
         {total === 0 && (
           <p className="text-center text-[10px] text-gray-300 py-6">
-            {isUnassigned ? "All assigned 🎉" : "Nothing assigned yet"}
+            {isUnassigned ? "All assigned 🎉" : "Nothing assigned yet — orders land in Unassigned until you pick a driver for them."}
           </p>
         )}
         {(() => {
