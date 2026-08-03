@@ -26,12 +26,20 @@ export async function getDriverQueue(driverId: string): Promise<{
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
 
+  // lte (not eq) on purpose — a booking whose pickup/delivery date has
+  // already passed but is still sitting in an unfinished status (e.g. a
+  // pickup that was scheduled but never actually happened) needs to stay
+  // visible to the driver as overdue, not silently vanish from their queue
+  // once the day rolls over. The admin dispatch board already shows these
+  // regardless of date; before this fix the driver's own view disagreed
+  // with it and dropped them entirely — a real order could be assigned to a
+  // driver in the admin view yet never appear on that driver's phone.
   const [{ data: pickups }, { data: deliveries }] = await Promise.all([
     supabase
       .from("bookings")
       .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
       .eq("location_id", locationId)
-      .eq("pickup_date", today)
+      .lte("pickup_date", today)
       .in("status", ["confirmed", "picked_up"])
       .eq("assigned_driver_id", driverId)
       .order("pickup_date"),
@@ -39,7 +47,7 @@ export async function getDriverQueue(driverId: string): Promise<{
       .from("bookings")
       .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
       .eq("location_id", locationId)
-      .eq("delivery_date", today)
+      .lte("delivery_date", today)
       .in("status", ["ready", "ready_at_warehouse", "out_for_delivery"])
       .eq("assigned_driver_id", driverId)
       .order("delivery_date"),
