@@ -30,15 +30,36 @@ const DRIVER_ACTION: Record<string, { label: string; arrow: string }> = {
   out_for_delivery:   { label: "Out for delivery",         arrow: "→ Customer"              },
 }
 
-// Operational dispatcher moves — purely routing/status, never touches
-// weight, pricing, or payment capture (that only happens in the driver
-// app's own dropoff/delivery flow).
+// Operational dispatcher moves — the common few, shown as one-tap buttons.
+// Purely routing/status, never touches weight, pricing, or payment capture
+// (that only happens in the driver app's own dropoff/delivery flow).
 const ROUTE_ACTIONS: { status: string; label: string; note: string }[] = [
   { status: "picked_up",        label: "↩ Back to Picked Up",   note: "Sent back to Picked Up by dispatcher — driver needs to return for something missed." },
   { status: "at_facility",      label: "→ Send to Facility",     note: "Routed to facility by dispatcher." },
   { status: "at_warehouse",     label: "→ Send to Warehouse",    note: "Routed to warehouse by dispatcher." },
   { status: "out_for_delivery", label: "→ Start Delivery",       note: "Delivery run started by dispatcher." },
   { status: "delivered",        label: "✓ Mark Delivered",       note: "Marked delivered by dispatcher (confirmed by phone)." },
+]
+
+// Full lifecycle — every status an order can ever be in, for the "Force to
+// any stage" override dropdown below the quick-action buttons. This is the
+// actual "god mode" escape hatch: testing, fixing a stuck order, or
+// correcting a mistake shouldn't require walking through the driver/operator
+// apps step by step. Same underlying setBookingStatusAction as the quick
+// buttons above — just unrestricted.
+const ALL_STATUSES: { value: string; label: string }[] = [
+  { value: "confirmed",          label: "Confirmed (awaiting pickup)" },
+  { value: "picked_up",          label: "Picked Up" },
+  { value: "at_facility",        label: "At Facility" },
+  { value: "at_warehouse",       label: "At Warehouse" },
+  { value: "in_washer",          label: "In Washer" },
+  { value: "in_dryer",           label: "In Dryer" },
+  { value: "folded",             label: "Folded" },
+  { value: "ready",              label: "Ready (at facility)" },
+  { value: "ready_at_warehouse", label: "Ready at Warehouse" },
+  { value: "out_for_delivery",   label: "Out for Delivery" },
+  { value: "delivered",          label: "Delivered" },
+  { value: "cancelled",          label: "Cancelled" },
 ]
 
 // ─── Mini order card for kanban ───────────────────────────────────────────────
@@ -69,6 +90,13 @@ function KanbanCard({
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [statusPending, startStatusTransition] = useTransition()
+  const [reschedulePending, startRescheduleTransition] = useTransition()
+  const [cancelPending, startCancelTransition] = useTransition()
+  const [showReschedule, setShowReschedule] = useState(false)
+  const [newPickupDate, setNewPickupDate] = useState(b.pickup_date ?? "")
+  const [newPickupWindow, setNewPickupWindow] = useState(b.pickup_time_window ?? "9am-1pm")
+  const [newDeliveryDate, setNewDeliveryDate] = useState(b.delivery_date ?? "")
+  const [newDeliveryWindow, setNewDeliveryWindow] = useState(b.delivery_time_window ?? "9am-1pm")
   const [toast, setToast] = useState<string | null>(null)
   const orderCode = b.short_code ?? b.id.slice(0, 6).toUpperCase()
   const bagCount = b.num_bags ?? b.num_comforters ?? 1
@@ -130,6 +158,38 @@ function KanbanCard({
       await setBookingStatusAction(fd)
       setOpen(false)
       flash("Removed from driver")
+    })
+  }
+
+  function saveReschedule() {
+    const fd = new FormData()
+    fd.set("bookingId", b.id)
+    fd.set("currentDate", date)
+    if (type === "pickup") {
+      fd.set("type", "pickup")
+      fd.set("newDate", newPickupDate)
+      fd.set("newWindow", newPickupWindow)
+    } else {
+      fd.set("type", "delivery")
+      fd.set("newDate", newDeliveryDate)
+      fd.set("newWindow", newDeliveryWindow)
+    }
+    startRescheduleTransition(async () => {
+      await rescheduleAction(fd)
+      setShowReschedule(false)
+      flash("Rescheduled ✓")
+    })
+  }
+
+  function handleCancelOrder() {
+    if (!globalThis.confirm(`Cancel order ${orderCode}? This cancels any Shipday dispatch and marks the order cancelled — it can't be undone from here.`)) return
+    const fd = new FormData()
+    fd.set("bookingId", b.id)
+    fd.set("date", date)
+    startCancelTransition(async () => {
+      await cancelAction(fd)
+      setOpen(false)
+      flash("Order cancelled")
     })
   }
 
@@ -298,6 +358,82 @@ function KanbanCard({
               </button>
             </>
           )}
+
+          {/* ── Admin override — full control, independent of driver/operator
+              flow or current assignment state. Force any order to any stage,
+              change its date/window, or cancel it outright, without walking
+              through the driver/operator apps. Always available, even
+              unassigned, since testing/fixing a stuck order shouldn't
+              require a driver to exist first. */}
+          <div className="border-t border-gray-200 pt-2 mt-1 space-y-2">
+            <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Admin override</p>
+
+            <div>
+              <label className="block text-[9px] text-gray-400 mb-1">Force to any stage</label>
+              <select
+                value={b.status}
+                disabled={statusPending}
+                onChange={e => setStatus(e.target.value, `Force-set to "${e.target.value}" by admin override.`)}
+                className="w-full text-[11px] font-bold text-[#0D2240] border-2 border-gray-300 bg-white rounded-lg px-2 py-1.5 disabled:opacity-50"
+              >
+                {ALL_STATUSES.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {showReschedule ? (
+              <div className="bg-white border border-gray-200 rounded-lg p-2 space-y-2">
+                {type === "pickup" ? (
+                  <div className="flex items-center gap-1.5">
+                    <input type="date" value={newPickupDate} onChange={e => setNewPickupDate(e.target.value)}
+                      className="flex-1 text-[11px] rounded-md border border-gray-300 px-1.5 py-1" />
+                    <select value={newPickupWindow} onChange={e => setNewPickupWindow(e.target.value)}
+                      className="text-[11px] rounded-md border border-gray-300 px-1.5 py-1">
+                      <option value="9am-1pm">9am–1pm</option>
+                      <option value="3pm-7pm">3pm–7pm</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <input type="date" value={newDeliveryDate} onChange={e => setNewDeliveryDate(e.target.value)}
+                      className="flex-1 text-[11px] rounded-md border border-gray-300 px-1.5 py-1" />
+                    <select value={newDeliveryWindow} onChange={e => setNewDeliveryWindow(e.target.value)}
+                      className="text-[11px] rounded-md border border-gray-300 px-1.5 py-1">
+                      <option value="9am-1pm">9am–1pm</option>
+                      <option value="3pm-7pm">3pm–7pm</option>
+                    </select>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <button type="button" disabled={reschedulePending} onClick={saveReschedule}
+                    className="flex-1 text-[10px] font-bold bg-[#0D2240] text-white rounded-md py-1.5 disabled:opacity-50">
+                    {reschedulePending ? "Saving…" : "Save new date"}
+                  </button>
+                  <button type="button" onClick={() => setShowReschedule(false)}
+                    className="text-[10px] text-gray-400 px-2">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowReschedule(true)}
+                className="w-full text-[10px] font-bold text-[#0D2240] border-2 border-gray-300 bg-white hover:border-[#0D2240] rounded-lg py-1.5 transition-colors"
+              >
+                📅 Reschedule {type === "pickup" ? "pickup" : "delivery"} date/window
+              </button>
+            )}
+
+            <button
+              type="button"
+              disabled={cancelPending}
+              onClick={handleCancelOrder}
+              className="w-full text-[10px] font-bold text-red-600 border-2 border-red-200 hover:border-red-400 bg-red-50 rounded-lg py-1.5 transition-colors disabled:opacity-50"
+            >
+              {cancelPending ? "Cancelling…" : "🗑 Cancel Order"}
+            </button>
+          </div>
+
           <Link href={`/admin/orders/${b.id}`} className="block text-center text-[10px] text-gray-400 hover:text-[#0D2240] font-semibold pt-0.5">
             View full order →
           </Link>

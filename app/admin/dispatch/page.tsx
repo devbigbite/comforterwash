@@ -150,7 +150,21 @@ async function cancelAction(formData: FormData) {
   await requireAdmin()
   const bookingId = formData.get("bookingId") as string
   const date      = formData.get("date")      as string
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+
+  // Previously this only cancelled the Shipday dispatch orders and never
+  // actually touched the booking's own status — so "Cancel Order" appeared
+  // to work but the order stayed "confirmed"/"picked_up" etc. forever,
+  // still showing up on the dispatch board as active.
   await cancelShipdayOrders(bookingId)
+  await supabase.from("bookings").update({ status: "cancelled" }).eq("id", bookingId).eq("location_id", locationId)
+  await supabase.from("order_bags").update({ status: "cancelled" }).eq("booking_id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "cancelled",
+    notes: "Order cancelled by admin from the dispatch board.",
+    created_by: "admin",
+  })
   revalidatePath(`/admin/dispatch?date=${date}`)
 }
 
