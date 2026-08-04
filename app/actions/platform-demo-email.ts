@@ -1,8 +1,6 @@
 "use server"
 
 import { Resend } from "resend"
-import { readFile } from "fs/promises"
-import path from "path"
 import { requireSuperAdmin } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -97,9 +95,18 @@ export async function sendPlatformDemoGuideEmail(params: {
   // Attach the standalone PDF guide (public/demo-guide.pdf) — same content as
   // the email itself, but something they can save, print, or forward to a
   // partner without digging back through their inbox.
+  //
+  // Fetched over HTTP rather than read off disk — a serverless function's
+  // filesystem (process.cwd()) doesn't reliably include everything under
+  // public/ at runtime, which is exactly what was happening here (confirmed
+  // via prod logs: ENOENT on every send). public/ files ARE always served
+  // over HTTP by Vercel's CDN, so fetching the live URL is the reliable path.
   let attachments: { filename: string; content: Buffer }[] | undefined
   try {
-    const pdfBuffer = await readFile(path.join(process.cwd(), "public", "demo-guide.pdf"))
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.comforterwash.com"
+    const res = await fetch(`${siteUrl}/demo-guide.pdf`)
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`)
+    const pdfBuffer = Buffer.from(await res.arrayBuffer())
     attachments = [{ filename: "WashFoldClean-Demo-Guide.pdf", content: pdfBuffer }]
   } catch (err) {
     console.error("[platform-demo-email] Could not attach PDF guide:", err)
