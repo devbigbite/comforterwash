@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import type { TransportRun } from "@/app/actions/transport-runs"
 import type { AerialOrder } from "@/types/dispatch"
@@ -193,6 +194,7 @@ export function AerialView({
   date?: string
   setBookingStatusAction?: (fd: FormData) => Promise<void>
 }) {
+  const router = useRouter()
   const [dragOverBucket, setDragOverBucket] = useState<BucketKey | null>(null)
   const [isPending, startTransition] = useTransition()
   const [toast, setToast] = useState<string | null>(null)
@@ -241,6 +243,7 @@ export function AerialView({
       fd.set("date", date ?? "")
       startTransition(async () => {
         await setBookingStatusAction(fd)
+        router.refresh()
         flash("Moved ✓")
       })
     }
