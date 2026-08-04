@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import type { TransportRun } from "@/app/actions/transport-runs"
 
@@ -26,6 +27,7 @@ export function TransferRunsPanel({
   drivers: { id: string; name: string; shipday_email: string | null }[]
   assignRunDriverAction: (runId: string, driverName: string) => Promise<void>
 }) {
+  const router = useRouter()
   const pendingRuns = runs.filter(r => r.status === "pending")
   const [expandedRun, setExpandedRun] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -39,6 +41,7 @@ export function TransferRunsPanel({
   function handleAssign(runId: string, driverName: string) {
     startTransition(async () => {
       await assignRunDriverAction(runId, driverName)
+      router.refresh()
       flash(runId, "Assigned ✓")
     })
   }

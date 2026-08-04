@@ -1,8 +1,12 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import type { FacilityOrder } from "@/app/admin/dispatch/page"
+
+const DRAG_ORDER_MIME  = "application/x-washfold-order-id"
+const DRAG_SOURCE_MIME = "application/x-washfold-source-operator"
 
 const SERVICE_LABELS: Record<string, string> = {
   wash_fold:      "W&F",
@@ -44,6 +48,7 @@ function OperatorCard({
   assignOperatorAction: (fd: FormData) => Promise<void>
   setOrderStageAction: (fd: FormData) => Promise<void>
 }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [stagePending, startStageTransition] = useTransition()
@@ -59,6 +64,7 @@ function OperatorCard({
     fd.set("date", date)
     startTransition(async () => {
       await assignOperatorAction(fd)
+      router.refresh()
       setOpen(false)
       setToast(operatorId ? "Assigned ✓" : "Removed")
       setTimeout(() => setToast(null), 2500)
@@ -71,13 +77,25 @@ function OperatorCard({
     fd.set("stage", stage)
     startStageTransition(async () => {
       await setOrderStageAction(fd)
+      router.refresh()
       setToast(`Stage → ${STAGES.find(s => s.value === stage)?.label ?? stage}`)
       setTimeout(() => setToast(null), 2500)
     })
   }
 
+  function handleDragStart(e: React.DragEvent) {
+    e.dataTransfer.setData(DRAG_ORDER_MIME, order.id)
+    e.dataTransfer.setData(DRAG_SOURCE_MIME, order.assigned_operator_id ?? "")
+    e.dataTransfer.effectAllowed = "move"
+  }
+
   return (
-    <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible">
+    <div
+      draggable
+      onDragStart={handleDragStart}
+      title="Drag to move to a different operator's column"
+      className="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible cursor-grab active:cursor-grabbing"
+    >
       {toast && (
         <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-30 bg-[#0D2240] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
           {toast}
@@ -91,6 +109,7 @@ function OperatorCard({
         className="w-full text-left px-3 py-2.5"
       >
         <div className="flex items-center gap-2 mb-1">
+          <span className="text-gray-300 text-[10px] select-none">⠿</span>
           <span className="font-black font-mono text-[#0D2240] text-xs">{code}</span>
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_COLOR[order.current_stage ?? order.status] ?? "bg-gray-100 text-gray-500"}`}>
             {(order.current_stage ?? order.status)?.replace(/_/g, " ")}
@@ -192,12 +211,51 @@ function OperatorColumn({
   assignOperatorAction: (fd: FormData) => Promise<void>
   setOrderStageAction: (fd: FormData) => Promise<void>
 }) {
+  const router = useRouter()
   const isUnassigned = operator === null
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [dropPending, startDropTransition] = useTransition()
+
+  function handleDragOver(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes(DRAG_ORDER_MIME)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+    setIsDragOver(true)
+  }
+
+  function handleDragLeave() {
+    setIsDragOver(false)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setIsDragOver(false)
+    const bookingId = e.dataTransfer.getData(DRAG_ORDER_MIME)
+    const sourceOperatorId = e.dataTransfer.getData(DRAG_SOURCE_MIME)
+    if (!bookingId) return
+    const targetOperatorId = operator?.id ?? ""
+    if (sourceOperatorId === targetOperatorId) return // already in this column
+
+    const fd = new FormData()
+    fd.set("bookingId", bookingId)
+    fd.set("operatorId", targetOperatorId)
+    fd.set("date", date)
+    startDropTransition(async () => {
+      await assignOperatorAction(fd)
+      router.refresh()
+    })
+  }
 
   return (
-    <div className={`flex flex-col min-w-[220px] max-w-[260px] rounded-2xl border ${
-      isUnassigned ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white"
-    } shadow-sm overflow-hidden flex-shrink-0`}>
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`flex flex-col min-w-[220px] max-w-[260px] rounded-2xl border transition-colors ${
+        isDragOver
+          ? "border-[#0D2240] bg-[#0D2240]/5 ring-2 ring-[#0D2240]/20"
+          : isUnassigned ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white"
+      } shadow-sm overflow-hidden flex-shrink-0`}>
 
       {/* Column header */}
       <div className={`px-3 py-3 border-b ${isUnassigned ? "border-amber-200" : "border-gray-100"}`}>
@@ -214,13 +272,18 @@ function OperatorColumn({
             {orders.length} order{orders.length !== 1 ? "s" : ""} assigned
           </p>
         )}
+        {isUnassigned && orders.length > 0 && (
+          <p className="text-[10px] text-amber-700 mt-0.5">
+            Assign from a card's menu, or drag a card into another column.
+          </p>
+        )}
       </div>
 
       {/* Cards */}
       <div className="p-2 flex-1 overflow-y-auto max-h-[70vh] space-y-1.5">
         {orders.length === 0 && (
           <p className="text-center text-[10px] text-gray-300 py-6">
-            {isUnassigned ? "All assigned 🎉" : "Nothing assigned yet"}
+            {isDragOver ? "Drop here" : isUnassigned ? "All assigned 🎉" : "Nothing assigned yet — drag a card here"}
           </p>
         )}
         {orders.map(order => (

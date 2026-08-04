@@ -1,9 +1,15 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { format, parseISO, isToday, isTomorrow } from "date-fns"
 import Link from "next/link"
 import type { DispatchBooking } from "@/app/admin/dispatch/page"
+
+// Drag payload for card → column reassignment. Two fields so a drop target
+// can skip the mutation entirely if the card is already in that column.
+const DRAG_BOOKING_MIME = "application/x-washfold-booking-id"
+const DRAG_SOURCE_MIME  = "application/x-washfold-source-driver"
 
 const SERVICE_LABELS: Record<string, string> = {
   wash_fold:      "W&F",
@@ -87,6 +93,7 @@ function KanbanCard({
   cancelAction: (fd: FormData) => Promise<void>
   setBookingStatusAction: (fd: FormData) => Promise<void>
 }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [statusPending, startStatusTransition] = useTransition()
@@ -119,6 +126,7 @@ function KanbanCard({
     fd.set("date", date)
     startTransition(async () => {
       await assignDriverAction(fd)
+      router.refresh()
       setOpen(false)
       flash("Assigned ✓")
     })
@@ -130,6 +138,7 @@ function KanbanCard({
     fd.set("date", date)
     startTransition(async () => {
       await unassignDriverAction(fd)
+      router.refresh()
       setOpen(false)
       flash("Unassigned")
     })
@@ -143,6 +152,7 @@ function KanbanCard({
     fd.set("date", date)
     startStatusTransition(async () => {
       await setBookingStatusAction(fd)
+      router.refresh()
       flash("Updated ✓")
     })
   }
@@ -156,6 +166,7 @@ function KanbanCard({
     fd.set("date", date)
     startStatusTransition(async () => {
       await setBookingStatusAction(fd)
+      router.refresh()
       setOpen(false)
       flash("Removed from driver")
     })
@@ -176,6 +187,7 @@ function KanbanCard({
     }
     startRescheduleTransition(async () => {
       await rescheduleAction(fd)
+      router.refresh()
       setShowReschedule(false)
       flash("Rescheduled ✓")
     })
@@ -188,6 +200,7 @@ function KanbanCard({
     fd.set("date", date)
     startCancelTransition(async () => {
       await cancelAction(fd)
+      router.refresh()
       setOpen(false)
       flash("Order cancelled")
     })
@@ -195,8 +208,19 @@ function KanbanCard({
 
   const windowBadge = window === "9am-1pm" ? "AM" : window === "3pm-7pm" ? "PM" : window ?? "?"
 
+  function handleDragStart(e: React.DragEvent) {
+    e.dataTransfer.setData(DRAG_BOOKING_MIME, b.id)
+    e.dataTransfer.setData(DRAG_SOURCE_MIME, currentDriverId ?? "")
+    e.dataTransfer.effectAllowed = "move"
+  }
+
   return (
-    <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible">
+    <div
+      draggable
+      onDragStart={handleDragStart}
+      title="Drag to move to a different driver's column"
+      className="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible cursor-grab active:cursor-grabbing"
+    >
       {toast && (
         <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-30 bg-[#0D2240] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
           {toast}
@@ -210,6 +234,7 @@ function KanbanCard({
         className="w-full text-left px-3 py-2.5"
       >
         <div className="flex items-center gap-2 mb-1">
+          <span className="text-gray-300 text-[10px] select-none">⠿</span>
           <span className="font-black font-mono text-[#0D2240] text-xs">{orderCode}</span>
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_COLOR[b.status] ?? "bg-gray-100 text-gray-500"}`}>
             {b.status?.replace(/_/g, " ")}
@@ -468,13 +493,57 @@ function DriverColumn({
   cancelAction: (fd: FormData) => Promise<void>
   setBookingStatusAction: (fd: FormData) => Promise<void>
 }) {
+  const router = useRouter()
   const isUnassigned = driver === null
   const total = pickups.length + deliveries.length
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [dropPending, startDropTransition] = useTransition()
+
+  function handleDragOver(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes(DRAG_BOOKING_MIME)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+    setIsDragOver(true)
+  }
+
+  function handleDragLeave() {
+    setIsDragOver(false)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setIsDragOver(false)
+    const bookingId = e.dataTransfer.getData(DRAG_BOOKING_MIME)
+    const sourceDriverId = e.dataTransfer.getData(DRAG_SOURCE_MIME)
+    if (!bookingId) return
+    const targetDriverId = driver?.id ?? ""
+    if (sourceDriverId === targetDriverId) return // already in this column
+
+    const fd = new FormData()
+    fd.set("bookingId", bookingId)
+    fd.set("date", date)
+    startDropTransition(async () => {
+      if (isUnassigned) {
+        await unassignDriverAction(fd)
+      } else {
+        fd.set("driverId", driver!.id)
+        fd.set("driverEmail", driver!.shipday_email ?? "")
+        await assignDriverAction(fd)
+      }
+      router.refresh()
+    })
+  }
 
   return (
-    <div className={`flex flex-col min-w-[220px] max-w-[260px] rounded-2xl border ${
-      isUnassigned ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white"
-    } shadow-sm overflow-hidden flex-shrink-0`}>
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`flex flex-col min-w-[220px] max-w-[260px] rounded-2xl border transition-colors ${
+        isDragOver
+          ? "border-[#0D2240] bg-[#0D2240]/5 ring-2 ring-[#0D2240]/20"
+          : isUnassigned ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white"
+      } shadow-sm overflow-hidden flex-shrink-0`}>
 
       {/* Column header */}
       <div className={`px-3 py-3 border-b ${isUnassigned ? "border-amber-200" : "border-gray-100"}`}>
@@ -488,7 +557,7 @@ function DriverColumn({
         </div>
         {isUnassigned && total > 0 && (
           <p className="text-[10px] text-amber-700 mt-0.5">
-            Pick a driver on each card below to send it into that driver's route.
+            Pick a driver on each card below, or drag a card into another column.
           </p>
         )}
         {!isUnassigned && (
@@ -508,7 +577,7 @@ function DriverColumn({
       <div className="p-2 flex-1 overflow-y-auto max-h-[70vh]">
         {total === 0 && (
           <p className="text-center text-[10px] text-gray-300 py-6">
-            {isUnassigned ? "All assigned 🎉" : "Nothing assigned yet — orders land in Unassigned until you pick a driver for them."}
+            {isDragOver ? "Drop here" : isUnassigned ? "All assigned 🎉" : "Nothing assigned yet — drag a card here, or pick this driver from a card's menu."}
           </p>
         )}
         {(() => {
