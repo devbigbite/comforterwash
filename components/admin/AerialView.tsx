@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useTransition } from "react"
 import Link from "next/link"
 import type { TransportRun } from "@/app/actions/transport-runs"
 import type { AerialOrder } from "@/types/dispatch"
@@ -10,17 +11,32 @@ const SERVICE_LABELS: Record<string, string> = {
   comforter_wash: "Comforter",
 }
 
+// Drag payload — just the order id, read back out on drop.
+const DRAG_MIME = "application/x-washfold-order-id"
+
 // ─── Single order chip ────────────────────────────────────────────────────────
 
-function OrderChip({ order }: { order: AerialOrder }) {
+function OrderChip({ order, draggable, onDragStart, onDragEnd }: {
+  order: AerialOrder
+  draggable?: boolean
+  onDragStart?: (e: React.DragEvent, orderId: string) => void
+  onDragEnd?: () => void
+}) {
   const code = order.short_code ?? order.id.slice(0, 6).toUpperCase()
   const bags = order.num_bags ?? order.num_comforters ?? 1
   return (
     <Link
       href={`/admin/orders/${order.id}`}
-      className="block bg-white rounded-xl border border-gray-100 shadow-sm px-3 py-2.5 hover:border-[#E8726A]/40 hover:shadow-md transition-all group"
+      draggable={draggable}
+      onDragStart={draggable ? (e) => onDragStart?.(e, order.id) : undefined}
+      onDragEnd={draggable ? onDragEnd : undefined}
+      className={`block bg-white rounded-xl border border-gray-100 shadow-sm px-3 py-2.5 hover:border-[#E8726A]/40 hover:shadow-md transition-all group ${
+        draggable ? "cursor-grab active:cursor-grabbing" : ""
+      }`}
+      title={draggable ? "Drag to move, click to open" : undefined}
     >
       <div className="flex items-center gap-2">
+        {draggable && <span className="text-gray-300 text-[10px] select-none">⠿</span>}
         <span className="font-black font-mono text-[#0D2240] text-xs group-hover:text-[#E8726A] transition-colors">{code}</span>
         <span className="text-[9px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded ml-auto">
           {SERVICE_LABELS[order.service_type] ?? order.service_type}
@@ -44,6 +60,13 @@ function Bucket({
   bgClass,
   emptyMsg,
   extra,
+  droppable,
+  isDragOver,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onChipDragStart,
+  onChipDragEnd,
 }: {
   icon: string
   label: string
@@ -54,9 +77,23 @@ function Bucket({
   bgClass: string
   emptyMsg?: string
   extra?: React.ReactNode
+  droppable?: boolean
+  isDragOver?: boolean
+  onDragOver?: (e: React.DragEvent) => void
+  onDragLeave?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
+  onChipDragStart?: (e: React.DragEvent, orderId: string) => void
+  onChipDragEnd?: () => void
 }) {
   return (
-    <div className={`flex flex-col rounded-2xl border ${borderClass} ${bgClass} overflow-hidden min-w-[200px] flex-1`}>
+    <div
+      onDragOver={droppable ? onDragOver : undefined}
+      onDragLeave={droppable ? onDragLeave : undefined}
+      onDrop={droppable ? onDrop : undefined}
+      className={`flex flex-col rounded-2xl border overflow-hidden min-w-[200px] flex-1 transition-colors ${
+        isDragOver ? "border-[#0D2240] bg-[#0D2240]/5 ring-2 ring-[#0D2240]/20" : `${borderClass} ${bgClass}`
+      }`}
+    >
       {/* Header */}
       <div className={`px-4 py-3 border-b ${borderClass}`}>
         <div className="flex items-center gap-2">
@@ -75,9 +112,19 @@ function Bucket({
       {/* Orders */}
       <div className="p-2 space-y-1.5 flex-1 overflow-y-auto max-h-[60vh]">
         {orders.length === 0 && (
-          <p className="text-center text-[10px] text-gray-300 py-5">{emptyMsg ?? "None"}</p>
+          <p className="text-center text-[10px] text-gray-300 py-5">
+            {isDragOver ? "Drop here" : emptyMsg ?? "None"}
+          </p>
         )}
-        {orders.map(o => <OrderChip key={o.id} order={o} />)}
+        {orders.map(o => (
+          <OrderChip
+            key={o.id}
+            order={o}
+            draggable={droppable !== undefined}
+            onDragStart={onChipDragStart}
+            onDragEnd={onChipDragEnd}
+          />
+        ))}
       </div>
     </div>
   )
@@ -117,15 +164,88 @@ function RunChip({ run, orders }: { run: TransportRun; orders: AerialOrder[] }) 
 
 // ─── Main aerial view ─────────────────────────────────────────────────────────
 
+// One representative target status per bucket — dragging a card in sets the
+// order straight to that status via the same admin-override action used on
+// the Driver Routes tab. Buckets that group several statuses together (e.g.
+// "At Facility" covers at_facility/in_washer/in_dryer/folded/ready) land on
+// the first/entry status of that group when dropped into from elsewhere;
+// dropping onto a card's own current bucket is a no-op.
+const BUCKET_STATUS = {
+  pendingPickup: "confirmed",
+  withDriver: "picked_up",
+  atFacility: "at_facility",
+  atWarehouse: "at_warehouse",
+  outForDelivery: "out_for_delivery",
+} as const
+
+type BucketKey = keyof typeof BUCKET_STATUS
+
 export function AerialView({
   orders,
   runs,
   allOrdersById,
+  date,
+  setBookingStatusAction,
 }: {
   orders: AerialOrder[]
   runs: TransportRun[]
   allOrdersById: Record<string, AerialOrder>
+  date?: string
+  setBookingStatusAction?: (fd: FormData) => Promise<void>
 }) {
+  const [dragOverBucket, setDragOverBucket] = useState<BucketKey | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const [toast, setToast] = useState<string | null>(null)
+
+  function flash(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 2500)
+  }
+
+  function handleChipDragStart(e: React.DragEvent, orderId: string) {
+    e.dataTransfer.setData(DRAG_MIME, orderId)
+    e.dataTransfer.effectAllowed = "move"
+  }
+
+  function handleChipDragEnd() {
+    setDragOverBucket(null)
+  }
+
+  function handleDragOver(bucket: BucketKey) {
+    return (e: React.DragEvent) => {
+      if (!e.dataTransfer.types.includes(DRAG_MIME)) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = "move"
+      setDragOverBucket(bucket)
+    }
+  }
+
+  function handleDragLeave() {
+    setDragOverBucket(null)
+  }
+
+  function handleDrop(bucket: BucketKey) {
+    return (e: React.DragEvent) => {
+      e.preventDefault()
+      setDragOverBucket(null)
+      const orderId = e.dataTransfer.getData(DRAG_MIME)
+      if (!orderId || !setBookingStatusAction) return
+      const order = allOrdersById[orderId]
+      const targetStatus = BUCKET_STATUS[bucket]
+      if (!order || order.status === targetStatus) return
+
+      const fd = new FormData()
+      fd.set("bookingId", orderId)
+      fd.set("status", targetStatus)
+      fd.set("note", `Moved to "${targetStatus}" via aerial view drag-and-drop by admin.`)
+      fd.set("date", date ?? "")
+      startTransition(async () => {
+        await setBookingStatusAction(fd)
+        flash("Moved ✓")
+      })
+    }
+  }
+
   // Bucket by status
   const inboundWithDriver  = orders.filter(o => o.status === "picked_up")
   const outForDelivery     = orders.filter(o => o.status === "out_for_delivery")
@@ -134,15 +254,23 @@ export function AerialView({
   const pendingPickup      = orders.filter(o => o.status === "confirmed")
   const pendingRuns        = runs.filter(r => r.status === "pending")
 
+  const canDrag = !!setBookingStatusAction
+
   // For each pending run, find its orders
   function runOrders(run: TransportRun): AerialOrder[] {
     return (run.order_ids ?? []).map(id => allOrdersById[id]).filter(Boolean) as AerialOrder[]
   }
 
   return (
-    <div>
+    <div className="relative">
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#0D2240] text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg">
+          {toast}
+        </div>
+      )}
+
       {/* Flow legend */}
-      <div className="flex items-center gap-2 text-[10px] text-gray-400 font-semibold mb-5 overflow-x-auto whitespace-nowrap pb-1">
+      <div className="flex items-center gap-2 text-[10px] text-gray-400 font-semibold mb-2 overflow-x-auto whitespace-nowrap pb-1">
         <span className="bg-[#E8726A]/10 text-[#E8726A] font-bold px-2 py-1 rounded-lg">Customer</span>
         <span>→</span>
         <span className="bg-purple-100 text-purple-700 font-bold px-2 py-1 rounded-lg">Driver (inbound)</span>
@@ -158,6 +286,13 @@ export function AerialView({
         <span className="bg-gray-100 text-gray-600 font-bold px-2 py-1 rounded-lg">Customer</span>
       </div>
 
+      {canDrag && (
+        <p className="text-[10px] text-gray-400 mb-3">
+          Drag a card <span className="text-gray-300">⠿</span> into another column to force its stage — same admin override as the Driver Routes tab.
+          {isPending && <span className="text-[#0D2240] font-bold ml-1">Saving…</span>}
+        </p>
+      )}
+
       {/* Buckets */}
       <div className="flex gap-3 overflow-x-auto pb-4">
 
@@ -171,6 +306,13 @@ export function AerialView({
           borderClass="border-[#E8726A]/20"
           bgClass="bg-[#E8726A]/5"
           emptyMsg="No pending pickups"
+          droppable={canDrag ? true : undefined}
+          isDragOver={dragOverBucket === "pendingPickup"}
+          onDragOver={handleDragOver("pendingPickup")}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop("pendingPickup")}
+          onChipDragStart={handleChipDragStart}
+          onChipDragEnd={handleChipDragEnd}
         />
 
         {/* Driver — inbound */}
@@ -183,9 +325,17 @@ export function AerialView({
           borderClass="border-purple-200"
           bgClass="bg-purple-50"
           emptyMsg="No drivers inbound"
+          droppable={canDrag ? true : undefined}
+          isDragOver={dragOverBucket === "withDriver"}
+          onDragOver={handleDragOver("withDriver")}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop("withDriver")}
+          onChipDragStart={handleChipDragStart}
+          onChipDragEnd={handleChipDragEnd}
         />
 
-        {/* In transfer (runs) */}
+        {/* In transfer (runs) — not a droppable status target, it's driven by
+            transfer runs rather than a single booking status. */}
         <div className="flex flex-col rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden min-w-[220px] flex-1">
           <div className="px-4 py-3 border-b border-amber-200">
             <div className="flex items-center gap-2">
@@ -219,6 +369,13 @@ export function AerialView({
           borderClass="border-blue-200"
           bgClass="bg-blue-50"
           emptyMsg="No orders at facility"
+          droppable={canDrag ? true : undefined}
+          isDragOver={dragOverBucket === "atFacility"}
+          onDragOver={handleDragOver("atFacility")}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop("atFacility")}
+          onChipDragStart={handleChipDragStart}
+          onChipDragEnd={handleChipDragEnd}
         />
 
         {/* At warehouse */}
@@ -231,6 +388,13 @@ export function AerialView({
           borderClass="border-indigo-200"
           bgClass="bg-indigo-50"
           emptyMsg="Warehouse is empty"
+          droppable={canDrag ? true : undefined}
+          isDragOver={dragOverBucket === "atWarehouse"}
+          onDragOver={handleDragOver("atWarehouse")}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop("atWarehouse")}
+          onChipDragStart={handleChipDragStart}
+          onChipDragEnd={handleChipDragEnd}
         />
 
         {/* Out for delivery */}
@@ -243,6 +407,13 @@ export function AerialView({
           borderClass="border-green-200"
           bgClass="bg-green-50"
           emptyMsg="No deliveries in progress"
+          droppable={canDrag ? true : undefined}
+          isDragOver={dragOverBucket === "outForDelivery"}
+          onDragOver={handleDragOver("outForDelivery")}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop("outForDelivery")}
+          onChipDragStart={handleChipDragStart}
+          onChipDragEnd={handleChipDragEnd}
         />
 
       </div>

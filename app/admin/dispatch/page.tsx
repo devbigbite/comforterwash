@@ -360,6 +360,8 @@ export default async function DispatchPage({
             orders={aerialOrders}
             runs={transportRuns}
             allOrdersById={aerialOrdersById}
+            date={today}
+            setBookingStatusAction={driverQuickActionAdmin}
           />
         )}
 
