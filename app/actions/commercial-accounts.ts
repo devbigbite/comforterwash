@@ -130,6 +130,40 @@ export async function getCommercialAccounts(): Promise<CommercialAccount[]> {
   return (data ?? []) as CommercialAccount[]
 }
 
+// ── Order & billing history (public, code-gated) ─────────────────────────────
+// Backs the "commercial account dashboard" link referenced in the signed
+// agreement's Billing & Payment clause — since there's no posterior
+// invoicing, this is the business's record of every order that's been
+// processed and charged (or attempted) against their card on file.
+export interface CommercialOrderHistoryItem {
+  id: string
+  short_code: string | null
+  pickup_date: string
+  delivery_date: string
+  status: string
+  actual_weight_lbs: number | null
+  customer_final_cents: number | null
+  payment_status: string | null
+  created_at: string
+}
+
+export async function getCommercialAccountOrderHistory(code: string): Promise<{
+  account: CommercialAccount
+  orders: CommercialOrderHistoryItem[]
+} | null> {
+  const account = await getCommercialAccountByCode(code)
+  if (!account) return null
+
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from("bookings")
+    .select("id, short_code, pickup_date, delivery_date, status, actual_weight_lbs, customer_final_cents, payment_status, created_at")
+    .eq("commercial_account_id", account.id)
+    .order("created_at", { ascending: false })
+
+  return { account, orders: (data ?? []) as CommercialOrderHistoryItem[] }
+}
+
 // ── Self-serve signup (public, no admin auth) ────────────────────────────────
 // Linked from the public /commercial page ("Or open your commercial account").
 // The business fills in its own contact details here; rate/billing terms are

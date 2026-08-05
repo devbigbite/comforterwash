@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getCommercialAccountByCode, signCommercialAgreement } from "@/app/actions/commercial-accounts"
 import { SignAgreementForm } from "./sign-form"
@@ -49,6 +50,12 @@ export default async function CommercialAgreementPage({ params }: { params: Prom
                     {account.card_brand ? `${account.card_brand.toUpperCase()} ` : ""}
                     {account.card_last4 ? `ending in ${account.card_last4}` : "Card saved"}
                   </p>
+                  <Link
+                    href={`/commercial-agreement/${code}/history`}
+                    className="inline-block mt-3 text-sm font-bold text-[#0D2240] hover:underline"
+                  >
+                    View Order &amp; Billing History →
+                  </Link>
                 </div>
               ) : (
                 <div>
@@ -78,10 +85,10 @@ export default async function CommercialAgreementPage({ params }: { params: Prom
                   {account.minimum_amount_cents != null && ` A minimum charge of $${(account.minimum_amount_cents / 100).toFixed(2)} per service applies.`}
                   {" "}Pricing is subject to change with 30 days' written notice. Condition of items will be evaluated at processing, and
                   Customer will be contacted if any additional fees apply.</p>
-                <p><strong>3. Billing &amp; Payment.</strong> There is no invoicing — every order is processed and charged the same way a
-                  residential order is: to the payment method on file, automatically, once the order is weighed. A valid payment method
-                  must be kept on file for the duration of this Agreement, and Customer authorizes Service Provider to charge it for each
-                  order without a separate invoice or approval step.</p>
+                <p><strong>3. Billing &amp; Payment.</strong> There is no posterior invoicing — every order is processed and charged to
+                  the payment method on file, automatically, once the order is weighed. A valid payment method must be kept on file for
+                  the duration of this Agreement, and Customer authorizes Service Provider to charge it for each order without a separate
+                  invoice or approval step. You may find a record of prior processed invoices in your commercial account dashboard.</p>
                 <p><strong>4. Term &amp; Termination.</strong> This Agreement remains in effect until terminated by either party with
                   at least 14 days' written notice. Either party may terminate immediately in the event of a material breach.</p>
                 <p><strong>5. Liability.</strong> Service Provider will exercise reasonable care in handling Customer's items.
