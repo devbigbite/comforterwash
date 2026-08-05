@@ -91,13 +91,11 @@ export default async function CommercialAgreementPage({ params }: { params: Prom
                   invoice or approval step. You may find a record of prior processed invoices in your commercial account dashboard.</p>
                 <p><strong>4. Term &amp; Termination.</strong> This Agreement remains in effect until terminated by either party with
                   at least 14 days' written notice. Either party may terminate immediately in the event of a material breach.</p>
-                <p><strong>5. Liability.</strong> Service Provider will exercise reasonable care in handling Customer's items.
-                  Service Provider's liability for any lost or damaged items is limited to the reasonable replacement cost of the
-                  affected items, not to exceed the value of the applicable service charge.</p>
+                <p><strong>5. Liability.</strong> Service Provider will exercise reasonable care in handling Customer's items.</p>
 
                 <p><strong>6. Conditions.</strong></p>
                 <p style={{ textTransform: "uppercase", fontWeight: 700 }}>
-                  Conditions. We are not responsible for articles not claimed. Unclaimed garments will be handled in accordance with state regulations.
+                  We are not responsible for articles not claimed. Unclaimed garments will be handled in accordance with state regulations.
                 </p>
                 <p>
                   We exercise utmost care in processing articles entrusted to us and use such processes which, in our opinion, are best suited
@@ -105,13 +103,13 @@ export default async function CommercialAgreementPage({ params }: { params: Prom
                   of or defects in materials that are not readily apparent prior to processing. This applies particularly, but not exclusively,
                   to suedes, leathers, silks, satins, double-faced fabrics, vinyls, polyurethanes, etc. Responsibility also is disclaimed for
                   trimmings, buckles, beads, buttons, bells and sequins. In laundering we cannot guarantee against color loss and shrinkage, or
-                  against damage to weak and tender fabrics. Differences in count must be reported, and this ticket presented, within 48 hours.
+                  against damage to weak and tender fabrics. Differences in count must be reported.
                   Unless a list accompanied the bundle, our count must be accepted. The company's liability with respect to any lost or damaged
                   article shall not exceed 3 times our charge for processing it.
                 </p>
                 <p>
                   Conditions of the items will be evaluated and the commercial customer contacted if any additional fees for processing apply.
-                  We cannot guarantee that stains will get removed.
+                  We cannot guarantee that any stains will get removed.
                 </p>
 
                 <p><strong>7. Signature.</strong> By typing your name below and checking the confirmation box, you agree that this
