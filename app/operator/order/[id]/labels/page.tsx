@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { PinGate } from "@/components/pin-gate"
 import { OperatorOrderGate } from "@/components/operator-order-gate"
 import { PrintReceiptsButton } from "@/components/print-receipts-button"
+import type { ReceiptData } from "@/lib/escpos"
 
 // Color keys are physical stickers applied by hand — the thermal printer is
 // monochrome, so the receipt only ever names the color as text
@@ -21,12 +22,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 /**
- * Operator bag receipts — printed one per output bag on a standard 80mm
- * thermal receipt roll (works the same on the Munbyn or any Bluetooth
- * thermal receipt printer — both install as a normal system printer and
- * print via the browser's print dialog; no special "programming" needed
- * beyond selecting the printer). Continuous roll, so each receipt is cut
- * to its actual content length rather than a fixed label size.
+ * Operator bag receipts — printed one per output bag. Prints directly to
+ * the paired Bluetooth thermal printer via Web Bluetooth + raw ESC/POS
+ * (see components/print-receipts-button.tsx and lib/escpos.ts) — no OS
+ * print dialog, no printer selection each time. Falls back to the normal
+ * browser print dialog if Web Bluetooth isn't available. Continuous roll,
+ * so each receipt is cut to its actual content length rather than a fixed
+ * label size.
  *
  * Carries the delivery address (for the driver) and order/routing info,
  * but never price.
@@ -144,10 +146,26 @@ export default async function OperatorLabelsPage({
   // and an inline <script>'s DOM mutations aren't reliably preserved through
   // that hydration — which was why the sheet stayed empty and the print
   // button did nothing.
-  const receipts = Array.from({ length: totalBags }, (_, i) => {
+  const prefsLine = [detergent, ...extras].filter(Boolean).join(" · ") || null
+
+  const receipts: ReceiptData[] = Array.from({ length: totalBags }, (_, i) => {
     const bagNum = i + 1
     const match = bagList.find(b => b.bag_number === bagNum)
-    return { bagNum, bagCode: match?.label_code ?? null }
+    return {
+      orderCode,
+      bagNum,
+      totalBags,
+      bagCode: match?.label_code ?? null,
+      serviceLabel,
+      loyaltyTag: loyaltyNotice.tag,
+      loyaltyText: loyaltyNotice.text,
+      orderIdentifier,
+      address,
+      colorLabel,
+      goingToStorage,
+      prefsLine,
+      dueDate,
+    }
   })
 
   return (
@@ -176,8 +194,22 @@ export default async function OperatorLabelsPage({
               .bar .sub { font-size: 11px; color: rgba(255,255,255,0.55); font-family: sans-serif; font-weight: normal; margin-left: 8px; }
               .btn-print { background: #E8726A; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 900; font-size: 14px; cursor: pointer; }
               .btn-print:hover { background: #d45f57; }
+              .btn-print:disabled { opacity: 0.6; cursor: default; }
               .btn-back { color: rgba(255,255,255,0.6); font-size: 13px; text-decoration: none; }
               .btn-back:hover { color: white; }
+
+              .print-btn-wrap { position: relative; }
+              .print-error {
+                position: absolute; top: 100%; right: 0; margin-top: 8px; z-index: 20;
+                background: white; color: #b91c1c; font-size: 12px; font-weight: 700;
+                padding: 10px 12px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+                width: 260px; text-align: left;
+              }
+              .btn-fallback {
+                display: block; margin-top: 8px; background: #0D2240; color: white;
+                border: none; padding: 6px 10px; border-radius: 8px; font-size: 11px;
+                font-weight: 700; cursor: pointer; width: 100%;
+              }
 
               .preview-note { max-width: 500px; margin: 24px auto; padding: 0 20px; font-size: 13px; color: #888; text-align: center; }
 
@@ -240,11 +272,11 @@ export default async function OperatorLabelsPage({
                 <span className="sub">{totalBags} bag{totalBags !== 1 ? "s" : ""} · 80mm roll · no price printed</span>
               </h1>
               <a href={`/operator/order/${id}`} className="btn-back">← Back to order</a>
-              <PrintReceiptsButton autoprint={autoprint === "1"} />
+              <PrintReceiptsButton receipts={receipts} autoprint={autoprint === "1"} />
             </div>
 
             <p className="preview-note">
-              One receipt per output bag, sized for an 80mm thermal roll (Munbyn or any Bluetooth thermal receipt printer — select it like any normal printer in the print dialog). Includes the delivery address for the driver. No price is printed.
+              One receipt per output bag. First tap connects your paired Bluetooth printer once — after that it prints straight to it, no dialog. Includes the delivery address for the driver. No price is printed.
             </p>
 
             <div className="sheet">
