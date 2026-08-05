@@ -368,11 +368,10 @@ Before placing folded clothes into the bag, check if anything needs to go in wit
 
 **If the order is going to off-site storage:**
 
-1. Apply the **additional YELLOW marker sticker** alongside the color key sticker on each bag — this is the secondary identifier that tells the driver this bag came from storage
-2. Place the bags in the designated off-storage area
-3. In the order drawer, toggle **Hold at Facility OFF** — this marks the order as going to remote storage
-4. Tap the **📷 Take Photo** button — photograph the bags in their storage spot with **both stickers visible** (color key + storage marker)
-5. Photo is saved to the order
+1. Place the bags in the designated off-storage area (color key sticker only — no separate storage marker sticker)
+2. In the order drawer, toggle **Hold at Facility OFF** — this marks the order as going to remote storage
+3. Tap the **📷 Take Photo** button — photograph the bags in their storage spot with the **color key sticker visible**
+4. Photo is saved to the order
 
 > ❌ The system will **block advancing out of Ready** if no placement photo exists. This is enforced regardless of destination (floor or storage).
 
@@ -401,8 +400,7 @@ Toggle the **Hold at Facility** switch **OFF**.
 
 - Order goes to remote/off-site storage
 - Driver must go to the storage location to retrieve it
-- **Sticker requirement:** color key sticker + a **YELLOW marker sticker** (apply alongside the color key so the driver can immediately identify this as a storage-bound order). Yellow is reserved exclusively for this — it is never assigned as a per-order color key, so a yellow sticker always means "storage," with no ambiguity.
-- The order drawer will show an amber reminder: *"YELLOW marker sticker required"*
+- **Sticker requirement:** color key sticker only — the yellow marker sticker convention has been discontinued
 
 > **Saturday pickups:** Decision pending on whether Saturday pickups automatically go to storage (since Sunday is off) or stay on the floor. Until decided, use your judgment and toggle accordingly.
 

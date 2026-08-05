@@ -314,7 +314,7 @@ export default async function OperatorLabelsPage({
                   )}
                   {goingToStorage && (
                     <div className="r-storage-flag">
-                      <span>⚠ APPLY YELLOW MARKER STICKER — GOING TO STORAGE</span>
+                      <span>GOING TO STORAGE</span>
                     </div>
                   )}
                   {(detergent || extras.length > 0) && (

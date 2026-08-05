@@ -142,8 +142,7 @@ export function buildReceiptBytes(r: ReceiptData): Uint8Array {
   }
 
   if (r.goingToStorage) {
-    b.bold(true).text("** APPLY YELLOW MARKER STICKER **").feed(1)
-      .text("GOING TO STORAGE").feed(1).bold(false)
+    b.bold(true).text("** GOING TO STORAGE **").feed(1).bold(false)
     b.feed(1)
   }
 

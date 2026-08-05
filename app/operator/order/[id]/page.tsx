@@ -191,7 +191,6 @@ async function recordFoldingPhoto(formData: FormData) {
   })
 }
 
-// Yellow is deliberately excluded — reserved exclusively for the storage marker sticker.
 const COLOR_KEYS = [
   { key: "red",     label: "Red",      hex: "#ef4444" },
   { key: "blue",    label: "Blue",     hex: "#3b82f6" },
@@ -203,7 +202,6 @@ const COLOR_KEYS = [
   { key: "orange",  label: "Orange",   hex: "#f97316" },
   { key: "purple",  label: "Purple",   hex: "#a855f7" },
 ] as const
-const STORAGE_MARKER_HEX = "#eab308"
 
 async function setFacilityDecision(formData: FormData) {
   "use server"
@@ -217,7 +215,7 @@ async function setFacilityDecision(formData: FormData) {
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "facility_decision",
-    notes: holdAtFacility ? "Kept on facility floor" : "Sent to remote storage (YELLOW marker sticker required)",
+    notes: holdAtFacility ? "Kept on facility floor" : "Sent to remote storage",
     created_by: "operator",
   })
   revalidatePath(`/operator/order/${bookingId}`)
@@ -552,15 +550,6 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                   </button>
                 </form>
               </div>
-
-              {holdAtFacility === false && (
-                <div className="bg-white border border-amber-200 rounded-xl px-3 py-2 flex items-start gap-2 mb-3">
-                  <span className="w-4 h-4 rounded-full shrink-0 mt-0.5 border border-amber-300" style={{ background: STORAGE_MARKER_HEX }} />
-                  <p className="text-xs text-amber-700 leading-snug">
-                    <strong>Apply a YELLOW marker sticker</strong> alongside the color key sticker on every bag before moving it to storage. Yellow is reserved for this — never used as a color key.
-                  </p>
-                </div>
-              )}
 
               {/* Color key picker */}
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Color Key Sticker</p>

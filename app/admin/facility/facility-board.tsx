@@ -352,8 +352,8 @@ function OrderDrawer({
                   </p>
                   <p className="text-xs text-gray-500 mt-0.5 leading-snug">
                     {order.hold_at_facility
-                      ? "Staying on the facility floor temp space. Apply color key sticker only."
-                      : <>Sending to remote storage. Apply color key sticker <strong>+ YELLOW marker sticker</strong>.</>
+                      ? "Staying on the facility floor temp space. Apply color key sticker."
+                      : "Sending to remote storage. Apply color key sticker."
                     }
                     {!order.hold_at_facility && urgency.label === "Today" && <span className="text-red-500 font-semibold ml-1">Delivery is today — recommend floor.</span>}
                     {!order.hold_at_facility && urgency.label === "Tomorrow" && <span className="text-amber-600 font-semibold ml-1">Delivery is tomorrow — consider floor.</span>}
@@ -367,16 +367,6 @@ function OrderDrawer({
                   <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${order.hold_at_facility ? "left-6" : "left-0.5"}`} />
                 </button>
               </div>
-
-              {/* Storage marker sticker — always YELLOW, reserved and never used as a per-order color key */}
-              {!order.hold_at_facility && (
-                <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
-                  <span className="w-4 h-4 rounded-full shrink-0 mt-0.5 border border-amber-300" style={{ background: STORAGE_MARKER_HEX }} />
-                  <p className="text-xs text-amber-700 leading-snug">
-                    <strong>YELLOW marker sticker required</strong> for orders going to remote storage — apply it alongside the color key sticker so the driver immediately identifies this as a storage order. Yellow is reserved for this and is never used as a per-order color key.
-                  </p>
-                </div>
-              )}
             </div>
           )}
 
