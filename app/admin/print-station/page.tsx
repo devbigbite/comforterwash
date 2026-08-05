@@ -22,7 +22,8 @@ export default function PrintStationSetupPage() {
 
         <h1 className="text-2xl font-extrabold text-[#0D2240] mt-3">Print Station Setup</h1>
         <p className="text-gray-500 text-sm mt-1 mb-8">
-          One-time setup for the packing-table computer that prints bag receipts on the thermal printer (Munbyn or any Bluetooth thermal receipt printer). Do this once on that machine — it stays configured after.
+          One-time setup for the packing-table computer that prints bag receipts on the Bluetooth thermal printer (PX-90B or similar 80mm ESC/POS printer).
+          This site talks to the printer directly from the browser — there&apos;s no printer driver to install and no system print dialog involved. Do this once on that machine — it stays configured after.
         </p>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
@@ -44,20 +45,19 @@ export default function PrintStationSetupPage() {
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Part 1 — Connect the Printer</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Part 1 — Pair the Printer</p>
 
-          <Step n={1} title="Pair or plug in the printer">
-            <p><strong>USB (recommended if possible):</strong> plug the printer into the packing-station computer directly. Windows/Mac will usually install a driver automatically or prompt you to download one from Munbyn's site.</p>
-            <p><strong>Bluetooth:</strong> put the printer in pairing mode (check its manual — usually holding the power button), then go to the computer's Bluetooth settings and pair it like any Bluetooth device. Once paired, it should show up as an available printer.</p>
+          <Step n={1} title="Turn on the printer and put it in pairing mode">
+            <p>Check the printer&apos;s manual — usually holding the power button for a few seconds until an indicator light blinks. This printer uses classic Bluetooth (not Bluetooth Low Energy), so it pairs like a normal Bluetooth accessory, not through the app.</p>
           </Step>
 
-          <Step n={2} title="Confirm it shows up as a system printer">
-            <p>Open the computer's Printers & Scanners settings (Windows) or Printers (Mac) and confirm the thermal printer is listed and shows as "Ready" or "Idle" — not "Offline."</p>
-            <p>If it doesn't appear, install Munbyn's driver/utility from their support site — this is what registers it as a normal printer the browser can print to.</p>
+          <Step n={2} title="Pair it at the operating system level">
+            <p>Open the packing-station computer&apos;s Bluetooth settings (Windows: Settings → Bluetooth & devices; Mac: System Settings → Bluetooth) and pair the printer like any other Bluetooth device.</p>
+            <p>Once paired, the OS exposes it as a virtual COM/serial port — that&apos;s expected, and it&apos;s exactly what the browser will connect to in Part 2. You do <strong>not</strong> need to install it as a system printer, and there is no driver to download.</p>
           </Step>
 
           <Step n={3} title="Load the paper correctly">
-            <p>Use the plain 80mm thermal receipt roll (not the die-cut label roll with terms of service printed on the back). Load it so the thermal-sensitive side faces the print head — if a test print comes out blank, the roll is in backwards, just flip it.</p>
+            <p>Use the plain 80mm thermal receipt roll (not a die-cut label roll). Load it so the thermal-sensitive side faces the print head — if a test print comes out blank, the roll is in backwards, just flip it.</p>
           </Step>
         </div>
 
@@ -69,32 +69,39 @@ export default function PrintStationSetupPage() {
           </Step>
 
           <Step n={2} title="Set this computer up as Owner">
-            <p>Click the <strong>"👑 Set Up This Computer as Owner"</strong> button above (only works while you're logged into Admin, which you already are). It signs this browser into the Operator app as Owner and drops you straight into the Print Station.</p>
-            <p>This matters because Owner sessions can see and print <strong>any</strong> operator's finished order, not just orders assigned to one specific worker. It also stays logged in permanently on this browser afterward — you will not need to repeat this step after restarts, and you won't need a worker PIN at all on this machine.</p>
+            <p>Click the <strong>&quot;👑 Set Up This Computer as Owner&quot;</strong> button above (only works while you&apos;re logged into Admin, which you already are). It signs this browser into the Operator app as Owner and drops you straight into the Print Station.</p>
+            <p>This matters because Owner sessions can see and print <strong>any</strong> operator&apos;s finished order, not just orders assigned to one specific worker. It also stays logged in permanently on this browser afterward — you will not need to repeat this step after restarts, and you won&apos;t need a worker PIN at all on this machine.</p>
           </Step>
 
           <Step n={3} title="Go to the Print Station and pin it">
             <p>Navigate to <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">comforterwash.com/operator/station</code> — this is the screen that should stay open on this computer permanently.</p>
-            <p>Set it as the browser's home page, or just leave the tab open and never close it. Consider disabling sleep/screen-lock on this machine so it's always ready.</p>
+            <p>Set it as the browser&apos;s home page, or just leave the tab open and never close it. Consider disabling sleep/screen-lock on this machine so it&apos;s always ready.</p>
+          </Step>
+
+          <Step n={4} title="Connect to the printer from the browser — once">
+            <p>The first time you print a receipt, the page shows a <strong>&quot;🔗 Connect via Serial/COM Port&quot;</strong> button. Click it and pick the printer from the list Chrome/Edge shows (it will appear as a COM port, not by brand name, since it was paired at the OS level in Part 1).</p>
+            <p>Use Chrome or Edge on desktop — this direct-connect feature (Web Serial) isn&apos;t available in Safari or Firefox. Once granted, the browser remembers this printer and reconnects automatically on future visits — no need to pick it again.</p>
+            <p>If this specific unit turns out to support Bluetooth Low Energy instead, there&apos;s a <strong>&quot;Try Bluetooth (BLE) instead&quot;</strong> link as a fallback — most operators won&apos;t need it.</p>
           </Step>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Part 3 — Daily Use</p>
           <div className="text-gray-500 text-sm leading-relaxed space-y-3">
-            <p>Once an operator finishes packing an order (Floor vs. Storage decided in the order app), it automatically appears on the Print Station's <strong>"To Print"</strong> tab — big order code, bag count, one Print button. The list refreshes on its own every 15 seconds, so nothing needs to be manually pulled up.</p>
-            <p>Tapping <strong>Print</strong> opens the receipts and fires the print dialog automatically — one receipt per packed bag, showing the order code, delivery address, color key sticker to use (by name, since the printer is monochrome), the yellow storage-marker reminder if applicable, wash preferences, and the due date. No price or extra customer info is printed.</p>
-            <p>If a receipt gets lost, jammed, or needs a reprint, switch to the <strong>"🔁 Already Printed"</strong> tab — it lists the last 50 printed orders with a one-tap Reprint button. Reprinting doesn't affect the original print record.</p>
+            <p>Once an operator finishes packing an order (Floor vs. Storage decided in the order app), it automatically appears on the Print Station&apos;s <strong>&quot;To Print&quot;</strong> tab — big order code, bag count, one Print button. The list refreshes on its own every 15 seconds, so nothing needs to be manually pulled up.</p>
+            <p>Tapping <strong>Print</strong> sends the receipt(s) straight to the printer over the connection made in Part 2 — one receipt per packed bag, with the logo, order code, delivery address, color key sticker to use (by name, since the printer is monochrome), wash preferences, and the due date. No price or extra customer info is printed. There is no print dialog to interact with — receipts start printing within a second or two of tapping the button.</p>
+            <p>If a receipt gets lost, jammed, or needs a reprint, switch to the <strong>&quot;🔁 Already Printed&quot;</strong> tab — it lists the last 50 printed orders with a one-tap Reprint button. Reprinting doesn&apos;t affect the original print record.</p>
           </div>
         </div>
 
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
           <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-2">Troubleshooting</p>
           <div className="text-amber-700 text-sm leading-relaxed space-y-1.5">
-            <p>• <strong>Print dialog doesn't open automatically:</strong> browser pop-up/auto-print blockers can interfere — allow pop-ups for this site, or just click "Print All Receipts" manually on the receipts page.</p>
-            <p>• <strong>Wrong printer selected in the dialog:</strong> the browser may default to a different printer (like "Save as PDF") — set the thermal printer as the default printer in system settings so it's pre-selected.</p>
-            <p>• <strong>Landed on "Enter admin password" instead of the Print Station:</strong> the "Set Up This Computer as Owner" link only works while logged into Admin in that browser — log into /admin first, then click the button again.</p>
+            <p>• <strong>Printer doesn&apos;t show up in the connect picker:</strong> make sure it&apos;s paired at the OS level first (Part 1, Step 2) — the browser can only see devices/ports the operating system already knows about.</p>
+            <p>• <strong>Nothing happens when you click Print:</strong> the connection may have dropped — refresh the page and reconnect via the &quot;Connect via Serial/COM Port&quot; button.</p>
+            <p>• <strong>Printing failed / garbled output:</strong> the printer may be low on battery or out of range — check it&apos;s powered on and close to the computer, then try again.</p>
             <p>• <strong>Receipt prints blank or faint:</strong> the paper roll is likely loaded backwards — flip it so the thermal-coated side faces the print head.</p>
+            <p>• <strong>Using Safari or Firefox:</strong> switch to Chrome or Edge — direct printer connections require Web Serial/Web Bluetooth support that those two browsers don&apos;t have.</p>
           </div>
         </div>
       </div>
