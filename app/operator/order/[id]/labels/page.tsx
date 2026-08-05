@@ -138,7 +138,16 @@ export default async function OperatorLabelsPage({
               .bar {
                 position: sticky; top: 0; z-index: 10;
                 background: #0D2240; padding: 14px 20px;
+                /* Extra right padding reserves room for PinGate's fixed
+                   top-right session pill ("<Name> · switch"), which floats
+                   above everything (z-50) and would otherwise sit directly
+                   on top of the print button in this corner. */
+                padding-right: 190px;
                 display: flex; align-items: center; gap: 14px;
+                flex-wrap: wrap;
+              }
+              @media print {
+                .bar { padding-right: 20px; }
               }
               .bar h1 { font-size: 15px; font-weight: 900; color: white; margin: 0; flex: 1; font-family: monospace; letter-spacing: 1px; }
               .bar .sub { font-size: 11px; color: rgba(255,255,255,0.55); font-family: sans-serif; font-weight: normal; margin-left: 8px; }
