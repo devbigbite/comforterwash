@@ -1,8 +1,8 @@
 import { requireAdmin } from "@/lib/auth-guard"
 import {
-  getCommercialAccounts, getCommercialInvoices,
+  getCommercialAccounts,
   addCommercialAccount, updateCommercialAccount, toggleCommercialAccountStatus,
-  deleteCommercialAccount, issueCommercialInvoice, createCommercialOrder,
+  deleteCommercialAccount, createCommercialOrder,
   sendCommercialAccountInvite,
   type CommercialAccount,
 } from "@/app/actions/commercial-accounts"
@@ -50,14 +50,7 @@ function AccountFields({ a }: { a?: CommercialAccount }) {
           <input name="contact_phone" type="tel" defaultValue={val("contact_phone")} placeholder="(407) 555-0100" className={inp} />
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Billing Frequency</label>
-          <select name="billing_frequency" defaultValue={val("billing_frequency") || "weekly"} className={inp}>
-            <option value="weekly">Weekly</option>
-            <option value="biweekly">Biweekly</option>
-          </select>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Rate Type</label>
           <select name="rate_type" defaultValue={val("rate_type") || "per_lb"} className={inp}>
@@ -90,10 +83,6 @@ function AccountFields({ a }: { a?: CommercialAccount }) {
 export default async function CommercialAccountsPage() {
   await requireAdmin()
   const accounts = await getCommercialAccounts()
-  const invoicesByAccount: Record<string, Awaited<ReturnType<typeof getCommercialInvoices>>> = {}
-  for (const a of accounts) {
-    invoicesByAccount[a.id] = await getCommercialInvoices(a.id)
-  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -223,7 +212,7 @@ export default async function CommercialAccountsPage() {
                   {a.address && <p>📍 {a.address}</p>}
                   {a.contact_name && <p>{a.contact_name}{a.contact_phone ? ` · ${a.contact_phone}` : ""}{a.contact_email ? ` · ${a.contact_email}` : ""}</p>}
                   <p className="text-xs text-gray-400">
-                    {a.billing_frequency} · {a.rate_type.replace("_", " ")}{a.rate_amount_cents ? ` · $${(a.rate_amount_cents / 100).toFixed(2)}` : ""}
+                    {a.rate_type.replace("_", " ")}{a.rate_amount_cents ? ` · $${(a.rate_amount_cents / 100).toFixed(2)}` : ""}
                     {a.minimum_amount_cents ? ` · min $${(a.minimum_amount_cents / 100).toFixed(2)}` : ""}
                   </p>
                 </div>
@@ -250,60 +239,6 @@ export default async function CommercialAccountsPage() {
                 </form>
               </div>
             </div>
-
-            {/* Billing accordion */}
-            {a.agreement_signed_at && (
-              <details className="group border-t border-gray-100">
-                <summary className="cursor-pointer px-5 py-2.5 text-xs font-semibold text-gray-400 hover:text-[#0D2240] transition-colors list-none flex items-center gap-1.5 select-none">
-                  <span className="group-open:hidden">💳 Billing ({(invoicesByAccount[a.id] ?? []).length} invoices)</span>
-                  <span className="hidden group-open:inline">💳 Close billing</span>
-                </summary>
-                <div className="px-5 pb-5 pt-4 bg-[#f7f8fb] border-t border-gray-100 space-y-4">
-                  <div className="border border-gray-200 rounded-xl p-4 bg-white">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Issue Invoice via Stripe</p>
-                    <form action={issueCommercialInvoice} className="space-y-2">
-                      <input type="hidden" name="account_id" value={a.id} />
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Amount ($)</label>
-                          <input name="amount" type="number" step="0.01" required className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period From</label>
-                          <input name="period_from" type="date" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period To</label>
-                          <input name="period_to" type="date" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
-                        </div>
-                      </div>
-                      <input name="notes" placeholder="Invoice description (optional)" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
-                      <button type="submit" className="w-full text-xs font-bold text-white bg-[#E8726A] hover:bg-[#d45f57] px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
-                        💸 Send Invoice
-                      </button>
-                    </form>
-                  </div>
-
-                  {(invoicesByAccount[a.id] ?? []).length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Invoice History</p>
-                      <div className="space-y-1.5">
-                        {(invoicesByAccount[a.id] ?? []).map(inv => (
-                          <div key={inv.id} className="flex items-center gap-3 flex-wrap bg-white rounded-xl px-3 py-2 border border-gray-100 text-xs">
-                            <span className="font-bold text-[#0D2240]">${(inv.amount_cents / 100).toFixed(2)}</span>
-                            {inv.period_from && inv.period_to && <span className="text-gray-400">{inv.period_from} – {inv.period_to}</span>}
-                            {inv.notes && <span className="text-gray-400">{inv.notes}</span>}
-                            <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-50 text-yellow-700 border border-yellow-200">
-                              {inv.status}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </details>
-            )}
 
             {/* Create order accordion */}
             {a.agreement_signed_at && (

@@ -25,7 +25,6 @@ export default async function CommercialAgreementPage({ params }: { params: Prom
             <p><span className="font-bold">Business:</span> {account.business_name}</p>
             {account.address && <p><span className="font-bold">Address:</span> {account.address}</p>}
             {account.contact_name && <p><span className="font-bold">Contact:</span> {account.contact_name}</p>}
-            <p><span className="font-bold">Billing Frequency:</span> {account.billing_frequency}</p>
             {account.rate_amount_cents != null && (
               <p><span className="font-bold">Rate:</span> ${(account.rate_amount_cents / 100).toFixed(2)} {rateLabel}</p>
             )}
@@ -73,16 +72,16 @@ export default async function CommercialAgreementPage({ params }: { params: Prom
                   ("Service Provider") and {account.business_name} ("Customer"), effective as of the date of signature below.
                 </p>
                 <p><strong>1. Scope of Service.</strong> Service Provider agrees to provide recurring commercial wash-and-fold
-                  laundry pickup and delivery service to Customer at the address on file, on a {account.billing_frequency} basis,
-                  subject to the schedule agreed upon between the parties.</p>
+                  laundry pickup and delivery service to Customer at the address on file, on a schedule agreed upon between the parties.</p>
                 <p><strong>2. Pricing.</strong> Service will be billed
                   {account.rate_amount_cents != null ? ` at $${(account.rate_amount_cents / 100).toFixed(2)} ${rateLabel}` : " at the rate agreed upon separately"}.
                   {account.minimum_amount_cents != null && ` A minimum charge of $${(account.minimum_amount_cents / 100).toFixed(2)} per service applies.`}
                   {" "}Pricing is subject to change with 30 days' written notice. Condition of items will be evaluated at processing, and
                   Customer will be contacted if any additional fees apply.</p>
-                <p><strong>3. Billing &amp; Payment.</strong> Invoices will be issued on a {account.billing_frequency} basis and are due
-                  within 15 days of the invoice date. Late payments may result in suspension of service. A valid payment method must be
-                  kept on file for the duration of this Agreement.</p>
+                <p><strong>3. Billing &amp; Payment.</strong> There is no invoicing — every order is processed and charged the same way a
+                  residential order is: to the payment method on file, automatically, once the order is weighed. A valid payment method
+                  must be kept on file for the duration of this Agreement, and Customer authorizes Service Provider to charge it for each
+                  order without a separate invoice or approval step.</p>
                 <p><strong>4. Term &amp; Termination.</strong> This Agreement remains in effect until terminated by either party with
                   at least 14 days' written notice. Either party may terminate immediately in the event of a material breach.</p>
                 <p><strong>5. Liability.</strong> Service Provider will exercise reasonable care in handling Customer's items.
