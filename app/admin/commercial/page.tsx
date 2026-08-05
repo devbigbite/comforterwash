@@ -3,6 +3,7 @@ import {
   getCommercialAccounts, getCommercialInvoices,
   addCommercialAccount, updateCommercialAccount, toggleCommercialAccountStatus,
   deleteCommercialAccount, issueCommercialInvoice, createCommercialOrder,
+  sendCommercialAccountInvite,
   type CommercialAccount,
 } from "@/app/actions/commercial-accounts"
 import { AgreementLinkCopy } from "@/components/admin/AgreementLinkCopy"
@@ -104,17 +105,82 @@ export default async function CommercialAccountsPage() {
         </p>
       </div>
 
-      {/* Add account */}
+      {/* Send signup invite — business fills in the rest themselves */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 space-y-4">
-        <h2 className="font-bold text-[#0D2240]">Add Commercial Account</h2>
-        <form action={addCommercialAccount} className="space-y-4">
-          <AccountFields />
+        <div>
+          <h2 className="font-bold text-[#0D2240]">✉️ Send Signup Invite</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Quicker option — email a link and the business fills in their own contact details, signs the agreement, and adds a card. Set a rate here if you already know it, or leave it blank and fill it in later.
+          </p>
+        </div>
+        <form action={sendCommercialAccountInvite} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Business Name *</label>
+              <input name="business_name" required placeholder="Sunrise Diner" className={inp} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Contact Email *</label>
+              <input name="contact_email" type="email" required placeholder="ap@sunrisediner.com" className={inp} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Contact Name</label>
+              <input name="contact_name" placeholder="Maria Rodriguez" className={inp} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Contact Phone</label>
+              <input name="contact_phone" type="tel" placeholder="(407) 555-0100" className={inp} />
+            </div>
+          </div>
+          <details className="group">
+            <summary className="cursor-pointer text-xs font-semibold text-gray-400 hover:text-[#0D2240] transition-colors list-none select-none">
+              <span className="group-open:hidden">+ Set a rate now (optional)</span>
+              <span className="hidden group-open:inline">− Hide rate fields</span>
+            </summary>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Rate Type</label>
+                <select name="rate_type" defaultValue="per_lb" className={inp}>
+                  <option value="per_lb">Per Pound</option>
+                  <option value="flat">Flat Rate</option>
+                  <option value="per_load">Per Load</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Rate ($)</label>
+                <input name="rate_amount" type="number" step="0.01" placeholder="1.25" className={inp} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Minimum ($)</label>
+                <input name="minimum_amount" type="number" step="0.01" placeholder="50.00" className={inp} />
+              </div>
+            </div>
+          </details>
           <div className="flex justify-end">
-            <button type="submit" className="rounded-xl bg-[#E8726A] text-white font-bold text-sm px-6 py-2.5 hover:bg-[#d45f57] transition-colors">
-              Add Account
+            <button type="submit" className="rounded-xl bg-[#0D2240] text-white font-bold text-sm px-6 py-2.5 hover:bg-[#16305c] transition-colors">
+              ✉️ Send Invite Email
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Add account manually */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 space-y-4">
+        <details className="group">
+          <summary className="cursor-pointer list-none select-none flex items-center justify-between">
+            <h2 className="font-bold text-[#0D2240]">Add Commercial Account Manually</h2>
+            <span className="text-xs text-gray-400 group-open:hidden">expand ▾</span>
+            <span className="text-xs text-gray-400 hidden group-open:inline">collapse ▴</span>
+          </summary>
+          <form action={addCommercialAccount} className="space-y-4 mt-4">
+            <AccountFields />
+            <div className="flex justify-end">
+              <button type="submit" className="rounded-xl bg-[#E8726A] text-white font-bold text-sm px-6 py-2.5 hover:bg-[#d45f57] transition-colors">
+                Add Account
+              </button>
+            </div>
+          </form>
+        </details>
       </div>
 
       {/* List */}

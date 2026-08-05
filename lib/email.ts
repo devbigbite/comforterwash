@@ -384,6 +384,43 @@ export interface GiftCardEmailData {
   message?: string
 }
 
+// ─────────────────────────────────────────────────────────────────
+// 12. Commercial account: signup invite (admin-triggered) — link to the
+// public /commercial-agreement/[code] page where the business fills in
+// its own contact details, e-signs the agreement, and adds a card on file.
+// ─────────────────────────────────────────────────────────────────
+export interface CommercialInviteEmailData {
+  toEmail: string
+  businessName: string
+  link: string
+}
+
+export async function sendCommercialAccountInviteEmail(data: CommercialInviteEmailData) {
+  if (!data.toEmail) return null
+  const branding = await getEmailBranding()
+  const subject = `Set up your commercial account — ${branding.businessName}`
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:${branding.primaryColor};margin-bottom:4px">You're invited to set up a commercial account</h2>
+      <p style="color:#666;font-size:14px;margin-bottom:24px">
+        ${branding.businessName} would like to set up recurring commercial laundry service for <strong>${data.businessName}</strong>.
+        Click below to review and sign the service agreement and add a payment method — it only takes a couple of minutes.
+      </p>
+      <div style="text-align:center;margin-bottom:24px">
+        <a href="${data.link}" style="display:inline-block;background:${branding.accentColor};color:white;font-weight:800;font-size:14px;text-decoration:none;padding:14px 28px;border-radius:999px">
+          Set Up Commercial Account →
+        </a>
+      </div>
+      <p style="color:#999;font-size:12px;line-height:1.6">
+        If the button doesn't work, copy and paste this link into your browser:<br>
+        <a href="${data.link}" style="color:${branding.accentColor}">${data.link}</a>
+      </p>
+      <p style="margin-top:24px;font-size:12px;color:#aaa">${branding.businessName} · ${branding.supportPhone}</p>
+    </div>
+  `
+  return safeSend({ from: await fromAdmin(), to: [data.toEmail], subject, html })
+}
+
 export async function sendGiftCardEmail(data: GiftCardEmailData) {
   if (!data.toEmail) return null
   const branding = await getEmailBranding()

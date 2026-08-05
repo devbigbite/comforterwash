@@ -5,7 +5,9 @@ import { stripe } from "@/lib/stripe"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { headers } from "next/headers"
+import { sendCommercialAccountInviteEmail } from "@/lib/email"
 
 export interface CommercialAccount {
   id: string
@@ -126,6 +128,87 @@ export async function getCommercialAccounts(): Promise<CommercialAccount[]> {
     .eq("location_id", locationId)
     .order("created_at", { ascending: false })
   return (data ?? []) as CommercialAccount[]
+}
+
+// ── Self-serve signup (public, no admin auth) ────────────────────────────────
+// Linked from the public /commercial page ("Or open your commercial account").
+// The business fills in its own contact details here; rate/billing terms are
+// left at their defaults and get set by staff once they review the account —
+// the same way a walk-in web lead would be followed up on. Redirects straight
+// into the e-sign + card-on-file flow (app/commercial-agreement/[code]) so the
+// business can finish setup in one sitting.
+export async function createCommercialAccountSelfServe(formData: FormData) {
+  const business_name = (formData.get("business_name") as string)?.trim()
+  if (!business_name) return { error: "Business name is required" }
+  const contact_email = (formData.get("contact_email") as string)?.trim()
+  if (!contact_email) return { error: "Email is required" }
+
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+
+  const { data, error } = await supabase
+    .from("commercial_accounts")
+    .insert({
+      location_id: locationId,
+      business_name,
+      contact_name: (formData.get("contact_name") as string)?.trim() || null,
+      contact_email,
+      contact_phone: (formData.get("contact_phone") as string)?.trim() || null,
+      address: (formData.get("address") as string)?.trim() || null,
+      notes: (formData.get("notes") as string)?.trim() || null,
+    })
+    .select("access_code")
+    .single()
+
+  if (error || !data) return { error: error?.message ?? "Failed to create account" }
+
+  revalidatePath("/admin/commercial")
+  redirect(`/commercial-agreement/${data.access_code}`)
+}
+
+// ── Admin: send a signup invite by email instead of typing in every field ───
+// Creates a lightweight pending account (business name + email only — the
+// business fills in the rest themselves) and emails them the same
+// e-sign + card-on-file link the self-serve flow above lands on.
+export async function sendCommercialAccountInvite(formData: FormData): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+
+  const business_name = (formData.get("business_name") as string)?.trim()
+  const contact_email = (formData.get("contact_email") as string)?.trim()
+  if (!business_name) return { error: "Business name is required" }
+  if (!contact_email) return { error: "Contact email is required" }
+
+  const rate_amount = parseFloat(formData.get("rate_amount") as string)
+  const minimum_amount = parseFloat(formData.get("minimum_amount") as string)
+
+  const { data, error } = await supabase
+    .from("commercial_accounts")
+    .insert({
+      location_id: locationId,
+      business_name,
+      contact_email,
+      contact_name: (formData.get("contact_name") as string)?.trim() || null,
+      contact_phone: (formData.get("contact_phone") as string)?.trim() || null,
+      rate_type: (formData.get("rate_type") as string) || "per_lb",
+      rate_amount_cents: Number.isFinite(rate_amount) ? Math.round(rate_amount * 100) : null,
+      minimum_amount_cents: Number.isFinite(minimum_amount) ? Math.round(minimum_amount * 100) : null,
+    })
+    .select("access_code")
+    .single()
+
+  if (error || !data) return { error: error?.message ?? "Failed to create account" }
+
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://comforterwash.com"
+  await sendCommercialAccountInviteEmail({
+    toEmail: contact_email,
+    businessName: business_name,
+    link: `${SITE_URL}/commercial-agreement/${data.access_code}`,
+  })
+
+  revalidatePath("/admin/commercial")
+  return { success: true }
 }
 
 // ── Public agreement lookup + signing (no admin auth — code-gated) ───────────

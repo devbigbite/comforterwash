@@ -142,6 +142,12 @@ export default async function CommercialPage({
             </p>
           </div>
           <CommercialForm />
+          <p className="text-center text-white/50 text-sm mt-6">
+            Already know you want in?{" "}
+            <Link href="/commercial-signup" className="text-[var(--brand-accent)] font-bold hover:underline">
+              Or open your commercial account →
+            </Link>
+          </p>
         </div>
       </section>
 
