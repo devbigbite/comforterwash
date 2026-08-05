@@ -38,7 +38,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
  *   never risks overflowing a narrower unit's printable area.
  */
 export async function getLogoRasterBytes(
-  url = "/receipt-logo.png",
+  url = "/receipt-logo-v2.jpg",
   targetWidthPx = 320
 ): Promise<Uint8Array | null> {
   if (cached) return cached
