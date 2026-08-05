@@ -349,6 +349,7 @@ export async function createCommercialCardSetupSession(accountId: string): Promi
     ui_mode: "embedded",
     redirect_on_completion: "never",
     mode: "setup",
+    currency: "usd",
     customer: stripeCustomerId,
     metadata: { commercial_account_id: accountId },
   })
