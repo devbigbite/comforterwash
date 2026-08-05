@@ -41,6 +41,10 @@ export function CommercialSignupForm({
         <input name="address" placeholder="123 Main St, Orlando FL" className={inp} />
       </div>
       <div className="flex flex-col gap-1">
+        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pickup &amp; Access Instructions (optional)</label>
+        <textarea name="access_instructions" rows={2} placeholder="Which entrance to use, loading area, gate code, ask for…" className={`${inp} resize-none`} />
+      </div>
+      <div className="flex flex-col gap-1">
         <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Notes (optional)</label>
         <input name="notes" placeholder="Estimated volume, preferred pickup days…" className={inp} />
       </div>

@@ -141,7 +141,7 @@ export async function runRecurringEngine(): Promise<RecurringEngineResult> {
   // ── 2. Commercial recurring accounts ───────────────────────────────────────
   const { data: dueAccounts } = await supabase
     .from("commercial_accounts")
-    .select("id, location_id, business_name, contact_name, contact_email, contact_phone, address, frequency, pickup_day_of_week, pickup_time_window, delivery_day_of_week, delivery_time_window, num_bags, service_type, next_pickup_date, status, recurring_enabled, stripe_payment_method_id")
+    .select("id, location_id, business_name, contact_name, contact_email, contact_phone, address, frequency, pickup_day_of_week, pickup_time_window, delivery_day_of_week, delivery_time_window, num_bags, service_type, next_pickup_date, status, recurring_enabled, stripe_payment_method_id, access_instructions")
     .eq("status", "active")
     .eq("recurring_enabled", true)
     .not("next_pickup_date", "is", null)
@@ -173,6 +173,7 @@ export async function runRecurringEngine(): Promise<RecurringEngineResult> {
         commercialAccountId: acct.id,
         paymentStatusOverride: "pending_weight",
         locationId: acct.location_id,
+        specialInstructions: acct.access_instructions ?? undefined,
       })
 
       const nextPickup = nextCyclePickupDate(pickupDate, acct.pickup_day_of_week, acct.frequency || "weekly")

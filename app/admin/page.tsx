@@ -255,13 +255,14 @@ export default async function AdminHub() {
     },
     {
       id: "commercial",
-      label: "Commercial Sales",
-      description: "Pitch templates, prospect pipeline, and proposal generation for commercial accounts.",
+      label: "Commercial Accounts",
+      description: "Signed commercial accounts, recurring schedules, cards on file — plus pitch templates and prospect pipeline.",
       color: "#0f766e",
       bg: "#f0fdfa",
       icon: <Briefcase className="h-7 w-7" style={{ color: "#0f766e" }} />,
-      primaryHref: "/super-admin/outreach",
+      primaryHref: "/admin/commercial",
       links: [
+        { label: "Manage Accounts", href: "/admin/commercial" },
         { label: "Pitch Templates", href: "/super-admin/outreach" },
         { label: "Pipeline", href: "/super-admin/outreach?tab=pipeline" },
       ],
@@ -410,7 +411,7 @@ export default async function AdminHub() {
               { label: "Promotions", href: "/admin/promos", icon: "🎟️" },
               { label: "Workers", href: "/admin/workers", icon: "👷" },
               { label: "Route Optimizer", href: "/admin/routing", icon: "🗺️" },
-              { label: "Commercial Sales", href: "/super-admin/outreach", icon: "💼" },
+              { label: "Commercial Accounts", href: "/admin/commercial", icon: "💼" },
               { label: "Settings", href: "/admin/settings", icon: "⚙️" },
             ].map((item) => (
               <a

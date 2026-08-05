@@ -22,6 +22,7 @@ export interface CommercialAccount {
   rate_amount_cents: number | null
   minimum_amount_cents: number | null
   notes: string | null
+  access_instructions: string | null
   status: "pending" | "active" | "paused" | "cancelled"
   access_code: string
   agreement_version: string
@@ -78,6 +79,7 @@ export async function addCommercialAccount(formData: FormData) {
     rate_amount_cents: Math.round(parseFloat(formData.get("rate_amount") as string) * 100) || null,
     minimum_amount_cents: Math.round(parseFloat(formData.get("minimum_amount") as string) * 100) || null,
     notes: (formData.get("notes") as string)?.trim() || null,
+    access_instructions: (formData.get("access_instructions") as string)?.trim() || null,
   })
 
   if (error) return { error: error.message }
@@ -103,6 +105,7 @@ export async function updateCommercialAccount(formData: FormData) {
     rate_amount_cents: Math.round(parseFloat(formData.get("rate_amount") as string) * 100) || null,
     minimum_amount_cents: Math.round(parseFloat(formData.get("minimum_amount") as string) * 100) || null,
     notes: (formData.get("notes") as string)?.trim() || null,
+    access_instructions: (formData.get("access_instructions") as string)?.trim() || null,
   }).eq("id", id)
 
   if (error) return { error: error.message }
@@ -199,6 +202,7 @@ export async function createCommercialAccountSelfServe(formData: FormData) {
       contact_phone: (formData.get("contact_phone") as string)?.trim() || null,
       address: (formData.get("address") as string)?.trim() || null,
       notes: (formData.get("notes") as string)?.trim() || null,
+      access_instructions: (formData.get("access_instructions") as string)?.trim() || null,
     })
     .select("access_code")
     .single()
@@ -505,7 +509,7 @@ export async function createCommercialOrder(formData: FormData): Promise<{ succe
 
   const { data: account } = await supabase
     .from("commercial_accounts")
-    .select("id, business_name, contact_name, contact_email, contact_phone, address, status, stripe_payment_method_id")
+    .select("id, business_name, contact_name, contact_email, contact_phone, address, status, stripe_payment_method_id, access_instructions")
     .eq("id", accountId)
     .single()
 
@@ -539,6 +543,7 @@ export async function createCommercialOrder(formData: FormData): Promise<{ succe
       serviceType: serviceType as "comforter_wash" | "wash_fold" | "wash_only",
       commercialAccountId: account.id,
       paymentStatusOverride: "pending_weight",
+      specialInstructions: account.access_instructions ?? undefined,
     })
 
     revalidatePath("/admin/commercial")

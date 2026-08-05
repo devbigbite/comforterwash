@@ -74,8 +74,15 @@ function AccountFields({ a }: { a?: CommercialAccount }) {
         </div>
       </div>
       <div className="flex flex-col gap-1">
+        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pickup &amp; Access Instructions</label>
+        <textarea name="access_instructions" defaultValue={val("access_instructions")} rows={2}
+          placeholder="Which entrance to use, loading dock/area, gate code, ask for…"
+          className={`${inp} resize-none`} />
+        <p className="text-[11px] text-gray-400">Shown to the driver and operator on every pickup for this account, including auto-generated recurring orders.</p>
+      </div>
+      <div className="flex flex-col gap-1">
         <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Notes</label>
-        <input name="notes" defaultValue={val("notes")} placeholder="Pickup instructions, contract details…" className={inp} />
+        <input name="notes" defaultValue={val("notes")} placeholder="Contract details, internal notes…" className={inp} />
       </div>
     </>
   )
@@ -211,6 +218,7 @@ export default async function CommercialAccountsPage() {
                 </div>
                 <div className="mt-1 space-y-0.5 text-sm text-gray-500">
                   {a.address && <p>📍 {a.address}</p>}
+                  {a.access_instructions && <p className="text-amber-700">🚪 {a.access_instructions}</p>}
                   {a.contact_name && <p>{a.contact_name}{a.contact_phone ? ` · ${a.contact_phone}` : ""}{a.contact_email ? ` · ${a.contact_email}` : ""}</p>}
                   <p className="text-xs text-gray-400">
                     {a.rate_type.replace("_", " ")}{a.rate_amount_cents ? ` · $${(a.rate_amount_cents / 100).toFixed(2)}` : ""}
