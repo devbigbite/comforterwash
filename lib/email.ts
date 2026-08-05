@@ -329,6 +329,49 @@ export async function sendAbandonedCheckoutAlertEmail(data: AbandonedCheckoutAle
 }
 
 // ─────────────────────────────────────────────────────────────────
+// 10b. Admin: Booking landed on an excluded/full date. The booking form's
+// datepicker greys these out client-side, but createBooking() has no
+// server-side re-check — a stale form, a devtools bypass, or another
+// booking filling the last capacity slot in the same moment could still
+// land an order here. This never blocks the booking (the customer has
+// already paid by the time this runs), it just makes sure a human sees it
+// immediately instead of a driver being dispatched on a day the shop isn't
+// running, or a home-capacity day quietly going over.
+// ─────────────────────────────────────────────────────────────────
+export interface DateConflictAlertData {
+  bookingId: string
+  shortCode: string | null
+  customerName: string
+  customerPhone: string | null
+  pickupDate: string
+  reason: "excluded_date" | "over_capacity"
+}
+
+export async function sendDateConflictAlertEmail(data: DateConflictAlertData) {
+  const branding = await getEmailBranding()
+  const reasonLine = data.reason === "excluded_date"
+    ? "This date is marked as a holiday/closure or before the first available pickup date."
+    : "This date is already at the home-based daily capacity limit."
+  const subject = `⚠️ Order landed on a blocked date — ${data.shortCode ?? data.bookingId.slice(0, 8).toUpperCase()}`
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:${branding.primaryColor};margin-bottom:4px">Booking on a blocked date</h2>
+      <p style="color:#666;font-size:14px;margin-bottom:24px">${branding.businessName} · ${reasonLine}</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr><td style="padding:8px 0;color:#888;width:120px">Order</td><td style="font-weight:600;color:${branding.primaryColor}">${data.shortCode ?? data.bookingId.slice(0, 8).toUpperCase()}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Customer</td><td style="color:${branding.primaryColor}">${data.customerName}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Phone</td><td style="color:${branding.primaryColor}">${data.customerPhone ? `<a href="tel:${data.customerPhone}" style="color:${branding.accentColor}">${data.customerPhone}</a>` : "—"}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Pickup date</td><td style="color:${branding.primaryColor}">${data.pickupDate}</td></tr>
+      </table>
+      <p style="margin-top:24px;font-size:12px;color:#aaa">
+        Payment already succeeded, so nothing was blocked automatically — reschedule this order from the dispatch board if the date genuinely doesn't work.
+      </p>
+    </div>
+  `
+  return safeSend({ from: await fromAdmin(), to: [ADMIN_EMAIL], subject, html })
+}
+
+// ─────────────────────────────────────────────────────────────────
 // 11. Customer: Gift Card Delivery (sent right after purchase — to the
 // recipient if one was given, otherwise back to the purchaser to forward)
 // ─────────────────────────────────────────────────────────────────

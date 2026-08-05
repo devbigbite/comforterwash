@@ -200,6 +200,38 @@ export async function createBooking(data: BookingData) {
     console.error("[v0] Error sending confirmation SMS:", error)
   }
 
+  // Soft server-side date/capacity check. The booking form's datepicker
+  // already greys out excluded/full days client-side, but that's the only
+  // enforcement today — a stale form, a devtools bypass, or another booking
+  // filling the last capacity slot in the same moment this one was created
+  // could still land an order here. By the time this runs the customer has
+  // already paid (see handleSuccessfulPayment / the webhook fallback), so
+  // this never blocks or rejects the booking — it just alerts staff so a
+  // human can reschedule if the date genuinely doesn't work.
+  try {
+    const { getExcludedDates } = await import("./holidays")
+    const excluded = await getExcludedDates()
+    if (excluded.includes(pickupDateStr)) {
+      const { sendDateConflictAlertEmail } = await import("@/lib/email")
+      await sendDateConflictAlertEmail({
+        bookingId: booking.id,
+        shortCode: booking.short_code ?? null,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone ?? null,
+        pickupDate: pickupDateStr,
+        reason: "excluded_date",
+      })
+      await supabase.from("order_events").insert({
+        booking_id: booking.id,
+        event_type: "date_conflict_flagged",
+        notes: `Pickup date ${pickupDateStr} landed on an excluded/full date — staff alerted.`,
+        created_by: "system",
+      })
+    }
+  } catch (error) {
+    console.error("[booking] Error running date/capacity conflict check:", error)
+  }
+
   return booking
 }
 

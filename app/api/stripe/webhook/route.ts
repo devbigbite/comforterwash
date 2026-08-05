@@ -59,47 +59,68 @@ export async function POST(req: NextRequest) {
           break
         }
 
-        if (session.metadata?.type !== "monthly_plan") break
-        if (session.mode !== "subscription") break
+        if (session.metadata?.type === "monthly_plan" && session.mode === "subscription") {
+          const stripeSubId = typeof session.subscription === "string"
+            ? session.subscription
+            : session.subscription?.id
+          if (!stripeSubId) break
 
-        const stripeSubId = typeof session.subscription === "string"
-          ? session.subscription
-          : session.subscription?.id
-        if (!stripeSubId) break
+          const sub = await stripe.subscriptions.retrieve(stripeSubId)
+          const meta = sub.metadata
 
-        const sub = await stripe.subscriptions.retrieve(stripeSubId)
-        const meta = sub.metadata
+          // Cycle dates from Stripe
+          const cycleStart = new Date(sub.current_period_start * 1000).toISOString().split("T")[0]
+          const cycleEnd   = new Date(sub.current_period_end   * 1000).toISOString().split("T")[0]
 
-        // Cycle dates from Stripe
-        const cycleStart = new Date(sub.current_period_start * 1000).toISOString().split("T")[0]
-        const cycleEnd   = new Date(sub.current_period_end   * 1000).toISOString().split("T")[0]
+          await supabase.from("subscriptions").insert({
+            location_id:             meta.location_id ?? null,
+            customer_name:           meta.customer_name,
+            customer_email:          session.customer_email ?? "",
+            customer_phone:          meta.customer_phone,
+            customer_address:        meta.customer_address,
+            subscription_type:       "monthly_plan",
+            plan_id:                 meta.plan_id,
+            frequency:               "monthly",
+            pickup_day_of_week:      meta.pickup_day_of_week,
+            pickup_time_window:      meta.pickup_time_window,
+            delivery_day_of_week:    meta.delivery_day_of_week,
+            delivery_time_window:    meta.delivery_time_window,
+            monthly_price_cents:     parseInt(meta.monthly_price_cents ?? "0"),
+            lbs_included:            parseInt(meta.lbs_included ?? "0"),
+            overage_rate_cents:      parseInt(meta.overage_rate_cents ?? "0"),
+            lbs_used_this_cycle:     0,
+            commitment_ends_at:    meta.commitment_ends_at ?? null,
+            cycle_start:             cycleStart,
+            cycle_end:               cycleEnd,
+            stripe_subscription_id:  stripeSubId,
+            stripe_customer_id:      typeof sub.customer === "string" ? sub.customer : sub.customer?.id,
+            detergent:               meta.detergent ?? "Standard",
+            status:                  "active",
+            price_per_lb_cents:      0,   // not used for monthly plans
+          })
+          break
+        }
 
-        await supabase.from("subscriptions").insert({
-          location_id:             meta.location_id ?? null,
-          customer_name:           meta.customer_name,
-          customer_email:          session.customer_email ?? "",
-          customer_phone:          meta.customer_phone,
-          customer_address:        meta.customer_address,
-          subscription_type:       "monthly_plan",
-          plan_id:                 meta.plan_id,
-          frequency:               "monthly",
-          pickup_day_of_week:      meta.pickup_day_of_week,
-          pickup_time_window:      meta.pickup_time_window,
-          delivery_day_of_week:    meta.delivery_day_of_week,
-          delivery_time_window:    meta.delivery_time_window,
-          monthly_price_cents:     parseInt(meta.monthly_price_cents ?? "0"),
-          lbs_included:            parseInt(meta.lbs_included ?? "0"),
-          overage_rate_cents:      parseInt(meta.overage_rate_cents ?? "0"),
-          lbs_used_this_cycle:     0,
-          commitment_ends_at:    meta.commitment_ends_at ?? null,
-          cycle_start:             cycleStart,
-          cycle_end:               cycleEnd,
-          stripe_subscription_id:  stripeSubId,
-          stripe_customer_id:      typeof sub.customer === "string" ? sub.customer : sub.customer?.id,
-          detergent:               meta.detergent ?? "Standard",
-          status:                  "active",
-          price_per_lb_cents:      0,   // not used for monthly plans
-        })
+        // ── Fallback safety net for one-time checkouts (regular bookings and
+        // gift-card purchases) ────────────────────────────────────────────
+        // handleSuccessfulPayment is normally triggered client-side by
+        // Stripe Embedded Checkout's onComplete callback the instant the
+        // customer sees payment succeed (see components/checkout.tsx). If
+        // the browser tab closes, crashes, or loses network in the narrow
+        // window between Stripe reporting success and that callback firing,
+        // the booking/gift-card would previously never get created even
+        // though the customer was charged. Calling the same function here
+        // closes that gap. It's now idempotent (checks checkout_attempts
+        // before doing anything — see handleSuccessfulPayment), so whichever
+        // path runs first does the real work and the other is a no-op; this
+        // never risks a duplicate booking or double-redeemed gift card.
+        if (session.mode === "payment") {
+          const { handleSuccessfulPayment } = await import("@/app/actions/stripe")
+          const result = await handleSuccessfulPayment(session.id)
+          if (!result.success) {
+            console.error(`[webhook] fallback handleSuccessfulPayment failed for session ${session.id}:`, result.error)
+          }
+        }
         break
       }
 
