@@ -130,10 +130,8 @@ export default async function OperatorLabelsPage({
   return (
     <PinGate role="operator">
       <OperatorOrderGate assignedOperatorId={booking.assigned_operator_id ?? null}>
-        <html>
-          <head>
-            <title>Bag Receipts — {orderCode}</title>
-            <style>{`
+        <>
+            <style dangerouslySetInnerHTML={{ __html: `
               *, *::before, *::after { box-sizing: border-box; }
               body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f5f7; color: #0D2240; }
 
@@ -203,9 +201,7 @@ export default async function OperatorLabelsPage({
                 .sheet { display: block; padding: 0; gap: 0; }
                 .receipt { border: none; page-break-after: always; break-after: page; margin: 0; width: 80mm; }
               }
-            `}</style>
-          </head>
-          <body>
+            ` }} />
             <div className="bar">
               <h1>
                 🧾 {orderCode}
@@ -235,6 +231,8 @@ export default async function OperatorLabelsPage({
               var LOYALTY_TAG = ${JSON.stringify(loyaltyNotice.tag)};
               var LOYALTY_TEXT = ${JSON.stringify(loyaltyNotice.text)};
               var ORDER_IDENTIFIER = ${JSON.stringify(orderIdentifier)};
+
+              document.title = "Bag Receipts — " + ORDER_CODE;
 
               function escapeHtml(str) {
                 return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -304,8 +302,7 @@ export default async function OperatorLabelsPage({
                 setTimeout(function() { window.print(); }, 300);
               }
             `}} />
-          </body>
-        </html>
+        </>
       </OperatorOrderGate>
     </PinGate>
   )
