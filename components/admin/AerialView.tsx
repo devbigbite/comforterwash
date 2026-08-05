@@ -68,6 +68,7 @@ function Bucket({
   onDrop,
   onChipDragStart,
   onChipDragEnd,
+  sticky,
 }: {
   icon: string
   label: string
@@ -85,6 +86,7 @@ function Bucket({
   onDrop?: (e: React.DragEvent) => void
   onChipDragStart?: (e: React.DragEvent, orderId: string) => void
   onChipDragEnd?: () => void
+  sticky?: boolean
 }) {
   return (
     <div
@@ -93,7 +95,7 @@ function Bucket({
       onDrop={droppable ? onDrop : undefined}
       className={`flex flex-col rounded-2xl border overflow-hidden min-w-[200px] flex-1 transition-colors ${
         isDragOver ? "border-[#0D2240] bg-[#0D2240]/5 ring-2 ring-[#0D2240]/20" : `${borderClass} ${bgClass}`
-      }`}
+      } ${sticky ? "sticky left-0 z-10 shadow-md" : ""}`}
     >
       {/* Header */}
       <div className={`px-4 py-3 border-b ${borderClass}`}>
@@ -309,6 +311,7 @@ export function AerialView({
           borderClass="border-[#E8726A]/20"
           bgClass="bg-[#E8726A]/5"
           emptyMsg="No pending pickups"
+          sticky
           droppable={canDrag ? true : undefined}
           isDragOver={dragOverBucket === "pendingPickup"}
           onDragOver={handleDragOver("pendingPickup")}

@@ -543,7 +543,9 @@ function DriverColumn({
         isDragOver
           ? "border-[#0D2240] bg-[#0D2240]/5 ring-2 ring-[#0D2240]/20"
           : isUnassigned ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white"
-      } shadow-sm overflow-hidden flex-shrink-0`}>
+      } shadow-sm overflow-hidden flex-shrink-0 ${
+        isUnassigned ? "sticky left-0 z-10 shadow-md" : ""
+      }`}>
 
       {/* Column header */}
       <div className={`px-3 py-3 border-b ${isUnassigned ? "border-amber-200" : "border-gray-100"}`}>
