@@ -28,7 +28,7 @@ const TERMS_DEFAULTS: LegalSection[] = [
     id: "wet-items",
     title: "3. Wet or Damp Items",
     style: "warning",
-    content: "We charge based on the weight of items as received at pickup. If your laundry arrives noticeably wet or damp — for example, towels or clothes that have not fully dried — our team will flag this on your order and may adjust the billed weight to reflect a reasonable dry estimate. We will always notify you before any adjustment is applied.\n\nTo avoid discrepancies, please ensure items are dry before pickup.",
+    content: "We charge based on the weight of items as received at pickup. No adjustments in weight can be made for wet or damp items — for example, towels or clothes that have not fully dried. The weight recorded at pickup is the weight you are billed for.\n\nTo avoid discrepancies, please ensure items are dry before pickup.",
   },
   {
     id: "items-not-accepted",
@@ -38,7 +38,7 @@ const TERMS_DEFAULTS: LegalSection[] = [
   {
     id: "check-pockets",
     title: "5. Please Check Your Pockets",
-    content: "Please remove all items from pockets before placing clothes in your laundry bag. We are not responsible for damage caused by items left in pockets — including pens, gum, lip balm, coins, lighters, or any other objects — to your garments or others in the same order. We will make our best effort to check pockets before washing, but this cannot be guaranteed.",
+    content: "Please remove all items from pockets before placing clothes in your laundry bag. We do not check pockets before washing. We are not responsible for damage caused by items left in pockets — including pens, gum, lip balm, coins, lighters, or any other objects — to your garments or others in the same order.",
   },
   {
     id: "dry-clean",
@@ -48,17 +48,17 @@ const TERMS_DEFAULTS: LegalSection[] = [
   {
     id: "stains",
     title: "7. Stains",
-    content: "We treat visible stains as part of our standard Wash & Fold service, but we do not guarantee stain removal. Some stains — particularly those that have been set by heat or time — may not come out fully. We are not liable for stains that remain after washing. If you have items with known stains, please note them at booking so we can give them extra attention.",
+    content: "We treat visible stains as part of an added service option. However, we do not guarantee stain removal. Some stains — particularly those that have been set by heat or time — may not come out fully. We are not liable for stains that remain after washing. If you have items with known stains, please note them at booking.",
   },
   {
     id: "pickup-delivery",
     title: "8. Pickup & Delivery",
-    content: "We will do our best to arrive within your selected time window (9:00 AM – 1:00 PM or 3:00 PM – 7:00 PM). Delays due to traffic, weather, or high order volume may occur. We will notify you by text if we are running significantly outside your window.\n\nIf no one is available at pickup, please leave your items in an agreed location (front door, lobby, etc.) and note this in your booking. We are not responsible for items left unattended in unsecured locations.",
+    content: "We will do our best to arrive within the time window you select at booking. Available windows vary by day and service area. Delays due to traffic, weather, or high order volume may occur. We will notify you by text if we are running significantly outside your window.\n\nIf no one is available at pickup, please leave your items in an agreed location (front door, lobby, etc.) and note this in your booking. We are not responsible for items left unattended in unsecured locations.",
   },
   {
     id: "care-liability",
     title: "9. Care & Liability",
-    content: "We take great care with every order. However, we are not responsible for damage to items that are not colorfast, pre-damaged, or require special handling not noted at booking.\n\nOur liability for any damaged item is limited to 3× the cleaning charge for that item, up to a maximum of $75 per item. We are not liable for consequential or incidental damages.",
+    content: "We take great care with every order. However, we are not responsible for damage to items that are not colorfast, pre-damaged, or require special handling not noted at booking. We are not liable for consequential or incidental damages.",
   },
   {
     id: "lost-items",

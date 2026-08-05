@@ -3,6 +3,7 @@ import {
   getCommercialAccounts,
   addCommercialAccount, updateCommercialAccount, toggleCommercialAccountStatus,
   deleteCommercialAccount, createCommercialOrder,
+  saveCommercialRecurringRule,
   sendCommercialAccountInvite,
   type CommercialAccount,
 } from "@/app/actions/commercial-accounts"
@@ -290,6 +291,89 @@ export default async function CommercialAccountsPage() {
                       </p>
                       <button type="submit" className="w-full text-xs font-bold text-white bg-[#0D2240] hover:bg-[#16305c] px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
                         📦 Create Order
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </details>
+            )}
+
+            {/* Recurring schedule accordion */}
+            {a.agreement_signed_at && (
+              <details className="group border-t border-gray-100">
+                <summary className="cursor-pointer px-5 py-2.5 text-xs font-semibold text-gray-400 hover:text-[#0D2240] transition-colors list-none flex items-center gap-1.5 select-none">
+                  <span className="group-open:hidden">
+                    🔁 Recurring schedule {a.recurring_enabled ? `— ON (${a.frequency}, ${a.pickup_day_of_week ?? "?"})` : "— off"}
+                  </span>
+                  <span className="hidden group-open:inline">🔁 Close</span>
+                </summary>
+                <div className="px-5 pb-5 pt-4 bg-[#f7f8fb] border-t border-gray-100">
+                  {!a.stripe_payment_method_id ? (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                      Add a card on file before enabling recurring service.
+                    </p>
+                  ) : (
+                    <form action={saveCommercialRecurringRule} className="space-y-2">
+                      <input type="hidden" name="account_id" value={a.id} />
+                      <label className="flex items-center gap-2 text-xs font-bold text-[#0D2240] mb-1">
+                        <input type="checkbox" name="recurring_enabled" defaultChecked={a.recurring_enabled} />
+                        Enable standing recurring pickups for this account
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Pickup Day</label>
+                          <select name="pickup_day_of_week" defaultValue={a.pickup_day_of_week ?? ""} className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white">
+                            <option value="">Select day</option>
+                            {["sunday","monday","tuesday","wednesday","thursday","friday","saturday"].map(d => (
+                              <option key={d} value={d}>{d[0].toUpperCase() + d.slice(1)}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Delivery Day</label>
+                          <select name="delivery_day_of_week" defaultValue={a.delivery_day_of_week ?? ""} className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white">
+                            <option value="">Select day</option>
+                            {["sunday","monday","tuesday","wednesday","thursday","friday","saturday"].map(d => (
+                              <option key={d} value={d}>{d[0].toUpperCase() + d.slice(1)}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Frequency</label>
+                          <select name="frequency" defaultValue={a.frequency ?? "weekly"} className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white">
+                            <option value="weekly">Weekly</option>
+                            <option value="biweekly">Biweekly</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Bags</label>
+                          <input name="num_bags" type="number" min="1" defaultValue={a.num_bags ?? 1} className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Pickup Window</label>
+                          <input name="pickup_time_window" defaultValue={a.pickup_time_window ?? "9:00 AM - 12:00 PM"} className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Delivery Window</label>
+                          <input name="delivery_time_window" defaultValue={a.delivery_time_window ?? "9:00 AM - 12:00 PM"} className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Service Type</label>
+                          <select name="service_type" defaultValue={a.service_type ?? "wash_fold"} className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white">
+                            <option value="wash_fold">Wash &amp; Fold</option>
+                            <option value="wash_only">Wash Only</option>
+                          </select>
+                        </div>
+                      </div>
+                      {a.next_pickup_date && (
+                        <p className="text-[11px] text-gray-400">Next auto-scheduled pickup: {a.next_pickup_date}</p>
+                      )}
+                      <p className="text-[11px] text-gray-400">
+                        Once enabled, a new order is created automatically a few days ahead of each pickup — same dispatch pipeline as
+                        manually created orders, charged to the card on file at weigh-in.
+                      </p>
+                      <button type="submit" className="w-full text-xs font-bold text-white bg-[#0D2240] hover:bg-[#16305c] px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
+                        Save Recurring Schedule
                       </button>
                     </form>
                   )}

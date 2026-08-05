@@ -74,7 +74,7 @@ async function advanceOrder(formData: FormData) {
   if (nextStatus === "in_washer" && weightStr) {
     const { data: booking } = await supabase
       .from("bookings")
-      .select("actual_weight_lbs, assigned_facility_id, stripe_payment_intent_id, customer_final_cents, service_type, commercial_account_id")
+      .select("actual_weight_lbs, assigned_facility_id, stripe_payment_intent_id, customer_final_cents, service_type, commercial_account_id, recurring_subscription_id")
       .eq("id", bookingId)
       .single()
 
@@ -146,6 +146,21 @@ async function advanceOrder(formData: FormData) {
             const { capturePayment } = await import("@/app/actions/stripe")
             await capturePayment(bookingId)
           } catch (e) { console.error("[operator] Stripe capture failed:", e) }
+        } else if (booking.recurring_subscription_id && customerFinalCents) {
+          // Auto-generated recurring subscription pickup (2nd+ pickup) — no
+          // pre-auth exists, so charge the subscriber's saved card off-session.
+          try {
+            const { chargeSubscriptionOrder } = await import("@/app/actions/stripe")
+            const result = await chargeSubscriptionOrder(bookingId)
+            if (result.error) {
+              await supabase.from("order_events").insert({
+                booking_id: bookingId,
+                event_type: "subscription_charge_failed",
+                notes: `Charge failed: ${result.error}`,
+                created_by: "system",
+              })
+            }
+          } catch (e) { console.error("[operator] Subscription charge failed:", e) }
         }
       }
     }

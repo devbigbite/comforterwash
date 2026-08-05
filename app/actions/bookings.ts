@@ -39,6 +39,7 @@ export interface BookingData {
   specialInstructions?: string  // customer-supplied note at booking time — surfaced to the operator, distinct from the internal status-timeline `notes` column
   commercialAccountId?: string  // links this booking to a commercial_accounts row — pay-at-weigh-in via saved card, no consumer pre-auth
   paymentStatusOverride?: string // e.g. "pending_weight" for commercial orders where nothing is charged until weigh-in
+  locationId?: string  // explicit tenant override — REQUIRED from cron/background contexts (recurring-engine), where there's no request hostname for getLocationId() to resolve from. Without it every cron-created booking would silently land on the Orlando fallback.
 }
 
 function toDateString(val: string): string {
@@ -71,7 +72,7 @@ async function pickColorKey(
 
 export async function createBooking(data: BookingData) {
   const supabase   = createAdminClient()
-  const locationId = await getLocationId()
+  const locationId = data.locationId ?? (await getLocationId())
   const pickupDateStr = toDateString(data.pickupDate)
   const colorKey   = await pickColorKey(supabase, pickupDateStr)
 

@@ -33,6 +33,15 @@ export interface CommercialAccount {
   card_brand: string | null
   card_last4: string | null
   created_at: string
+  recurring_enabled: boolean
+  pickup_day_of_week: string | null
+  delivery_day_of_week: string | null
+  frequency: "weekly" | "biweekly"
+  pickup_time_window: string | null
+  delivery_time_window: string | null
+  next_pickup_date: string | null
+  num_bags: number
+  service_type: string
 }
 
 export interface CommercialInvoice {
@@ -406,6 +415,80 @@ export async function saveCommercialCardFromSetupSession(sessionId: string, acco
     console.error("[saveCommercialCardFromSetupSession]", err)
     return { error: err instanceof Error ? err.message : "Failed to save card" }
   }
+}
+
+// ── Recurring rule (weekly/biweekly standing pickup) ─────────────────────────
+// Lets an active commercial account get auto-generated orders (Friday
+// pickup, Monday delivery, etc.) instead of an admin manually creating each
+// one — see app/actions/recurring-engine.ts, which runs daily via
+// app/api/cron/recurring-bookings/route.ts and reads these fields.
+
+const DAY_NUMS: Record<string, number> = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+}
+
+/** Next calendar date on/after today that falls on the given weekday (or today, if no day given). */
+function nextOccurrenceOnOrAfterToday(dayId: string | null): string {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (!dayId || !(dayId.toLowerCase() in DAY_NUMS)) return today.toISOString().split("T")[0]
+  const target = DAY_NUMS[dayId.toLowerCase()]
+  const diff = (target - today.getDay() + 7) % 7
+  const result = new Date(today)
+  result.setDate(result.getDate() + diff)
+  return result.toISOString().split("T")[0]
+}
+
+export async function saveCommercialRecurringRule(formData: FormData): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  const accountId = formData.get("account_id") as string
+
+  const recurringEnabled = formData.get("recurring_enabled") === "on"
+  const pickupDayOfWeek = (formData.get("pickup_day_of_week") as string) || null
+  const deliveryDayOfWeek = (formData.get("delivery_day_of_week") as string) || null
+  const frequency = (formData.get("frequency") as string) || "weekly"
+  const pickupTimeWindow = (formData.get("pickup_time_window") as string) || "9:00 AM - 12:00 PM"
+  const deliveryTimeWindow = (formData.get("delivery_time_window") as string) || "9:00 AM - 12:00 PM"
+  const numBags = parseInt(formData.get("num_bags") as string) || 1
+  const serviceType = (formData.get("service_type") as string) || "wash_fold"
+
+  if (recurringEnabled && !pickupDayOfWeek) return { error: "Select a pickup day to enable recurring service." }
+
+  const { data: account } = await supabase
+    .from("commercial_accounts")
+    .select("status, stripe_payment_method_id, next_pickup_date")
+    .eq("id", accountId)
+    .single()
+
+  if (!account) return { error: "Account not found" }
+  if (recurringEnabled && account.status !== "active") return { error: "Account must be active (signed + card on file) before enabling recurring service." }
+  if (recurringEnabled && !account.stripe_payment_method_id) return { error: "Add a card on file before enabling recurring service." }
+
+  // Only (re)seed next_pickup_date when turning recurring ON for the first
+  // time (no next_pickup_date yet) or when the pickup day itself changed —
+  // otherwise editing time windows shouldn't reset an already-scheduled cycle.
+  const seedNextPickup = recurringEnabled && !account.next_pickup_date
+
+  const { error } = await supabase
+    .from("commercial_accounts")
+    .update({
+      recurring_enabled: recurringEnabled,
+      pickup_day_of_week: pickupDayOfWeek,
+      delivery_day_of_week: deliveryDayOfWeek,
+      frequency,
+      pickup_time_window: pickupTimeWindow,
+      delivery_time_window: deliveryTimeWindow,
+      num_bags: numBags,
+      service_type: serviceType,
+      ...(seedNextPickup ? { next_pickup_date: nextOccurrenceOnOrAfterToday(pickupDayOfWeek) } : {}),
+    })
+    .eq("id", accountId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/admin/commercial")
+  return { success: true }
 }
 
 // ── Create a real order for a commercial account ─────────────────────────────
