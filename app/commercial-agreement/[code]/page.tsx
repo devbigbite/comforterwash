@@ -94,9 +94,6 @@ export default async function CommercialAgreementPage({ params }: { params: Prom
                 <p><strong>5. Liability.</strong> Service Provider will exercise reasonable care in handling Customer's items.</p>
 
                 <p><strong>6. Conditions.</strong></p>
-                <p style={{ textTransform: "uppercase", fontWeight: 700 }}>
-                  We are not responsible for articles not claimed. Unclaimed garments will be handled in accordance with state regulations.
-                </p>
                 <p>
                   We exercise utmost care in processing articles entrusted to us and use such processes which, in our opinion, are best suited
                   to the nature and condition of each individual article. Nevertheless, we cannot assume responsibility for inherent weaknesses
