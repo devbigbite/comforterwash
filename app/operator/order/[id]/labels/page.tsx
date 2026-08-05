@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { notFound } from "next/navigation"
 import { PinGate } from "@/components/pin-gate"
 import { OperatorOrderGate } from "@/components/operator-order-gate"
+import { PrintReceiptsButton } from "@/components/print-receipts-button"
 
 // Color keys are physical stickers applied by hand — the thermal printer is
 // monochrome, so the receipt only ever names the color as text
@@ -11,6 +12,14 @@ const COLOR_LABEL: Record<string, string> = {
   lime: "Lime", pink: "Pink", hotpink: "Hot Pink",
   orange: "Orange", purple: "Purple", yellow: "Yellow",
 }
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const supabase = createAdminClient()
+  const { data: booking } = await supabase.from("bookings").select("short_code").eq("id", id).single()
+  const orderCode = (booking?.short_code ?? id.slice(0, 8)).toUpperCase()
+  return { title: `Bag Receipts — ${orderCode}` }
+}
+
 /**
  * Operator bag receipts — printed one per output bag on a standard 80mm
  * thermal receipt roll (works the same on the Munbyn or any Bluetooth
@@ -124,8 +133,22 @@ export default async function OperatorLabelsPage({
   // operator said they packed, one receipt per bag.
   const totalBags = (booking.output_bags as number | null) ?? (booking.num_bags as number | null) ?? bagList.length ?? 1
 
-  const bagsJson = JSON.stringify(bagList)
   const address = (booking.customer_address as string | null) ?? ""
+  const detergent = (booking.detergent as string | null) ?? null
+
+  // Build exactly TOTAL receipts (the operator-entered finished/packed bag
+  // count) — use a real bag code where one exists for that bag number,
+  // otherwise just number it. Rendered as plain server JSX rather than an
+  // injected <script> building the DOM at runtime: this page lives inside
+  // PinGate/OperatorOrderGate ("use client"), so it gets hydrated by React,
+  // and an inline <script>'s DOM mutations aren't reliably preserved through
+  // that hydration — which was why the sheet stayed empty and the print
+  // button did nothing.
+  const receipts = Array.from({ length: totalBags }, (_, i) => {
+    const bagNum = i + 1
+    const match = bagList.find(b => b.bag_number === bagNum)
+    return { bagNum, bagCode: match?.label_code ?? null }
+  })
 
   return (
     <PinGate role="operator">
@@ -217,100 +240,62 @@ export default async function OperatorLabelsPage({
                 <span className="sub">{totalBags} bag{totalBags !== 1 ? "s" : ""} · 80mm roll · no price printed</span>
               </h1>
               <a href={`/operator/order/${id}`} className="btn-back">← Back to order</a>
-              <button className="btn-print" id="print-btn">🖨️ Print All Receipts</button>
+              <PrintReceiptsButton autoprint={autoprint === "1"} />
             </div>
 
             <p className="preview-note">
               One receipt per output bag, sized for an 80mm thermal roll (Munbyn or any Bluetooth thermal receipt printer — select it like any normal printer in the print dialog). Includes the delivery address for the driver. No price is printed.
             </p>
 
-            <div className="sheet" id="sheet"></div>
-
-            <script dangerouslySetInnerHTML={{ __html: `
-              var BAGS = ${bagsJson};
-              var TOTAL = ${totalBags};
-              var ORDER_CODE = ${JSON.stringify(orderCode)};
-              var SERVICE = ${JSON.stringify(serviceLabel)};
-              var DUE = ${JSON.stringify(dueDate)};
-              var ADDRESS = ${JSON.stringify(address)};
-              var COLOR_LABEL = ${JSON.stringify(colorLabel)};
-              var GOING_TO_STORAGE = ${JSON.stringify(goingToStorage)};
-              var EXTRAS = ${JSON.stringify(extras)};
-              var DETERGENT = ${JSON.stringify(booking.detergent ?? null)};
-              var LOYALTY_TAG = ${JSON.stringify(loyaltyNotice.tag)};
-              var LOYALTY_TEXT = ${JSON.stringify(loyaltyNotice.text)};
-              var ORDER_IDENTIFIER = ${JSON.stringify(orderIdentifier)};
-
-              document.title = "Bag Receipts — " + ORDER_CODE;
-
-              function escapeHtml(str) {
-                return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-              }
-
-              function buildReceipt(bagNum, bagCode) {
-                var colorRow = COLOR_LABEL
-                  ? '<div class="r-color-row"><span class="r-tag">Color key sticker</span>' +
-                    '<span class="r-color-text">' + escapeHtml(COLOR_LABEL) + '</span></div>'
-                  : '';
-                var storageFlag = GOING_TO_STORAGE
-                  ? '<div class="r-storage-flag"><span>⚠ APPLY YELLOW MARKER STICKER — GOING TO STORAGE</span></div>'
-                  : '';
-                var prefsParts = [];
-                if (DETERGENT) prefsParts.push(escapeHtml(DETERGENT));
-                EXTRAS.forEach(function(e) { prefsParts.push(escapeHtml(e)); });
-                var prefsHTML = prefsParts.length
-                  ? '<div class="r-section-title">Wash Preferences</div><div class="r-prefs">' + prefsParts.join(' · ') + '</div>'
-                  : '';
-                var addressHTML = ADDRESS
-                  ? '<div class="r-section-title">Delivery Address</div><div class="r-address">' + escapeHtml(ADDRESS) + '</div>'
-                  : '';
-                var loyaltyFlag = '<div class="r-loyalty-flag"><span class="r-tag">' + escapeHtml(LOYALTY_TAG) + '</span>' +
-                  '<span class="r-loyalty-text">' + escapeHtml(LOYALTY_TEXT) + '</span>' +
-                  '<span class="r-order-id">' + escapeHtml(ORDER_IDENTIFIER) + '</span></div>';
-
-                return '<div class="receipt">' +
-                  '<div class="r-center">' +
-                    '<div class="r-brand">WashFold Orlando</div>' +
-                    '<div class="r-bagof">BAG ' + bagNum + ' / ' + TOTAL + '</div>' +
-                    '<div class="r-order-code">' + escapeHtml(ORDER_CODE) + '</div>' +
-                    (bagCode ? '<div class="r-bag-code">' + escapeHtml(bagCode) + '</div>' : '') +
-                    '<div class="r-service">' + escapeHtml(SERVICE) + '</div>' +
-                  '</div>' +
-                  '<hr class="r-divider">' +
-                  loyaltyFlag +
-                  addressHTML +
-                  colorRow +
-                  storageFlag +
-                  prefsHTML +
-                  '<div class="r-due">' + escapeHtml(DUE) + '<span>Deliver to customer by</span></div>' +
-                  '<div class="r-instruction">Do not remove · Match sticker to bag</div>' +
-                '</div>';
-              }
-
-              function render() {
-                var sheet = document.getElementById("sheet");
-                var html = "";
-                // Always print exactly TOTAL receipts (the operator-entered finished
-                // bag count) — use a real bag code where one exists for that bag
-                // number, otherwise just number it.
-                for (var i = 1; i <= TOTAL; i++) {
-                  var match = null;
-                  for (var j = 0; j < BAGS.length; j++) {
-                    if (BAGS[j].bag_number === i) { match = BAGS[j]; break; }
-                  }
-                  html += buildReceipt(i, match ? match.label_code : null);
-                }
-                sheet.innerHTML = html;
-              }
-
-              document.getElementById("print-btn").addEventListener("click", function() { window.print(); });
-              render();
-
-              if (${JSON.stringify(autoprint === "1")}) {
-                // Give the receipts a beat to lay out before invoking the print dialog.
-                setTimeout(function() { window.print(); }, 300);
-              }
-            `}} />
+            <div className="sheet">
+              {receipts.map(({ bagNum, bagCode }) => (
+                <div className="receipt" key={bagNum}>
+                  <div className="r-center">
+                    <div className="r-brand">WashFold Orlando</div>
+                    <div className="r-bagof">BAG {bagNum} / {totalBags}</div>
+                    <div className="r-order-code">{orderCode}</div>
+                    {bagCode && <div className="r-bag-code">{bagCode}</div>}
+                    <div className="r-service">{serviceLabel}</div>
+                  </div>
+                  <hr className="r-divider" />
+                  <div className="r-loyalty-flag">
+                    <span className="r-tag">{loyaltyNotice.tag}</span>
+                    <span className="r-loyalty-text">{loyaltyNotice.text}</span>
+                    <span className="r-order-id">{orderIdentifier}</span>
+                  </div>
+                  {address && (
+                    <>
+                      <div className="r-section-title">Delivery Address</div>
+                      <div className="r-address">{address}</div>
+                    </>
+                  )}
+                  {colorLabel && (
+                    <div className="r-color-row">
+                      <span className="r-tag">Color key sticker</span>
+                      <span className="r-color-text">{colorLabel}</span>
+                    </div>
+                  )}
+                  {goingToStorage && (
+                    <div className="r-storage-flag">
+                      <span>⚠ APPLY YELLOW MARKER STICKER — GOING TO STORAGE</span>
+                    </div>
+                  )}
+                  {(detergent || extras.length > 0) && (
+                    <>
+                      <div className="r-section-title">Wash Preferences</div>
+                      <div className="r-prefs">
+                        {[detergent, ...extras].filter(Boolean).join(" · ")}
+                      </div>
+                    </>
+                  )}
+                  <div className="r-due">
+                    {dueDate}
+                    <span>Deliver to customer by</span>
+                  </div>
+                  <div className="r-instruction">Do not remove · Match sticker to bag</div>
+                </div>
+              ))}
+            </div>
         </>
       </OperatorOrderGate>
     </PinGate>
