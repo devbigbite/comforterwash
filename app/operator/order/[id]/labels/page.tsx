@@ -198,7 +198,12 @@ export default async function OperatorLabelsPage({
               .btn-back { color: rgba(255,255,255,0.6); font-size: 13px; text-decoration: none; }
               .btn-back:hover { color: white; }
 
-              .print-btn-wrap { position: relative; }
+              .print-btn-wrap { position: relative; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+              .btn-print-alt {
+                background: none; border: none; color: rgba(255,255,255,0.5);
+                font-size: 10px; text-decoration: underline; cursor: pointer; padding: 0;
+              }
+              .btn-print-alt:hover { color: white; }
               .print-error {
                 position: absolute; top: 100%; right: 0; margin-top: 8px; z-index: 20;
                 background: white; color: #b91c1c; font-size: 12px; font-weight: 700;

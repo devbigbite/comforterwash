@@ -2,20 +2,30 @@
 
 import { useEffect, useState } from "react"
 import { connectPrinter, reconnectPrinter, writeToPrinter, BluetoothPrinterError } from "@/lib/bluetooth-printer"
+import { connectSerialPrinter, reconnectSerialPrinter, writeToSerialPrinter, SerialPrinterError } from "@/lib/serial-printer"
 import { buildReceiptBytes, type ReceiptData } from "@/lib/escpos"
 
 type Status = "idle" | "connecting" | "printing" | "error"
+type Connection =
+  | { kind: "bluetooth"; char: BluetoothRemoteGATTCharacteristic }
+  | { kind: "serial"; port: SerialPort }
+  | null
 
 /**
  * Print trigger for the operator bag-receipts page. Prints directly to the
- * paired Bluetooth thermal printer (generic "PX-90B" style, no manufacturer
- * SDK) via Web Bluetooth + raw ESC/POS commands — skips the OS print dialog
- * entirely, since the shop wants receipts to go straight to that one
- * printer without picking a destination each time.
+ * paired thermal printer (generic "PX-90B" style, no manufacturer SDK),
+ * skipping the OS print dialog entirely.
  *
- * Falls back to the normal browser print dialog (window.print(), same as
- * before) if Web Bluetooth isn't supported in this browser or the printer
- * connection fails, so nothing is lost on unsupported devices.
+ * Two transports are supported because it wasn't known up front which one
+ * this printer actually uses:
+ *  - Web Bluetooth (BLE/GATT) — tried first.
+ *  - Web Serial (virtual COM port) — this printer turned out to use
+ *    classic Bluetooth (SPP), which Web Bluetooth cannot reach at all;
+ *    once paired at the OS level it shows up as a normal serial port,
+ *    which Web Serial *can* talk to directly.
+ *
+ * Falls back to the normal browser print dialog (window.print()) if
+ * neither transport is supported or connecting/printing fails.
  */
 export function PrintReceiptsButton({
   receipts,
@@ -26,68 +36,108 @@ export function PrintReceiptsButton({
 }) {
   const [status, setStatus] = useState<Status>("idle")
   const [error, setError] = useState<string | null>(null)
-  const [charRef, setCharRef] = useState<BluetoothRemoteGATTCharacteristic | null>(null)
+  const [connection, setConnection] = useState<Connection>(null)
 
-  async function printViaBluetooth(char: BluetoothRemoteGATTCharacteristic) {
+  async function printVia(conn: NonNullable<Connection>) {
     setStatus("printing")
     setError(null)
     try {
       for (const receipt of receipts) {
-        await writeToPrinter(char, buildReceiptBytes(receipt))
+        const bytes = buildReceiptBytes(receipt)
+        if (conn.kind === "bluetooth") await writeToPrinter(conn.char, bytes)
+        else await writeToSerialPrinter(conn.port, bytes)
       }
       setStatus("idle")
     } catch (err) {
       setStatus("error")
-      setError(err instanceof BluetoothPrinterError ? err.message : "Printing failed — check the printer is on and paired.")
+      setError(
+        err instanceof BluetoothPrinterError || err instanceof SerialPrinterError
+          ? err.message
+          : "Printing failed — check the printer is on and connected."
+      )
     }
   }
 
-  async function handleClick() {
-    if (charRef) {
-      await printViaBluetooth(charRef)
-      return
-    }
+  async function handleBluetoothClick() {
+    if (connection?.kind === "bluetooth") return printVia(connection)
     setStatus("connecting")
     setError(null)
     try {
       const char = await connectPrinter()
-      setCharRef(char)
-      await printViaBluetooth(char)
+      const conn: Connection = { kind: "bluetooth", char }
+      setConnection(conn)
+      await printVia(conn)
     } catch (err) {
       setStatus("error")
-      setError(err instanceof BluetoothPrinterError ? err.message : "Couldn't connect to the printer.")
+      setError(
+        err instanceof BluetoothPrinterError
+          ? err.message + " This printer may use classic Bluetooth instead of BLE — try \"Connect via Serial/COM port\" below."
+          : "Couldn't connect over Bluetooth."
+      )
     }
   }
 
-  // Try a silent reconnect to the last-paired printer on load (no picker
-  // dialog — only works for a device already granted permission in this
-  // browser). If it works and autoprint was requested, print immediately.
+  async function handleSerialClick() {
+    if (connection?.kind === "serial") return printVia(connection)
+    setStatus("connecting")
+    setError(null)
+    try {
+      const port = await connectSerialPrinter()
+      const conn: Connection = { kind: "serial", port }
+      setConnection(conn)
+      await printVia(conn)
+    } catch (err) {
+      setStatus("error")
+      setError(err instanceof SerialPrinterError ? err.message : "Couldn't connect over serial/COM port.")
+    }
+  }
+
+  // Try a silent reconnect on load (no picker dialog — only works for a
+  // device/port already granted permission in this browser). Tries
+  // Bluetooth first, then serial. If one works and autoprint was
+  // requested, print immediately.
   useEffect(() => {
     let cancelled = false
-    reconnectPrinter().then(char => {
-      if (cancelled || !char) return
-      setCharRef(char)
-      if (autoprint) printViaBluetooth(char)
-    })
+    ;(async () => {
+      const char = await reconnectPrinter()
+      if (cancelled) return
+      if (char) {
+        const conn: Connection = { kind: "bluetooth", char }
+        setConnection(conn)
+        if (autoprint) printVia(conn)
+        return
+      }
+      const port = await reconnectSerialPrinter()
+      if (cancelled || !port) return
+      const conn: Connection = { kind: "serial", port }
+      setConnection(conn)
+      if (autoprint) printVia(conn)
+    })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const label =
+  const busy = status === "connecting" || status === "printing"
+  const mainLabel =
     status === "connecting" ? "Connecting…"
     : status === "printing" ? "Printing…"
-    : charRef ? "🖨️ Print All Receipts"
-    : "🔗 Connect & Print"
+    : connection ? "🖨️ Print All Receipts"
+    : "🔗 Connect via Serial/COM Port"
 
   return (
     <div className="print-btn-wrap">
       <button
         className="btn-print"
-        onClick={handleClick}
-        disabled={status === "connecting" || status === "printing"}
+        onClick={connection?.kind === "bluetooth" ? handleBluetoothClick : handleSerialClick}
+        disabled={busy}
       >
-        {label}
+        {mainLabel}
       </button>
+      {!connection && (
+        <button className="btn-print-alt" onClick={handleBluetoothClick} disabled={busy}>
+          Try Bluetooth (BLE) instead
+        </button>
+      )}
       {error && (
         <div className="print-error">
           {error}
