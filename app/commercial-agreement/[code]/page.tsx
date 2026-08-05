@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import { getCommercialAccountByCode, signCommercialAgreement } from "@/app/actions/commercial-accounts"
 import { SignAgreementForm } from "./sign-form"
+import CommercialCardSetup from "@/components/commercial-card-setup"
 
 export default async function CommercialAgreementPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
@@ -34,11 +35,31 @@ export default async function CommercialAgreementPage({ params }: { params: Prom
           </div>
 
           {account.agreement_signed_at ? (
-            <div className="rounded-xl bg-green-50 border border-green-200 p-5 text-center">
-              <p className="font-bold text-green-700">✅ This agreement was signed</p>
-              <p className="text-sm text-green-700/80 mt-1">
-                Signed by {account.agreement_signed_name} on {new Date(account.agreement_signed_at).toLocaleDateString()}
-              </p>
+            <div className="space-y-6">
+              <div className="rounded-xl bg-green-50 border border-green-200 p-5 text-center">
+                <p className="font-bold text-green-700">✅ This agreement was signed</p>
+                <p className="text-sm text-green-700/80 mt-1">
+                  Signed by {account.agreement_signed_name} on {new Date(account.agreement_signed_at).toLocaleDateString()}
+                </p>
+              </div>
+
+              {account.stripe_payment_method_id ? (
+                <div className="rounded-xl bg-green-50 border border-green-200 p-5 text-center">
+                  <p className="font-bold text-green-700">✅ Payment method on file</p>
+                  <p className="text-sm text-green-700/80 mt-1">
+                    {account.card_brand ? `${account.card_brand.toUpperCase()} ` : ""}
+                    {account.card_last4 ? `ending in ${account.card_last4}` : "Card saved"}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <h2 className="text-sm font-bold text-[#0D2240] mb-2">Add a payment method</h2>
+                  <p className="text-xs text-gray-400 mb-3">
+                    Your card is saved securely with Stripe and charged only after each order is weighed — nothing is charged today.
+                  </p>
+                  <CommercialCardSetup accountId={account.id} />
+                </div>
+              )}
             </div>
           ) : (
             <>

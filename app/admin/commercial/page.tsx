@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/auth-guard"
 import {
   getCommercialAccounts, getCommercialInvoices,
   addCommercialAccount, updateCommercialAccount, toggleCommercialAccountStatus,
-  deleteCommercialAccount, issueCommercialInvoice,
+  deleteCommercialAccount, issueCommercialInvoice, createCommercialOrder,
   type CommercialAccount,
 } from "@/app/actions/commercial-accounts"
 import { AgreementLinkCopy } from "@/components/admin/AgreementLinkCopy"
@@ -142,6 +142,17 @@ export default async function CommercialAccountsPage() {
                       Awaiting signature
                     </span>
                   )}
+                  {a.agreement_signed_at && (
+                    a.stripe_payment_method_id ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-green-50 text-green-700 border-green-200">
+                        💳 {a.card_brand ? `${a.card_brand.toUpperCase()} ` : ""}{a.card_last4 ? `••${a.card_last4}` : "Card on file"}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-amber-50 text-amber-700 border-amber-200">
+                        No card on file
+                      </span>
+                    )
+                  )}
                 </div>
                 <div className="mt-1 space-y-0.5 text-sm text-gray-500">
                   {a.address && <p>📍 {a.address}</p>}
@@ -224,6 +235,63 @@ export default async function CommercialAccountsPage() {
                         ))}
                       </div>
                     </div>
+                  )}
+                </div>
+              </details>
+            )}
+
+            {/* Create order accordion */}
+            {a.agreement_signed_at && (
+              <details className="group border-t border-gray-100">
+                <summary className="cursor-pointer px-5 py-2.5 text-xs font-semibold text-gray-400 hover:text-[#0D2240] transition-colors list-none flex items-center gap-1.5 select-none">
+                  <span className="group-open:hidden">📦 Create order</span>
+                  <span className="hidden group-open:inline">📦 Close</span>
+                </summary>
+                <div className="px-5 pb-5 pt-4 bg-[#f7f8fb] border-t border-gray-100">
+                  {!a.stripe_payment_method_id ? (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                      Add a card on file before creating orders — the commercial agreement link above includes a payment-method step.
+                    </p>
+                  ) : (
+                    <form action={createCommercialOrder} className="space-y-2">
+                      <input type="hidden" name="account_id" value={a.id} />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Pickup Date</label>
+                          <input name="pickup_date" type="date" required className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Pickup Window</label>
+                          <input name="pickup_time_window" placeholder="9:00 AM - 12:00 PM" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Delivery Date</label>
+                          <input name="delivery_date" type="date" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Delivery Window</label>
+                          <input name="delivery_time_window" placeholder="9:00 AM - 12:00 PM" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Bags</label>
+                          <input name="num_bags" type="number" min="1" defaultValue="1" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Service Type</label>
+                          <select name="service_type" defaultValue="wash_fold" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white">
+                            <option value="wash_fold">Wash &amp; Fold</option>
+                            <option value="wash_only">Wash Only</option>
+                          </select>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-gray-400">
+                        No charge happens now — the account&apos;s card on file is charged automatically once the order is weighed at the facility,
+                        the same way a regular customer order flows through pickup, washing, and delivery.
+                      </p>
+                      <button type="submit" className="w-full text-xs font-bold text-white bg-[#0D2240] hover:bg-[#16305c] px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
+                        📦 Create Order
+                      </button>
+                    </form>
                   )}
                 </div>
               </details>

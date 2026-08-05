@@ -74,17 +74,40 @@ async function advanceOrder(formData: FormData) {
   if (nextStatus === "in_washer" && weightStr) {
     const { data: booking } = await supabase
       .from("bookings")
-      .select("actual_weight_lbs, assigned_facility_id, stripe_payment_intent_id, customer_final_cents, service_type")
+      .select("actual_weight_lbs, assigned_facility_id, stripe_payment_intent_id, customer_final_cents, service_type, commercial_account_id")
       .eq("id", bookingId)
       .single()
 
     if (booking && !booking.actual_weight_lbs) {
       const weightLbs = parseFloat(weightStr)
       if (weightLbs > 0) {
-        const DEFAULT_RATE: Record<string, number> = { wash_fold: 250, wash_only: 199, comforter_wash: 0 }
-        const ratePerLbCents = DEFAULT_RATE[booking.service_type as string] ?? 250
-        const customerChargeLbs = Math.max(weightLbs, 20)
-        const customerFinalCents = customerChargeLbs * ratePerLbCents
+        // Commercial pay-at-time-of-service accounts price off their own
+        // negotiated rate_type/rate_amount_cents/minimum_amount_cents instead
+        // of the consumer DEFAULT_RATE table — see commercial_accounts.
+        let commercialAccount: { rate_type: string; rate_amount_cents: number | null; minimum_amount_cents: number | null } | null = null
+        if (booking.commercial_account_id) {
+          const { data } = await supabase
+            .from("commercial_accounts")
+            .select("rate_type, rate_amount_cents, minimum_amount_cents")
+            .eq("id", booking.commercial_account_id)
+            .single()
+          commercialAccount = data
+        }
+
+        let customerFinalCents: number
+        if (commercialAccount) {
+          const rateAmount = commercialAccount.rate_amount_cents ?? 0
+          const rawCents =
+            commercialAccount.rate_type === "per_lb" ? Math.round(weightLbs * rateAmount) :
+            commercialAccount.rate_type === "flat" ? rateAmount :
+            rateAmount // per_load — same flat amount per order
+          customerFinalCents = Math.max(rawCents, commercialAccount.minimum_amount_cents ?? 0)
+        } else {
+          const DEFAULT_RATE: Record<string, number> = { wash_fold: 250, wash_only: 199, comforter_wash: 0 }
+          const ratePerLbCents = DEFAULT_RATE[booking.service_type as string] ?? 250
+          const customerChargeLbs = Math.max(weightLbs, 20)
+          customerFinalCents = customerChargeLbs * ratePerLbCents
+        }
 
         let facilityCostCents = 0
         if (booking.assigned_facility_id) {
@@ -103,7 +126,22 @@ async function advanceOrder(formData: FormData) {
           weight_entered_at: new Date().toISOString(),
         }).eq("id", bookingId)
 
-        if (booking.stripe_payment_intent_id && customerFinalCents) {
+        if (booking.commercial_account_id && customerFinalCents) {
+          try {
+            const { chargeCommercialAccountOrder } = await import("@/app/actions/stripe")
+            const result = await chargeCommercialAccountOrder(bookingId)
+            if (result.error) {
+              // Surfaced visibly (not silently swallowed) — log an order_event
+              // so staff see the failed charge on the order timeline.
+              await supabase.from("order_events").insert({
+                booking_id: bookingId,
+                event_type: "commercial_charge_failed",
+                notes: `Charge failed: ${result.error}`,
+                created_by: "system",
+              })
+            }
+          } catch (e) { console.error("[operator] Commercial charge failed:", e) }
+        } else if (booking.stripe_payment_intent_id && customerFinalCents) {
           try {
             const { capturePayment } = await import("@/app/actions/stripe")
             await capturePayment(bookingId)

@@ -1,6 +1,7 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 type SignResult = { error?: string; success?: boolean }
 
@@ -11,16 +12,26 @@ export function SignAgreementForm({
   code: string
   action: (formData: FormData) => Promise<SignResult>
 }) {
+  const router = useRouter()
   const [state, formAction, pending] = useActionState<SignResult, FormData>(
     async (_prev, formData) => action(formData),
     {}
   )
 
+  // Refresh so the page re-renders past the "signed" state and shows the
+  // payment-method step below (server component re-fetches the account).
+  useEffect(() => {
+    if (state.success) {
+      const t = setTimeout(() => router.refresh(), 1200)
+      return () => clearTimeout(t)
+    }
+  }, [state.success, router])
+
   if (state.success) {
     return (
       <div className="rounded-xl bg-green-50 border border-green-200 p-5 text-center">
         <p className="font-bold text-green-700">✅ Agreement signed successfully!</p>
-        <p className="text-sm text-green-700/80 mt-1">Thank you — we&apos;ll be in touch to confirm your service schedule.</p>
+        <p className="text-sm text-green-700/80 mt-1">Thank you — loading the payment step…</p>
       </div>
     )
   }

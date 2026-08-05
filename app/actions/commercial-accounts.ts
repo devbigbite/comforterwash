@@ -27,6 +27,9 @@ export interface CommercialAccount {
   agreement_signed_name: string | null
   agreement_signed_ip: string | null
   stripe_customer_id: string | null
+  stripe_payment_method_id: string | null
+  card_brand: string | null
+  card_last4: string | null
   created_at: string
 }
 
@@ -192,6 +195,147 @@ export async function signCommercialAgreement(formData: FormData): Promise<{ err
   revalidatePath(`/commercial-agreement/${code}`)
   revalidatePath("/admin/commercial")
   return { success: true }
+}
+
+// ── Card on file (pay at time of service) ────────────────────────────────────
+// Collects a card via a Stripe Embedded Checkout Session in `mode: "setup"` —
+// same EmbeddedCheckoutProvider/EmbeddedCheckout pattern already used for
+// consumer bookings (components/checkout.tsx), just saving a card instead of
+// charging one. No money moves here; the card is charged later, off-session,
+// when weight is entered at the operator weigh-in step.
+export async function createCommercialCardSetupSession(accountId: string): Promise<{ clientSecret?: string; sessionId?: string; error?: string }> {
+  const supabase = createAdminClient()
+  const { data: account } = await supabase
+    .from("commercial_accounts")
+    .select("id, stripe_customer_id, business_name, contact_email")
+    .eq("id", accountId)
+    .maybeSingle()
+
+  if (!account) return { error: "Account not found" }
+
+  let stripeCustomerId = account.stripe_customer_id
+  if (!stripeCustomerId) {
+    const customer = await stripe.customers.create({
+      name: account.business_name,
+      email: account.contact_email ?? undefined,
+      metadata: { commercial_account_id: account.id, kind: "commercial_account" },
+    })
+    stripeCustomerId = customer.id
+    await supabase.from("commercial_accounts").update({ stripe_customer_id: stripeCustomerId }).eq("id", accountId)
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    ui_mode: "embedded",
+    redirect_on_completion: "never",
+    mode: "setup",
+    customer: stripeCustomerId,
+    metadata: { commercial_account_id: accountId },
+  })
+
+  return { clientSecret: session.client_secret!, sessionId: session.id }
+}
+
+export async function saveCommercialCardFromSetupSession(sessionId: string, accountId: string): Promise<{ success?: boolean; error?: string; brand?: string; last4?: string }> {
+  const supabase = createAdminClient()
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ["setup_intent"] })
+    const setupIntent = session.setup_intent
+    const pmId = typeof setupIntent === "string"
+      ? undefined
+      : typeof setupIntent?.payment_method === "string"
+        ? setupIntent.payment_method
+        : setupIntent?.payment_method?.id
+
+    if (!pmId) return { error: "No payment method returned from Stripe" }
+
+    const pm = await stripe.paymentMethods.retrieve(pmId)
+    const brand = pm.card?.brand ?? null
+    const last4 = pm.card?.last4 ?? null
+
+    const { data: account } = await supabase
+      .from("commercial_accounts")
+      .select("stripe_customer_id")
+      .eq("id", accountId)
+      .single()
+
+    if (account?.stripe_customer_id) {
+      await stripe.paymentMethods.attach(pmId, { customer: account.stripe_customer_id }).catch(() => {/* already attached */})
+      await stripe.customers.update(account.stripe_customer_id, {
+        invoice_settings: { default_payment_method: pmId },
+      }).catch(() => {})
+    }
+
+    await supabase.from("commercial_accounts").update({
+      stripe_payment_method_id: pmId,
+      card_brand: brand,
+      card_last4: last4,
+    }).eq("id", accountId)
+
+    revalidatePath("/admin/commercial")
+    return { success: true, brand: brand ?? undefined, last4: last4 ?? undefined }
+  } catch (err) {
+    console.error("[saveCommercialCardFromSetupSession]", err)
+    return { error: err instanceof Error ? err.message : "Failed to save card" }
+  }
+}
+
+// ── Create a real order for a commercial account ─────────────────────────────
+// Reuses createBooking() so commercial orders flow through the exact same
+// pipeline as consumer orders (order_bags, Shipday dispatch, SMS, color-key
+// assignment) — per explicit instruction: "It should work the same way a
+// regular customer flows." No pre-auth is taken; the account's saved card is
+// charged off-session at weigh-in instead (see chargeCommercialAccountOrder
+// in app/actions/stripe.ts).
+export async function createCommercialOrder(formData: FormData): Promise<{ success?: boolean; error?: string; bookingId?: string }> {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  const accountId = formData.get("account_id") as string
+
+  const { data: account } = await supabase
+    .from("commercial_accounts")
+    .select("id, business_name, contact_name, contact_email, contact_phone, address, status, stripe_payment_method_id")
+    .eq("id", accountId)
+    .single()
+
+  if (!account) return { error: "Account not found" }
+  if (account.status !== "active") return { error: "Account is not active — the agreement must be signed first." }
+  if (!account.stripe_payment_method_id) return { error: "No card on file for this account yet — add a payment method first." }
+
+  const pickupDate = formData.get("pickup_date") as string
+  const pickupTimeWindow = (formData.get("pickup_time_window") as string) || "9:00 AM - 12:00 PM"
+  const deliveryDate = (formData.get("delivery_date") as string) || pickupDate
+  const deliveryTimeWindow = (formData.get("delivery_time_window") as string) || "9:00 AM - 12:00 PM"
+  const numBags = parseInt(formData.get("num_bags") as string) || 1
+  const serviceType = (formData.get("service_type") as string) || "wash_fold"
+
+  if (!pickupDate) return { error: "Pickup date is required" }
+
+  try {
+    const { createBooking } = await import("./bookings")
+    const booking = await createBooking({
+      customerName: account.contact_name || account.business_name,
+      customerEmail: account.contact_email || "",
+      customerPhone: account.contact_phone || "",
+      customerAddress: account.address || "",
+      pickupDate,
+      pickupTimeWindow,
+      deliveryDate,
+      deliveryTimeWindow,
+      numComforters: numBags,
+      numBags,
+      totalAmount: 0,
+      serviceType: serviceType as "comforter_wash" | "wash_fold" | "wash_only",
+      commercialAccountId: account.id,
+      paymentStatusOverride: "pending_weight",
+    })
+
+    revalidatePath("/admin/commercial")
+    revalidatePath("/admin/dispatch")
+    return { success: true, bookingId: booking.id }
+  } catch (err) {
+    console.error("[createCommercialOrder]", err)
+    return { error: err instanceof Error ? err.message : "Failed to create order" }
+  }
 }
 
 // ── Billing: issue a manual invoice via Stripe ───────────────────────────────

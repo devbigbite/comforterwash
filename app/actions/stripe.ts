@@ -228,6 +228,69 @@ export async function capturePayment(bookingId: string) {
   return { captured: captureAmt, overageCents }
 }
 
+// ── Charge a commercial account's saved card at weigh-in ─────────────────────
+// Commercial pay-at-time-of-service orders never get a consumer-style
+// pre-auth at booking time (there's no checkout session) — the entire
+// customer_final_cents amount is charged off-session against the account's
+// saved card the moment weight is entered. Mirrors the overage-charge shape
+// in capturePayment() above, but for the full amount instead of just the
+// portion past a pre-auth ceiling. Failures are surfaced (not swallowed) via
+// the returned {error} so the operator UI can show it instead of silently
+// leaving the order unpaid — see the storage-space silent-failure lesson.
+export async function chargeCommercialAccountOrder(bookingId: string): Promise<{ success?: boolean; error?: string }> {
+  const supabase = createAdminClient()
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("commercial_account_id, customer_final_cents, location_id")
+    .eq("id", bookingId)
+    .single()
+
+  if (!booking?.commercial_account_id) return { error: "Booking is not linked to a commercial account" }
+
+  const finalCents = booking.customer_final_cents
+  if (!finalCents) return { error: "No final amount set — enter weight first" }
+
+  const { data: account } = await supabase
+    .from("commercial_accounts")
+    .select("id, business_name, stripe_customer_id, stripe_payment_method_id")
+    .eq("id", booking.commercial_account_id)
+    .single()
+
+  if (!account?.stripe_customer_id || !account?.stripe_payment_method_id) {
+    return { error: `${account?.business_name ?? "This commercial account"} has no payment method on file yet — add a card before charging.` }
+  }
+
+  try {
+    const destination = booking.location_id ? await connectDestinationFor(booking.location_id) : undefined
+
+    const pi = await stripe.paymentIntents.create({
+      amount: finalCents,
+      currency: "usd",
+      customer: account.stripe_customer_id,
+      payment_method: account.stripe_payment_method_id,
+      confirm: true,
+      off_session: true,
+      description: `Commercial order charge — ${account.business_name} — booking ${bookingId}`,
+      metadata: { bookingId, commercialAccountId: account.id, type: "commercial_pay_at_service" },
+      ...(destination ? { transfer_data: { destination } } : {}),
+    })
+
+    await supabase.from("bookings").update({
+      stripe_payment_intent_id: pi.id,
+      payment_status: pi.status === "succeeded" ? "captured" : "pending",
+    }).eq("id", bookingId)
+
+    if (pi.status !== "succeeded") {
+      return { error: `Charge did not complete — Stripe status: ${pi.status}` }
+    }
+    return { success: true }
+  } catch (err) {
+    console.error("[stripe] chargeCommercialAccountOrder failed:", err)
+    await supabase.from("bookings").update({ payment_status: "failed" }).eq("id", bookingId)
+    return { error: err instanceof Error ? err.message : "Charge failed" }
+  }
+}
+
 // ── Save payment method after checkout completes ──────────────────────────────
 // Called inside handleSuccessfulPayment to persist the card for future charges.
 async function saveBookingPaymentMethod(bookingId: string, paymentIntentId: string, customerName: string, customerEmail?: string) {

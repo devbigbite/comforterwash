@@ -37,6 +37,8 @@ export interface BookingData {
   extras?: string
   comforterSizes?: string   // e.g. "Queen:1,King:2"
   specialInstructions?: string  // customer-supplied note at booking time — surfaced to the operator, distinct from the internal status-timeline `notes` column
+  commercialAccountId?: string  // links this booking to a commercial_accounts row — pay-at-weigh-in via saved card, no consumer pre-auth
+  paymentStatusOverride?: string // e.g. "pending_weight" for commercial orders where nothing is charged until weigh-in
 }
 
 function toDateString(val: string): string {
@@ -103,7 +105,8 @@ export async function createBooking(data: BookingData) {
       num_bags: data.numBags ?? data.numComforters ?? 1,
       user_id: userId,
       pre_auth_cents: data.preAuthCents ?? null,
-      payment_status: data.isManualCapture ? "pre_authorized" : "paid",
+      payment_status: data.paymentStatusOverride ?? (data.isManualCapture ? "pre_authorized" : "paid"),
+      commercial_account_id: data.commercialAccountId ?? null,
       subscription_frequency: data.subscriptionFrequency ?? "one_time",
       price_per_lb_cents: data.pricePerLbCents ?? null,
       comforter_size: data.comforterSize ?? null,
