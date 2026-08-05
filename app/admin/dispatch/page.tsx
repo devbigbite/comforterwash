@@ -126,8 +126,24 @@ async function setOrderStageAdminAction(formData: FormData) {
   await requireAdmin()
   const bookingId = formData.get("bookingId") as string
   const stage     = formData.get("stage")     as string
-  const supabase  = createAdminClient()
-  await supabase.from("order_bags").update({ status: stage }).eq("booking_id", bookingId)
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+
+  // This previously only wrote order_bags.status, leaving bookings.status
+  // frozen at whatever it was when the order first landed at the facility
+  // (e.g. "at_facility" forever). That silently broke everything downstream
+  // that reads the booking-level status: the Aerial View bucket never
+  // advanced past "At Facility" even once bags were folded/ready, and an
+  // order could never reach "ready" for a driver to pick up on the Driver
+  // Routes tab — the processing-stage buttons here looked like they worked
+  // but the order was invisible to the rest of the dispatch system. Both
+  // tables need to move together, same as driverQuickActionAdmin does.
+  const { error: bookingErr } = await supabase.from("bookings").update({ status: stage }).eq("id", bookingId).eq("location_id", locationId)
+  if (bookingErr) {
+    console.error("[setOrderStageAdminAction] bookings update failed:", bookingErr)
+    throw new Error(`Failed to update order stage: ${bookingErr.message}`)
+  }
+  const { error: bagErr } = await supabase.from("order_bags").update({ status: stage }).eq("booking_id", bookingId)
+  if (bagErr) console.error("[setOrderStageAdminAction] order_bags update failed:", bagErr)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "stage_reset",
@@ -216,14 +232,22 @@ export default async function DispatchPage({
   const drivers   = (activeDrivers   ?? []) as { id: string; name: string; shipday_email: string | null }[]
   const operators = (activeOperators ?? []) as { id: string; name: string }[]
 
-  // DRIVER-relevant orders — all statuses that require a driver action:
-  // confirmed       → pick up from customer → bring to facility
-  // picked_up       → en route to facility (driver has it)
-  // at_warehouse    → storage warehouse, driver needs to bring to facility
-  // ready           → folded at facility, driver delivers or transfers to warehouse
-  // out_for_delivery→ driver delivering to customer
-  // Transfer statuses (ready, at_warehouse, ready_at_warehouse) are handled via transport runs tab
-  const DRIVER_STATUSES = ["confirmed", "picked_up", "out_for_delivery"]
+  // DRIVER-relevant orders — all statuses that require a driver action.
+  // This previously excluded at_warehouse/ready/ready_at_warehouse, which
+  // made those orders invisible on the Driver Routes tab even though
+  // DispatchBoard.tsx already had full UI for them (DRIVER_ACTION,
+  // STATUS_COLOR, ROUTE_ACTIONS) — a dispatcher had no way to drag a driver
+  // onto a warehouse/ready order from this tab. Multi-order transport runs
+  // between facility/warehouse still get their own dedicated flow on the
+  // Transfer Runs tab; this list is for the single-order driver assignment
+  // that also applies to those same statuses.
+  // confirmed          → pick up from customer → bring to facility
+  // picked_up          → en route to facility (driver has it)
+  // at_warehouse       → storage warehouse, driver needs to bring to facility
+  // ready              → folded at facility, driver delivers or transfers to warehouse
+  // ready_at_warehouse → staged at warehouse, driver delivers to customer
+  // out_for_delivery   → driver delivering to customer
+  const DRIVER_STATUSES = ["confirmed", "picked_up", "at_warehouse", "ready", "ready_at_warehouse", "out_for_delivery"]
 
   const { data: driverOrders } = await supabase
     .from("bookings")
@@ -262,7 +286,13 @@ export default async function DispatchPage({
   const aerialOrders = (aerialData ?? []) as AerialOrder[]
   const aerialOrdersById = Object.fromEntries(aerialOrders.map(o => [o.id, o]))
 
-  // In-progress orders for operator dispatch (at facility)
+  // In-progress orders for operator dispatch (at facility).
+  // Status filter must match the granular stages the dispatch board actually
+  // writes (see BUCKET_STATUS in AerialView.tsx / driverQuickActionAdmin) —
+  // dragging a card to "At Facility" sets status="at_facility" directly, it
+  // does not set assigned_facility_id (that's a separate manual bulk-routing
+  // step from /admin/routing), so requiring it here was silently hiding
+  // every order moved via drag-and-drop.
   const { data: facilityOrders } = await supabase
     .from("bookings")
     .select(`
@@ -270,8 +300,7 @@ export default async function DispatchPage({
       assigned_operator_id,
       assigned_facility:facilities!assigned_facility_id(id, name)
     `)
-    .in("status", ["in_progress", "picked_up"])
-    .not("assigned_facility_id", "is", null)
+    .in("status", ["at_facility", "in_washer", "in_dryer", "folded", "ready"])
     .order("customer_name")
 
   // Current bag-level stage per order, so dispatchers can see and roll back

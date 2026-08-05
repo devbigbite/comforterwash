@@ -115,11 +115,22 @@ export async function getOperatorQueue(workerId: string): Promise<OperatorOrder[
 
   // Fetch active bookings (not partner_attendant), scoped to this operator
   // unless they're the owner (who can see the whole facility queue).
+  //
+  // Status filter previously read `.in("status", ["in_progress"])` — but
+  // nothing in the dispatch/booking lifecycle ever sets bookings.status to
+  // "in_progress" (that was leftover vocabulary from an earlier status
+  // scheme). The real pipeline this app uses everywhere else — the
+  // dispatch board, the aerial view, this very operator page's own
+  // STAGE_CONFIG in app/operator/order/[id]/page.tsx — is
+  // at_facility → in_washer → in_dryer → folded → ready. That mismatch
+  // meant an operator's own station queue would show nothing at all for
+  // every order dispatch had actually assigned them, no matter how many
+  // orders were sitting at the facility.
   let query = supabase
     .from("bookings")
     .select("id, short_code, customer_name, service_type, status, num_bags, facility_processing_mode, assigned_facility_id, assigned_operator_id, washer_label, dryer_label, actual_weight_lbs")
     .eq("location_id", locationId)
-    .in("status", ["in_progress"])
+    .in("status", ["at_facility", "in_washer", "in_dryer", "folded", "ready"])
     .or("facility_processing_mode.is.null,facility_processing_mode.neq.partner_attendant")
 
   if (workerId !== "owner") {
