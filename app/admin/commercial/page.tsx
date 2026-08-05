@@ -1,0 +1,248 @@
+import { requireAdmin } from "@/lib/auth-guard"
+import {
+  getCommercialAccounts, getCommercialInvoices, agreementLink,
+  addCommercialAccount, updateCommercialAccount, toggleCommercialAccountStatus,
+  deleteCommercialAccount, issueCommercialInvoice,
+  type CommercialAccount,
+} from "@/app/actions/commercial-accounts"
+import { AgreementLinkCopy } from "@/components/admin/AgreementLinkCopy"
+
+const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-full"
+
+const STATUS_STYLE: Record<string, string> = {
+  pending:   "bg-yellow-50 text-yellow-700 border-yellow-200",
+  active:    "bg-green-50 text-green-700 border-green-200",
+  paused:    "bg-gray-100 text-gray-500 border-gray-200",
+  cancelled: "bg-red-50 text-red-600 border-red-200",
+}
+
+function AccountFields({ a }: { a?: CommercialAccount }) {
+  const val = (k: keyof CommercialAccount) => a ? String(a[k] ?? "") : ""
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Business Name *</label>
+          <input name="business_name" required defaultValue={val("business_name")} placeholder="Sunrise Diner" className={inp} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Address</label>
+          <input name="address" defaultValue={val("address")} placeholder="123 Main St, Orlando FL" className={inp} />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Contact Name</label>
+          <input name="contact_name" defaultValue={val("contact_name")} placeholder="Maria Rodriguez" className={inp} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Contact Email</label>
+          <input name="contact_email" type="email" defaultValue={val("contact_email")} placeholder="ap@sunrisediner.com" className={inp} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Contact Phone</label>
+          <input name="contact_phone" type="tel" defaultValue={val("contact_phone")} placeholder="(407) 555-0100" className={inp} />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Billing Frequency</label>
+          <select name="billing_frequency" defaultValue={val("billing_frequency") || "monthly"} className={inp}>
+            <option value="weekly">Weekly</option>
+            <option value="biweekly">Biweekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Rate Type</label>
+          <select name="rate_type" defaultValue={val("rate_type") || "per_lb"} className={inp}>
+            <option value="per_lb">Per Pound</option>
+            <option value="flat">Flat Rate</option>
+            <option value="per_load">Per Load</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Rate ($)</label>
+          <input name="rate_amount" type="number" step="0.01"
+            defaultValue={a?.rate_amount_cents != null ? (a.rate_amount_cents / 100).toFixed(2) : ""}
+            placeholder="1.25" className={inp} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Minimum ($)</label>
+          <input name="minimum_amount" type="number" step="0.01"
+            defaultValue={a?.minimum_amount_cents != null ? (a.minimum_amount_cents / 100).toFixed(2) : ""}
+            placeholder="50.00" className={inp} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Notes</label>
+        <input name="notes" defaultValue={val("notes")} placeholder="Pickup instructions, contract details…" className={inp} />
+      </div>
+    </>
+  )
+}
+
+export default async function CommercialAccountsPage() {
+  await requireAdmin()
+  const accounts = await getCommercialAccounts()
+  const invoicesByAccount: Record<string, Awaited<ReturnType<typeof getCommercialInvoices>>> = {}
+  for (const a of accounts) {
+    invoicesByAccount[a.id] = await getCommercialInvoices(a.id)
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-10">
+      <div className="mb-8">
+        <h1 className="text-2xl font-extrabold text-[#0D2240]">Commercial Accounts</h1>
+        <p className="text-sm text-gray-400 mt-1">
+          {accounts.filter(a => a.status === "active").length} active · {accounts.length} total
+        </p>
+      </div>
+
+      {/* Add account */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 space-y-4">
+        <h2 className="font-bold text-[#0D2240]">Add Commercial Account</h2>
+        <form action={addCommercialAccount} className="space-y-4">
+          <AccountFields />
+          <div className="flex justify-end">
+            <button type="submit" className="rounded-xl bg-[#E8726A] text-white font-bold text-sm px-6 py-2.5 hover:bg-[#d45f57] transition-colors">
+              Add Account
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* List */}
+      <div className="space-y-3">
+        {accounts.length === 0 ? (
+          <div className="bg-white rounded-2xl p-10 text-center text-gray-400 text-sm border border-gray-100">
+            No commercial accounts yet. Add your first one above.
+          </div>
+        ) : accounts.map(a => (
+          <div key={a.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-5 flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-[#f7f8fb] border border-gray-100 flex items-center justify-center text-2xl shrink-0">🏢</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-[#0D2240]">{a.business_name}</h3>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${STATUS_STYLE[a.status]}`}>
+                    {a.status}
+                  </span>
+                  {a.agreement_signed_at ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-200">
+                      ✅ Signed {new Date(a.agreement_signed_at).toLocaleDateString()}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-gray-50 text-gray-400 border-gray-200">
+                      Awaiting signature
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 space-y-0.5 text-sm text-gray-500">
+                  {a.address && <p>📍 {a.address}</p>}
+                  {a.contact_name && <p>{a.contact_name}{a.contact_phone ? ` · ${a.contact_phone}` : ""}{a.contact_email ? ` · ${a.contact_email}` : ""}</p>}
+                  <p className="text-xs text-gray-400">
+                    {a.billing_frequency} · {a.rate_type.replace("_", " ")}{a.rate_amount_cents ? ` · $${(a.rate_amount_cents / 100).toFixed(2)}` : ""}
+                    {a.minimum_amount_cents ? ` · min $${(a.minimum_amount_cents / 100).toFixed(2)}` : ""}
+                  </p>
+                </div>
+                {!a.agreement_signed_at && (
+                  <div className="mt-2">
+                    <AgreementLinkCopy url={agreementLink(a.access_code)} />
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <form action={toggleCommercialAccountStatus}>
+                  <input type="hidden" name="id" value={a.id} />
+                  <input type="hidden" name="new_status" value={a.status === "active" ? "paused" : "active"} />
+                  <button type="submit" disabled={!a.agreement_signed_at}
+                    className="text-xs font-bold text-gray-500 border border-gray-200 bg-white px-3 py-1.5 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-30">
+                    {a.status === "active" ? "Pause" : "Activate"}
+                  </button>
+                </form>
+                <form action={deleteCommercialAccount}>
+                  <input type="hidden" name="id" value={a.id} />
+                  <button type="submit" className="text-xs font-bold text-red-400 border border-red-200 bg-white px-3 py-1.5 rounded-xl hover:bg-red-50 transition-colors">
+                    Delete
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* Billing accordion */}
+            {a.agreement_signed_at && (
+              <details className="group border-t border-gray-100">
+                <summary className="cursor-pointer px-5 py-2.5 text-xs font-semibold text-gray-400 hover:text-[#0D2240] transition-colors list-none flex items-center gap-1.5 select-none">
+                  <span className="group-open:hidden">💳 Billing ({(invoicesByAccount[a.id] ?? []).length} invoices)</span>
+                  <span className="hidden group-open:inline">💳 Close billing</span>
+                </summary>
+                <div className="px-5 pb-5 pt-4 bg-[#f7f8fb] border-t border-gray-100 space-y-4">
+                  <div className="border border-gray-200 rounded-xl p-4 bg-white">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Issue Invoice via Stripe</p>
+                    <form action={issueCommercialInvoice} className="space-y-2">
+                      <input type="hidden" name="account_id" value={a.id} />
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Amount ($)</label>
+                          <input name="amount" type="number" step="0.01" required className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period From</label>
+                          <input name="period_from" type="date" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period To</label>
+                          <input name="period_to" type="date" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                        </div>
+                      </div>
+                      <input name="notes" placeholder="Invoice description (optional)" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
+                      <button type="submit" className="w-full text-xs font-bold text-white bg-[#E8726A] hover:bg-[#d45f57] px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
+                        💸 Send Invoice
+                      </button>
+                    </form>
+                  </div>
+
+                  {(invoicesByAccount[a.id] ?? []).length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Invoice History</p>
+                      <div className="space-y-1.5">
+                        {(invoicesByAccount[a.id] ?? []).map(inv => (
+                          <div key={inv.id} className="flex items-center gap-3 flex-wrap bg-white rounded-xl px-3 py-2 border border-gray-100 text-xs">
+                            <span className="font-bold text-[#0D2240]">${(inv.amount_cents / 100).toFixed(2)}</span>
+                            {inv.period_from && inv.period_to && <span className="text-gray-400">{inv.period_from} – {inv.period_to}</span>}
+                            {inv.notes && <span className="text-gray-400">{inv.notes}</span>}
+                            <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-50 text-yellow-700 border border-yellow-200">
+                              {inv.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </details>
+            )}
+
+            {/* Edit accordion */}
+            <details className="group border-t border-gray-100">
+              <summary className="cursor-pointer px-5 py-2.5 text-xs font-semibold text-gray-400 hover:text-[#0D2240] transition-colors list-none flex items-center gap-1.5 select-none">
+                <span className="group-open:hidden">✏️ Edit account</span>
+                <span className="hidden group-open:inline">✏️ Close editor</span>
+              </summary>
+              <form action={updateCommercialAccount} className="px-5 pb-5 pt-4 bg-[#f7f8fb] space-y-4 border-t border-gray-100">
+                <input type="hidden" name="id" value={a.id} />
+                <AccountFields a={a} />
+                <div className="flex justify-end">
+                  <button type="submit" className="rounded-xl bg-[#E8726A] text-white font-bold text-sm px-6 py-2 hover:bg-[#d45f57] transition-colors">
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </details>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

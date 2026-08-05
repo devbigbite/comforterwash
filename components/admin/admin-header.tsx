@@ -57,6 +57,7 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
       items: [
         { href: "/admin/subscriptions", label: es ? "Suscripciones" : "Subscriptions" },
         { href: "/admin/plans",         label: es ? "Planes Mensuales" : "Monthly Plans" },
+        { href: "/admin/commercial",    label: es ? "Cuentas Comerciales" : "Commercial Accounts" },
       ],
     },
     {
