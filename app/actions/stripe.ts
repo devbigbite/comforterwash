@@ -259,6 +259,37 @@ async function saveBookingPaymentMethod(bookingId: string, paymentIntentId: stri
 // ── Handle completed Stripe checkout ─────────────────────────────────────────
 export async function handleSuccessfulPayment(sessionId: string) {
   try {
+    // Idempotency guard — this is triggered by Stripe Embedded Checkout's
+    // client-side onComplete callback (see components/checkout.tsx), which
+    // has no built-in dedup: a re-render, flaky network retry, or a customer
+    // re-triggering completion could call this twice for the same session.
+    // Without this check, a second call would create a duplicate booking,
+    // re-redeem an applied gift card (double-spending its balance), and
+    // re-create a recurring subscription. checkout_attempts already tracks
+    // exactly one row per session and only ever moves pending -> succeeded
+    // once (see markCheckoutAttemptSucceeded) - reuse it as the source of
+    // truth for "has this session already been processed."
+    const adminSupabase = createAdminClient()
+    const { data: existingAttempt } = await adminSupabase
+      .from("checkout_attempts")
+      .select("status, booking_id")
+      .eq("stripe_checkout_session_id", sessionId)
+      .maybeSingle()
+
+    if (existingAttempt?.status === "succeeded") {
+      if (existingAttempt.booking_id) {
+        return { success: true, bookingId: existingAttempt.booking_id }
+      }
+      // Gift-card purchases succeed without a booking_id -- look up the
+      // card issued for this exact session instead of re-creating one.
+      const { data: card } = await adminSupabase
+        .from("gift_cards")
+        .select("code")
+        .eq("stripe_checkout_session_id", sessionId)
+        .maybeSingle()
+      return { success: true, giftCardCode: card?.code }
+    }
+
     const session = await stripe.checkout.sessions.retrieve(sessionId)
     const isManual = (session as { payment_intent_data?: { capture_method?: string } })
       .payment_intent_data?.capture_method === "manual"
