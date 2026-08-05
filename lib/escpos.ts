@@ -75,6 +75,13 @@ export class ReceiptBuilder {
     return this.line("-".repeat(32))
   }
 
+  /** Appends pre-built raw ESC/POS bytes (e.g. a GS v 0 raster image from
+   *  escpos-image.ts) directly, bypassing ASCII text encoding. */
+  raster(bytes: Uint8Array) {
+    for (let i = 0; i < bytes.length; i++) this.bytes.push(bytes[i])
+    return this
+  }
+
   /** Feed a few blank lines then partial-cut. Call once at the end of each receipt. */
   cut() {
     this.feed(3)
@@ -106,12 +113,18 @@ export interface ReceiptData {
  *  mirror the on-screen/print-dialog layout (brand, bag count, big order
  *  code, loyalty notice, delivery address, color sticker call-out, storage
  *  flag, wash prefs, due date) — same content, ASCII-only. */
-export function buildReceiptBytes(r: ReceiptData): Uint8Array {
+export function buildReceiptBytes(r: ReceiptData, logoBytes?: Uint8Array | null): Uint8Array {
   const b = new ReceiptBuilder()
   b.init()
     .align("center")
-    .text("WASHFOLD ORLANDO").feed(1)
-    .bold(true)
+
+  if (logoBytes && logoBytes.length > 0) {
+    b.raster(logoBytes).feed(1)
+  } else {
+    b.text("WASHFOLD ORLANDO").feed(1)
+  }
+
+  b.bold(true)
     .text(`BAG ${r.bagNum} / ${r.totalBags}`).feed(1)
     .bold(false)
     .size(2, 2)
