@@ -240,6 +240,9 @@ export async function updateBookingStatus(bookingId: string, status: string, not
     throw new Error("Failed to update booking")
   }
 
+  const { syncPhaseFromStatus } = await import("@/lib/order-status-sync")
+  await syncPhaseFromStatus(supabase, bookingId, status)
+
   try {
     const customerName = booking.customer_name
     const deliveryDate = format(new Date(booking.delivery_date), "MMMM d")

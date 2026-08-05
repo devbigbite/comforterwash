@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { revalidatePath } from "next/cache"
+import { syncPhaseFromStatus } from "@/lib/order-status-sync"
 
 // ── Walk-in / drop-off orders ─────────────────────────────────────────────────
 // For home-based operators whose customers bring bags in person instead of
@@ -134,10 +135,14 @@ export async function markWalkinPickedUp(bookingId: string): Promise<void> {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   await supabase
     .from("bookings")
-    .update({ status: "delivered", phase: "out_for_delivery" })
+    // Previously paired status:"delivered" with phase:"out_for_delivery" —
+    // a mismatched write that left the facility board showing the order as
+    // still out for delivery even after this marked it fully done.
+    .update({ status: "delivered" })
     .eq("id", bookingId)
     .eq("location_id", locationId)
     .eq("fulfillment_type", "walkin")
+  await syncPhaseFromStatus(supabase, bookingId, "delivered")
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "delivered",

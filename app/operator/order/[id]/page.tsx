@@ -7,6 +7,7 @@ import { WorkerNameInput } from "./worker-name-input"
 import { FoldingForm } from "./folding-form"
 import { PinGate } from "@/components/pin-gate"
 import { OperatorOrderGate } from "@/components/operator-order-gate"
+import { syncPhaseFromStatus } from "@/lib/order-status-sync"
 
 const STATUS_LABEL: Record<string, string> = {
   pending:          "Pending",
@@ -115,6 +116,15 @@ async function advanceOrder(formData: FormData) {
   // Advance ALL bags to next status at once
   await supabase.from("order_bags").update({ status: nextStatus }).eq("booking_id", bookingId)
 
+  // This previously only advanced order_bags — bookings.status stayed
+  // wherever it started (usually "at_facility") no matter how far an
+  // operator actually got, so nothing else that reads the booking status
+  // (Aerial View, Driver Routes, the facility board) ever saw the order
+  // move past the first stage.
+  const { error: bookingStatusErr } = await supabase.from("bookings").update({ status: nextStatus }).eq("id", bookingId)
+  if (bookingStatusErr) console.error("[operator advanceOrder] bookings status update failed:", bookingStatusErr)
+  await syncPhaseFromStatus(supabase, bookingId, nextStatus)
+
   // Save output bag count at folding/ready step
   if (outputBags && outputBags > 0) {
     await supabase.from("bookings").update({ output_bags: outputBags }).eq("id", bookingId)
@@ -156,6 +166,9 @@ async function setOrderStage(formData: FormData) {
   const operator   = (formData.get("operatorName") as string) || "operator"
   const supabase   = createAdminClient()
   await supabase.from("order_bags").update({ status: stage }).eq("booking_id", bookingId)
+  const { error: bookingStatusErr } = await supabase.from("bookings").update({ status: stage }).eq("id", bookingId)
+  if (bookingStatusErr) console.error("[operator setOrderStage] bookings status update failed:", bookingStatusErr)
+  await syncPhaseFromStatus(supabase, bookingId, stage)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "stage_reset",

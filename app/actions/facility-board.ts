@@ -5,6 +5,7 @@ import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { revalidatePath } from "next/cache"
 import { PHASES } from "@/lib/facility-phases"
+import { syncStatusFromPhase } from "@/lib/order-status-sync"
 
 // ── Booking shape for the board ───────────────────────────────────────────────
 
@@ -95,6 +96,14 @@ export async function moveOrderPhase(
     .eq("location_id", locationId)
 
   if (error) return { error: error.message }
+
+  // Keep bookings.status (and order_bags.status) in step with the phase —
+  // this board previously only ever wrote `phase`, so an order dragged here
+  // could look done on the facility board while every other screen (Aerial
+  // View, Driver Routes, Operator Assignments, the operator/driver PIN
+  // stations) still saw it stuck at whatever status it had before anyone
+  // touched this board.
+  await syncStatusFromPhase(supabase, bookingId, toPhase)
 
   // Log the transition
   await supabase.from("phase_transitions").insert({

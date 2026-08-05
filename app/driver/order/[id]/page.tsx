@@ -7,6 +7,7 @@ import DriverOrderClient from "./order-client"
 import { capturePayment } from "@/app/actions/stripe"
 import { updateBookingStatus } from "@/app/actions/bookings"
 import { sendBookingNotification } from "@/lib/sms"
+import { syncPhaseFromStatus } from "@/lib/order-status-sync"
 
 const CUSTOMER_MIN_LBS = 20
 const DEFAULT_RATE_CENTS: Record<string, number> = {
@@ -198,6 +199,8 @@ async function confirmDropoff(formData: FormData) {
 
   await supabase.from("order_bags").update({ status: newStatus })
     .eq("booking_id", bookingId).eq("status", "picked_up")
+
+  await syncPhaseFromStatus(supabase, bookingId, newStatus)
 
   await supabase.from("order_events").insert({
     booking_id: bookingId,

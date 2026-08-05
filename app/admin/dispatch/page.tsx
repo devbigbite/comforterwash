@@ -12,6 +12,7 @@ import { getTransportRuns } from "@/app/actions/transport-runs"
 import type { TransportRun } from "@/app/actions/transport-runs"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
+import { syncPhaseFromStatus } from "@/lib/order-status-sync"
 
 // ─── Server Actions ───────────────────────────────────────────────────────────
 // Every action below verifies bookingId/runId belongs to the current tenant
@@ -87,6 +88,7 @@ async function driverQuickActionAdmin(formData: FormData) {
   }
   const { error: bagErr } = await supabase.from("order_bags").update({ status }).eq("booking_id", bookingId)
   if (bagErr) console.error("[driverQuickActionAdmin] order_bags update failed:", bagErr)
+  await syncPhaseFromStatus(supabase, bookingId, status)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: unassign ? "removed_from_driver" : "dispatcher_status_change",
@@ -144,6 +146,7 @@ async function setOrderStageAdminAction(formData: FormData) {
   }
   const { error: bagErr } = await supabase.from("order_bags").update({ status: stage }).eq("booking_id", bookingId)
   if (bagErr) console.error("[setOrderStageAdminAction] order_bags update failed:", bagErr)
+  await syncPhaseFromStatus(supabase, bookingId, stage)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "stage_reset",
@@ -183,6 +186,7 @@ async function cancelAction(formData: FormData) {
   await cancelShipdayOrders(bookingId)
   await supabase.from("bookings").update({ status: "cancelled" }).eq("id", bookingId).eq("location_id", locationId)
   await supabase.from("order_bags").update({ status: "cancelled" }).eq("booking_id", bookingId)
+  await syncPhaseFromStatus(supabase, bookingId, "cancelled")
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "cancelled",
