@@ -42,8 +42,6 @@ export interface CommercialInvoice {
   created_at: string
 }
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://comforterwash.com"
-
 // ── Admin CRUD ────────────────────────────────────────────────────────────────
 
 export async function addCommercialAccount(formData: FormData) {
@@ -125,10 +123,6 @@ export async function getCommercialAccounts(): Promise<CommercialAccount[]> {
     .eq("location_id", locationId)
     .order("created_at", { ascending: false })
   return (data ?? []) as CommercialAccount[]
-}
-
-export function agreementLink(accessCode: string): string {
-  return `${SITE_URL}/commercial-agreement/${accessCode}`
 }
 
 // ── Public agreement lookup + signing (no admin auth — code-gated) ───────────

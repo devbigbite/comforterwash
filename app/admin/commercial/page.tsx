@@ -1,11 +1,16 @@
 import { requireAdmin } from "@/lib/auth-guard"
 import {
-  getCommercialAccounts, getCommercialInvoices, agreementLink,
+  getCommercialAccounts, getCommercialInvoices,
   addCommercialAccount, updateCommercialAccount, toggleCommercialAccountStatus,
   deleteCommercialAccount, issueCommercialInvoice,
   type CommercialAccount,
 } from "@/app/actions/commercial-accounts"
 import { AgreementLinkCopy } from "@/components/admin/AgreementLinkCopy"
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://comforterwash.com"
+function agreementLink(accessCode: string): string {
+  return `${SITE_URL}/commercial-agreement/${accessCode}`
+}
 
 const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-full"
 
