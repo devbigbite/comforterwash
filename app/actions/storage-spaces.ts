@@ -21,7 +21,6 @@ export interface StorageSpace {
   phone: string | null
   manager: string | null
   office_hours: string | null
-  entry_hours: string | null
   active: boolean
   created_at: string
 }
@@ -63,7 +62,6 @@ function pickFields(formData: FormData) {
     phone:        (formData.get("phone") as string)?.trim() || null,
     manager:      (formData.get("manager") as string)?.trim() || null,
     office_hours: (formData.get("office_hours") as string)?.trim() || null,
-    entry_hours:  (formData.get("entry_hours") as string)?.trim() || null,
   }
 }
 
