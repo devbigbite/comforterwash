@@ -77,8 +77,16 @@ async function driverQuickActionAdmin(formData: FormData) {
   const updates: Record<string, unknown> = { status }
   if (unassign) updates.assigned_driver_id = null
 
-  await supabase.from("bookings").update(updates).eq("id", bookingId).eq("location_id", locationId)
-  await supabase.from("order_bags").update({ status }).eq("booking_id", bookingId)
+  const { error: bookingErr } = await supabase.from("bookings").update(updates).eq("id", bookingId).eq("location_id", locationId)
+  if (bookingErr) {
+    // Don't silently pretend this worked — a bad status value (e.g. one not
+    // in bookings_status_check) would otherwise fail here, get swallowed,
+    // and the dispatcher would see "Moved ✓" while nothing actually moved.
+    console.error("[driverQuickActionAdmin] bookings update failed:", bookingErr)
+    throw new Error(`Failed to update order status: ${bookingErr.message}`)
+  }
+  const { error: bagErr } = await supabase.from("order_bags").update({ status }).eq("booking_id", bookingId)
+  if (bagErr) console.error("[driverQuickActionAdmin] order_bags update failed:", bagErr)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: unassign ? "removed_from_driver" : "dispatcher_status_change",
