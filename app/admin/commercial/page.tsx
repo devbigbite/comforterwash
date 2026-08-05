@@ -53,10 +53,9 @@ function AccountFields({ a }: { a?: CommercialAccount }) {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Billing Frequency</label>
-          <select name="billing_frequency" defaultValue={val("billing_frequency") || "monthly"} className={inp}>
+          <select name="billing_frequency" defaultValue={val("billing_frequency") || "weekly"} className={inp}>
             <option value="weekly">Weekly</option>
             <option value="biweekly">Biweekly</option>
-            <option value="monthly">Monthly</option>
           </select>
         </div>
         <div className="flex flex-col gap-1">

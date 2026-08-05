@@ -17,7 +17,7 @@ export interface CommercialAccount {
   contact_email: string | null
   contact_phone: string | null
   address: string | null
-  billing_frequency: "weekly" | "biweekly" | "monthly"
+  billing_frequency: "weekly" | "biweekly"
   rate_type: "per_lb" | "flat" | "per_load"
   rate_amount_cents: number | null
   minimum_amount_cents: number | null
@@ -64,7 +64,7 @@ export async function addCommercialAccount(formData: FormData) {
     contact_email: (formData.get("contact_email") as string)?.trim() || null,
     contact_phone: (formData.get("contact_phone") as string)?.trim() || null,
     address: (formData.get("address") as string)?.trim() || null,
-    billing_frequency: (formData.get("billing_frequency") as string) || "monthly",
+    billing_frequency: (formData.get("billing_frequency") as string) || "weekly",
     rate_type: (formData.get("rate_type") as string) || "per_lb",
     rate_amount_cents: Math.round(parseFloat(formData.get("rate_amount") as string) * 100) || null,
     minimum_amount_cents: Math.round(parseFloat(formData.get("minimum_amount") as string) * 100) || null,
@@ -89,7 +89,7 @@ export async function updateCommercialAccount(formData: FormData) {
     contact_email: (formData.get("contact_email") as string)?.trim() || null,
     contact_phone: (formData.get("contact_phone") as string)?.trim() || null,
     address: (formData.get("address") as string)?.trim() || null,
-    billing_frequency: (formData.get("billing_frequency") as string) || "monthly",
+    billing_frequency: (formData.get("billing_frequency") as string) || "weekly",
     rate_type: (formData.get("rate_type") as string) || "per_lb",
     rate_amount_cents: Math.round(parseFloat(formData.get("rate_amount") as string) * 100) || null,
     minimum_amount_cents: Math.round(parseFloat(formData.get("minimum_amount") as string) * 100) || null,
@@ -262,13 +262,17 @@ export async function signCommercialAgreement(formData: FormData): Promise<{ err
     }
   }
 
+  // Status is intentionally NOT flipped to "active" here — a card on file
+  // is required before the account can actually be invoiced or used to
+  // create orders, so activation happens in saveCommercialCardFromSetupSession
+  // once the card is saved. Signing alone leaves the account "pending" with
+  // the agreement on record.
   const { error } = await supabase
     .from("commercial_accounts")
     .update({
       agreement_signed_at: new Date().toISOString(),
       agreement_signed_name: signedName,
       agreement_signed_ip: ip,
-      status: "active",
       stripe_customer_id: stripeCustomerId,
     })
     .eq("id", account.id)
@@ -337,7 +341,7 @@ export async function saveCommercialCardFromSetupSession(sessionId: string, acco
 
     const { data: account } = await supabase
       .from("commercial_accounts")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id, agreement_signed_at, status")
       .eq("id", accountId)
       .single()
 
@@ -348,10 +352,17 @@ export async function saveCommercialCardFromSetupSession(sessionId: string, acco
       }).catch(() => {})
     }
 
+    // Account setup is only truly complete once BOTH the agreement is signed
+    // AND a card is on file — activate here rather than at signing time, so
+    // an account can never be invoiced or used to create orders (both gated
+    // on status === "active") without a payment method actually attached.
+    const shouldActivate = !!account?.agreement_signed_at && account?.status !== "cancelled"
+
     await supabase.from("commercial_accounts").update({
       stripe_payment_method_id: pmId,
       card_brand: brand,
       card_last4: last4,
+      ...(shouldActivate ? { status: "active" } : {}),
     }).eq("id", accountId)
 
     revalidatePath("/admin/commercial")
