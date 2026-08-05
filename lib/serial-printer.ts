@@ -57,11 +57,29 @@ export async function reconnectSerialPrinter(): Promise<SerialPort | null> {
   }
 }
 
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+// At 9600 baud the printer only has room for ~960 bytes/sec of real
+// throughput. A full receipt (text + an ~17KB logo raster) written in one
+// burst overruns the printer's internal buffer with no flow control,
+// producing garbled/corrupted output — especially in the image section,
+// which is far larger than any single line of text. Writing in small
+// chunks with a short pause between them keeps us under the printer's
+// buffer capacity the whole way through.
+const CHUNK_SIZE = 256
+const CHUNK_DELAY_MS = 40
+
 export async function writeToSerialPrinter(port: SerialPort, bytes: Uint8Array) {
   if (!port.writable) throw new SerialPrinterError("Printer port isn't writable — try reconnecting.")
   const writer = port.writable.getWriter()
   try {
-    await writer.write(bytes)
+    for (let offset = 0; offset < bytes.length; offset += CHUNK_SIZE) {
+      const chunk = bytes.subarray(offset, offset + CHUNK_SIZE)
+      await writer.write(chunk)
+      await sleep(CHUNK_DELAY_MS)
+    }
   } finally {
     writer.releaseLock()
   }
