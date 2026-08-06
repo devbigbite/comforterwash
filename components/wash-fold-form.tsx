@@ -82,7 +82,7 @@ const WEEKDAYS = [
 function getValidDeliveryDays(pickupDayId: string): string[] {
   const pickup = WEEKDAYS.find(d => d.id === pickupDayId)
   if (!pickup) return []
-  const minGap = pickupDayId === "friday" ? 4 : pickupDayId === "saturday" ? 3 : 2
+  const minGap = pickupDayId === "friday" ? 3 : pickupDayId === "saturday" ? 3 : 2
   return WEEKDAYS.filter(d => {
     const gap = d.num > pickup.num ? d.num - pickup.num : 7 - pickup.num + d.num
     return gap >= minGap
@@ -105,7 +105,7 @@ function nextOccurrence(dayId: string, after?: Date): Date {
 }
 
 function firstDeliveryDate(pickupDate: Date, deliveryDayId: string, pickupDayId: string): Date {
-  const minGap = pickupDayId === "friday" ? 4 : pickupDayId === "saturday" ? 3 : 2
+  const minGap = pickupDayId === "friday" ? 3 : pickupDayId === "saturday" ? 3 : 2
   const earliest = new Date(pickupDate)
   earliest.setDate(earliest.getDate() + minGap)
   const candidate = nextOccurrence(deliveryDayId, new Date(pickupDate))
