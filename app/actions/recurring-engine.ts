@@ -90,6 +90,31 @@ export async function runRecurringEngine(): Promise<RecurringEngineResult> {
   for (const sub of dueSubs ?? []) {
     try {
       const pickupDate = new Date(`${sub.next_pickup_date}T12:00:00`)
+
+      // Guard against double-booking: skip if a (non-cancelled) booking already
+      // exists for this subscription on this pickup date — e.g. an admin
+      // manually created today's order before the cron got to it. Still
+      // advance next_pickup_date below so the cycle doesn't get stuck retrying
+      // the same date forever.
+      const { data: existingSub } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("recurring_subscription_id", sub.id)
+        .eq("pickup_date", sub.next_pickup_date)
+        .neq("status", "cancelled")
+        .limit(1)
+        .maybeSingle()
+
+      if (existingSub) {
+        const nextPickup = nextCyclePickupDate(pickupDate, sub.pickup_day_of_week, sub.frequency)
+        await supabase
+          .from("subscriptions")
+          .update({ next_pickup_date: toISODate(nextPickup) })
+          .eq("id", sub.id)
+        errors.push(`subscription ${sub.id}: order already exists for ${sub.next_pickup_date}, skipped duplicate and advanced schedule`)
+        continue
+      }
+
       const deliveryDate = nextOccurrenceOnOrAfter(sub.delivery_day_of_week, addDays(pickupDate, 1))
 
       const extrasList = [
@@ -155,6 +180,31 @@ export async function runRecurringEngine(): Promise<RecurringEngineResult> {
       }
 
       const pickupDate = new Date(`${acct.next_pickup_date}T12:00:00`)
+
+      // Guard against double-booking: skip if a (non-cancelled) booking already
+      // exists for this account on this pickup date — e.g. an admin manually
+      // created today's order before the cron got to it. Still advance
+      // next_pickup_date below so the cycle doesn't get stuck retrying the
+      // same date forever.
+      const { data: existingAcct } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("commercial_account_id", acct.id)
+        .eq("pickup_date", acct.next_pickup_date)
+        .neq("status", "cancelled")
+        .limit(1)
+        .maybeSingle()
+
+      if (existingAcct) {
+        const nextPickup = nextCyclePickupDate(pickupDate, acct.pickup_day_of_week, acct.frequency || "weekly")
+        await supabase
+          .from("commercial_accounts")
+          .update({ next_pickup_date: toISODate(nextPickup) })
+          .eq("id", acct.id)
+        errors.push(`commercial account ${acct.id} (${acct.business_name}): order already exists for ${acct.next_pickup_date}, skipped duplicate and advanced schedule`)
+        continue
+      }
+
       const deliveryDate = nextOccurrenceOnOrAfter(acct.delivery_day_of_week, addDays(pickupDate, 1))
 
       const booking = await createBooking({
