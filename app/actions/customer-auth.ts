@@ -64,7 +64,12 @@ export async function createAccountForSubscriber(
     })
   }
 
-  // Generate a magic link so the customer can access their account (no password needed)
+  // Generate a magic link so the customer can access their account (no password needed).
+  // NOTE: we deliberately do NOT send Supabase's own action_link — that delivers
+  // the session as a URL hash fragment (#access_token=...), which never reaches
+  // our server and silently fails to sign anyone in (confirmed broken 2026-08-06).
+  // Instead we build our own link pointed at /login/callback, which redeems the
+  // token_hash server-side via verifyOtp() — the same proven path /login uses.
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://comforterwash.com"
   const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
     type: "magiclink",
@@ -77,8 +82,9 @@ export async function createAccountForSubscriber(
     return { success: true } // Account exists, just link failed
   }
 
-  const magicLink = (linkData as any)?.properties?.action_link as string | undefined
-  if (magicLink) {
+  const tokenHash = (linkData as any)?.properties?.hashed_token as string | undefined
+  if (tokenHash) {
+    const magicLink = `${siteUrl}/login/callback?token_hash=${tokenHash}&type=magiclink&next=/account`
     const { sendAccountReadyEmail } = await import("@/lib/email")
     await sendAccountReadyEmail(email, name, magicLink, true)
   }
@@ -130,8 +136,9 @@ export async function createOptionalAccount(
     return { success: true }
   }
 
-  const magicLink = (linkData as any)?.properties?.action_link as string | undefined
-  if (magicLink) {
+  const tokenHash = (linkData as any)?.properties?.hashed_token as string | undefined
+  if (tokenHash) {
+    const magicLink = `${siteUrl}/login/callback?token_hash=${tokenHash}&type=magiclink&next=/account`
     const { sendAccountReadyEmail } = await import("@/lib/email")
     await sendAccountReadyEmail(email, name, magicLink, false)
   }

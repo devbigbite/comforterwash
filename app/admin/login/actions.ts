@@ -116,7 +116,13 @@ export async function requestAdminMagicLink(email: string): Promise<{ error?: st
         email: cleanEmail,
         options: { redirectTo: `${siteUrl}/admin/auth/callback?location_id=${locationId}` },
       })
-      const magicLink = (linkData as { properties?: { action_link?: string } } | null)?.properties?.action_link
+      // Build our own link from hashed_token rather than sending the raw
+      // action_link — that delivers tokens as a URL hash fragment, which
+      // never reaches the server and silently fails to sign anyone in.
+      const tokenHash = (linkData as { properties?: { hashed_token?: string } } | null)?.properties?.hashed_token
+      const magicLink = tokenHash
+        ? `${siteUrl}/admin/auth/callback?token_hash=${tokenHash}&type=magiclink&location_id=${locationId}`
+        : undefined
       if (magicLink) {
         const { sendAdminMagicLinkEmail } = await import("@/lib/email")
         await sendAdminMagicLinkEmail(cleanEmail, magicLink)

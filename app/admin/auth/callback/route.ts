@@ -1,15 +1,25 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import type { EmailOtpType } from "@supabase/supabase-js"
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get("code")
+  const tokenHash = searchParams.get("token_hash")
+  const type = searchParams.get("type") as EmailOtpType | null
   const requestedLocationId = searchParams.get("location_id")
 
-  if (code) {
+  // Links generated via supabase.auth.admin.generateLink() come back as a
+  // token_hash, not a ?code= — their raw action_link delivers tokens as a
+  // URL hash fragment that never reaches the server, so they must be
+  // redeemed here via verifyOtp() instead (see /login/callback for the
+  // customer-facing equivalent of this fix, confirmed broken 2026-08-06).
+  if (code || (tokenHash && type)) {
     const supabase = await createClient()
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = code
+      ? await supabase.auth.exchangeCodeForSession(code)
+      : await supabase.auth.verifyOtp({ type: type as EmailOtpType, token_hash: tokenHash as string })
     if (!error && data.user) {
       const res = NextResponse.redirect(`${origin}/admin`)
 
