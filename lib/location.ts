@@ -37,6 +37,7 @@ export interface Location {
   support_phone: string | null
   support_email: string | null
   address: string | null
+  fb_pixel_id: string | null
 }
 
 // ── Fallback branding — only used when getLocationId() can't resolve a row
@@ -52,6 +53,7 @@ export const DEFAULT_BRANDING = {
   support_phone: null as string | null,
   support_email: null as string | null,
   address: null as string | null,
+  fb_pixel_id: null as string | null,
 }
 
 // ── Get just the location_id (most common use case) ──────────────────────────
@@ -71,7 +73,7 @@ export async function getLocation(overrideLocationId?: string): Promise<Location
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("locations")
-    .select("id, slug, name, custom_domain, status, plan, business_name, tagline, logo_url, primary_color, accent_color, support_phone, support_email, address")
+    .select("id, slug, name, custom_domain, status, plan, business_name, tagline, logo_url, primary_color, accent_color, support_phone, support_email, address, fb_pixel_id")
     .eq("id", locationId)
     .single()
   if (!data) return null
@@ -98,6 +100,7 @@ export async function getBranding(overrideLocationId?: string) {
     support_phone: loc.support_phone,
     support_email: loc.support_email,
     address:       loc.address,
+    fb_pixel_id:   loc.fb_pixel_id,
   }
 }
 

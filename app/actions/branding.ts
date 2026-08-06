@@ -362,6 +362,30 @@ export async function setFirstAvailablePickupDate(date: string | null): Promise<
   return {}
 }
 
+// ── Facebook / Meta Pixel ──────────────────────────────────────────────────
+// Per-tenant, not global — each business advertises separately, so the
+// pixel injected into app/layout.tsx must be scoped to whichever tenant is
+// currently being served (see getBranding().fb_pixel_id), never shared.
+export async function getFbPixelId(): Promise<string | null> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase.from("locations").select("fb_pixel_id").eq("id", locationId).single()
+  return data?.fb_pixel_id ?? null
+}
+
+export async function setFbPixelId(pixelId: string | null): Promise<{ error?: string }> {
+  await requireAdmin()
+  const clean = pixelId?.trim() || null
+  if (clean && !/^\d{10,20}$/.test(clean)) {
+    return { error: "Pixel ID should be a numeric ID (e.g. 2496495747524401), not the full snippet" }
+  }
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("locations").update({ fb_pixel_id: clean }).eq("id", locationId)
+  revalidatePath("/admin/branding")
+  revalidatePath("/", "layout")
+  return {}
+}
+
 export async function uploadBrandLogo(formData: FormData): Promise<{ url?: string; error?: string }> {
   await requireAdmin()
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]

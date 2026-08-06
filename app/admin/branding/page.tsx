@@ -7,6 +7,7 @@ import {
   getOperatingMode, setOperatingMode, getHomeDailyCapacity, setHomeDailyCapacity, type OperatingMode,
   getFirstAvailablePickupDate, setFirstAvailablePickupDate,
   getAdminViewMode,
+  getFbPixelId, setFbPixelId,
   type BrandingSettings, type DispatchSettings, type EmailDomainStatus,
 } from "@/app/actions/branding"
 import { getFulfillmentMode, setFulfillmentMode, type FulfillmentMode } from "@/app/actions/walkin"
@@ -187,7 +188,77 @@ export default function BrandingPage() {
       <LaunchDateSection />
       <FulfillmentSection />
       {isAdvanced && <EmailDomainSection />}
+      <PixelSection />
       <DispatchSection />
+    </div>
+  )
+}
+
+// ── Facebook / Meta Pixel — per-tenant ad tracking on every customer-facing
+// page (see the fbq('init', ...) snippet injected in app/layout.tsx) ────────
+function PixelSection() {
+  const [pixelId, setPixelId] = useState<string | null>(null)
+  const [input, setInput] = useState("")
+  const [loaded, setLoaded] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getFbPixelId().then(id => {
+      setPixelId(id)
+      setInput(id ?? "")
+      setLoaded(true)
+    })
+  }, [])
+
+  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    const result = await setFbPixelId(input.trim() || null)
+    setSaving(false)
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+    setPixelId(input.trim() || null)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  if (!loaded) return null
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xl">📣</span>
+        <h2 className="font-extrabold text-[#0D2240] text-base">Facebook / Meta Pixel</h2>
+      </div>
+      <p className="text-xs text-gray-400 mb-5">
+        Tracks visits and conversions on your site for Facebook/Instagram ads. Find your Pixel ID in
+        Meta Events Manager — paste just the numeric ID below, not the full code snippet.
+      </p>
+      <form onSubmit={handleSave} className="space-y-3">
+        <div>
+          <label className={LABEL_CLS}>Pixel ID</label>
+          <input className={`${FIELD_CLS} font-mono`} placeholder="2496495747524401" value={input}
+            onChange={e => setInput(e.target.value)} />
+        </div>
+        {error && (
+          <div className="rounded-xl px-4 py-3 text-sm font-medium bg-red-50 border border-red-200 text-red-600">{error}</div>
+        )}
+        <div className="flex items-center gap-3">
+          <button type="submit" disabled={saving}
+            className="bg-[#0D2240] text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-[#16305c] transition-colors disabled:opacity-50">
+            {saving ? "Saving…" : "Save"}
+          </button>
+          {saved && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
+          {pixelId && (
+            <span className="text-xs text-gray-400">Currently active on every page.</span>
+          )}
+        </div>
+      </form>
     </div>
   )
 }
