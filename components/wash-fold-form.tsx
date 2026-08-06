@@ -583,10 +583,6 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
             {[
               { label: tf.labelService,    value: tw.washFoldLabel },
               { label: tf.labelFrequency,  value: formData.frequency === "one_time" ? tw.oneTimeLabel : formData.frequency === "weekly" ? tw.weeklyLabel : tw.biweeklyLabel },
-              { label: tf.labelRate,       value: priceLabel },
-              { label: tf.labelBags,       value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
-              { label: tf.labelEstWeight,  value: `~${formData.pounds} lbs (estimated)` },
-              { label: tf.labelAddOns,     value: addOnsSummary },
               { label: tf.labelPickup,    value: pickupSummary },
               { label: tf.labelDelivery,  value: deliverySummary },
               { label: "Pickup Address",  value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
@@ -602,34 +598,20 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                 <p className="text-xs font-bold text-blue-700 mb-1">{tw.subscriptionSchedule}</p>
                 <p className="text-xs text-blue-600">{tw.firstPickupDate} <strong>{formatShortDate(firstPickup, locale)}</strong></p>
                 <p className="text-xs text-blue-600">{tw.firstDeliveryDate} <strong>{formatShortDate(firstDelivery, locale)}</strong></p>
-                <p className="text-[10px] text-blue-500 mt-1">{tw.subscriptionCardCharge}</p>
               </div>
             )}
             {promo && (
-              <div className="flex justify-between gap-4 text-sm text-green-700">
-                <span className="shrink-0">{tf.promo} ({promo.code})</span>
-                <span className="font-semibold">−${(discountCents / 100).toFixed(2)}</span>
-              </div>
+              <p className="text-xs font-semibold text-green-700">✓ {tf.promo} {promo.code} applied</p>
             )}
-            {deliveryFeeCents > 0 && (
-              <div className="flex justify-between gap-4 text-sm text-gray-600">
-                <span className="shrink-0">Delivery fee</span>
-                <span className="font-semibold">${(deliveryFeeCents / 100).toFixed(2)}</span>
-              </div>
-            )}
-            {tipCents > 0 && (
-              <div className="flex justify-between gap-4 text-sm text-gray-600">
-                <span className="shrink-0">Tip</span>
-                <span className="font-semibold">${(tipCents / 100).toFixed(2)}</span>
-              </div>
-            )}
-            <div className="border-t border-[var(--brand-primary)]/10 pt-2.5 flex justify-between font-extrabold text-base">
-              <span className="text-[var(--brand-primary)]">{tf.preAuthEst}</span>
-              <span className="text-[var(--brand-accent)]">${totalDisplay}</span>
+            <div className="text-xs text-gray-500 leading-relaxed border-t border-[var(--brand-primary)]/10 pt-2.5 space-y-1">
+              <p>
+                Estimated charge: <strong className="text-[var(--brand-primary)]">${totalDisplay}</strong> ({formData.numBags} {formData.numBags > 1 ? tf.bags : tf.bag} · {minLbs} lb minimum · {priceLabel}).
+                You&apos;re only charged this amount, based on the actual weight once it&apos;s picked up and weighed — nothing is charged today.
+              </p>
+              <p>
+                Stripe will show a temporary hold of <strong className="text-[var(--brand-primary)]">${(preAuthCents / 100).toFixed(2)}</strong> below to confirm your card — that&apos;s just a safety buffer in case your order weighs more than expected, not the actual charge.
+              </p>
             </div>
-            <p className="text-[10px] text-gray-400 leading-relaxed">
-              {tw.chargedAtSummary.replace("{priceLabel}", priceLabel).replace("18 lb", `${minLbs} lb`)}
-            </p>
           </div>
           <Checkout
             amountCents={preAuthCents}
@@ -911,7 +893,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{tw.preAuth}</p>
-                  <p className="text-2xl font-extrabold text-[var(--brand-accent)]">${totalDisplay}</p>
+                  <p className="text-2xl font-extrabold text-[var(--brand-accent)]">${(preAuthCents / 100).toFixed(2)}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
