@@ -415,11 +415,28 @@ export async function handleSuccessfulPayment(sessionId: string) {
       return { success: true, giftCardCode: card?.code }
     }
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId)
-    const isManual = (session as { payment_intent_data?: { capture_method?: string } })
-      .payment_intent_data?.capture_method === "manual"
+    // NOTE: `payment_intent_data` (where capture_method: "manual" was set) is
+    // an input-only param on session CREATE — it is never echoed back on
+    // retrieve, so checking it here always evaluated to undefined and
+    // `isManual` was always false. For manual-capture (pre-auth) sessions,
+    // Stripe also never sets session.payment_status to "paid" — it stays
+    // "unpaid" until the PaymentIntent is actually captured later at
+    // weigh-in. Combined, the old condition below was always false for every
+    // manual-capture booking, so this function silently skipped creating the
+    // booking entirely while still returning { success: true } — the
+    // customer saw "Payment authorized!" for an order that was never saved.
+    // Fix: expand the actual PaymentIntent and check ITS status —
+    // "requires_capture" is what a successful manual-capture authorization
+    // looks like; "succeeded" covers normal auto-capture payments.
+    const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ["payment_intent"] })
+    const pi = typeof session.payment_intent === "object" ? session.payment_intent : null
+    const isManual = pi?.capture_method === "manual"
+    const paymentConfirmed =
+      session.payment_status === "paid" ||
+      pi?.status === "requires_capture" ||
+      pi?.status === "succeeded"
 
-    if ((session.payment_status === "paid" || isManual) && session.metadata) {
+    if (paymentConfirmed && session.metadata) {
       const meta = session.metadata
 
       // ── Gift card purchase — a completely separate flow from booking
@@ -448,7 +465,7 @@ export async function handleSuccessfulPayment(sessionId: string) {
 
       const preAuthCents  = session.amount_total ?? 0
       const frequency     = meta.subscriptionFrequency ?? "one_time"
-      const paymentIntent = session.payment_intent as string
+      const paymentIntent = pi?.id ?? (session.payment_intent as string)
 
       const booking = await createBooking({
         customerName:    meta.customerName,
@@ -569,9 +586,17 @@ export async function handleSuccessfulPayment(sessionId: string) {
           )
         }
       }
+
+      return { success: true }
     }
 
-    return { success: true }
+    // Payment genuinely hasn't gone through yet (e.g. this fired before
+    // Stripe finished confirming) — previously this fell through to an
+    // unconditional `return { success: true }` below, which told the
+    // customer "Payment authorized!" while silently never creating the
+    // booking. Surface it as a failure instead so Checkout shows an error
+    // and nothing is falsely confirmed.
+    return { success: false, error: "Payment not yet confirmed — please try again in a moment." }
   } catch (error) {
     console.error("[stripe] handleSuccessfulPayment error:", error)
     return { success: false, error: "Failed to save booking" }
