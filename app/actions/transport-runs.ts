@@ -298,7 +298,8 @@ export async function completeTransportRun(formData: FormData) {
       worker_name:  completedBy,
       source:       "facility_transfer",
     }))
-    await supabase.from("phase_transitions").insert(phaseTransitions)
+    const { error: phaseErr } = await supabase.from("phase_transitions").insert(phaseTransitions)
+    if (phaseErr) console.error("[transport-runs] phase_transitions insert failed:", phaseErr.message)
 
     // Log event on each order
     const events = orderIds.map(bookingId => ({
@@ -308,7 +309,8 @@ export async function completeTransportRun(formData: FormData) {
       photo_url:   photoUrl,
       created_by:  completedBy,
     }))
-    await supabase.from("order_events").insert(events)
+    const { error: eventsErr } = await supabase.from("order_events").insert(events)
+    if (eventsErr) console.error("[transport-runs] order_events insert failed:", eventsErr.message)
 
     // ── Send arrival notification to partner facility ──────────────
     if (facilityProcessingMode === "partner_attendant" && facility?.contact_email) {
@@ -373,7 +375,8 @@ export async function completeTransportRun(formData: FormData) {
       worker_name:  completedBy,
       source:       "facility_transfer",
     }))
-    await supabase.from("phase_transitions").insert(phaseTransitions)
+    const { error: phaseErr } = await supabase.from("phase_transitions").insert(phaseTransitions)
+    if (phaseErr) console.error("[transport-runs] phase_transitions insert failed:", phaseErr.message)
 
     const events = orderIds.map(bookingId => ({
       booking_id:  bookingId,
@@ -382,7 +385,8 @@ export async function completeTransportRun(formData: FormData) {
       photo_url:   photoUrl,
       created_by:  completedBy,
     }))
-    await supabase.from("order_events").insert(events)
+    const { error: eventsErr } = await supabase.from("order_events").insert(events)
+    if (eventsErr) console.error("[transport-runs] order_events insert failed:", eventsErr.message)
   }
 
   // Mark run complete

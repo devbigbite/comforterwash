@@ -2,12 +2,13 @@ import { requireAdmin } from "@/lib/auth-guard"
 import {
   getCommercialAccounts,
   addCommercialAccount, updateCommercialAccount, toggleCommercialAccountStatus,
-  deleteCommercialAccount, createCommercialOrder,
+  deleteCommercialAccount,
   saveCommercialRecurringRule,
   sendCommercialAccountInvite,
   type CommercialAccount,
 } from "@/app/actions/commercial-accounts"
 import { AgreementLinkCopy } from "@/components/admin/AgreementLinkCopy"
+import { CreateOrderForm } from "@/components/admin/CreateOrderForm"
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://comforterwash.com"
 function agreementLink(accessCode: string): string {
@@ -262,45 +263,7 @@ export default async function CommercialAccountsPage() {
                       Add a card on file before creating orders — the commercial agreement link above includes a payment-method step.
                     </p>
                   ) : (
-                    <form action={createCommercialOrder} className="space-y-2">
-                      <input type="hidden" name="account_id" value={a.id} />
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Pickup Date</label>
-                          <input name="pickup_date" type="date" required className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Pickup Window</label>
-                          <input name="pickup_time_window" placeholder="9:00 AM - 12:00 PM" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Delivery Date</label>
-                          <input name="delivery_date" type="date" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Delivery Window</label>
-                          <input name="delivery_time_window" placeholder="9:00 AM - 12:00 PM" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Bags</label>
-                          <input name="num_bags" type="number" min="1" defaultValue="1" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Service Type</label>
-                          <select name="service_type" defaultValue="wash_fold" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] bg-white">
-                            <option value="wash_fold">Wash &amp; Fold</option>
-                            <option value="wash_only">Wash Only</option>
-                          </select>
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-gray-400">
-                        No charge happens now — the account&apos;s card on file is charged automatically once the order is weighed at the facility,
-                        the same way a regular customer order flows through pickup, washing, and delivery.
-                      </p>
-                      <button type="submit" className="w-full text-xs font-bold text-white bg-[#0D2240] hover:bg-[#16305c] px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
-                        📦 Create Order
-                      </button>
-                    </form>
+                    <CreateOrderForm accountId={a.id} />
                   )}
                 </div>
               </details>

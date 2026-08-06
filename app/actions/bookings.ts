@@ -131,6 +131,9 @@ export async function createBooking(data: BookingData) {
   }
 
   // Auto-create order bags
+  // Note: the Supabase client resolves with { error } on constraint violations —
+  // it does not throw — so a bare try/catch here would never see a DB error.
+  // Each call below is checked explicitly instead.
   try {
     const orderCode = booking.short_code ?? booking.id.slice(0, 6).toUpperCase()
     const numBags = data.numBags ?? data.numComforters ?? 1
@@ -140,15 +143,17 @@ export async function createBooking(data: BookingData) {
       label_code: `${orderCode}-B${i + 1}`,
       status: "pending",
     }))
-    await supabase.from("order_bags").insert(bags)
+    const { error: bagsError } = await supabase.from("order_bags").insert(bags)
+    if (bagsError) console.error("[bags] order_bags insert failed:", bagsError.message)
 
     // Create initial booking_created event
-    await supabase.from("order_events").insert({
+    const { error: eventError } = await supabase.from("order_events").insert({
       booking_id: booking.id,
       event_type: "booking_created",
       notes: `Order placed. ${numBags} bag${numBags > 1 ? "s" : ""} expected at pickup.`,
       created_by: "system",
     })
+    if (eventError) console.error("[bags] order_events insert failed:", eventError.message)
   } catch (bagErr) {
     console.error("[bags] Error creating order bags:", bagErr)
   }
