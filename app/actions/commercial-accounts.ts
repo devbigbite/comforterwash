@@ -192,6 +192,26 @@ export async function createCommercialAccountSelfServe(formData: FormData) {
   const supabase = createAdminClient()
   const locationId = await getLocationId()
 
+  // If this email already has an account in progress (pending signature/card)
+  // or already active, don't create a second row — send them back to the
+  // existing one instead. Without this, resubmitting the form (back button,
+  // refresh, filling it out twice after getting stuck on the card step)
+  // silently creates a duplicate account with no card and no way to tell
+  // it apart from the real one in /admin/commercial.
+  const { data: existing } = await supabase
+    .from("commercial_accounts")
+    .select("access_code")
+    .eq("location_id", locationId)
+    .ilike("contact_email", contact_email)
+    .neq("status", "cancelled")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) {
+    redirect(`/commercial-agreement/${existing.access_code}`)
+  }
+
   const { data, error } = await supabase
     .from("commercial_accounts")
     .insert({
@@ -230,6 +250,31 @@ export async function sendCommercialAccountInvite(formData: FormData): Promise<{
   const rate_amount = parseFloat(formData.get("rate_amount") as string)
   const minimum_amount = parseFloat(formData.get("minimum_amount") as string)
 
+  // Same guard as the self-serve signup below — don't create a second
+  // account for an email that already has one pending or active. Re-send
+  // the invite for the existing account instead of forking a duplicate.
+  const { data: existing } = await supabase
+    .from("commercial_accounts")
+    .select("access_code, business_name")
+    .eq("location_id", locationId)
+    .ilike("contact_email", contact_email)
+    .neq("status", "cancelled")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://comforterwash.com"
+
+  if (existing) {
+    await sendCommercialAccountInviteEmail({
+      toEmail: contact_email,
+      businessName: existing.business_name,
+      link: `${SITE_URL}/commercial-agreement/${existing.access_code}`,
+    })
+    revalidatePath("/admin/commercial")
+    return { success: true }
+  }
+
   const { data, error } = await supabase
     .from("commercial_accounts")
     .insert({
@@ -247,7 +292,6 @@ export async function sendCommercialAccountInvite(formData: FormData): Promise<{
 
   if (error || !data) return { error: error?.message ?? "Failed to create account" }
 
-  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://comforterwash.com"
   await sendCommercialAccountInviteEmail({
     toEmail: contact_email,
     businessName: business_name,
