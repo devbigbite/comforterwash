@@ -48,8 +48,8 @@ export function WeightEntryForm({ bookingId, bagCount, action }: Props) {
             <label className="text-xs text-gray-400 mb-1 block">Bag {i + 1} (lbs)</label>
             <input
               type="number"
-              step="0.1"
-              min="0.1"
+              step="0.01"
+              min="0.01"
               required
               value={w}
               onChange={e => setWeight(i, e.target.value)}
