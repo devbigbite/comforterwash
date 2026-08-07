@@ -55,6 +55,19 @@ export async function loginAction(formData: FormData) {
     path: "/",
   })
 
+  // Clear any leftover tenant override — admin_location_id gets set to a
+  // DIFFERENT tenant's id whenever /admin is visited on a non-canonical host
+  // (middleware.ts, "-1. Pin /admin...") or via super-admin "Enter Tenant
+  // Admin" (enterTenantAdmin in app/actions/super-admin.ts), and persists for
+  // 30 days. The legacy password login below is Orlando-only — if that
+  // cookie is still pointing at some other tenant from an earlier visit,
+  // requireAdmin() keeps failing even after a fresh, successful login,
+  // because it resolves the wrong location_id and the legacy check only
+  // passes for Orlando. Logging in as the password admin always means "take
+  // me back to my own site," so any stale override needs to go.
+  cookieStore.delete("admin_location_id")
+  cookieStore.delete("super_admin_impersonating")
+
   // Single sign-on: logging into the original WashFold Orlando admin (the
   // owner's own operational login) also grants super-admin/SaaS-platform
   // access — no separate password to manage. Gated to the Orlando location
