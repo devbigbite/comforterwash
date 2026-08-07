@@ -148,7 +148,41 @@ export async function deleteShipdayOrder(orderId: number, apiKey?: string | null
   }
 }
 
-/** POST /orders/{orderId}/assign — assign a carrier by their Shipday email. */
+interface ShipdayCarrier {
+  id: number
+  email: string | null
+  name: string
+}
+
+/** GET /carriers — used to resolve a driver's email to Shipday's numeric carrier id
+ *  (the assign endpoint takes a carrier id, not an email — see assignShipdayDriver). */
+async function findShipdayCarrierByEmail(email: string, apiKey: string): Promise<ShipdayCarrier | null> {
+  try {
+    const res = await fetch(`${SHIPDAY_API_URL}/carriers`, {
+      headers: { Authorization: getAuthHeader(apiKey), Accept: "application/json" },
+    })
+    if (!res.ok) {
+      console.error(`[shipday] GET /carriers HTTP ${res.status}`)
+      return null
+    }
+    const carriers = (await res.json()) as ShipdayCarrier[]
+    const target = email.trim().toLowerCase()
+    return carriers.find(c => c.email?.trim().toLowerCase() === target) ?? null
+  } catch (err) {
+    console.error("[shipday] Network error fetching carriers:", err)
+    return null
+  }
+}
+
+/**
+ * PUT /orders/assign/{orderId}/{carrierId} — assign a carrier to an order.
+ * Takes the driver's Shipday email (what the rest of this app stores) and
+ * looks up the numeric carrier id Shipday's assign endpoint actually
+ * requires — the endpoint doesn't accept an email directly. Previously this
+ * called POST /orders/{orderId}/assign with { carrierEmail } in the body,
+ * which isn't a real Shipday endpoint at all (confirmed against Shipday's
+ * API docs) and was silently 404ing on every single assignment.
+ */
 export async function assignShipdayDriver(
   orderId: number,
   carrierEmail: string,
@@ -156,15 +190,19 @@ export async function assignShipdayDriver(
 ): Promise<boolean> {
   if (!apiKey) return false
 
+  const carrier = await findShipdayCarrierByEmail(carrierEmail, apiKey)
+  if (!carrier) {
+    console.error(`[shipday] No Shipday carrier found for email ${carrierEmail} — has this driver been added in Shipday?`)
+    return false
+  }
+
   try {
-    const res = await fetch(`${SHIPDAY_API_URL}/orders/${orderId}/assign`, {
-      method: "POST",
+    const res = await fetch(`${SHIPDAY_API_URL}/orders/assign/${orderId}/${carrier.id}`, {
+      method: "PUT",
       headers: {
         Authorization: getAuthHeader(apiKey),
-        "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({ carrierEmail }),
     })
 
     if (!res.ok) {
@@ -173,7 +211,7 @@ export async function assignShipdayDriver(
       return false
     }
 
-    console.log(`[shipday] Order ${orderId} assigned to ${carrierEmail}`)
+    console.log(`[shipday] Order ${orderId} assigned to carrier ${carrier.id} (${carrierEmail})`)
     return true
   } catch (err) {
     console.error(`[shipday] Network error assigning order ${orderId}:`, err)
