@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
-import { approveWorker, rejectWorker, updatePayRates, createStripeConnectAccount } from "@/app/actions/workers"
+import { approveWorker, rejectWorker, updatePayRates, createStripeConnectAccount, deactivateWorker, reactivateWorker } from "@/app/actions/workers"
 import { WorkerPinManager } from "./worker-pin-manager"
 import { CreateWorkerModal } from "./create-worker-modal"
 import { getLocationId } from "@/lib/location"
@@ -11,6 +11,7 @@ const STATUS_BADGE: Record<string, string> = {
   approved: "bg-blue-100 text-blue-700",
   active:   "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-700",
+  inactive: "bg-gray-200 text-gray-500",
 }
 
 const ROLE_BADGE: Record<string, string> = {
@@ -33,8 +34,10 @@ export default async function WorkersPage({
 
   const statusFilter = tab === "active"
     ? ["active"]
+    : tab === "inactive"
+    ? ["inactive"]
     : tab === "all"
-    ? ["pending", "approved", "active", "rejected"]
+    ? ["pending", "approved", "active", "rejected", "inactive"]
     : ["pending"]
 
   const { data: workersData, error: workersError } = await supabase
@@ -54,11 +57,12 @@ export default async function WorkersPage({
     .select("status")
     .eq("location_id", locationId)
 
-  const tally = { pending: 0, active: 0, all: 0 }
+  const tally = { pending: 0, active: 0, inactive: 0, all: 0 }
   counts?.forEach((w) => {
     tally.all++
-    if (w.status === "pending") tally.pending++
-    if (w.status === "active")  tally.active++
+    if (w.status === "pending")  tally.pending++
+    if (w.status === "active")   tally.active++
+    if (w.status === "inactive") tally.inactive++
   })
 
   return (
@@ -80,9 +84,10 @@ export default async function WorkersPage({
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
         {[
-          { key: "pending", label: `Pending (${tally.pending})` },
-          { key: "active",  label: `Active (${tally.active})` },
-          { key: "all",     label: `All (${tally.all})` },
+          { key: "pending",  label: `Pending (${tally.pending})` },
+          { key: "active",   label: `Active (${tally.active})` },
+          { key: "inactive", label: `Inactive (${tally.inactive})` },
+          { key: "all",      label: `All (${tally.all})` },
         ].map((t) => (
           <Link key={t.key} href={`/admin/workers?tab=${t.key}`}
             className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${
@@ -237,7 +242,25 @@ export default async function WorkersPage({
 
                     {/* Per-worker PIN management */}
                     <WorkerPinManager workerName={w.name} hasPin={!!w.clock_pin} />
+
+                    {/* Deactivate — soft-delete, keeps all history intact.
+                        Placed last / visually de-emphasized since it's a
+                        destructive-feeling action even though it's reversible. */}
+                    <form action={deactivateWorker.bind(null, w.id)} className="ml-auto">
+                      <button className="text-xs font-bold text-gray-400 hover:text-red-500 px-3 py-2 transition-colors uppercase tracking-wide">
+                        🗑 Deactivate
+                      </button>
+                    </form>
                   </>
+                )}
+
+                {/* Inactive → reactivate */}
+                {w.status === "inactive" && (
+                  <form action={reactivateWorker.bind(null, w.id)}>
+                    <button className="bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-xs font-bold px-4 py-2 rounded-lg transition-colors uppercase tracking-wide">
+                      ↩ Reactivate
+                    </button>
+                  </form>
                 )}
               </div>
             </div>

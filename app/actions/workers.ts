@@ -132,6 +132,27 @@ export async function rejectWorker(workerId: string, notes?: string) {
   revalidatePath("/admin/workers")
 }
 
+// ── Deactivate / reactivate worker ────────────────────────────────────────────
+// A soft-delete, not a hard delete — workers are referenced by past bookings
+// (assigned_driver_id/assigned_operator_id), order_events, time punches, and
+// payouts, so removing the row would either fail on foreign keys or silently
+// orphan that history. Deactivating sets status to "inactive": they drop out
+// of the PIN login flow and worker-assignment dropdowns, but every past
+// record stays intact and can be reversed with Reactivate.
+export async function deactivateWorker(workerId: string) {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("workers").update({ status: "inactive" }).eq("id", workerId).eq("location_id", locationId)
+  revalidatePath("/admin/workers")
+}
+
+export async function reactivateWorker(workerId: string) {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("workers").update({ status: "active" }).eq("id", workerId).eq("location_id", locationId)
+  revalidatePath("/admin/workers")
+}
+
 // ── Update pay rates ──────────────────────────────────────────────────────────
 export async function updatePayRates(formData: FormData) {
   await requireAdmin()
