@@ -1,6 +1,7 @@
 "use client"
 import { useActionState, useRef, useEffect } from "react"
-import { addExpense, EXPENSE_CATEGORIES } from "@/app/actions/expenses"
+import { addExpense } from "@/app/actions/expenses"
+import { EXPENSE_CATEGORIES } from "@/lib/expense-categories"
 
 const initialState: { success?: boolean; error?: string } = {}
 const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-full"

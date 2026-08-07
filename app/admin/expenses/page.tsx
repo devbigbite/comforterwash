@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth-guard"
-import { getExpenses, deleteExpense, EXPENSE_CATEGORIES } from "@/app/actions/expenses"
+import { getExpenses, deleteExpense } from "@/app/actions/expenses"
+import { EXPENSE_CATEGORIES } from "@/lib/expense-categories"
 import { ExpenseForm } from "@/components/admin/ExpenseForm"
 import { DateFilter } from "@/app/admin/reports/date-filter"
 
