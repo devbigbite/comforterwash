@@ -25,15 +25,6 @@ function buildSimpleNav(lang: "en" | "es", operatingMode: OperatingMode): NavIte
       ? { type: "link", href: "/admin/home-board", label: es ? "Trabajo de Hoy" : "Today's Work" }
       : { type: "link", href: "/admin/dispatch",    label: es ? "Despacho" : "Dispatch" },
     { type: "link", href: "/admin/orders",     label: es ? "Órdenes" : "Orders" },
-    {
-      type: "dropdown",
-      label: es ? "Actuar Como" : "Act As",
-      items: [
-        { href: "/admin",              label: es ? "👑 Admin (actual)" : "👑 Admin (current)" },
-        { href: "/driver?as=owner",    label: "🚐 " + (es ? "Conductor" : "Driver"), external: true },
-        { href: "/operator?as=owner",  label: "🏭 " + (es ? "Operador" : "Operator"), external: true },
-      ],
-    },
     { type: "link", href: "/admin/branding",   label: es ? "Mi Negocio" : "My Business" },
     { type: "link", href: "/admin/pricing",    label: es ? "Precios" : "Pricing" },
     { type: "link", href: "/admin/zip-codes",  label: es ? "Área de Servicio" : "Service Area" },
@@ -55,22 +46,6 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
       type: "link",
       href: "/admin/orders",
       label: es ? "Órdenes" : "Orders",
-    },
-    // "Act As" — one click into the driver or operator station, no PIN, no
-    // separate login. ?as=owner tells PinGate (components/pin-gate.tsx) to
-    // skip straight past the PIN screen for an already-authenticated admin;
-    // once in, the owner sentinel sees every order at that station (not
-    // filtered to one worker) so an admin can actually process a real order
-    // end to end — enter weight, mark picked up/delivered, etc. — from
-    // whichever station view has those actions, without needing a worker PIN.
-    {
-      type: "dropdown",
-      label: es ? "Actuar Como" : "Act As",
-      items: [
-        { href: "/admin",              label: es ? "👑 Admin (actual)" : "👑 Admin (current)" },
-        { href: "/driver?as=owner",    label: "🚐 " + (es ? "Conductor" : "Driver"), external: true },
-        { href: "/operator?as=owner",  label: "🏭 " + (es ? "Operador" : "Operator"), external: true },
-      ],
     },
     {
       type: "link",
@@ -151,6 +126,25 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
   ]
 }
 
+// "Act As" — one click into the driver or operator station, no PIN, no
+// separate login. ?as=owner tells PinGate (components/pin-gate.tsx) to skip
+// straight past the PIN screen for an already-authenticated admin; once in,
+// the owner sentinel sees every order at that station (not filtered to one
+// worker) so an admin can actually process a real order end to end — enter
+// weight, mark picked up/delivered, etc. — from whichever station view has
+// those actions, without needing a worker PIN. Kept separate from the rest
+// of the nav (own slot next to the Simple/Advanced toggle) rather than mixed
+// in with Customers/Logistics/Finance — it's a different kind of action
+// (who you're acting as), not another admin section to browse into.
+function actAsItems(lang: "en" | "es"): NavLink[] {
+  const es = lang === "es"
+  return [
+    { href: "/admin",              label: es ? "👑 Admin (actual)" : "👑 Admin (current)" },
+    { href: "/driver?as=owner",    label: "🚐 " + (es ? "Conductor" : "Driver"), external: true },
+    { href: "/operator?as=owner",  label: "🏭 " + (es ? "Operador" : "Operator"), external: true },
+  ]
+}
+
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export async function AdminHeader() {
@@ -194,6 +188,11 @@ export async function AdminHeader() {
           )
         )}
       </nav>
+
+      {/* Act As — own slot, distinct from the rest of the nav */}
+      <div className="flex items-center px-3 shrink-0 border-l border-white/10">
+        <NavDropdown label={`🎭 ${lang === "es" ? "Actuar Como" : "Act As"}`} items={actAsItems(lang)} accent />
+      </div>
 
       {/* Simple / Advanced toggle */}
       <div className="flex items-center px-3 shrink-0">

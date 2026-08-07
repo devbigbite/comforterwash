@@ -10,7 +10,7 @@ type NavLink = { href: string; label: string; external?: boolean }
 // Solo/home-based operators are the ones most likely to be on a phone
 // mid-route, so this needs to work cleanly on tap: click the label to
 // toggle, click anywhere outside to close, click a link to navigate.
-export function NavDropdown({ label, items }: { label: string; items: NavLink[] }) {
+export function NavDropdown({ label, items, accent }: { label: string; items: NavLink[]; accent?: boolean }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -32,10 +32,16 @@ export function NavDropdown({ label, items }: { label: string; items: NavLink[] 
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1 text-white/60 hover:text-white text-sm font-medium transition-colors py-1 whitespace-nowrap"
+        className={
+          accent
+            ? `flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${
+                open ? "bg-[#E8726A] text-white" : "bg-[#E8726A]/15 text-[#E8726A] hover:bg-[#E8726A]/25"
+              }`
+            : "flex items-center gap-1 text-white/60 hover:text-white text-sm font-medium transition-colors py-1 whitespace-nowrap"
+        }
       >
         {label}
-        <ChevronDown className={`h-3.5 w-3.5 opacity-60 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-3.5 w-3.5 opacity-70 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="absolute top-full left-0 pt-2 z-50">

@@ -13,6 +13,8 @@ import { getMiscFees } from "@/app/actions/fees"
 import { MiscFeesPanel } from "./misc-fees-panel"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
+import { recordWeightAndCharge } from "@/app/actions/weigh-in"
+import PhotoUploader from "@/app/operator/order/[id]/photo-uploader"
 
 // bookings has its own location_id — every inline action below verifies the
 // bookingId it's given actually belongs to the current tenant before doing
@@ -168,6 +170,74 @@ async function cancelShipdayAction(formData: FormData) {
     created_by: "admin",
   })
   revalidatePath(`/admin/orders/${bookingId}`)
+}
+
+// Weight entry from the admin page — routes through the same
+// recordWeightAndCharge used by the operator station (app/actions/weigh-in.ts)
+// so there's one billing-critical code path, not a third copy of the pricing
+// math. Idempotency-guarded there, so this can't double-charge even if an
+// operator and admin both submit a weight for the same order.
+async function enterWeightAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const weightLbs = parseFloat(formData.get("weightLbs") as string)
+  await assertBookingOwnership(bookingId)
+  const result = await recordWeightAndCharge(bookingId, weightLbs, "admin")
+  const supabase = createAdminClient()
+  if (result.error) {
+    await supabase.from("order_events").insert({
+      booking_id: bookingId,
+      event_type: "weight_confirmed",
+      notes: `Admin weight entry failed: ${result.error}`,
+      created_by: "admin",
+    })
+  } else if (result.success) {
+    await supabase.from("order_events").insert({
+      booking_id: bookingId,
+      event_type: "weight_confirmed",
+      notes: `Weight entered by admin: ${weightLbs} lbs${result.customerFinalCents ? ` · Billed $${(result.customerFinalCents / 100).toFixed(2)}` : ""}`,
+      created_by: "admin",
+    })
+  }
+  revalidatePath(`/admin/orders/${bookingId}`)
+}
+
+// Photo-capture actions — one per event type, matching the driver/operator
+// flow's existing conventions (same event_type strings, so timeline icons
+// and downstream reporting already handle these). Lets an admin acting on
+// behalf of a solo/home-based tenant log the same proof-of-service photos
+// without switching into /driver or /operator.
+async function logPhotoAction(eventType: string, notes: string, formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const photoUrl = formData.get("photoUrl") as string
+  await assertBookingOwnership(bookingId)
+  const supabase = createAdminClient()
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: eventType,
+    notes,
+    photo_url: photoUrl,
+    created_by: "admin",
+  })
+  revalidatePath(`/admin/orders/${bookingId}`)
+}
+
+async function logCustomerPickupPhoto(formData: FormData) {
+  "use server"
+  await logPhotoAction("photo_customer_pickup", "Pickup photo logged by admin", formData)
+}
+async function logFacilityDropoffPhoto(formData: FormData) {
+  "use server"
+  await logPhotoAction("photo_facility_dropoff", "Facility drop-off photo logged by admin", formData)
+}
+async function logFacilityPickupPhoto(formData: FormData) {
+  "use server"
+  await logPhotoAction("photo_facility_pickup", "Facility pickup photo logged by admin", formData)
+}
+async function logCustomerDeliveryPhoto(formData: FormData) {
+  "use server"
+  await logPhotoAction("photo_customer_delivery", "Delivery photo logged by admin", formData)
 }
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -348,6 +418,45 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             {preAuthCents && ` Pre-authorized: $${(preAuthCents / 100).toFixed(2)}.`}
           </div>
         )}
+
+        {/* Weight entry — admin can enter weight directly, no need to switch into /operator */}
+        {!actualWeightLbs && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+            <h2 className="font-bold text-[#0D2240] mb-3 text-sm uppercase tracking-wide">⚖️ Enter Weight</h2>
+            <form action={enterWeightAction} className="flex items-end gap-3">
+              <input type="hidden" name="bookingId" value={booking.id} />
+              <div className="flex-1 max-w-[160px]">
+                <label className="text-xs text-gray-400 mb-1 block">Weight (lbs)</label>
+                <input
+                  type="number"
+                  name="weightLbs"
+                  step="0.1"
+                  min="0.1"
+                  required
+                  placeholder="e.g. 24.5"
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                />
+              </div>
+              <button
+                type="submit"
+                className="rounded-xl bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-5 py-2.5 transition-colors"
+              >
+                Save Weight &amp; Bill
+              </button>
+            </form>
+            <p className="text-xs text-gray-400 mt-2">
+              This calculates and charges the customer, matching what the operator station would do.
+            </p>
+          </div>
+        )}
+
+        {/* Photo capture — driver + operator flow photos, logged straight from the admin page */}
+        <div className="grid gap-4 sm:grid-cols-2 mb-6">
+          <PhotoUploader bookingId={id} action={logCustomerPickupPhoto} label="📷 Customer Pickup Photo" compact={false} />
+          <PhotoUploader bookingId={id} action={logFacilityDropoffPhoto} label="📷 Facility Drop-off Photo" compact={false} />
+          <PhotoUploader bookingId={id} action={logFacilityPickupPhoto} label="📷 Facility Pickup Photo" compact={false} />
+          <PhotoUploader bookingId={id} action={logCustomerDeliveryPhoto} label="📷 Customer Delivery Photo" compact={false} />
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
 
