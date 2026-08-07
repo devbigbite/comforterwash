@@ -306,18 +306,18 @@ function OrderDrawer({
           {isFinished && (
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
               <div className="flex items-center gap-2">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Placement Photo</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Finished Product &amp; Facility Location Photo</p>
                 {!order.facility_floor_photo_url && (
                   <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-red-500 text-white uppercase tracking-wide">Required</span>
                 )}
               </div>
               <p className="text-xs text-gray-500 leading-snug">
-                Photograph the finished bags and their location — floor or storage — so the driver has a reference on arrival.
+                Photograph the finished, packaged bags and exactly where they're placed — floor or storage — so the driver knows what to grab and where to find it.
               </p>
 
               {order.facility_floor_photo_url ? (
                 <div className="space-y-2">
-                  <img src={order.facility_floor_photo_url} alt="Placement" className="w-full rounded-xl border border-gray-200 object-cover max-h-48" />
+                  <img src={order.facility_floor_photo_url} alt="Finished product and location" className="w-full rounded-xl border border-gray-200 object-cover max-h-48" />
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="w-full text-xs font-bold text-gray-500 border border-gray-200 bg-white py-2 rounded-lg hover:bg-gray-50 transition-colors"

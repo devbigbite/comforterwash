@@ -492,7 +492,7 @@ export default function DriverOrderClient({
                 <div className={`rounded-xl overflow-hidden border-2 ${warehouseDropoffPhotoErr ? "border-red-400" : hasWarehouseDropoffPhoto ? "border-green-400" : "border-gray-200"}`}>
                   <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
                     eventType="photo_facility_dropoff"
-                    label={`📷 Photo — where you placed the bags (internal)`}
+                    label={`📷 Photo — where you placed the bags at the ${dropoffLocation === "facility" ? "facility" : "warehouse"} (internal)`}
                     onPhotoUploaded={(url?: string) => {
                       setHasWarehouseDropoffPhoto(true)
                       setWarehouseDropoffPhotoErr(false)

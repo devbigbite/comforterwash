@@ -10,6 +10,12 @@ interface Props {
   emptyHint?: string
   compact?: boolean
   onPhotoUploaded?: () => void
+  // Photos already saved for this booking/event — without this, the
+  // component only knows about uploads made in the current browser session,
+  // so a refresh (or just navigating back later) makes previously-saved
+  // photos look like they vanished even though they're still in the
+  // database. Pass in whatever's already on file so it renders immediately.
+  initialPhotos?: string[]
 }
 
 export default function PhotoUploader({
@@ -19,9 +25,10 @@ export default function PhotoUploader({
   emptyHint = "Tap \"+ Add Photo\" to take a photo.",
   compact = false,
   onPhotoUploaded,
+  initialPhotos = [],
 }: Props) {
   const [uploading, setUploading] = useState(false)
-  const [photos, setPhotos] = useState<string[]>([])
+  const [photos, setPhotos] = useState<string[]>(initialPhotos)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 

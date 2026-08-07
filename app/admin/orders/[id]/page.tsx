@@ -14,6 +14,7 @@ import { MiscFeesPanel } from "./misc-fees-panel"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { recordWeightAndCharge } from "@/app/actions/weigh-in"
+import { updateFacilityDetails } from "@/app/actions/facility-board"
 import PhotoUploader from "@/app/operator/order/[id]/photo-uploader"
 import { WeightEntryForm } from "@/components/admin/WeightEntryForm"
 
@@ -285,11 +286,27 @@ async function logFacilityDropoffPhoto(formData: FormData) {
 }
 async function logFacilityPickupPhoto(formData: FormData) {
   "use server"
-  await logPhotoAction("photo_facility_pickup", "Facility pickup photo logged by admin", formData)
+  await logPhotoAction("photo_facility_pickup", "Driver pickup-of-clean-bags photo logged by admin", formData)
 }
 async function logCustomerDeliveryPhoto(formData: FormData) {
   "use server"
   await logPhotoAction("photo_customer_delivery", "Delivery photo logged by admin", formData)
+}
+
+// Finished Product & Facility Location photo — this is the operator's photo
+// of the finished, packaged bags and where they're placed at the facility,
+// distinct from the driver's own pickup-accountability photo above. It's
+// stored on the booking itself (facility_floor_photo_url), not as an
+// order_event, matching how the Facility Board (app/admin/facility) and the
+// driver app already read/write it — same field, same photo, visible from
+// whichever screen an admin happens to be on.
+async function logFinishedProductPhoto(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const photoUrl = formData.get("photoUrl") as string
+  await assertBookingOwnership(bookingId)
+  await updateFacilityDetails(bookingId, { facility_floor_photo_url: photoUrl })
+  revalidatePath(`/admin/orders/${bookingId}`)
 }
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -330,6 +347,15 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     .order("name")
 
   const miscFees = await getMiscFees(id)
+
+  // Photos already on file per event type — passed into each PhotoUploader
+  // as initialPhotos so a page refresh shows what's actually saved instead
+  // of an empty "No photos yet" state (the uploader otherwise only tracks
+  // uploads made in the current browser session).
+  const photosByEvent = (eventType: string) =>
+    (events ?? [])
+      .filter(e => e.event_type === eventType && e.photo_url)
+      .map(e => e.photo_url as string)
 
   const orderCode = booking.id.slice(0, 8).toUpperCase()
 
@@ -485,12 +511,42 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </div>
         )}
 
-        {/* Photo capture — driver + operator flow photos, logged straight from the admin page */}
+        {/* Finished Product & Facility Location — the operator's photo of the
+            packaged bags and where they're placed, taken when processing
+            finishes. Read from the booking itself (facility_floor_photo_url),
+            same field the Facility Board and driver app already use — not an
+            order_event like the four photos below. */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+          <div className="px-4 py-3 border-b border-gray-50">
+            <h3 className="font-bold text-[#0D2240] text-sm">📦 Finished Product &amp; Facility Location Photo</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Taken by the operator when the order is packaged — shows the driver what to grab and where.</p>
+          </div>
+          {booking.facility_floor_photo_url && (
+            <div className="p-4 pb-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={booking.facility_floor_photo_url as string}
+                alt="Finished product and location"
+                className="w-full rounded-xl border border-gray-100 max-h-56 object-cover"
+              />
+            </div>
+          )}
+          <div className="p-4">
+            <PhotoUploader
+              bookingId={id}
+              action={logFinishedProductPhoto}
+              label={booking.facility_floor_photo_url ? "Replace photo" : "📷 Finished Product & Location Photo"}
+              compact
+            />
+          </div>
+        </div>
+
+        {/* Photo capture — driver flow photos, logged straight from the admin page */}
         <div className="grid gap-4 sm:grid-cols-2 mb-6">
-          <PhotoUploader bookingId={id} action={logCustomerPickupPhoto} label="📷 Customer Pickup Photo" compact={false} />
-          <PhotoUploader bookingId={id} action={logFacilityDropoffPhoto} label="📷 Facility Drop-off Photo" compact={false} />
-          <PhotoUploader bookingId={id} action={logFacilityPickupPhoto} label="📷 Facility Pickup Photo" compact={false} />
-          <PhotoUploader bookingId={id} action={logCustomerDeliveryPhoto} label="📷 Customer Delivery Photo" compact={false} />
+          <PhotoUploader bookingId={id} action={logCustomerPickupPhoto} label="📷 Customer Pickup Photo" compact={false} initialPhotos={photosByEvent("photo_customer_pickup")} />
+          <PhotoUploader bookingId={id} action={logFacilityDropoffPhoto} label="📷 Facility/Warehouse Drop-off Photo" compact={false} initialPhotos={photosByEvent("photo_facility_dropoff")} />
+          <PhotoUploader bookingId={id} action={logFacilityPickupPhoto} label="📷 Driver Pickup of Clean Bags Photo" compact={false} initialPhotos={photosByEvent("photo_facility_pickup")} />
+          <PhotoUploader bookingId={id} action={logCustomerDeliveryPhoto} label="📷 Customer Delivery Photo" compact={false} initialPhotos={photosByEvent("photo_customer_delivery")} />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">

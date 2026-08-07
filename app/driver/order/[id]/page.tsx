@@ -504,21 +504,21 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
                   </p>
                 )}
 
-                {/* Placement photo */}
+                {/* Finished product & facility location photo */}
                 {booking.facility_floor_photo_url && (
                   <div className="space-y-2">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Placement Photo</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Finished Product &amp; Facility Location Photo</p>
                     <img
                       src={booking.facility_floor_photo_url}
-                      alt="Facility placement"
+                      alt="Finished product and location"
                       className="w-full rounded-xl border border-gray-200 object-cover max-h-56 shadow-sm"
                     />
-                    <p className="text-sm text-gray-500 text-center">Use this photo to locate the order</p>
+                    <p className="text-sm text-gray-500 text-center">Use this photo to find the finished bags on arrival</p>
                   </div>
                 )}
                 {!booking.facility_floor_photo_url && (
                   <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    ⚠️ No placement photo yet — ask the operator before heading out.
+                    ⚠️ No finished-product photo yet — ask the operator before heading out.
                   </p>
                 )}
 
