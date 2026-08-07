@@ -235,17 +235,24 @@ export function PinGate({ role, children }: PinGateProps) {
   // dropdown exists specifically so admins can jump in and perform driver/
   // operator duties (enter weight, mark delivered, etc.) with zero friction,
   // not just as a fallback if they happen to know the bypass exists.
+  //
+  // ?as=owner must win even if a worker PIN session (e.g. a real driver's or
+  // operator's) is still sitting in this browser's localStorage from a
+  // previous shift — otherwise an admin clicking "Act As → Driver/Operator"
+  // silently lands inside whichever worker last logged in on that device
+  // instead of their own owner view. So the admin check runs first; only if
+  // it doesn't apply do we fall back to restoring a stored worker session.
   useEffect(() => {
-    const stored = loadSession(role)
-    if (stored) {
-      setSession(stored)
-      setChecked(true)
-      return
-    }
     checkIsAdmin().then(admin => {
       setIsAdmin(admin)
       if (admin && searchParams.get("as") === "owner") {
         enterAsOwner()
+        setChecked(true)
+        return
+      }
+      const stored = loadSession(role)
+      if (stored) {
+        setSession(stored)
       }
       setChecked(true)
     })
