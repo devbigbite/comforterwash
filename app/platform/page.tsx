@@ -4,6 +4,11 @@ import Link from "next/link"
 import { PlatformDemoForm } from "@/components/platform-demo-form"
 import { LangToggle } from "@/components/lang-toggle"
 import { useLang } from "@/components/lang-provider"
+import { SELF_SIGNUP_PLAN } from "@/lib/platform-plan"
+
+function fmt$(cents: number) {
+  return "$" + (cents / 100).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
 
 // Metadata for this route lives in app/platform/layout.tsx — client
 // components can't export `metadata`.
@@ -209,18 +214,21 @@ export default function PlatformPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
           <div className="rounded-2xl border-2 border-gray-100 p-8 text-center">
             <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.2em] mb-3">{s.setupLabel}</p>
-            <p className="text-5xl font-extrabold text-[#0D2240] mb-1">$199</p>
+            <p className="text-5xl font-extrabold text-[#0D2240] mb-1">{fmt$(SELF_SIGNUP_PLAN.setupFeeCents)}</p>
             <p className="text-gray-400 text-xs mt-3 leading-relaxed">{s.setupNote}</p>
           </div>
           <div className="rounded-2xl border-2 border-[#E8726A] p-8 text-center relative">
             <p className="text-[#E8726A] font-bold text-xs uppercase tracking-[0.2em] mb-3">{s.monthlyLabel}</p>
-            <p className="text-5xl font-extrabold text-[#0D2240] mb-1">$99<span className="text-xl font-bold text-gray-400">{s.monthlyUnit}</span></p>
+            <p className="text-5xl font-extrabold text-[#0D2240] mb-1">{fmt$(SELF_SIGNUP_PLAN.monthlyPriceCents)}<span className="text-xl font-bold text-gray-400">{s.monthlyUnit}</span></p>
             <p className="text-gray-400 text-xs mt-3 leading-relaxed">{s.monthlyNote}</p>
           </div>
         </div>
-        <a href="#demo" className="inline-block mt-10 bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-10 py-4 rounded-full uppercase tracking-wide transition-colors shadow-lg">
-          {s.pricingCta}
-        </a>
+        <Link href="/start" className="inline-block mt-10 bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-10 py-4 rounded-full uppercase tracking-wide transition-colors shadow-lg">
+          {s.pricingCta} →
+        </Link>
+        <p className="text-xs text-gray-400 mt-4">
+          {SELF_SIGNUP_PLAN.trialDays}-day free trial · cancel anytime
+        </p>
       </div>
 
       {/* Demo request */}

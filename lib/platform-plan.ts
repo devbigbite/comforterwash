@@ -7,7 +7,7 @@
 // this was built. Update before sending real traffic to /start.
 export const SELF_SIGNUP_PLAN = {
   name: "WashFoldClean Platform",
-  setupFeeCents: 29900,      // $299 one-time, charged immediately at checkout
+  setupFeeCents: 19900,      // $199 one-time, charged immediately at checkout — matches the number already advertised on /platform
   monthlyPriceCents: 9900,   // $99/mo, billed after the trial ends
   trialDays: 7,
 }
