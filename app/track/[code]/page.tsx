@@ -135,7 +135,7 @@ export default async function TrackPage({ params }: { params: Promise<{ code: st
     "booking_created","pickup_confirmed","dropped_at_warehouse",
     "processing_started","bag_in_washer","bag_in_dryer","bag_folded",
     "ready_for_delivery","out_for_delivery","delivered",
-    "photo_customer_pickup","photo_facility_pickup","photo_customer_delivery",
+    "photo_customer_pickup","photo_customer_delivery",
   ])
   const publicEvents = (events ?? []).filter(e => publicEventTypes.has(e.event_type))
 
