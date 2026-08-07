@@ -3,6 +3,7 @@ import { logoutAction } from "@/app/admin/login/actions"
 import { AdminLangToggle } from "@/components/admin/admin-lang-toggle"
 import { AdminViewToggle } from "@/components/admin/admin-view-toggle"
 import { NavDropdown } from "@/components/admin/nav-dropdown"
+import { MobileMenu } from "@/components/admin/mobile-menu"
 import { getAdminLang } from "@/app/actions/admin-lang"
 import { getAdminViewMode, getOperatingMode, type OperatingMode } from "@/app/actions/branding"
 
@@ -152,11 +153,11 @@ export async function AdminHeader() {
   const navItems = viewMode === "simple" ? buildSimpleNav(lang, operatingMode) : buildNav(lang, operatingMode)
 
   return (
-    <header className="bg-[#0D2240] px-6 py-0 flex items-stretch min-h-[52px]">
+    <header className="bg-[#0D2240] px-4 md:px-6 py-0 flex items-stretch min-h-[52px]">
       {/* Logo */}
       <a
         href="/admin"
-        className="flex items-center gap-2.5 group pr-6 border-r border-white/10 mr-6 shrink-0"
+        className="flex items-center gap-2.5 group pr-4 md:pr-6 md:border-r border-white/10 mr-2 md:mr-6 shrink-0"
       >
         <svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="24" cy="24" r="24" fill="#0D2240" />
@@ -168,12 +169,12 @@ export async function AdminHeader() {
         </svg>
         <span className="text-white font-extrabold text-base tracking-tight group-hover:opacity-80 transition-opacity">
           Wash<span className="text-[#E8726A]">Fold</span>
-          <span className="ml-1.5 text-white/30 text-[10px] font-semibold uppercase tracking-widest">Admin</span>
+          <span className="ml-1.5 text-white/30 text-[10px] font-semibold uppercase tracking-widest hidden sm:inline">Admin</span>
         </span>
       </a>
 
-      {/* Nav */}
-      <nav className="flex items-center gap-5 flex-1 flex-wrap">
+      {/* Desktop nav — collapses into MobileMenu below md */}
+      <nav className="hidden md:flex items-center gap-5 flex-1 flex-wrap">
         {navItems.map((item, i) =>
           item.type === "link" ? (
             <a
@@ -190,22 +191,22 @@ export async function AdminHeader() {
       </nav>
 
       {/* Act As — own slot, distinct from the rest of the nav */}
-      <div className="flex items-center px-3 shrink-0 border-l border-white/10">
+      <div className="hidden md:flex items-center px-3 shrink-0 border-l border-white/10">
         <NavDropdown label={`🎭 ${lang === "es" ? "Actuar Como" : "Act As"}`} items={actAsItems(lang)} accent />
       </div>
 
       {/* Simple / Advanced toggle */}
-      <div className="flex items-center px-3 shrink-0">
+      <div className="hidden md:flex items-center px-3 shrink-0">
         <AdminViewToggle mode={viewMode} lang={lang} />
       </div>
 
       {/* Language toggle */}
-      <div className="flex items-center px-3 shrink-0 border-l border-white/10">
+      <div className="hidden md:flex items-center px-3 shrink-0 border-l border-white/10">
         <AdminLangToggle lang={lang} />
       </div>
 
       {/* Sign out */}
-      <div className="flex items-center pl-4 border-l border-white/10 ml-4 shrink-0">
+      <div className="hidden md:flex items-center pl-4 border-l border-white/10 ml-4 shrink-0">
         <form action={logoutAction}>
           <button
             type="submit"
@@ -214,6 +215,11 @@ export async function AdminHeader() {
             <LogOut className="h-4 w-4" />
           </button>
         </form>
+      </div>
+
+      {/* Mobile: everything above collapses into a hamburger + full-screen drawer */}
+      <div className="flex md:hidden items-center ml-auto">
+        <MobileMenu navItems={navItems} actAsItems={actAsItems(lang)} lang={lang} viewMode={viewMode} />
       </div>
     </header>
   )

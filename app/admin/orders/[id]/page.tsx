@@ -370,7 +370,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         {billingCalculated ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
             <h2 className="font-bold text-[#0D2240] mb-4 text-sm uppercase tracking-wide">💰 Billing Breakdown</h2>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               <div className="text-center bg-gray-50 rounded-xl p-4">
                 <p className="text-xs text-gray-400 mb-1">Actual Weight</p>
                 <p className="text-2xl font-extrabold text-[#0D2240]">{actualWeightLbs ?? "—"}</p>
