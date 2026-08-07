@@ -15,6 +15,7 @@ import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { recordWeightAndCharge } from "@/app/actions/weigh-in"
 import PhotoUploader from "@/app/operator/order/[id]/photo-uploader"
+import { WeightEntryForm } from "@/components/admin/WeightEntryForm"
 
 // bookings has its own location_id — every inline action below verifies the
 // bookingId it's given actually belongs to the current tenant before doing
@@ -470,34 +471,17 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </div>
         )}
 
-        {/* Weight entry — admin can enter weight directly, no need to switch into /operator */}
+        {/* Weight entry — one field per bag (matches how weighing actually
+            happens at the scale, and surfaces a bag miscount before billing)
+            summed into the total that recordWeightAndCharge expects. */}
         {!actualWeightLbs && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
             <h2 className="font-bold text-[#0D2240] mb-3 text-sm uppercase tracking-wide">⚖️ Enter Weight</h2>
-            <form action={enterWeightAction} className="flex items-end gap-3">
-              <input type="hidden" name="bookingId" value={booking.id} />
-              <div className="flex-1 max-w-[160px]">
-                <label className="text-xs text-gray-400 mb-1 block">Weight (lbs)</label>
-                <input
-                  type="number"
-                  name="weightLbs"
-                  step="0.1"
-                  min="0.1"
-                  required
-                  placeholder="e.g. 24.5"
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
-                />
-              </div>
-              <button
-                type="submit"
-                className="rounded-xl bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-5 py-2.5 transition-colors"
-              >
-                Save Weight &amp; Bill
-              </button>
-            </form>
-            <p className="text-xs text-gray-400 mt-2">
-              This calculates and charges the customer, matching what the operator station would do.
-            </p>
+            <WeightEntryForm
+              bookingId={booking.id}
+              bagCount={bags?.length || (booking.num_bags as number | null) || 1}
+              action={enterWeightAction}
+            />
           </div>
         )}
 
