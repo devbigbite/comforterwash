@@ -202,6 +202,57 @@ async function enterWeightAction(formData: FormData) {
   revalidatePath(`/admin/orders/${bookingId}`)
 }
 
+// Bag count adjustment — same reconciliation approach as the driver app's
+// confirmPickup (app/driver/order/[id]/page.tsx): if the new count is higher,
+// append new order_bags rows with sequential label codes; if lower, remove
+// rows off the end. Lets an admin fix a miscount without needing to go
+// through the driver flow, e.g. a bag was missed at pickup or double-counted.
+async function adjustBagCountAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const newCount = parseInt(formData.get("bagCount") as string, 10)
+  await assertBookingOwnership(bookingId)
+  if (isNaN(newCount) || newCount < 1) return
+
+  const supabase = createAdminClient()
+
+  const { data: existingBags } = await supabase
+    .from("order_bags")
+    .select("id, bag_number")
+    .eq("booking_id", bookingId)
+    .order("bag_number")
+
+  const currentCount = existingBags?.length ?? 0
+
+  if (newCount !== currentCount) {
+    if (newCount > currentCount) {
+      const orderCode = bookingId.slice(0, 6).toUpperCase()
+      const newBags = []
+      for (let i = currentCount + 1; i <= newCount; i++) {
+        newBags.push({
+          booking_id: bookingId,
+          bag_number: i,
+          label_code: `${orderCode}-B${i}`,
+          status: "pending",
+        })
+      }
+      await supabase.from("order_bags").insert(newBags)
+    } else {
+      const toDelete = existingBags!.slice(newCount).map(b => b.id)
+      await supabase.from("order_bags").delete().in("id", toDelete)
+    }
+
+    await supabase.from("bookings").update({ num_bags: newCount }).eq("id", bookingId)
+    await supabase.from("order_events").insert({
+      booking_id: bookingId,
+      event_type: "bags_received",
+      notes: `Bag count adjusted by admin: ${currentCount} → ${newCount}`,
+      created_by: "admin",
+    })
+  }
+  revalidatePath(`/admin/orders/${bookingId}`)
+}
+
 // Photo-capture actions — one per event type, matching the driver/operator
 // flow's existing conventions (same event_type strings, so timeline icons
 // and downstream reporting already handle these). Lets an admin acting on
@@ -609,6 +660,30 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <h2 className="font-bold text-[#0D2240] mb-4 text-sm uppercase tracking-wide">
                 Bags ({bags?.length ?? 0})
               </h2>
+
+              {/* Adjust bag count — inserts/removes order_bags rows to match,
+                  same reconciliation logic the driver app uses at pickup. */}
+              <form action={adjustBagCountAction} className="flex items-end gap-2 mb-4">
+                <input type="hidden" name="bookingId" value={booking.id} />
+                <div className="flex-1 max-w-[110px]">
+                  <label className="text-xs text-gray-400 mb-1 block">Bag count</label>
+                  <input
+                    type="number"
+                    name="bagCount"
+                    min="1"
+                    step="1"
+                    defaultValue={bags?.length || booking.num_bags || 1}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-xs px-4 py-2.5 transition-colors"
+                >
+                  Update Count
+                </button>
+              </form>
+
               <div className="space-y-3">
                 {bags?.map((bag) => (
                   <div key={bag.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#f7f8fb] border border-gray-100">
