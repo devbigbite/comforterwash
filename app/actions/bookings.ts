@@ -70,11 +70,31 @@ async function pickColorKey(
   return COLOR_ROTATION.find(c => !taken.has(c)) ?? COLOR_ROTATION[taken.size % COLOR_ROTATION.length]
 }
 
+// If a tenant only has one active facility (the common case for a
+// single-location operator like WashFold Orlando), every order should
+// default to it at creation time rather than sitting unassigned until a
+// driver or admin picks it manually — that's what left facility_cost_cents
+// at $0 on real orders before anyone remembered to assign a facility.
+// Multi-facility tenants are left alone; ambiguity there is real and should
+// stay a deliberate choice, not a guess.
+async function resolveSoleFacilityId(
+  supabase: ReturnType<typeof createAdminClient>,
+  locationId: string,
+): Promise<string | null> {
+  const { data: facilities } = await supabase
+    .from("facilities")
+    .select("id")
+    .eq("location_id", locationId)
+    .eq("active", true)
+  return facilities?.length === 1 ? facilities[0].id : null
+}
+
 export async function createBooking(data: BookingData) {
   const supabase   = createAdminClient()
   const locationId = data.locationId ?? (await getLocationId())
   const pickupDateStr = toDateString(data.pickupDate)
   const colorKey   = await pickColorKey(supabase, pickupDateStr)
+  const defaultFacilityId = await resolveSoleFacilityId(supabase, locationId)
 
   // Attach user_id if the customer is logged in
   let userId: string | null = null
@@ -121,6 +141,7 @@ export async function createBooking(data: BookingData) {
       comforter_sizes: data.comforterSizes ?? null,
       customer_instructions: data.specialInstructions?.trim() || null,
       color_key: colorKey,
+      assigned_facility_id: defaultFacilityId,
     })
     .select()
     .single()
