@@ -85,9 +85,10 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
       type: "dropdown",
       label: es ? "Finanzas" : "Finance",
       items: [
-        { href: "/admin/reports", label: es ? "Reportes" : "Reports" },
-        { href: "/admin/pricing", label: es ? "Precios" : "Pricing" },
-        { href: "/admin/tips",    label: es ? "Propinas" : "Tips" },
+        { href: "/admin/reports",  label: es ? "Reportes" : "Reports" },
+        { href: "/admin/expenses", label: es ? "Gastos" : "Expenses" },
+        { href: "/admin/pricing",  label: es ? "Precios" : "Pricing" },
+        { href: "/admin/tips",     label: es ? "Propinas" : "Tips" },
       ],
     },
     {

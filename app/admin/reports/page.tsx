@@ -33,11 +33,12 @@ async function getReportData(from: string, to: string, locationId: string) {
     { data: workers    = [] },
     { data: payouts    = [] },
     { data: promoCodes = [] },
+    { data: expenses   = [] },
   ] = await Promise.all([
     // Delivered/active in date range
     supabase
       .from("bookings")
-      .select("id, created_at, customer_name, customer_email, customer_phone, service_type, status, total_amount, actual_weight_lbs, num_bags, promo_code, promo_discount_cents, pickup_date, delivery_date")
+      .select("id, created_at, customer_name, customer_email, customer_phone, service_type, status, total_amount, actual_weight_lbs, num_bags, promo_code, promo_discount_cents, pickup_date, delivery_date, facility_cost_cents")
       .eq("location_id", locationId)
       .neq("status", "cancelled")
       .gte("created_at", fromTs)
@@ -85,6 +86,13 @@ async function getReportData(from: string, to: string, locationId: string) {
       .from("promo_codes")
       .select("code, description, current_uses, discount_type, discount_value")
       .eq("location_id", locationId),
+
+    supabase
+      .from("expenses")
+      .select("category, amount_cents, expense_date")
+      .eq("location_id", locationId)
+      .gte("expense_date", from)
+      .lte("expense_date", to),
   ])
 
   return {
@@ -95,6 +103,7 @@ async function getReportData(from: string, to: string, locationId: string) {
     workers:     workers     ?? [],
     payouts:     payouts     ?? [],
     promoCodes:  promoCodes  ?? [],
+    expenses:    expenses    ?? [],
   }
 }
 
@@ -137,7 +146,7 @@ export default async function ReportsPage({
   const from = sp.from ?? defaultFrom
   const to   = sp.to   ?? defaultTo
 
-  const { bookings, cancelled, allBookings, subs, workers, payouts, promoCodes } =
+  const { bookings, cancelled, allBookings, subs, workers, payouts, promoCodes, expenses } =
     await getReportData(from, to, locationId)
 
   // ── Derived: delivered orders in range ───────────────────────────────────
@@ -230,6 +239,19 @@ export default async function ReportsPage({
   payouts.forEach(p => { workerPay[p.worker_id] = (workerPay[p.worker_id] ?? 0) + (p.amount_cents ?? 0) })
   const activeWorkers    = workers.filter(w => w.status === "active")
   const totalPaidCents   = Object.values(workerPay).reduce((s, v) => s + v, 0)
+
+  // ── Profit & Loss ─────────────────────────────────────────────────────────
+  // Revenue is the same delivered-order total used above (totalRevCents).
+  // Costs: driver/operator payouts, per-order facility processing costs
+  // (charged by partner facilities at weigh-in), and manually logged expenses
+  // (rent, supplies, marketing, etc. — logged at /admin/expenses).
+  const facilityCostCents = bookings.reduce((s, b) => s + (b.facility_cost_cents ?? 0), 0)
+  const loggedExpenseCents = expenses.reduce((s, e) => s + (e.amount_cents ?? 0), 0)
+  const expenseByCategory: Record<string, number> = {}
+  expenses.forEach(e => { expenseByCategory[e.category] = (expenseByCategory[e.category] ?? 0) + (e.amount_cents ?? 0) })
+  const totalCostsCents = totalPaidCents + facilityCostCents + loggedExpenseCents
+  const netProfitCents  = totalRevCents - totalCostsCents
+  const marginPct       = totalRevCents > 0 ? (netProfitCents / totalRevCents) * 100 : 0
 
   // ── Promo usage ───────────────────────────────────────────────────────────
   const promoUsage: Record<string, { orders: number; savCents: number }> = {}
@@ -340,6 +362,39 @@ export default async function ReportsPage({
             </table>
           </div>
         </div>
+      </Section>
+
+      {/* ── SECTION: Profit & Loss ────────────────────────────────────── */}
+      <Section title="Profit & Loss" emoji="💰">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <StatCard label="Revenue"          value={fmt$(totalRevCents)} />
+          <StatCard label="Labor Payouts"    value={`-${fmt$(totalPaidCents)}`} sub="driver + operator" />
+          <StatCard label="Facility Costs"   value={`-${fmt$(facilityCostCents)}`} sub="per-order processing" />
+          <StatCard label="Logged Expenses"  value={`-${fmt$(loggedExpenseCents)}`} sub="rent, supplies, etc." />
+        </div>
+        <StatCard
+          label="Net Profit"
+          value={`${netProfitCents < 0 ? "-" : ""}${fmt$(Math.abs(netProfitCents))}`}
+          sub={`${marginPct.toFixed(1)}% margin · ${fmt$(totalCostsCents)} total costs`}
+          accent
+        />
+        {Object.keys(expenseByCategory).length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mt-6">
+            <h3 className="font-extrabold text-[#0D2240] text-sm mb-4">Logged Expenses by Category</h3>
+            <div className="space-y-2">
+              {Object.entries(expenseByCategory).sort(([, a], [, b]) => b - a).map(([cat, cents]) => (
+                <div key={cat} className="flex justify-between text-xs">
+                  <span className="text-gray-500">{cat.replace(/_/g, " ")}</span>
+                  <span className="font-semibold text-[#0D2240]">{fmt$(cents)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <p className="text-[11px] text-gray-400 mt-4">
+          Facility costs are pulled automatically from per-order processing fees. Everything else — rent, supplies,
+          marketing, insurance — has to be logged manually at <span className="font-semibold">Expenses</span> to show up here.
+        </p>
       </Section>
 
       {/* ── SECTION: Cancelled Orders ─────────────────────────────────── */}
