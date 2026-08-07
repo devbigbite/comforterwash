@@ -29,6 +29,31 @@ export async function POST(req: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session
 
+        // ── Public self-signup ("Stan Store" flow) — a brand-new tenant paid
+        // before any location existed. Create the location, seed it, and
+        // provision the first admin login, all in one shot.
+        if (session.metadata?.type === "platform_self_signup") {
+          const meta = session.metadata
+          const stripeSubId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id
+          const stripeCustomerId = typeof session.customer === "string" ? session.customer : session.customer?.id
+
+          const { provisionSelfSignupTenant } = await import("@/app/actions/super-admin")
+          const result = await provisionSelfSignupTenant({
+            businessName: meta.business_name ?? "New Tenant",
+            slug: meta.slug ?? `tenant-${session.id.slice(-8)}`,
+            contactEmail: meta.contact_email ?? session.customer_email ?? "",
+            planName: meta.plan_name ?? "Platform",
+            planPriceCents: parseInt(meta.plan_price_cents ?? "0"),
+            stripeCustomerId: stripeCustomerId ?? null,
+            stripeSubscriptionId: stripeSubId ?? null,
+          })
+
+          if (result.error) {
+            console.error(`[webhook] platform_self_signup provisioning failed for session ${session.id}:`, result.error)
+          }
+          break
+        }
+
         if (session.metadata?.type === "platform_subscription") {
           const locationId = session.metadata?.location_id
           if (!locationId) break

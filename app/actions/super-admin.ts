@@ -149,6 +149,22 @@ export async function inviteLocationAdmin(
   email: string,
 ): Promise<{ error?: string; success?: boolean }> {
   await requireSuperAdmin()
+  const result = await _inviteLocationAdminCore(locationId, email)
+  revalidatePath("/super-admin")
+  return result
+}
+
+// Unexported core — the actual user-creation/link/magic-link logic, with no
+// auth gate. Exists so the self-signup webhook (app/api/stripe/webhook/route.ts)
+// can provision a brand-new tenant's first admin automatically, without a
+// super-admin session (there isn't one — nobody's logged in, it's Stripe
+// calling our server). Never export this directly; every caller needs its own
+// trust boundary — requireSuperAdmin() above for the manual invite flow,
+// Stripe's webhook signature verification for the self-signup flow.
+async function _inviteLocationAdminCore(
+  locationId: string,
+  email: string,
+): Promise<{ error?: string; success?: boolean }> {
   const supabase = createAdminClient()
   const cleanEmail = email.trim().toLowerCase()
   if (!cleanEmail || !cleanEmail.includes("@")) return { error: "Enter a valid email address." }
@@ -200,6 +216,64 @@ export async function inviteLocationAdmin(
 
   revalidatePath("/super-admin")
   return { success: true }
+}
+
+// ── Provision a brand-new tenant from a completed self-signup checkout ───────
+// Called only from the Stripe webhook (app/api/stripe/webhook/route.ts) after
+// a "platform_self_signup" checkout session completes — no auth gate, because
+// there is no logged-in user at that point; trust comes from Stripe's webhook
+// signature verification instead. Creates the location, seeds its starter
+// catalog, links the signup email as its first admin, and emails them a
+// magic sign-in link — the whole tenant is usable within seconds of payment,
+// no super-admin involved.
+export async function provisionSelfSignupTenant(params: {
+  businessName: string
+  slug: string
+  contactEmail: string
+  planName: string
+  planPriceCents: number
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+}): Promise<{ locationId?: string; error?: string }> {
+  const supabase = createAdminClient()
+
+  // Re-check slug uniqueness here too — the pre-checkout check in
+  // self-signup.ts only prevents most collisions; two people could still
+  // complete checkout for the same slug in a race. Whoever's webhook lands
+  // second gets a de-duped slug rather than failing outright, since they've
+  // already been charged at this point.
+  let slug = params.slug
+  const { data: clash } = await supabase.from("locations").select("id").eq("slug", slug).maybeSingle()
+  if (clash) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`
+
+  const { data: location, error } = await supabase.from("locations").insert({
+    name: params.businessName,
+    slug,
+    plan: params.planName,
+    plan_name: params.planName,
+    plan_price_cents: params.planPriceCents,
+    status: "active",
+    billing_status: "trialing",
+    stripe_customer_id: params.stripeCustomerId,
+    stripe_subscription_id: params.stripeSubscriptionId,
+  }).select("id").single()
+
+  if (error || !location) {
+    console.error("[provisionSelfSignupTenant] location insert failed:", error?.message)
+    return { error: error?.message ?? "Failed to create location" }
+  }
+
+  await seedNewLocation(location.id)
+
+  const inviteResult = await _inviteLocationAdminCore(location.id, params.contactEmail)
+  if (inviteResult.error) {
+    // Location and billing already exist at this point — don't fail the
+    // whole provisioning over the invite email specifically. Log loudly so
+    // it doesn't go unnoticed the way earlier silent failures did.
+    console.error(`[provisionSelfSignupTenant] location ${location.id} created but admin invite failed:`, inviteResult.error)
+  }
+
+  return { locationId: location.id }
 }
 
 // ── Remove an admin's access to a location ────────────────────────────────────
