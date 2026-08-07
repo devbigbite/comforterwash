@@ -21,10 +21,19 @@ export async function getDriverQueue(driverId: string): Promise<{
   pickups: DriverOrder[]
   deliveries: DriverOrder[]
 }> {
-  if (!driverId || driverId === "owner") return { pickups: [], deliveries: [] }
+  if (!driverId) return { pickups: [], deliveries: [] }
 
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
+
+  // The "owner" sentinel worker (admin using the "Enter as Owner" bypass on
+  // the driver station) sees every in-progress pickup/delivery for the whole
+  // location, unfiltered by assigned_driver_id — matching the oversight
+  // access owners already get on the operator side (see getOperatorQueue in
+  // operator-queue.ts). This used to return an empty queue for "owner"
+  // entirely, which made the admin bypass look broken/unusable the moment
+  // anyone actually tried it.
+  const isOwner = driverId === "owner"
 
   // lte (not eq) on purpose — a booking whose pickup/delivery date has
   // already passed but is still sitting in an unfinished status (e.g. a
@@ -34,24 +43,25 @@ export async function getDriverQueue(driverId: string): Promise<{
   // regardless of date; before this fix the driver's own view disagreed
   // with it and dropped them entirely — a real order could be assigned to a
   // driver in the admin view yet never appear on that driver's phone.
-  const [{ data: pickups }, { data: deliveries }] = await Promise.all([
-    supabase
-      .from("bookings")
-      .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
-      .eq("location_id", locationId)
-      .lte("pickup_date", today)
-      .in("status", ["confirmed", "picked_up"])
-      .eq("assigned_driver_id", driverId)
-      .order("pickup_date"),
-    supabase
-      .from("bookings")
-      .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
-      .eq("location_id", locationId)
-      .lte("delivery_date", today)
-      .in("status", ["ready", "ready_at_warehouse", "out_for_delivery"])
-      .eq("assigned_driver_id", driverId)
-      .order("delivery_date"),
-  ])
+  let pickupsQuery = supabase
+    .from("bookings")
+    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
+    .eq("location_id", locationId)
+    .lte("pickup_date", today)
+    .in("status", ["confirmed", "picked_up"])
+    .order("pickup_date")
+  if (!isOwner) pickupsQuery = pickupsQuery.eq("assigned_driver_id", driverId)
+
+  let deliveriesQuery = supabase
+    .from("bookings")
+    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
+    .eq("location_id", locationId)
+    .lte("delivery_date", today)
+    .in("status", ["ready", "ready_at_warehouse", "out_for_delivery"])
+    .order("delivery_date")
+  if (!isOwner) deliveriesQuery = deliveriesQuery.eq("assigned_driver_id", driverId)
+
+  const [{ data: pickups }, { data: deliveries }] = await Promise.all([pickupsQuery, deliveriesQuery])
 
   return {
     pickups:    (pickups    ?? []) as DriverOrder[],

@@ -1,7 +1,8 @@
-import { LogOut, ChevronDown } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { logoutAction } from "@/app/admin/login/actions"
 import { AdminLangToggle } from "@/components/admin/admin-lang-toggle"
 import { AdminViewToggle } from "@/components/admin/admin-view-toggle"
+import { NavDropdown } from "@/components/admin/nav-dropdown"
 import { getAdminLang } from "@/app/actions/admin-lang"
 import { getAdminViewMode, getOperatingMode, type OperatingMode } from "@/app/actions/branding"
 
@@ -24,6 +25,15 @@ function buildSimpleNav(lang: "en" | "es", operatingMode: OperatingMode): NavIte
       ? { type: "link", href: "/admin/home-board", label: es ? "Trabajo de Hoy" : "Today's Work" }
       : { type: "link", href: "/admin/dispatch",    label: es ? "Despacho" : "Dispatch" },
     { type: "link", href: "/admin/orders",     label: es ? "Órdenes" : "Orders" },
+    {
+      type: "dropdown",
+      label: es ? "Actuar Como" : "Act As",
+      items: [
+        { href: "/admin",              label: es ? "👑 Admin (actual)" : "👑 Admin (current)" },
+        { href: "/driver?as=owner",    label: "🚐 " + (es ? "Conductor" : "Driver"), external: true },
+        { href: "/operator?as=owner",  label: "🏭 " + (es ? "Operador" : "Operator"), external: true },
+      ],
+    },
     { type: "link", href: "/admin/branding",   label: es ? "Mi Negocio" : "My Business" },
     { type: "link", href: "/admin/pricing",    label: es ? "Precios" : "Pricing" },
     { type: "link", href: "/admin/zip-codes",  label: es ? "Área de Servicio" : "Service Area" },
@@ -45,6 +55,22 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
       type: "link",
       href: "/admin/orders",
       label: es ? "Órdenes" : "Orders",
+    },
+    // "Act As" — one click into the driver or operator station, no PIN, no
+    // separate login. ?as=owner tells PinGate (components/pin-gate.tsx) to
+    // skip straight past the PIN screen for an already-authenticated admin;
+    // once in, the owner sentinel sees every order at that station (not
+    // filtered to one worker) so an admin can actually process a real order
+    // end to end — enter weight, mark picked up/delivered, etc. — from
+    // whichever station view has those actions, without needing a worker PIN.
+    {
+      type: "dropdown",
+      label: es ? "Actuar Como" : "Act As",
+      items: [
+        { href: "/admin",              label: es ? "👑 Admin (actual)" : "👑 Admin (current)" },
+        { href: "/driver?as=owner",    label: "🚐 " + (es ? "Conductor" : "Driver"), external: true },
+        { href: "/operator?as=owner",  label: "🏭 " + (es ? "Operador" : "Operator"), external: true },
+      ],
     },
     {
       type: "link",
@@ -125,36 +151,6 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
   ]
 }
 
-// ── Dropdown component ────────────────────────────────────────────────────────
-
-function Dropdown({ label, items }: { label: string; items: NavLink[] }) {
-  return (
-    <div className="relative group">
-      <button className="flex items-center gap-1 text-white/60 hover:text-white text-sm font-medium transition-colors py-1 whitespace-nowrap">
-        {label}
-        <ChevronDown className="h-3.5 w-3.5 opacity-60 transition-transform duration-150 group-hover:rotate-180" />
-      </button>
-      <div className="absolute top-full left-0 pt-2 hidden group-hover:block z-50">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 min-w-[170px] overflow-hidden">
-          {items.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className={`block px-4 py-2 text-sm transition-colors whitespace-nowrap ${
-                item.external
-                  ? "text-gray-400 hover:text-[#E8726A] hover:bg-[#E8726A]/5"
-                  : "text-[#0D2240] hover:text-[#E8726A] hover:bg-[#E8726A]/5"
-              }`}
-            >
-              {item.label}
-            </a>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export async function AdminHeader() {
@@ -194,7 +190,7 @@ export async function AdminHeader() {
               {item.label}
             </a>
           ) : (
-            <Dropdown key={i} label={item.label} items={item.items} />
+            <NavDropdown key={i} label={item.label} items={item.items} />
           )
         )}
       </nav>

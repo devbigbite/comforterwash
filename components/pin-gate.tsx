@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, createContext, useContext } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   verifyWorkerPinForRole, getOpenPunch, clockIn, clockOut,
   type TimePunch, type ScheduleWarning,
@@ -220,20 +221,36 @@ export function PinGate({ role, children }: PinGateProps) {
   const [welcome, setWelcome]   = useState(false)
   const [isAdmin, setIsAdmin]   = useState(false)
   const inputs = useRef<(HTMLInputElement | null)[]>([])
-
-  // Restore session from localStorage on mount; also check if viewer is admin
-  useEffect(() => {
-    const stored = loadSession(role)
-    if (stored) setSession(stored)
-    setChecked(true)
-    checkIsAdmin().then(setIsAdmin)
-  }, [role])
+  const searchParams = useSearchParams()
 
   function enterAsOwner() {
     const s: WorkerSession = { workerId: "owner", workerName: "Owner" }
     saveSession(role, s)
     setSession(s)
   }
+
+  // Restore session from localStorage on mount; also check if viewer is admin.
+  // If the admin arrived via the "Act As" dropdown in /admin (?as=owner), skip
+  // the PIN screen entirely and drop them straight into the station — that
+  // dropdown exists specifically so admins can jump in and perform driver/
+  // operator duties (enter weight, mark delivered, etc.) with zero friction,
+  // not just as a fallback if they happen to know the bypass exists.
+  useEffect(() => {
+    const stored = loadSession(role)
+    if (stored) {
+      setSession(stored)
+      setChecked(true)
+      return
+    }
+    checkIsAdmin().then(admin => {
+      setIsAdmin(admin)
+      if (admin && searchParams.get("as") === "owner") {
+        enterAsOwner()
+      }
+      setChecked(true)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role])
 
   async function handleSubmit() {
     const entered = pin.join("")
