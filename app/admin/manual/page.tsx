@@ -236,14 +236,31 @@ export default async function TenantManualPage() {
 
             <h3 className="text-lg font-bold text-[#0D2240] mb-2 mt-8">Dispatch Board</h3>
             <p className="text-gray-600 leading-relaxed mb-3">
-              The full operational board, organized by real pipeline stage rather than the three simplified columns
-              in Simple mode: Unassigned, Pickup Scheduled, At Facility, Processing, Ready, Out for Delivery,
-              Delivered. It scrolls horizontally on narrower screens rather than stacking, since a kanban-style board
-              only makes sense side-by-side.
+              Dispatch is not a single board — it's four tabs sharing one stats row (Pickups, Transfers, Deliveries,
+              At Facility counts for the day), each built for a different logistics job:
             </p>
+            <BrowserFrame title="yourbusiness.com/admin/dispatch">
+              <div className="p-4">
+                <div className="flex gap-2 text-[10px] font-bold">
+                  {["🗺️ Aerial View","🚗 Driver Routes","📦 Transfer Runs","🏭 Operator Assignments"].map((t,i) => (
+                    <div key={t} className="rounded-md px-2 py-1.5" style={i === 0 ? { background: NAVY, color: "white" } : { background: "white", color: "#94a3b8", border: "1px solid #e5e7eb" }}>{t}</div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-4 gap-2 mt-2">
+                  {["Pickups","Transfers","Deliveries","At Facility"].map(l => (
+                    <div key={l} className="bg-white rounded-lg border border-gray-100 p-2 text-center">
+                      <p className="text-[10px] font-bold text-gray-400">{l}</p>
+                      <p className="text-sm font-extrabold" style={{ color: "#E8726A" }}>3</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </BrowserFrame>
             <CalloutList>
-              <Callout n={1}>The "Unassigned" column is your action queue — anything sitting there needs a driver assigned before its pickup window arrives.</Callout>
-              <Callout n={2}>Every card shows service type, bag count, and a color-key sticker once one's assigned — the same sticker your driver and operator will see physically on the bag.</Callout>
+              <Callout n={1}><strong>🗺️ Aerial View</strong> — a map-first, drag-and-drop board of every order as a chip you can drag between buckets (derived from the order's real status) to reassign it, without opening the order. Best for a fast visual sweep of "what's where right now."</Callout>
+              <Callout n={2}><strong>🚗 Driver Routes</strong> — assigns individual pickup and delivery orders to specific drivers, one order at a time. This is where you build each driver's stop list for the day.</Callout>
+              <Callout n={3}><strong>📦 Transfer Runs</strong> — batches orders that need to move between your own facilities (e.g. storage → processing) into a single internal run, separate from customer-facing pickup/delivery driving.</Callout>
+              <Callout n={4}><strong>🏭 Operator Assignments</strong> — assigns orders that have arrived at a facility to a specific operator/washer, so the Facility Board work is divided among your processing staff.</Callout>
             </CalloutList>
 
             <h3 className="text-lg font-bold text-[#0D2240] mb-2 mt-8">Orders &amp; Search</h3>
@@ -266,11 +283,55 @@ export default async function TenantManualPage() {
 
             <h3 className="text-lg font-bold text-[#0D2240] mb-2 mt-8">Logistics</h3>
             <p className="text-gray-600 leading-relaxed mb-3">
-              The Facility Board is the operator-facing pipeline for orders physically at a facility — loading,
-              washing, drying, folding, and marking ready with a required "finished product &amp; location" photo
-              before it can move on. Facility Transfers and Delivery Routes matter if you run multiple facilities or
-              a formal route structure; the Route Optimizer helps sequence a driver's stops. Zip Codes, Service Area,
-              and Holidays round out coverage and scheduling exceptions.
+              The Logistics dropdown holds every screen for moving orders and managing where they're processed. It
+              has more overlap than it looks — several names sound similar but do very different jobs, so the two
+              distinctions below are worth reading closely.
+            </p>
+
+            <h4 className="text-base font-bold text-[#0D2240] mb-1.5 mt-5">🏭 Facility Board</h4>
+            <p className="text-gray-600 leading-relaxed mb-3">
+              The operator-facing pipeline for orders physically at a facility — loading, washing, drying, folding,
+              and marking ready with a required "finished product &amp; location" photo before an order can move on.
+              This is the admin-side mirror of what the Operator app shows (see Operator App below).
+            </p>
+
+            <h4 className="text-base font-bold text-[#0D2240] mb-1.5 mt-5">Route Management vs. Facility Routing — two different tools</h4>
+            <p className="text-gray-600 leading-relaxed mb-3">
+              These two are easy to confuse because both have "route" in the name, but they solve different problems:
+            </p>
+            <CalloutList>
+              <Callout n={1}><strong>Delivery Routes</strong> ("Route Management") — defines your actual named pickup/delivery routes, their service areas, days of the week, and pickup/delivery time windows. This is the structural setup: which routes exist and when they run.</Callout>
+              <Callout n={2}><strong>Route Optimizer</strong> ("Facility Routing") — despite the nav name, this page does not sequence a driver's stops. It's a bulk tool: select a batch of orders that are ready to move and assign all of them to a facility at once, with an automatic arrival notification once a driver marks the drop-off complete. Use this when you need to reassign many orders to a facility quickly rather than one at a time from each order's detail page.</Callout>
+            </CalloutList>
+
+            <h4 className="text-base font-bold text-[#0D2240] mb-1.5 mt-5">📦 Facility Transfers</h4>
+            <p className="text-gray-600 leading-relaxed mb-3">
+              Internal batch transfers between your own storage and processing facilities — separate from
+              customer-facing pickup and delivery driving. Use this when bags need to physically move from one of
+              your locations to another (for example, from a drop-off/storage point to the facility that actually
+              washes). This is the same "Transfer Runs" work also reachable from the Dispatch tab of the same name.
+            </p>
+
+            <h4 className="text-base font-bold text-[#0D2240] mb-1.5 mt-5">🏢 Facilities</h4>
+            <p className="text-gray-600 leading-relaxed mb-3">
+              The list of every laundromat/processing facility you work with, each with its own detail page: address,
+              contact info, the per-pound rate that determines what you pay that facility, and Stripe Connect payout
+              status. This per-pound rate is what drives the "Facility Cost" line on every order processed there and
+              the totals on any payout you issue — a missing or zero rate here is the single most common reason a
+              payout total looks wrong.
+            </p>
+
+            <h4 className="text-base font-bold text-[#0D2240] mb-1.5 mt-5">Service Area Map vs. Service Areas — also two different pages</h4>
+            <CalloutList>
+              <Callout n={1}><strong>Service Areas</strong> (Zip Codes) — the literal list of ZIP codes you'll pick up and deliver in. Customers outside these ZIP codes can't book. This is the source of truth.</Callout>
+              <Callout n={2}><strong>Service Area Map</strong> — a visual map view of that same coverage, useful for eyeballing gaps or overlaps at a glance rather than reading a list of codes.</Callout>
+            </CalloutList>
+
+            <h4 className="text-base font-bold text-[#0D2240] mb-1.5 mt-5">📅 Schedule &amp; Availability (Holidays)</h4>
+            <p className="text-gray-600 leading-relaxed mb-3">
+              Controls blocked dates and your platform's operating hours — block a holiday or a day you're closed so
+              customers can't book pickups then, and set the hours during which pickup/delivery windows are offered
+              on the public site.
             </p>
 
             <h3 className="text-lg font-bold text-[#0D2240] mb-2 mt-8">Finance</h3>
@@ -283,16 +344,49 @@ export default async function TenantManualPage() {
 
             <h3 className="text-lg font-bold text-[#0D2240] mb-2 mt-8">Content</h3>
             <p className="text-gray-600 leading-relaxed mb-3">
-              Everything customer-facing that isn't pricing or logistics: Promotions (discount codes), Site Images,
-              Email Templates (the transactional emails customers receive), and an FAQ editor for your public site's
-              help page.
+              Everything customer-facing that isn't pricing or logistics: <strong>Promotions</strong> (discount codes),
+              <strong> Site Images</strong>, <strong>Communication Templates</strong> (the actual text of every
+              transactional email and SMS your customers receive — confirmation, on-the-way, delivered, receipt, and
+              so on — editable per message), an <strong>FAQ Editor</strong> for your public site's help page, and a
+              combined <strong>Docs &amp; FAQ</strong> screen where FAQ entries and your Terms of Service / Privacy
+              Policy pages live side by side with a live preview before you publish either one.
             </p>
 
             <h3 className="text-lg font-bold text-[#0D2240] mb-2 mt-8">Staff</h3>
             <p className="text-gray-600 leading-relaxed mb-3">
-              The full Workers module — applications, approval, pay rates, Stripe Connect payout setup, and PIN
-              management — plus Schedule (shift planning), Timesheet (clocked hours), Staff Clock (a shared kiosk view
-              for clocking in/out), and direct links into the Driver and Operator field apps.
+              The full Workers module — applications, approval, pay rates, Stripe Connect payout setup, PIN
+              management, and Deactivate/Reactivate (a reversible way to remove someone from active rotation without
+              deleting their history) — plus Hiring (applications, e-signed agreements, and onboarding status for
+              new drivers/operators), Schedule (shift planning and roster), Timesheet (clocked hours per pay period),
+              Staff Clock (a shared kiosk view anyone can use to clock in/out on a shared device), and direct links
+              into the Driver and Operator field apps.
+            </p>
+
+            <h3 className="text-lg font-bold text-[#0D2240] mb-2 mt-8">Order Intake Extras</h3>
+            <p className="text-gray-600 leading-relaxed mb-3">
+              Two screens exist specifically for orders that don't come in through the normal driver pickup flow.
+              <strong> Walk-In / Drop-Off</strong> is quick intake for a customer who brings bags to you in person —
+              no pickup driver involved, the order starts already "at facility." <strong>Abandoned Checkouts</strong>
+              lists customers who started booking on your public site but didn't finish paying, so you can follow up
+              and recover the order manually.
+            </p>
+
+            <h3 className="text-lg font-bold text-[#0D2240] mb-2 mt-8">Home Operating Mode: Today's Work &amp; My Laundromats</h3>
+            <p className="text-gray-600 leading-relaxed mb-3">
+              If your operating mode is set to "I route to a partner laundromat" rather than "I run my own facility,"
+              two screens replace their facility-based equivalents everywhere in the nav. <strong>Today's Work</strong>
+              (the Home-mode Dispatch equivalent) is a simplified single-lane board built for one person handling
+              everything themselves, instead of the multi-column Dispatch tabs. <strong>My Laundromats</strong>
+              replaces the Facilities list with a lighter-weight directory of the partner laundromats you route
+              orders to, since you're not managing your own processing facility or its rate/payout details.
+            </p>
+
+            <h3 className="text-lg font-bold text-[#0D2240] mb-2 mt-8">Testing &amp; Setup Tools</h3>
+            <p className="text-gray-600 leading-relaxed mb-3">
+              <strong>Print Station Setup</strong> connects a receipt/bag-label printer (via Web Bluetooth) so drivers
+              and operators can print physical bag receipts and color-key labels. <strong>Test Station Hub</strong>
+              is a developer-only screen (clearly marked) for exercising order flows without affecting real customer
+              data or billing — not part of day-to-day operation.
             </p>
 
             <h3 className="text-lg font-bold text-[#0D2240] mb-2 mt-8">Act As</h3>
@@ -475,6 +569,18 @@ export default async function TenantManualPage() {
               <div>
                 <p className="font-bold text-[#0D2240] text-sm">A facility payout looks wrong — what determines the amount?</p>
                 <p className="text-gray-600 text-sm mt-1">Facility payouts sum each order's facility cost (weight × that facility's per-pound rate) across delivered orders in the chosen date range, then transfer that exact total via Stripe Connect. Double-check the facility's rate under Logistics → Facilities if a payout total looks off — a missing or zero rate is the most common cause.</p>
+              </div>
+              <div>
+                <p className="font-bold text-[#0D2240] text-sm">What's the difference between "Route Optimizer" and "Delivery Routes"?</p>
+                <p className="text-gray-600 text-sm mt-1">Delivery Routes defines your named routes, service areas, and time windows — the structural setup. Route Optimizer (in-page titled "Facility Routing") is a bulk-assignment tool: select a batch of ready orders and assign all of them to a facility at once. Neither one sequences a driver's individual stops — that's done per-order from the Driver Routes tab in Dispatch.</p>
+              </div>
+              <div>
+                <p className="font-bold text-[#0D2240] text-sm">Which Dispatch tab should I use?</p>
+                <p className="text-gray-600 text-sm mt-1">Aerial View for a fast visual sweep and quick drag-to-reassign; Driver Routes to build out a specific driver's stop list; Transfer Runs for internal facility-to-facility moves; Operator Assignments to divide facility work among your washing/folding staff.</p>
+              </div>
+              <div>
+                <p className="font-bold text-[#0D2240] text-sm">What's the difference between "Service Areas" and "Service Area Map"?</p>
+                <p className="text-gray-600 text-sm mt-1">Service Areas (Zip Codes) is the actual list of ZIP codes you cover — the source of truth customers' addresses are checked against. Service Area Map is a visual map of that same coverage, useful for spotting gaps at a glance.</p>
               </div>
             </div>
           </section>
