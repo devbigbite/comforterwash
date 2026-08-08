@@ -33,6 +33,7 @@ function buildSimpleNav(lang: "en" | "es", operatingMode: OperatingMode): NavIte
       ? [{ type: "link" as const, href: "/admin/laundromats", label: es ? "Mis Lavanderías" : "My Laundromats" }]
       : [{ type: "link" as const, href: "/admin/workers", label: es ? "Trabajadores" : "Workers" }]),
     { type: "link", href: "/admin/settings",   label: es ? "Configuración" : "Settings" },
+    { type: "link", href: "/admin/manual",     label: es ? "📖 Manual" : "📖 Manual" },
   ]
 }
 
@@ -108,6 +109,11 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
       type: "link",
       href: "/admin/settings",
       label: es ? "Configuración" : "Settings",
+    },
+    {
+      type: "link",
+      href: "/admin/manual",
+      label: "📖 " + (es ? "Manual" : "Manual"),
     },
     {
       type: "dropdown",

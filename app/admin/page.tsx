@@ -278,6 +278,7 @@ export default async function AdminHub() {
       links: [
         { label: "Settings", href: "/admin/settings" },
         { label: "Legal", href: "/admin/legal" },
+        { label: "📖 Tenant Manual", href: "/admin/manual" },
         { label: "🧪 Test Hub", href: "/admin/test" },
       ],
     },
