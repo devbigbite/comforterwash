@@ -507,15 +507,16 @@ export async function createPunch(formData: FormData) {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const workerName    = formData.get("workerName")    as string
   const role          = formData.get("role")          as string
-  const date          = formData.get("date")          as string   // YYYY-MM-DD
-  const startTime     = formData.get("startTime")     as string   // HH:MM
-  const endTime       = (formData.get("endTime")      as string) || null
+  // These arrive as real UTC ISO instants, already converted client-side (the
+  // browser knows the admin's local timezone; the server doesn't). Do not
+  // reconstruct them from separate date/time fields here — that was the bug:
+  // a naive "date + T + time" string has no timezone, so Postgres stored it as
+  // literal UTC even though it was really the admin's local wall-clock time.
+  const clockedInAt  = formData.get("clockedInAt")  as string
+  const clockedOutAt = (formData.get("clockedOutAt") as string) || null
   const breakMinutes  = parseInt(formData.get("breakMinutes") as string || "0", 10)
 
-  if (!workerName || !role || !date || !startTime) return { error: "Missing required fields" }
-
-  const clockedInAt  = `${date}T${startTime}:00`
-  const clockedOutAt = endTime ? `${date}T${endTime}:00` : null
+  if (!workerName || !role || !clockedInAt) return { error: "Missing required fields" }
 
   const { error } = await supabase
     .from("staff_time_punches")

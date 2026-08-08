@@ -40,6 +40,33 @@ function fmtTime(isoStr: string) {
   return new Date(isoStr).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
 }
 
+// Convert a stored UTC ISO timestamp into the value a <input type="datetime-local">
+// needs to *display the correct local time* — datetime-local always shows/edits in
+// the browser's local timezone, so we have to do the UTC→local conversion by hand
+// via the Date object's local getters (not by slicing the raw ISO string, which
+// would just show the UTC clock digits as if they were local).
+function toLocalInputValue(iso: string): string {
+  if (!iso) return ""
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ""
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// Inverse: a datetime-local input's value ("YYYY-MM-DDTHH:mm") has no timezone of
+// its own — the browser means it as local time. `new Date(...)` parses a
+// timezone-less string as local time automatically, so toISOString() from there
+// gives the correct UTC instant to store. (Previously this was done by blindly
+// appending "Z", which mislabeled the admin's local input as if it were already
+// UTC — off by the local UTC offset, which is what caused edited punches to show
+// a clock-out before the clock-in.)
+function localInputToISO(local: string): string {
+  if (!local) return ""
+  const d = new Date(local)
+  if (isNaN(d.getTime())) return ""
+  return d.toISOString()
+}
+
 const ROLE_COLOR: Record<string, string> = {
   driver:   "bg-blue-100 text-blue-700",
   operator: "bg-purple-100 text-purple-700",
@@ -216,9 +243,12 @@ function AdminScheduleInner() {
     const fd = new FormData()
     fd.set("workerName",   addPunchForm.workerName)
     fd.set("role",         addPunchForm.role)
-    fd.set("date",         addPunchForm.date)
-    fd.set("startTime",    addPunchForm.startTime)
-    fd.set("endTime",      addPunchForm.endTime)
+    // Convert date+time to a real UTC ISO instant client-side, where the browser
+    // knows the admin's local timezone — the server has no way to know that, so
+    // building the timestamp there (as it used to) silently treated the wall-clock
+    // time as UTC and stored it off by the local offset.
+    fd.set("clockedInAt",  localInputToISO(`${addPunchForm.date}T${addPunchForm.startTime}`))
+    fd.set("clockedOutAt", addPunchForm.endTime ? localInputToISO(`${addPunchForm.date}T${addPunchForm.endTime}`) : "")
     fd.set("breakMinutes", addPunchForm.breakMinutes)
     const result = await createPunch(fd)
     setAddPunchSaving(false)
@@ -912,14 +942,14 @@ function AdminScheduleInner() {
                           <div className="grid grid-cols-3 gap-2 items-end">
                             <div>
                               <label className="text-xs text-gray-400 font-bold">Clock In</label>
-                              <input type="datetime-local" value={editForm.clockedInAt.slice(0,16)}
-                                onChange={e => setEditForm(f => ({ ...f, clockedInAt: e.target.value + ":00Z" }))}
+                              <input type="datetime-local" value={toLocalInputValue(editForm.clockedInAt)}
+                                onChange={e => setEditForm(f => ({ ...f, clockedInAt: localInputToISO(e.target.value) }))}
                                 className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
                             </div>
                             <div>
                               <label className="text-xs text-gray-400 font-bold">Clock Out</label>
-                              <input type="datetime-local" value={(editForm.clockedOutAt || "").slice(0,16)}
-                                onChange={e => setEditForm(f => ({ ...f, clockedOutAt: e.target.value + ":00Z" }))}
+                              <input type="datetime-local" value={toLocalInputValue(editForm.clockedOutAt)}
+                                onChange={e => setEditForm(f => ({ ...f, clockedOutAt: localInputToISO(e.target.value) }))}
                                 className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
                             </div>
                             <div>
