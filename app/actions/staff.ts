@@ -501,6 +501,14 @@ export async function updatePunch(formData: FormData) {
   return { success: true }
 }
 
+export async function deletePunch(punchId: string) {
+  await requireAdmin()
+
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("staff_time_punches").delete().eq("id", punchId).eq("location_id", locationId)
+  revalidatePath("/admin/schedule")
+}
+
 export async function createPunch(formData: FormData) {
   await requireAdmin()
 

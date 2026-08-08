@@ -12,6 +12,7 @@ import {
   clockOut,
   updatePunch,
   createPunch,
+  deletePunch,
   } from "@/app/actions/staff"
 import { minutesBetween, formatDuration } from "@/lib/staff-utils"
 import type { TimePunch, ScheduledShift, ActiveWorker } from "@/app/actions/staff"
@@ -136,6 +137,8 @@ function AdminScheduleInner() {
   const [tsLoading, setTsLoading] = useState(false)
   const [editPunchId, setEditPunchId] = useState<string | null>(null)
   const [editForm, setEditForm]   = useState({ clockedInAt: "", clockedOutAt: "", breakMinutes: "0" })
+  const [deletePunchId, setDeletePunchId] = useState<string | null>(null)
+  const [deletingPunch, setDeletingPunch] = useState(false)
   // Time Sheet is grouped by worker (one collapsible section per person) so an
   // admin can scan one person's week at a time instead of re-reading the name
   // on every row of a long flat list. Collapsed-state is tracked per worker
@@ -239,6 +242,14 @@ function AdminScheduleInner() {
     fd.append("breakMinutes",   editForm.breakMinutes)
     await updatePunch(fd)
     setEditPunchId(null)
+    loadTimeSheet()
+  }
+
+  async function handleDeletePunch(punchId: string) {
+    setDeletingPunch(true)
+    await deletePunch(punchId)
+    setDeletingPunch(false)
+    setDeletePunchId(null)
     loadTimeSheet()
   }
 
@@ -986,12 +997,32 @@ function AdminScheduleInner() {
                         <div className="divide-y divide-gray-50">
                           {workerPunches.map(punch => {
                             const isEditing = editPunchId === punch.id
+                            const isDeleting = deletePunchId === punch.id
                             const mins = punch.clocked_out_at
                               ? Math.max(0, minutesBetween(punch.clocked_in_at, punch.clocked_out_at) - (punch.break_minutes ?? 0))
                               : null
                             const payCents = mins !== null && wageCents > 0
                               ? Math.round((mins / 60) * wageCents)
                               : null
+
+                            if (isDeleting) return (
+                              <div key={punch.id} className="flex items-center justify-between gap-4 px-4 py-3 bg-red-50">
+                                <p className="text-sm text-red-700">
+                                  Delete this punch — <strong>{toLocalInputValue(punch.clocked_in_at).slice(0, 10)}</strong>,{" "}
+                                  {fmtTime(punch.clocked_in_at)}
+                                  {punch.clocked_out_at ? ` – ${fmtTime(punch.clocked_out_at)}` : " (still active)"}? This can't be undone.
+                                </p>
+                                <div className="flex gap-2 shrink-0">
+                                  <button
+                                    onClick={() => handleDeletePunch(punch.id)}
+                                    disabled={deletingPunch}
+                                    className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg"
+                                  >{deletingPunch ? "Deleting…" : "Delete"}</button>
+                                  <button onClick={() => setDeletePunchId(null)}
+                                    className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1.5 rounded-lg">Cancel</button>
+                                </div>
+                              </div>
+                            )
 
                             if (isEditing) return (
                               <div key={punch.id} className="px-4 py-3 bg-blue-50">
@@ -1067,17 +1098,23 @@ function AdminScheduleInner() {
                                 {punch.break_minutes > 0 && (
                                   <span className="text-gray-300 text-xs shrink-0">−{punch.break_minutes}m break</span>
                                 )}
-                                <button
-                                  onClick={() => {
-                                    setEditPunchId(punch.id)
-                                    setEditForm({
-                                      clockedInAt:  punch.clocked_in_at,
-                                      clockedOutAt: punch.clocked_out_at ?? "",
-                                      breakMinutes: String(punch.break_minutes ?? 0),
-                                    })
-                                  }}
-                                  className="ml-auto text-gray-300 hover:text-gray-500 text-xs font-bold transition-colors shrink-0"
-                                >Edit</button>
+                                <div className="ml-auto flex gap-3 shrink-0">
+                                  <button
+                                    onClick={() => {
+                                      setEditPunchId(punch.id)
+                                      setEditForm({
+                                        clockedInAt:  punch.clocked_in_at,
+                                        clockedOutAt: punch.clocked_out_at ?? "",
+                                        breakMinutes: String(punch.break_minutes ?? 0),
+                                      })
+                                    }}
+                                    className="text-gray-300 hover:text-gray-500 text-xs font-bold transition-colors"
+                                  >Edit</button>
+                                  <button
+                                    onClick={() => setDeletePunchId(punch.id)}
+                                    className="text-gray-300 hover:text-red-500 text-xs font-bold transition-colors"
+                                  >Delete</button>
+                                </div>
                               </div>
                             )
                           })}
