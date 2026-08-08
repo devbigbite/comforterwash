@@ -136,6 +136,11 @@ function AdminScheduleInner() {
   const [tsLoading, setTsLoading] = useState(false)
   const [editPunchId, setEditPunchId] = useState<string | null>(null)
   const [editForm, setEditForm]   = useState({ clockedInAt: "", clockedOutAt: "", breakMinutes: "0" })
+  // Time Sheet is grouped by worker (one collapsible section per person) so an
+  // admin can scan one person's week at a time instead of re-reading the name
+  // on every row of a long flat list. Collapsed-state is tracked per worker
+  // name; a name not in the set is expanded (the default).
+  const [collapsedWorkers, setCollapsedWorkers] = useState<Set<string>>(new Set())
 
   // ── Add Punch state ────────────────────────────────────────────────────────
   const [showAddPunch, setShowAddPunch]   = useState(false)
@@ -910,140 +915,180 @@ function AdminScheduleInner() {
             </div>
           )}
 
-          {/* Punch records */}
-          {!tsLoading && punches.length > 0 && (
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest">Worker</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest">Role</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest">In</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest">Out</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest">Hrs</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest">Pay</th>
-                    <th className="px-4 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {punches.map(punch => {
-                    const isEditing = editPunchId === punch.id
-                    const mins = punch.clocked_out_at
-                      ? Math.max(0, minutesBetween(punch.clocked_in_at, punch.clocked_out_at) - (punch.break_minutes ?? 0))
-                      : null
-                    const wageCents = wageMap[punch.worker_name] ?? 0
-                    const payCents  = mins !== null && wageCents > 0
-                      ? Math.round((mins / 60) * wageCents)
-                      : null
+          {/* Punch records — grouped by worker so you can scan one person's
+              week at a time instead of re-reading a name on every row of a
+              long flat list. Ordered by total hours worked (busiest first),
+              same order as the summary cards above. */}
+          {!tsLoading && punches.length > 0 && (() => {
+            const flagStyles: Record<string, string> = {
+              unscheduled: "bg-red-50 text-red-600 border-red-200",
+              early_in:    "bg-amber-50 text-amber-600 border-amber-200",
+              late_in:     "bg-amber-50 text-amber-600 border-amber-200",
+              early_out:   "bg-orange-50 text-orange-600 border-orange-200",
+              late_out:    "bg-orange-50 text-orange-600 border-orange-200",
+            }
+            const flagText: Record<string, string> = {
+              unscheduled: "Unscheduled",
+              early_in:    "Early in",
+              late_in:     "Late in",
+              early_out:   "Early out",
+              late_out:    "Late out",
+            }
 
-                    if (isEditing) return (
-                      <tr key={punch.id} className="border-b border-gray-50 bg-blue-50">
-                        <td colSpan={7} className="px-4 py-3">
-                          <p className="text-xs font-bold text-[#0D2240] mb-2">
-                            Editing punch for <span className="text-[#E8726A]">{punch.worker_name}</span>
-                            <span className="text-gray-400 font-normal capitalize"> &middot; {punch.role} &middot; {punch.clocked_in_at.split("T")[0]}</span>
-                          </p>
-                          <div className="grid grid-cols-3 gap-2 items-end">
-                            <div>
-                              <label className="text-xs text-gray-400 font-bold">Clock In</label>
-                              <input type="datetime-local" value={toLocalInputValue(editForm.clockedInAt)}
-                                onChange={e => setEditForm(f => ({ ...f, clockedInAt: localInputToISO(e.target.value) }))}
-                                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-400 font-bold">Clock Out</label>
-                              <input type="datetime-local" value={toLocalInputValue(editForm.clockedOutAt)}
-                                onChange={e => setEditForm(f => ({ ...f, clockedOutAt: localInputToISO(e.target.value) }))}
-                                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-400 font-bold">Break (min)</label>
-                              <input type="number" min="0" value={editForm.breakMinutes}
-                                onChange={e => setEditForm(f => ({ ...f, breakMinutes: e.target.value }))}
-                                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
-                            </div>
-                          </div>
-                          <div className="flex gap-2 mt-2">
-                            <button onClick={() => handleSaveEdit(punch)}
-                              className="bg-[#0D2240] text-white text-xs font-bold px-3 py-1.5 rounded-lg">Save</button>
-                            <button onClick={() => setEditPunchId(null)}
-                              className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1.5 rounded-lg">Cancel</button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
+            const workerOrder = Object.entries(totals).sort((a, b) => b[1].mins - a[1].mins).map(([name]) => name)
+            // Any worker with punches but no completed shift yet (still active,
+            // so not in `totals`) still needs a section — append them at the end.
+            for (const p of punches) if (!workerOrder.includes(p.worker_name)) workerOrder.push(p.worker_name)
 
-                    return (
-                      <tr key={punch.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-2.5 font-semibold text-[#0D2240]">
-                          {punch.worker_name}
-                          {punch.schedule_flag && (() => {
-                            const flagStyles: Record<string, string> = {
-                              unscheduled: "bg-red-50 text-red-600 border-red-200",
-                              early_in:    "bg-amber-50 text-amber-600 border-amber-200",
-                              late_in:     "bg-amber-50 text-amber-600 border-amber-200",
-                              early_out:   "bg-orange-50 text-orange-600 border-orange-200",
-                              late_out:    "bg-orange-50 text-orange-600 border-orange-200",
-                            }
-                            const flagText: Record<string, string> = {
-                              unscheduled: "Unscheduled",
-                              early_in:    `Early in${punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}`,
-                              late_in:     `Late in${punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}`,
-                              early_out:   `Early out${punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}`,
-                              late_out:    `Late out${punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}`,
-                            }
-                            return (
-                              <span className={`ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase ${flagStyles[punch.schedule_flag] ?? ""}`}>
-                                ⚠ {flagText[punch.schedule_flag] ?? punch.schedule_flag}
-                              </span>
-                            )
-                          })()}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold capitalize ${ROLE_COLOR[punch.role]}`}>
-                            {punch.role}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-gray-600 tabular-nums">
-                          {fmtTime(punch.clocked_in_at)}
-                          <br/><span className="text-gray-300 text-xs">{punch.clocked_in_at.split("T")[0]}</span>
-                        </td>
-                        <td className="px-4 py-2.5 text-gray-600 tabular-nums">
-                          {punch.clocked_out_at ? fmtTime(punch.clocked_out_at) : <span className="text-green-500 font-bold text-xs">Active ●</span>}
-                          {punch.break_minutes > 0 && <span className="text-gray-300 text-xs block">−{punch.break_minutes}m break</span>}
-                        </td>
-                        <td className="px-4 py-2.5 font-bold text-[#0D2240] tabular-nums">
-                          {mins !== null ? formatDuration(mins) : "—"}
-                        </td>
-                        <td className="px-4 py-2.5 tabular-nums">
-                          {payCents !== null ? (
-                            <span className="font-bold text-green-600">${(payCents / 100).toFixed(2)}</span>
-                          ) : wageCents === 0 ? (
-                            <span className="text-gray-300 text-xs">No rate</span>
+            function toggleWorker(name: string) {
+              setCollapsedWorkers(prev => {
+                const next = new Set(prev)
+                if (next.has(name)) next.delete(name); else next.add(name)
+                return next
+              })
+            }
+
+            return (
+              <div className="space-y-3">
+                {workerOrder.map(workerName => {
+                  const workerPunches = punches
+                    .filter(p => p.worker_name === workerName)
+                    .sort((a, b) => b.clocked_in_at.localeCompare(a.clocked_in_at))
+                  if (workerPunches.length === 0) return null
+                  const t = totals[workerName]
+                  const collapsed = collapsedWorkers.has(workerName)
+                  const wageCents = wageMap[workerName] ?? 0
+
+                  return (
+                    <div key={workerName} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                      {/* Worker header — click to expand/collapse */}
+                      <button
+                        onClick={() => toggleWorker(workerName)}
+                        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className={`text-gray-400 text-xs transition-transform ${collapsed ? "" : "rotate-90"}`}>▶</span>
+                          <span className="font-bold text-[#0D2240] text-sm">{workerName}</span>
+                          <span className="text-gray-300 text-xs">{workerPunches.length} punch{workerPunches.length === 1 ? "" : "es"}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="font-bold text-[#0D2240] text-sm tabular-nums">{formatDuration(t?.mins ?? 0)}</span>
+                          {wageCents > 0 ? (
+                            <span className="font-bold text-green-600 text-sm tabular-nums">${((t?.payCents ?? 0) / 100).toFixed(2)}</span>
                           ) : (
-                            <span className="text-gray-300 text-xs">—</span>
+                            <span className="text-gray-300 text-xs">No rate</span>
                           )}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <button
-                            onClick={() => {
-                              setEditPunchId(punch.id)
-                              setEditForm({
-                                clockedInAt:  punch.clocked_in_at,
-                                clockedOutAt: punch.clocked_out_at ?? "",
-                                breakMinutes: String(punch.break_minutes ?? 0),
-                              })
-                            }}
-                            className="text-gray-300 hover:text-gray-500 text-xs font-bold transition-colors"
-                          >Edit</button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                        </div>
+                      </button>
+
+                      {/* Individual punches */}
+                      {!collapsed && (
+                        <div className="divide-y divide-gray-50">
+                          {workerPunches.map(punch => {
+                            const isEditing = editPunchId === punch.id
+                            const mins = punch.clocked_out_at
+                              ? Math.max(0, minutesBetween(punch.clocked_in_at, punch.clocked_out_at) - (punch.break_minutes ?? 0))
+                              : null
+                            const payCents = mins !== null && wageCents > 0
+                              ? Math.round((mins / 60) * wageCents)
+                              : null
+
+                            if (isEditing) return (
+                              <div key={punch.id} className="px-4 py-3 bg-blue-50">
+                                <div className="grid grid-cols-3 gap-2 items-end">
+                                  <div>
+                                    <label className="text-xs text-gray-400 font-bold">Clock In</label>
+                                    <input type="datetime-local" value={toLocalInputValue(editForm.clockedInAt)}
+                                      onChange={e => setEditForm(f => ({ ...f, clockedInAt: localInputToISO(e.target.value) }))}
+                                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-gray-400 font-bold">Clock Out</label>
+                                    <input type="datetime-local" value={toLocalInputValue(editForm.clockedOutAt)}
+                                      onChange={e => setEditForm(f => ({ ...f, clockedOutAt: localInputToISO(e.target.value) }))}
+                                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-gray-400 font-bold">Break (min)</label>
+                                    <input type="number" min="0" value={editForm.breakMinutes}
+                                      onChange={e => setEditForm(f => ({ ...f, breakMinutes: e.target.value }))}
+                                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
+                                  </div>
+                                </div>
+                                <div className="flex gap-2 mt-2">
+                                  <button onClick={() => handleSaveEdit(punch)}
+                                    className="bg-[#0D2240] text-white text-xs font-bold px-3 py-1.5 rounded-lg">Save</button>
+                                  <button onClick={() => setEditPunchId(null)}
+                                    className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1.5 rounded-lg">Cancel</button>
+                                </div>
+                              </div>
+                            )
+
+                            return (
+                              <div key={punch.id} className="flex items-center gap-4 px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm">
+                                <div className="w-24 shrink-0">
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold capitalize ${ROLE_COLOR[punch.role]}`}>
+                                    {punch.role}
+                                  </span>
+                                </div>
+                                <div className="w-32 shrink-0 text-gray-500 text-xs tabular-nums">
+                                  {/* Use the local calendar date, not the raw UTC date from
+                                      the ISO string — a 10:30 PM Eastern clock-in is already
+                                      past midnight UTC, so splitting the ISO string directly
+                                      shows the *next* day and looks wrong next to the time. */}
+                                  {toLocalInputValue(punch.clocked_in_at).slice(0, 10)}
+                                </div>
+                                <div className="w-24 shrink-0 text-gray-700 tabular-nums">
+                                  {fmtTime(punch.clocked_in_at)}
+                                </div>
+                                <div className="w-4 shrink-0 text-gray-300 text-center">→</div>
+                                <div className="w-28 shrink-0 tabular-nums">
+                                  {punch.clocked_out_at
+                                    ? <span className="text-gray-700">{fmtTime(punch.clocked_out_at)}</span>
+                                    : <span className="text-green-500 font-bold text-xs">Active ●</span>}
+                                </div>
+                                <div className="w-16 shrink-0 font-bold text-[#0D2240] tabular-nums">
+                                  {mins !== null ? formatDuration(mins) : "—"}
+                                </div>
+                                <div className="w-20 shrink-0 tabular-nums">
+                                  {payCents !== null ? (
+                                    <span className="font-bold text-green-600">${(payCents / 100).toFixed(2)}</span>
+                                  ) : wageCents === 0 ? (
+                                    <span className="text-gray-300 text-xs">No rate</span>
+                                  ) : (
+                                    <span className="text-gray-300 text-xs">—</span>
+                                  )}
+                                </div>
+                                {punch.schedule_flag && (
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase shrink-0 ${flagStyles[punch.schedule_flag] ?? ""}`}>
+                                    ⚠ {flagText[punch.schedule_flag] ?? punch.schedule_flag}{punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}
+                                  </span>
+                                )}
+                                {punch.break_minutes > 0 && (
+                                  <span className="text-gray-300 text-xs shrink-0">−{punch.break_minutes}m break</span>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    setEditPunchId(punch.id)
+                                    setEditForm({
+                                      clockedInAt:  punch.clocked_in_at,
+                                      clockedOutAt: punch.clocked_out_at ?? "",
+                                      breakMinutes: String(punch.break_minutes ?? 0),
+                                    })
+                                  }}
+                                  className="ml-auto text-gray-300 hover:text-gray-500 text-xs font-bold transition-colors shrink-0"
+                                >Edit</button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
         {/* Add Punch Modal */}
         {showAddPunch && (
           <div
