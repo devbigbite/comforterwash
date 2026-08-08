@@ -939,6 +939,10 @@ function AdminScheduleInner() {
                     if (isEditing) return (
                       <tr key={punch.id} className="border-b border-gray-50 bg-blue-50">
                         <td colSpan={7} className="px-4 py-3">
+                          <p className="text-xs font-bold text-[#0D2240] mb-2">
+                            Editing punch for <span className="text-[#E8726A]">{punch.worker_name}</span>
+                            <span className="text-gray-400 font-normal capitalize"> &middot; {punch.role} &middot; {punch.clocked_in_at.split("T")[0]}</span>
+                          </p>
                           <div className="grid grid-cols-3 gap-2 items-end">
                             <div>
                               <label className="text-xs text-gray-400 font-bold">Clock In</label>
