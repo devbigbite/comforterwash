@@ -232,6 +232,7 @@ export default async function AdminHub() {
         { label: "Email Templates", href: "/admin/templates" },
         { label: "FAQ Editor", href: "/admin/faq" },
         { label: "Docs & FAQ", href: "/admin/docs" },
+        { label: "Receipt Text", href: "/admin/receipt-text" },
       ],
     },
     {
