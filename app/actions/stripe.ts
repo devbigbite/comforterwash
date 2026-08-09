@@ -7,7 +7,7 @@ import { createSubscription } from "./subscriptions"
 import { sendBookingConfirmationEmail, sendAdminNewOrderEmail } from "@/lib/email"
 import { getLocationId } from "@/lib/location"
 import { getConnectStatusForLocation, isCheckoutBlockedByConnectRequirement } from "@/lib/stripe-connect"
-import { recordCheckoutAttempt, markCheckoutAttemptSucceeded } from "./checkout-attempts"
+import { recordCheckoutAttempt, markCheckoutAttemptSucceeded, claimCheckoutAttempt } from "./checkout-attempts"
 import { createGiftCardFromPurchase, redeemGiftCard } from "./gift-cards"
 
 // Only route money to the tenant's own bank account once they've actually
@@ -388,22 +388,24 @@ export async function handleSuccessfulPayment(sessionId: string) {
     // client-side onComplete callback (see components/checkout.tsx), which
     // has no built-in dedup: a re-render, flaky network retry, or a customer
     // re-triggering completion could call this twice for the same session.
-    // Without this check, a second call would create a duplicate booking,
+    // Without this, a second call would create a duplicate booking,
     // re-redeem an applied gift card (double-spending its balance), and
-    // re-create a recurring subscription. checkout_attempts already tracks
-    // exactly one row per session and only ever moves pending -> succeeded
-    // once (see markCheckoutAttemptSucceeded) - reuse it as the source of
-    // truth for "has this session already been processed."
+    // re-create a recurring subscription.
+    //
+    // This used to be a plain read-then-branch on checkout_attempts.status,
+    // which had a race: two near-simultaneous calls could both read
+    // "pending" before either one's later write of "succeeded" landed, and
+    // both would proceed to create a booking. That's exactly what happened
+    // on 2026-08-09 (order 415087/278317 — same payment_intent, two booking
+    // rows 0.35s apart). claimCheckoutAttempt() closes the gap with an
+    // atomic `UPDATE ... WHERE status = 'pending'` — only one concurrent
+    // caller can ever win that race.
     const adminSupabase = createAdminClient()
-    const { data: existingAttempt } = await adminSupabase
-      .from("checkout_attempts")
-      .select("status, booking_id")
-      .eq("stripe_checkout_session_id", sessionId)
-      .maybeSingle()
+    const claim = await claimCheckoutAttempt(sessionId)
 
-    if (existingAttempt?.status === "succeeded") {
-      if (existingAttempt.booking_id) {
-        return { success: true, bookingId: existingAttempt.booking_id }
+    if (claim.outcome === "already-succeeded") {
+      if (claim.bookingId) {
+        return { success: true, bookingId: claim.bookingId }
       }
       // Gift-card purchases succeed without a booking_id -- look up the
       // card issued for this exact session instead of re-creating one.
@@ -414,6 +416,17 @@ export async function handleSuccessfulPayment(sessionId: string) {
         .maybeSingle()
       return { success: true, giftCardCode: card?.code }
     }
+
+    if (claim.outcome === "in-progress") {
+      // Another concurrent call already claimed this session and is in the
+      // middle of creating the booking — don't create a second one. The
+      // caller (client onComplete handler) can safely treat this as success;
+      // the winning call's booking is what the customer will see.
+      return { success: true }
+    }
+    // "not-found" falls through and is handled the same as "claimed" below —
+    // this preserves prior behavior for any session whose recordCheckoutAttempt
+    // insert hasn't landed yet (or failed silently, as that function does).
 
     // NOTE: `payment_intent_data` (where capture_method: "manual" was set) is
     // an input-only param on session CREATE — it is never echoed back on

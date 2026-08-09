@@ -22,7 +22,7 @@ export interface CheckoutAttempt {
   delivery_date: string | null
   delivery_time_window: string | null
   amount_cents: number | null
-  status: "pending" | "succeeded" | "failed" | "expired"
+  status: "pending" | "processing" | "succeeded" | "failed" | "expired"
   failure_reason: string | null
   booking_id: string | null
   created_at: string
@@ -60,6 +60,69 @@ export async function recordCheckoutAttempt(params: {
     // Never block checkout over this — it's a follow-up aid, not critical path
     console.error("[checkout-attempts] recordCheckoutAttempt failed:", err)
   }
+}
+
+/**
+ * Atomically claims a checkout session for processing — the fix for a real
+ * duplicate-booking incident (2026-08-09, order 415087/278317: same Stripe
+ * payment_intent, same customer, bookings created 0.35s apart) caused by
+ * handleSuccessfulPayment's old check-then-act pattern: it read the row's
+ * status, and only *after* creating the booking did it write "succeeded".
+ * Two near-simultaneous calls (Stripe Embedded Checkout's onComplete has no
+ * built-in dedup — a re-render or retry can fire it twice) could both read
+ * "pending" before either write landed, so both proceeded to create a
+ * booking from the same payment.
+ *
+ * This closes the gap: the UPDATE's WHERE status = 'pending' clause is
+ * evaluated atomically by Postgres, so only one concurrent caller can ever
+ * flip a row from pending -> processing. Whichever call didn't get a row
+ * back is the loser and must not create a booking. Relies on the existing
+ * UNIQUE constraint on stripe_checkout_session_id, which also protects the
+ * very first insert race.
+ *
+ * Returns "claimed" (proceed), "already-succeeded" (return the existing
+ * booking/gift card), or "in-progress"/"not-found" (bail out, do nothing —
+ * another call is already handling it, or recordCheckoutAttempt hasn't run
+ * yet, which the caller falls back to treating like a normal pending row).
+ */
+export async function claimCheckoutAttempt(
+  stripeCheckoutSessionId: string
+): Promise<
+  | { outcome: "claimed" }
+  | { outcome: "already-succeeded"; bookingId: string | null }
+  | { outcome: "in-progress" | "not-found" }
+> {
+  const supabase = createAdminClient()
+
+  const { data: claimed, error } = await supabase
+    .from("checkout_attempts")
+    .update({ status: "processing", updated_at: new Date().toISOString() })
+    .eq("stripe_checkout_session_id", stripeCheckoutSessionId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle()
+
+  if (error) {
+    console.error("[checkout-attempts] claimCheckoutAttempt failed:", error)
+    // Fail open to "claimed" rather than silently dropping a real booking —
+    // this mirrors the previous behavior on error and keeps checkout
+    // resilient if this table has a transient issue.
+    return { outcome: "claimed" }
+  }
+
+  if (claimed) return { outcome: "claimed" }
+
+  // Not pending — either it already succeeded, another call already claimed
+  // it (status is now "processing"), or the row doesn't exist yet.
+  const { data: current } = await supabase
+    .from("checkout_attempts")
+    .select("status, booking_id")
+    .eq("stripe_checkout_session_id", stripeCheckoutSessionId)
+    .maybeSingle()
+
+  if (!current) return { outcome: "not-found" }
+  if (current.status === "succeeded") return { outcome: "already-succeeded", bookingId: current.booking_id }
+  return { outcome: "in-progress" }
 }
 
 /** Called once handleSuccessfulPayment has created the real booking. */
