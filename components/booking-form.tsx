@@ -1085,6 +1085,8 @@ export function BookingForm() {
               subtotalCents={subtotalCents}
               onApply={(code, dc) => setPromo({ code, discountCents: dc })}
               onRemove={() => setPromo(null)}
+              customerEmail={formData.email}
+              customerPhone={formData.phone}
             />
 
             <GiftCardField

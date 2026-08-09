@@ -7,6 +7,7 @@ import { sendBookingNotification } from "@/lib/sms"
 import { createShipdayOrder } from "@/lib/shipday"
 import { format } from "date-fns"
 import { todayET } from "@/lib/date-et"
+import { recordPromoRedemption } from "@/app/actions/promos"
 
 export interface BookingData {
   customerName: string
@@ -149,6 +150,20 @@ export async function createBooking(data: BookingData) {
   if (error) {
     console.error("[booking] Supabase insert failed:", error.message)
     throw new Error("Failed to create booking")
+  }
+
+  // Record the redemption now that the booking (and its discount) is real —
+  // this is what makes the per-customer usage check in validatePromoCode
+  // actually work going forward. Never blocks booking creation on failure;
+  // the customer already got their discount, this is just bookkeeping.
+  if (data.promoCode) {
+    recordPromoRedemption({
+      code: data.promoCode,
+      customerEmail: data.customerEmail,
+      customerPhone: data.customerPhone,
+      bookingId: booking.id,
+      locationId,
+    }).catch(err => console.error("[promos] recordPromoRedemption failed:", err))
   }
 
   // Auto-create order bags

@@ -48,7 +48,20 @@ export async function deletePromoCode(id: string) {
 }
 
 // ── Called from booking forms to validate + calculate discount ────────────────
-export async function validatePromoCode(code: string, serviceType: string, subtotalCents: number) {
+// customerEmail/customerPhone identify the customer so a "one per customer"
+// code (e.g. WASHFOLD1/WASHFOLD2 — 30% off a customer's 1st/2nd order) can
+// actually enforce that per-customer, not globally. Both are optional so
+// this still works at whatever point in a booking form the promo field
+// happens to render (some forms collect contact info in a later step) —
+// without at least one, the per-customer check is skipped and only the
+// promo's own max_uses (if any) applies.
+export async function validatePromoCode(
+  code: string,
+  serviceType: string,
+  subtotalCents: number,
+  customerEmail?: string | null,
+  customerPhone?: string | null,
+) {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data: promo } = await supabase
     .from("promo_codes")
@@ -65,9 +78,38 @@ export async function validatePromoCode(code: string, serviceType: string, subto
     return { valid: false, error: "This promo code has expired." }
   }
 
-  // Check max uses
+  // Global usage cap, if the promo has one (rare — most "1st/2nd order"
+  // style codes should leave this unset now that per-customer redemption
+  // tracking below enforces the real limit; a global max_uses=1 previously
+  // meant the FIRST customer to redeem it silently locked out every other
+  // customer, which is what happened here).
   if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) {
     return { valid: false, error: "This promo code has reached its usage limit." }
+  }
+
+  // Per-customer usage check — has this specific customer (by email or
+  // phone, whichever was provided) already redeemed this exact code?
+  if (customerEmail || customerPhone) {
+    let redemptionQuery = supabase
+      .from("promo_code_redemptions")
+      .select("id")
+      .eq("promo_code_id", promo.id)
+      .limit(1)
+
+    if (customerEmail && customerPhone) {
+      redemptionQuery = redemptionQuery.or(
+        `customer_email.ilike.${customerEmail.trim()},customer_phone.eq.${customerPhone.trim()}`
+      )
+    } else if (customerEmail) {
+      redemptionQuery = redemptionQuery.ilike("customer_email", customerEmail.trim())
+    } else if (customerPhone) {
+      redemptionQuery = redemptionQuery.eq("customer_phone", customerPhone!.trim())
+    }
+
+    const { data: priorRedemption } = await redemptionQuery.maybeSingle()
+    if (priorRedemption) {
+      return { valid: false, error: "You've already used this code." }
+    }
   }
 
   // Check service type restriction
@@ -95,13 +137,51 @@ export async function validatePromoCode(code: string, serviceType: string, subto
   }
 }
 
-// ── Increment uses count after successful booking ─────────────────────────────
-export async function incrementPromoUses(code: string) {
+// ── Record a redemption after a booking is actually created ───────────────────
+// Called from createBooking() (app/actions/bookings.ts) whenever data.promoCode
+// is set — this is the real enforcement point for per-customer limits (see
+// validatePromoCode above): a row here is what a future validatePromoCode call
+// for the same customer + code will find and reject on. Also still bumps
+// promo_codes.uses_count for the admin's own visibility/reporting, but that
+// count is no longer what's used to decide whether a code can be used again.
+//
+// NOTE: the previous version of this function (incrementPromoUses) was never
+// actually called from anywhere in the codebase — promo usage was tracked in
+// name only. That's a separate reason WASHFOLD1/WASHFOLD2 showed 0 uses even
+// if they'd been redeemed.
+export async function recordPromoRedemption(params: {
+  code: string
+  customerEmail?: string | null
+  customerPhone?: string | null
+  bookingId: string
+  locationId: string
+}) {
   const supabase = createAdminClient()
-  await supabase.rpc("increment_promo_uses", { promo_code: code }).catch(() => {
-    // Fallback if RPC doesn't exist
-    supabase.from("promo_codes")
-      .update({ uses_count: supabase.from("promo_codes").select("uses_count") })
-      .eq("code", code)
+  const normalizedCode = params.code.toUpperCase().trim()
+
+  const { data: promo } = await supabase
+    .from("promo_codes")
+    .select("id, uses_count")
+    .eq("location_id", params.locationId)
+    .eq("code", normalizedCode)
+    .maybeSingle()
+
+  if (!promo) {
+    console.error(`[promos] recordPromoRedemption: no promo_codes row for code "${normalizedCode}" — booking ${params.bookingId} kept its discount but no redemption was recorded`)
+    return
+  }
+
+  await supabase.from("promo_code_redemptions").insert({
+    promo_code_id: promo.id,
+    location_id: params.locationId,
+    code: normalizedCode,
+    customer_email: params.customerEmail?.trim() || null,
+    customer_phone: params.customerPhone?.trim() || null,
+    booking_id: params.bookingId,
   })
+
+  await supabase
+    .from("promo_codes")
+    .update({ uses_count: (promo.uses_count ?? 0) + 1 })
+    .eq("id", promo.id)
 }

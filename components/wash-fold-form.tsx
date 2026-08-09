@@ -1403,6 +1403,8 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
               subtotalCents={subtotalCents}
               onApply={(code, dc) => setPromo({ code, discountCents: dc })}
               onRemove={() => setPromo(null)}
+              customerEmail={formData.email}
+              customerPhone={formData.phone}
             />
 
             <GiftCardField

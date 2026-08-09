@@ -15,9 +15,16 @@ interface Props {
   subtotalCents: number
   onApply: (code: string, discountCents: number) => void
   onRemove: () => void
+  // Identifies the customer so "one per customer" codes (e.g. 30% off a
+  // customer's 1st/2nd order) can be enforced per-customer instead of
+  // globally — see validatePromoCode in app/actions/promos.ts. Optional
+  // since not every form has collected contact info by the step this field
+  // renders in; the per-customer check is simply skipped if both are absent.
+  customerEmail?: string
+  customerPhone?: string
 }
 
-export function PromoCodeField({ serviceType, subtotalCents, onApply, onRemove }: Props) {
+export function PromoCodeField({ serviceType, subtotalCents, onApply, onRemove, customerEmail, customerPhone }: Props) {
   const [code, setCode] = useState("")
   const [applied, setApplied] = useState<PromoResult | null>(null)
   const [error, setError] = useState("")
@@ -29,7 +36,7 @@ export function PromoCodeField({ serviceType, subtotalCents, onApply, onRemove }
     if (!code.trim()) return
     setLoading(true)
     setError("")
-    const result = await validatePromoCode(code.trim(), serviceType, subtotalCents)
+    const result = await validatePromoCode(code.trim(), serviceType, subtotalCents, customerEmail, customerPhone)
     setLoading(false)
     if (result.valid) {
       setApplied({
