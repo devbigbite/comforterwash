@@ -48,12 +48,16 @@ export default async function OperatorLabelsPage({
   const { data: booking } = await supabase.from("bookings").select("*").eq("id", id).single()
   if (!booking) notFound()
 
-  // Which numbered order this is for this customer — drives the welcome-gift /
-  // repeat-customer coupon notice printed on the receipt below. Counts every
-  // non-cancelled booking for this customer_email at this location, in
-  // chronological order, so reprinting a receipt later still shows the same
-  // order number rather than drifting as new orders come in.
-  let orderNumber = 1
+  // Which visit (loyalty count) this is for this customer — drives the
+  // welcome-gift / repeat-customer coupon notice printed on the receipt
+  // below. This is NOT the order's identifier (that's booking.short_code,
+  // printed above as the big order code) — it's purely a loyalty tier
+  // counter, so it's labeled "Visit" on the receipt to avoid looking like a
+  // second, competing order number. Counts every non-cancelled booking for
+  // this customer_email at this location, in chronological order, so
+  // reprinting a receipt later still shows the same visit number rather
+  // than drifting as new orders come in.
+  let visitNumber = 1
   if (booking.customer_email) {
     const { data: customerOrders } = await supabase
       .from("bookings")
@@ -64,7 +68,7 @@ export default async function OperatorLabelsPage({
       .order("created_at", { ascending: true })
     if (customerOrders) {
       const idx = customerOrders.findIndex(o => o.id === booking.id)
-      orderNumber = idx >= 0 ? idx + 1 : customerOrders.length + 1
+      visitNumber = idx >= 0 ? idx + 1 : customerOrders.length + 1
     }
   }
   // Customer sees this receipt too, so the main line speaks directly to them
@@ -72,13 +76,16 @@ export default async function OperatorLabelsPage({
   // for what to slip into the bag. Wording is a per-tenant setting — see
   // Content → Receipt Text — rather than hardcoded here.
   const receiptText = await getReceiptText()
-  const loyaltyNotice = loyaltyNoticeFor(orderNumber, receiptText)
+  const loyaltyNotice = loyaltyNoticeFor(visitNumber, receiptText)
 
-  // Order number + customer name together, for staff to quickly match a bag
+  // Loyalty count + customer name together, for staff to quickly match a bag
   // back to the right customer (and as the internal identifier the loyalty
   // notice above doesn't spell out once the numeric tag is dropped for 3rd+ orders).
+  // Prefixed "Loyalty" (not "#") so it can't be mistaken for the order code —
+  // "Visit" was considered but doesn't fit a pickup/delivery service where
+  // the customer never actually visits.
   const customerName = (booking.customer_name as string | null) ?? ""
-  const orderIdentifier = customerName ? `#${orderNumber} · ${customerName}` : `#${orderNumber}`
+  const orderIdentifier = customerName ? `Loyalty ${visitNumber} · ${customerName}` : `Loyalty ${visitNumber}`
 
   // Floor vs Storage must be decided before receipts print — otherwise the
   // storage-marker instruction below would silently be wrong or missing.
