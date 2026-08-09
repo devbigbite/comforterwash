@@ -149,6 +149,99 @@ export async function resendDemoGuideEmail(requestId: string) {
   return createDemoTenantForRequest(requestId)
 }
 
+// ── One-off "new guide" announcement ──────────────────────────────────────
+// Sent manually (not on a schedule) to prospects already in the funnel, to
+// point them at the expanded platform guide — the public /guide page (no
+// login required) plus the same content as a PDF attachment they can keep.
+// Reuses the same public/guide.pdf → HTTP-fetch → attach approach as the
+// initial demo-guide email, for the same reason (serverless filesystem
+// access to public/ is unreliable; the CDN URL always works).
+function guideAnnouncementHtml(firstName: string, guideUrl: string): string {
+  return `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#333">
+      <p style="font-size:15px;line-height:1.6">Hi ${firstName},</p>
+      <p style="font-size:15px;line-height:1.6">
+        Quick update — we just put together a much more detailed guide to how WashFoldClean actually works day to
+        day: the admin dashboard (both the simple view and the full toolset), the driver and operator apps your team
+        would use out in the field, and the customer booking site. It walks through the real screens step by step,
+        not just a feature list.
+      </p>
+      <div style="text-align:center;margin:24px 0">
+        <a href="${guideUrl}" style="display:inline-block;background:#E8726A;color:white;font-weight:800;font-size:14px;text-decoration:none;padding:12px 28px;border-radius:999px;text-transform:uppercase;letter-spacing:0.5px">
+          Read the Guide →
+        </a>
+        <p style="color:#999;font-size:12px;margin:14px 0 0">${guideUrl}</p>
+      </div>
+      <p style="font-size:15px;line-height:1.6">
+        I've also attached a PDF copy to this email, in case it's easier to skim on your phone or forward to a
+        business partner.
+      </p>
+      <p style="font-size:15px;line-height:1.6;margin-top:20px">
+        Any questions after reading through it — just reply here.
+      </p>
+      <p style="font-size:14px;color:#888;margin-top:24px">— The WashFoldClean Team</p>
+    </div>
+  `
+}
+
+export async function sendGuideAnnouncementEmail(params: { name: string; email: string }) {
+  const firstName = params.name.trim().split(" ")[0] || params.name
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.comforterwash.com"
+  const guideUrl = `${siteUrl}/guide`
+
+  let attachments: { filename: string; content: Buffer }[] | undefined
+  try {
+    const res = await fetch(`${siteUrl}/guide.pdf`)
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`)
+    const pdfBuffer = Buffer.from(await res.arrayBuffer())
+    attachments = [{ filename: "WashFoldClean-Platform-Guide.pdf", content: pdfBuffer }]
+  } catch (err) {
+    console.error("[platform-demo-email] Could not attach guide PDF:", err)
+  }
+
+  const result = await resend.emails.send({
+    from: `WashFoldClean <${SEND_ADDRESS}>`,
+    to: [params.email],
+    replyTo: SEND_ADDRESS,
+    subject: `${firstName}, here's a deeper look at how WashFoldClean works`,
+    html: guideAnnouncementHtml(firstName, guideUrl),
+    ...(attachments ? { attachments } : {}),
+  })
+
+  if (result.error) return { error: result.error.message }
+  return { success: true }
+}
+
+// Sends the guide announcement to every lead still active in the funnel
+// (same stage filter as the automated follow-ups — won/lost leads are done,
+// a fresh guide doesn't apply). Called manually from /super-admin/demo-requests.
+// Never throws per-lead; returns a summary so the UI can show what happened.
+export async function sendGuideAnnouncementToAllLeads(): Promise<{ checked: number; sent: number; errors: string[] }> {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+  const errors: string[] = []
+  let sent = 0
+
+  const { data: leads } = await supabase
+    .from("platform_demo_requests")
+    .select("id, name, email, status")
+    .in("status", ["new", "contacted", "demo_viewed", "negotiating"])
+
+  for (const lead of leads ?? []) {
+    try {
+      const result = await sendGuideAnnouncementEmail({ name: lead.name, email: lead.email })
+      if (result.error) { errors.push(`${lead.email}: ${result.error}`); continue }
+      const { logAutomatedActivity } = await import("@/app/actions/platform-demo-activities")
+      await logAutomatedActivity(lead.id, "email_sent", "Guide announcement email sent")
+      sent++
+    } catch (err) {
+      errors.push(`${lead.email}: ${err instanceof Error ? err.message : "unknown error"}`)
+    }
+  }
+
+  return { checked: leads?.length ?? 0, sent, errors }
+}
+
 // ── Automated follow-up sequence ──────────────────────────────────────────
 // Runs daily off a cron job (see app/api/cron/demo-follow-ups/route.ts), not
 // from the UI. A lead that's gone quiet after the initial demo email gets up

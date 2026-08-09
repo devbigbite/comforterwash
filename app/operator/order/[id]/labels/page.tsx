@@ -4,6 +4,8 @@ import { PinGate } from "@/components/pin-gate"
 import { OperatorOrderGate } from "@/components/operator-order-gate"
 import { PrintReceiptsButton } from "@/components/print-receipts-button"
 import type { ReceiptData } from "@/lib/escpos"
+import { getReceiptText } from "@/app/actions/settings"
+import { loyaltyNoticeFor } from "@/lib/receipt-text-config"
 
 // Color keys are physical stickers applied by hand — the thermal printer is
 // monochrome, so the receipt only ever names the color as text
@@ -67,11 +69,10 @@ export default async function OperatorLabelsPage({
   }
   // Customer sees this receipt too, so the main line speaks directly to them
   // (a warm thank-you), while the small tag above it is the operator's cue
-  // for what to slip into the bag.
-  const loyaltyNotice =
-    orderNumber === 1 ? { tag: "WELCOME GIFT INSIDE", text: "🎉 Welcome to the family — thank you for choosing us!" }
-    : orderNumber === 2 ? { tag: "20% OFF COUPON INSIDE", text: "🎁 Thanks for coming back — enjoy 20% off your next order!" }
-    : { tag: "LOYAL CUSTOMER", text: "⭐ We appreciate your support — thank you!!!" }
+  // for what to slip into the bag. Wording is a per-tenant setting — see
+  // Content → Receipt Text — rather than hardcoded here.
+  const receiptText = await getReceiptText()
+  const loyaltyNotice = loyaltyNoticeFor(orderNumber, receiptText)
 
   // Order number + customer name together, for staff to quickly match a bag
   // back to the right customer (and as the internal identifier the loyalty
@@ -277,7 +278,18 @@ export default async function OperatorLabelsPage({
                 <span className="sub">{totalBags} bag{totalBags !== 1 ? "s" : ""} · 80mm roll · no price printed</span>
               </h1>
               <a href={`/operator/order/${id}`} className="btn-back">← Back to order</a>
-              <PrintReceiptsButton receipts={receipts} autoprint={autoprint === "1"} />
+              <PrintReceiptsButton
+                receipts={receipts}
+                autoprint={autoprint === "1"}
+                labels={{
+                  deliveryAddressLabel: receiptText.deliveryAddressLabel,
+                  colorKeyLabel: receiptText.colorKeyLabel,
+                  storageLabel: receiptText.storageLabel,
+                  washPrefsLabel: receiptText.washPrefsLabel,
+                  dueDateLabel: receiptText.dueDateLabel,
+                  footerNote: receiptText.footerNote,
+                }}
+              />
             </div>
 
             <p className="preview-note">
@@ -302,24 +314,24 @@ export default async function OperatorLabelsPage({
                   </div>
                   {address && (
                     <>
-                      <div className="r-section-title">Delivery Address</div>
+                      <div className="r-section-title">{receiptText.deliveryAddressLabel}</div>
                       <div className="r-address">{address}</div>
                     </>
                   )}
                   {colorLabel && (
                     <div className="r-color-row">
-                      <span className="r-tag">Color key sticker</span>
+                      <span className="r-tag">{receiptText.colorKeyLabel}</span>
                       <span className="r-color-text">{colorLabel}</span>
                     </div>
                   )}
                   {goingToStorage && (
                     <div className="r-storage-flag">
-                      <span>GOING TO STORAGE</span>
+                      <span>{receiptText.storageLabel}</span>
                     </div>
                   )}
                   {(detergent || extras.length > 0) && (
                     <>
-                      <div className="r-section-title">Wash Preferences</div>
+                      <div className="r-section-title">{receiptText.washPrefsLabel}</div>
                       <div className="r-prefs">
                         {[detergent, ...extras].filter(Boolean).join(" · ")}
                       </div>
@@ -327,9 +339,9 @@ export default async function OperatorLabelsPage({
                   )}
                   <div className="r-due">
                     {dueDate}
-                    <span>Deliver to customer by</span>
+                    <span>{receiptText.dueDateLabel}</span>
                   </div>
-                  <div className="r-instruction">Do not remove · Match sticker to bag</div>
+                  <div className="r-instruction">{receiptText.footerNote}</div>
                 </div>
               ))}
             </div>

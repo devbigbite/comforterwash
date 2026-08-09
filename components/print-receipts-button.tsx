@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { connectPrinter, reconnectPrinter, writeToPrinter, BluetoothPrinterError } from "@/lib/bluetooth-printer"
 import { connectSerialPrinter, reconnectSerialPrinter, writeToSerialPrinter, SerialPrinterError } from "@/lib/serial-printer"
-import { buildReceiptBytes, type ReceiptData } from "@/lib/escpos"
+import { buildReceiptBytes, type ReceiptData, type ReceiptLabels } from "@/lib/escpos"
 import { getLogoRasterBytes } from "@/lib/escpos-image"
 
 type Status = "idle" | "connecting" | "printing" | "error"
@@ -31,9 +31,11 @@ type Connection =
 export function PrintReceiptsButton({
   receipts,
   autoprint,
+  labels,
 }: {
   receipts: ReceiptData[]
   autoprint: boolean
+  labels?: ReceiptLabels
 }) {
   const [status, setStatus] = useState<Status>("idle")
   const [error, setError] = useState<string | null>(null)
@@ -45,7 +47,7 @@ export function PrintReceiptsButton({
     try {
       const logoBytes = await getLogoRasterBytes().catch(() => null)
       for (const receipt of receipts) {
-        const bytes = buildReceiptBytes(receipt, logoBytes)
+        const bytes = labels ? buildReceiptBytes(receipt, logoBytes, labels) : buildReceiptBytes(receipt, logoBytes)
         if (conn.kind === "bluetooth") await writeToPrinter(conn.char, bytes)
         else await writeToSerialPrinter(conn.port, bytes)
       }

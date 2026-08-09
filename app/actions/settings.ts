@@ -6,6 +6,7 @@ import { getLocationId } from "@/lib/location"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
 import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
 import { DEFAULT_TEXT, type SiteText } from "@/lib/site-text-config"
+import { DEFAULT_RECEIPT_TEXT, type ReceiptText } from "@/lib/receipt-text-config"
 import { requireAdmin } from "@/lib/auth-guard"
 
 // ── Internal helper: upsert a setting key for the current location ────────────
@@ -442,6 +443,58 @@ export async function setTipsEnabled(enabled: boolean): Promise<void> {
     { onConflict: "location_id,key" }
   )
   revalidatePath("/admin/pricing")
+}
+
+// ── Receipt Text (bag receipts — thermal printer + on-screen preview) ─────────
+// Stored as individual `receipt_<field>` keys, same pattern as the other
+// settings groups above. Read by the operator labels page (app/operator/
+// order/[id]/labels/page.tsx) for both the printed ESC/POS bytes and the
+// on-screen preview, so a tenant can change this wording without a deploy.
+
+const RECEIPT_TEXT_KEYS: (keyof ReceiptText)[] = [
+  "welcomeTag", "welcomeText",
+  "returningTag", "returningText",
+  "loyalTag", "loyalText",
+  "deliveryAddressLabel", "colorKeyLabel", "storageLabel",
+  "washPrefsLabel", "dueDateLabel", "footerNote",
+]
+
+export async function getReceiptText(): Promise<ReceiptText> {
+  try {
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+    const { data } = await supabase
+      .from("settings")
+      .select("key,value")
+      .eq("location_id", locationId)
+      .like("key", "receipt_%")
+    const text: ReceiptText = { ...DEFAULT_RECEIPT_TEXT }
+    if (data) {
+      data.forEach(({ key, value }: { key: string; value: string }) => {
+        const field = key.replace(/^receipt_/, "") as keyof ReceiptText
+        if (RECEIPT_TEXT_KEYS.includes(field) && value) text[field] = value
+      })
+    }
+    return text
+  } catch {
+    return { ...DEFAULT_RECEIPT_TEXT }
+  }
+}
+
+export async function setReceiptText(text: ReceiptText): Promise<void> {
+  await requireAdmin()
+
+  const locationId = await getLocationId()
+  const supabase = createAdminClient()
+  await supabase.from("settings").upsert(
+    RECEIPT_TEXT_KEYS.map(field => ({
+      key: `receipt_${field}`,
+      value: text[field],
+      location_id: locationId,
+      updated_at: new Date().toISOString(),
+    })),
+    { onConflict: "location_id,key" }
+  )
+  revalidatePath("/admin/receipt-text")
 }
 
 // ── Public zip-code check (used by the landing-page ZipChecker widget) ────────

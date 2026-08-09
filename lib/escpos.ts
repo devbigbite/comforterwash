@@ -109,11 +109,34 @@ export interface ReceiptData {
   dueDate: string
 }
 
+/** Section headers / footer lines that used to be hardcoded literals here —
+ *  now editable per tenant from Content → Receipt Text (see
+ *  lib/receipt-text-config.ts). Optional on buildReceiptBytes with these
+ *  same defaults, so any caller that doesn't pass them still prints exactly
+ *  what it always did. */
+export interface ReceiptLabels {
+  deliveryAddressLabel: string
+  colorKeyLabel: string
+  storageLabel: string
+  washPrefsLabel: string
+  dueDateLabel: string
+  footerNote: string
+}
+
+const DEFAULT_LABELS: ReceiptLabels = {
+  deliveryAddressLabel: "DELIVERY ADDRESS",
+  colorKeyLabel: "COLOR KEY STICKER",
+  storageLabel: "GOING TO STORAGE",
+  washPrefsLabel: "WASH PREFERENCES",
+  dueDateLabel: "Deliver to customer by",
+  footerNote: "Do not remove - Match sticker to bag",
+}
+
 /** Builds one full bag receipt as raw ESC/POS bytes, formatted to roughly
  *  mirror the on-screen/print-dialog layout (brand, bag count, big order
  *  code, loyalty notice, delivery address, color sticker call-out, storage
  *  flag, wash prefs, due date) — same content, ASCII-only. */
-export function buildReceiptBytes(r: ReceiptData, logoBytes?: Uint8Array | null): Uint8Array {
+export function buildReceiptBytes(r: ReceiptData, logoBytes?: Uint8Array | null, labels: ReceiptLabels = DEFAULT_LABELS): Uint8Array {
   const b = new ReceiptBuilder()
   b.init()
     .align("center")
@@ -143,34 +166,34 @@ export function buildReceiptBytes(r: ReceiptData, logoBytes?: Uint8Array | null)
 
   if (r.address) {
     b.align("left")
-    b.bold(true).text("DELIVERY ADDRESS").feed(1).bold(false)
+    b.bold(true).text(labels.deliveryAddressLabel.toUpperCase()).feed(1).bold(false)
     b.text(r.address).feed(1)
     b.feed(1)
     b.align("center")
   }
 
   if (r.colorLabel) {
-    b.bold(true).text("COLOR KEY STICKER: " + r.colorLabel.toUpperCase()).feed(1).bold(false)
+    b.bold(true).text(labels.colorKeyLabel.toUpperCase() + ": " + r.colorLabel.toUpperCase()).feed(1).bold(false)
     b.feed(1)
   }
 
   if (r.goingToStorage) {
-    b.bold(true).text("** GOING TO STORAGE **").feed(1).bold(false)
+    b.bold(true).text("** " + labels.storageLabel.toUpperCase() + " **").feed(1).bold(false)
     b.feed(1)
   }
 
   if (r.prefsLine) {
     b.align("left")
-    b.bold(true).text("WASH PREFERENCES").feed(1).bold(false)
+    b.bold(true).text(labels.washPrefsLabel.toUpperCase()).feed(1).bold(false)
     b.text(r.prefsLine).feed(1)
     b.feed(1)
     b.align("center")
   }
 
   b.bold(true).text(r.dueDate).feed(1).bold(false)
-  b.text("Deliver to customer by").feed(1)
+  b.text(labels.dueDateLabel).feed(1)
   b.feed(1)
-  b.text("Do not remove - Match sticker to bag").feed(1)
+  b.text(labels.footerNote).feed(1)
 
   b.cut()
   return b.build()

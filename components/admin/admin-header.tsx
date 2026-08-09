@@ -103,6 +103,7 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
         { href: "/admin/templates", label: es ? "Plantillas de Email" : "Email Templates" },
         { href: "/admin/faq",       label: es ? "Editor de FAQ" : "FAQ Editor" },
         { href: "/admin/docs",      label: es ? "Docs y FAQ" : "Docs & FAQ" },
+        { href: "/admin/receipt-text", label: es ? "Texto del Recibo" : "Receipt Text" },
       ],
     },
     {

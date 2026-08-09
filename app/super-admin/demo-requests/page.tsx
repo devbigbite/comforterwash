@@ -7,7 +7,7 @@ import {
   type PlatformDemoRequest,
 } from "@/app/actions/platform-demo-requests"
 import { DEMO_REQUEST_STAGES, type DemoRequestStatus } from "@/lib/demo-request-stages"
-import { resendDemoGuideEmail } from "@/app/actions/platform-demo-email"
+import { resendDemoGuideEmail, sendGuideAnnouncementToAllLeads } from "@/app/actions/platform-demo-email"
 import { sendSignupLinkToLead } from "@/app/actions/platform-billing"
 import { enterTenantAdmin } from "@/app/actions/super-admin"
 import { ActivityPanel } from "./activity-panel"
@@ -40,6 +40,9 @@ export default function DemoRequestsPage() {
   const [planName, setPlanName] = useState("Standard")
   const [planPrice, setPlanPrice] = useState("99")
   const [, startTransition] = useTransition()
+  const [guideSending, setGuideSending] = useState(false)
+  const [guideResult, setGuideResult] = useState<string | null>(null)
+  const [guideConfirming, setGuideConfirming] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -99,6 +102,18 @@ export default function DemoRequestsPage() {
     startTransition(() => { load() })
   }
 
+  async function handleSendGuideToAll() {
+    setGuideSending(true)
+    setGuideResult(null)
+    const result = await sendGuideAnnouncementToAllLeads()
+    setGuideSending(false)
+    setGuideConfirming(false)
+    setGuideResult(
+      `Sent to ${result.sent} of ${result.checked} active leads.` +
+      (result.errors.length ? ` ${result.errors.length} failed: ${result.errors.join("; ")}` : "")
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 text-slate-400 text-sm">
@@ -113,13 +128,45 @@ export default function DemoRequestsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Sales Funnel</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          {requests.length} total{newCount > 0 ? ` · ${newCount} new` : ""}{staleCount > 0 ? ` · ${staleCount} stale` : ""} —
-          submitted via the "Request a Demo" form on /platform. Each one automatically gets its own live demo site
-          (name.washfoldclean.com), an admin login, a guide email, and up to 3 automated follow-up nudges if they go quiet.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Sales Funnel</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            {requests.length} total{newCount > 0 ? ` · ${newCount} new` : ""}{staleCount > 0 ? ` · ${staleCount} stale` : ""} —
+            submitted via the "Request a Demo" form on /platform. Each one automatically gets its own live demo site
+            (name.washfoldclean.com), an admin login, a guide email, and up to 3 automated follow-up nudges if they go quiet.
+          </p>
+        </div>
+
+        {/* One-off announcement — the expanded platform guide, sent to every
+            lead still active in the funnel (won/lost excluded). Requires
+            public/guide.pdf to exist for the attachment to succeed. */}
+        <div className="shrink-0 text-right">
+          {!guideConfirming ? (
+            <button
+              onClick={() => { setGuideConfirming(true); setGuideResult(null) }}
+              className="text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg px-4 py-2 transition-colors"
+            >
+              📖 Send Guide to All Active Leads
+            </button>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm max-w-xs">
+              <p className="text-amber-800 font-medium mb-2">
+                Email {requests.filter(r => ACTIVE_STAGES.includes(r.status)).length} active leads with a link to
+                /guide and the PDF attached?
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setGuideConfirming(false)} className="text-slate-500 hover:text-slate-700 px-2 py-1">Cancel</button>
+                <button
+                  onClick={handleSendGuideToAll}
+                  disabled={guideSending}
+                  className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold px-3 py-1 rounded-lg"
+                >{guideSending ? "Sending…" : "Confirm Send"}</button>
+              </div>
+            </div>
+          )}
+          {guideResult && <p className="text-xs text-slate-500 mt-2 max-w-xs">{guideResult}</p>}
+        </div>
       </div>
 
       {requests.length === 0 ? (
