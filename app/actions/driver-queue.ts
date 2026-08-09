@@ -52,6 +52,14 @@ export async function getDriverQueue(driverId: string): Promise<{
     .order("pickup_date")
   if (!isOwner) pickupsQuery = pickupsQuery.eq("assigned_driver_id", driverId)
 
+  // Filtered on assigned_delivery_driver_id, not assigned_driver_id — the
+  // driver who picked this order up from the customer is not necessarily
+  // the one delivering the finished product back. Those are tracked as two
+  // separate columns on bookings (see migration add_assigned_delivery_driver_id
+  // and app/admin/dispatch/page.tsx's legFor()); before this fix a driver's
+  // "Deliveries" tab was really showing whoever did the pickup, which could
+  // be a completely different person from who's actually supposed to run
+  // this delivery.
   let deliveriesQuery = supabase
     .from("bookings")
     .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
@@ -59,7 +67,7 @@ export async function getDriverQueue(driverId: string): Promise<{
     .lte("delivery_date", today)
     .in("status", ["ready", "ready_at_warehouse", "out_for_delivery"])
     .order("delivery_date")
-  if (!isOwner) deliveriesQuery = deliveriesQuery.eq("assigned_driver_id", driverId)
+  if (!isOwner) deliveriesQuery = deliveriesQuery.eq("assigned_delivery_driver_id", driverId)
 
   const [{ data: pickups }, { data: deliveries }] = await Promise.all([pickupsQuery, deliveriesQuery])
 

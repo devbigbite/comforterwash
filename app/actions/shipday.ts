@@ -120,6 +120,12 @@ export async function switchPickupDropoff(
 /**
  * Assign a driver to both the pickup and delivery Shipday orders.
  * Pass the driver's email address as registered in Shipday.
+ *
+ * @deprecated Kept only for any caller that genuinely wants the same driver
+ * on both legs. The pickup driver and delivery driver are not always the
+ * same person — the admin dispatch board now assigns each leg separately
+ * via assignPickupDriver/assignDeliveryDriver below, matching the two
+ * separate DB columns (assigned_driver_id / assigned_delivery_driver_id).
  */
 export async function assignDriver(
   bookingId: string,
@@ -134,6 +140,30 @@ export async function assignDriver(
   ])
 
   return { ok: pickupAssigned || deliveryAssigned, pickupAssigned, deliveryAssigned }
+}
+
+/** Assign a driver to only the pickup leg's Shipday order (customer -> facility/warehouse). */
+export async function assignPickupDriver(
+  bookingId: string,
+  driverEmail: string
+): Promise<{ ok: boolean }> {
+  const { pickupId } = await getShipdayIds(bookingId)
+  if (!pickupId) return { ok: false }
+  const { apiKey } = await getShipdayConfig()
+  const ok = await assignShipdayDriver(pickupId, driverEmail, apiKey)
+  return { ok }
+}
+
+/** Assign a driver to only the delivery leg's Shipday order (facility/warehouse -> customer). */
+export async function assignDeliveryDriver(
+  bookingId: string,
+  driverEmail: string
+): Promise<{ ok: boolean }> {
+  const { deliveryId } = await getShipdayIds(bookingId)
+  if (!deliveryId) return { ok: false }
+  const { apiKey } = await getShipdayConfig()
+  const ok = await assignShipdayDriver(deliveryId, driverEmail, apiKey)
+  return { ok }
 }
 
 /**

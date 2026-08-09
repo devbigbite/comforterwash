@@ -44,7 +44,19 @@ function OrderChip({ order, draggable, onDragStart, onDragEnd }: {
         </span>
       </div>
       <p className="text-[10px] text-gray-500 truncate mt-0.5">{order.customer_name}</p>
-      <p className="text-[9px] text-gray-400 mt-0.5">{bags} bag{bags !== 1 ? "s" : ""}</p>
+      <div className="flex items-center justify-between mt-0.5">
+        <p className="text-[9px] text-gray-400">{bags} bag{bags !== 1 ? "s" : ""}</p>
+        {/* A "Ready for Pickup" (or any) card can already have a driver
+            lined up even while it still reads as "at facility" — surfacing
+            that here avoids the confusion of an order looking untouched on
+            this board while it's actually sitting in someone's Driver
+            Routes column. */}
+        {order.assigned_driver && (
+          <span className="text-[8px] font-bold text-[#E8726A] truncate max-w-[90px]" title={`Assigned to ${order.assigned_driver.name}`}>
+            🚗 {order.assigned_driver.name}
+          </span>
+        )}
+      </div>
     </Link>
   )
 }
@@ -169,14 +181,23 @@ function RunChip({ run, orders }: { run: TransportRun; orders: AerialOrder[] }) 
 
 // One representative target status per bucket — dragging a card in sets the
 // order straight to that status via the same admin-override action used on
-// the Driver Routes tab. Buckets that group several statuses together (e.g.
-// "At Facility" covers at_facility/in_washer/in_dryer/folded/ready) land on
-// the first/entry status of that group when dropped into from elsewhere;
+// the Driver Routes tab. Buckets that group several statuses together land
+// on the first/entry status of that group when dropped into from elsewhere;
 // dropping onto a card's own current bucket is a no-op.
+//
+// "At Facility" used to be one bucket covering
+// at_facility/in_washer/in_dryer/folded/ready — but "ready" is also one of
+// the statuses that makes an order driver-actionable (see DRIVER_STATUSES in
+// app/admin/dispatch/page.tsx), so an order sitting there could simultaneously
+// show up under a driver's name on the Driver Routes tab with no visual cue
+// here explaining why. Split into Processing (still being worked on) and
+// Ready for Pickup (folded, staged, waiting on a driver) so that handoff
+// point is visible on this board too, not just inferable from the other tab.
 const BUCKET_STATUS = {
   pendingPickup: "confirmed",
   withDriver: "picked_up",
-  atFacility: "at_facility",
+  processing: "at_facility",
+  readyForPickup: "ready",
   atWarehouse: "at_warehouse",
   outForDelivery: "out_for_delivery",
 } as const
@@ -255,7 +276,8 @@ export function AerialView({
   const inboundWithDriver  = orders.filter(o => o.status === "picked_up")
   const outForDelivery     = orders.filter(o => o.status === "out_for_delivery")
   const atWarehouse        = orders.filter(o => ["at_warehouse", "ready_at_warehouse"].includes(o.status))
-  const atFacility         = orders.filter(o => ["at_facility", "in_washer", "in_dryer", "folded", "ready"].includes(o.status))
+  const processing         = orders.filter(o => ["at_facility", "in_washer", "in_dryer", "folded"].includes(o.status))
+  const readyForPickup     = orders.filter(o => o.status === "ready")
   const pendingPickup      = orders.filter(o => o.status === "confirmed")
   const pendingRuns        = runs.filter(r => r.status === "pending")
 
@@ -365,21 +387,40 @@ export function AerialView({
           </div>
         </div>
 
-        {/* At facility */}
+        {/* At facility — processing */}
         <Bucket
           icon="🏭"
-          label="At Facility"
-          sublabel="Being processed"
-          orders={atFacility}
+          label="Processing"
+          sublabel="At facility — being washed/folded"
+          orders={processing}
           accentClass="text-blue-700"
           borderClass="border-blue-200"
           bgClass="bg-blue-50"
-          emptyMsg="No orders at facility"
+          emptyMsg="Nothing in process"
           droppable={canDrag ? true : undefined}
-          isDragOver={dragOverBucket === "atFacility"}
-          onDragOver={handleDragOver("atFacility")}
+          isDragOver={dragOverBucket === "processing"}
+          onDragOver={handleDragOver("processing")}
           onDragLeave={handleDragLeave}
-          onDrop={handleDrop("atFacility")}
+          onDrop={handleDrop("processing")}
+          onChipDragStart={handleChipDragStart}
+          onChipDragEnd={handleChipDragEnd}
+        />
+
+        {/* At facility — folded, staged for a driver */}
+        <Bucket
+          icon="✅"
+          label="Ready for Pickup"
+          sublabel="Folded — waiting on a driver"
+          orders={readyForPickup}
+          accentClass="text-teal-700"
+          borderClass="border-teal-200"
+          bgClass="bg-teal-50"
+          emptyMsg="Nothing ready yet"
+          droppable={canDrag ? true : undefined}
+          isDragOver={dragOverBucket === "readyForPickup"}
+          onDragOver={handleDragOver("readyForPickup")}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop("readyForPickup")}
           onChipDragStart={handleChipDragStart}
           onChipDragEnd={handleChipDragEnd}
         />

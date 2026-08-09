@@ -10,11 +10,24 @@ import type { DispatchBooking } from "@/app/admin/dispatch/page"
 // can skip the mutation entirely if the card is already in that column.
 const DRAG_BOOKING_MIME = "application/x-washfold-booking-id"
 const DRAG_SOURCE_MIME  = "application/x-washfold-source-driver"
+// Carries which leg (pickup/delivery) the dragged card belongs to, so a drop
+// on another column writes to the right assignment column server-side —
+// the drop target only otherwise knows the bookingId, not its status/leg.
+const DRAG_LEG_MIME      = "application/x-washfold-leg"
 
 const SERVICE_LABELS: Record<string, string> = {
   wash_fold:      "W&F",
   wash_only:      "Wash",
   comforter_wash: "Comforter",
+}
+
+// Which leg (and therefore which driver-assignment column) a booking's
+// current status belongs to. Mirrors legFor() in app/admin/dispatch/page.tsx
+// server-side — kept in sync there since the pickup driver (customer ->
+// facility/warehouse) and delivery driver (facility/warehouse -> customer)
+// are tracked as two separate columns and are not always the same person.
+function legFor(status: string): "pickup" | "delivery" {
+  return ["at_warehouse", "ready", "ready_at_warehouse", "out_for_delivery"].includes(status) ? "delivery" : "pickup"
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -124,6 +137,7 @@ function KanbanCard({
     fd.set("driverId", driver.id)
     fd.set("driverEmail", driver.shipday_email ?? "")
     fd.set("date", date)
+    fd.set("leg", type)
     startTransition(async () => {
       await assignDriverAction(fd)
       router.refresh()
@@ -136,6 +150,7 @@ function KanbanCard({
     const fd = new FormData()
     fd.set("bookingId", b.id)
     fd.set("date", date)
+    fd.set("leg", type)
     startTransition(async () => {
       await unassignDriverAction(fd)
       router.refresh()
@@ -211,6 +226,7 @@ function KanbanCard({
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.setData(DRAG_BOOKING_MIME, b.id)
     e.dataTransfer.setData(DRAG_SOURCE_MIME, currentDriverId ?? "")
+    e.dataTransfer.setData(DRAG_LEG_MIME, type)
     e.dataTransfer.effectAllowed = "move"
   }
 
@@ -515,6 +531,7 @@ function DriverColumn({
     setIsDragOver(false)
     const bookingId = e.dataTransfer.getData(DRAG_BOOKING_MIME)
     const sourceDriverId = e.dataTransfer.getData(DRAG_SOURCE_MIME)
+    const leg = e.dataTransfer.getData(DRAG_LEG_MIME) || "pickup"
     if (!bookingId) return
     const targetDriverId = driver?.id ?? ""
     if (sourceDriverId === targetDriverId) return // already in this column
@@ -522,6 +539,7 @@ function DriverColumn({
     const fd = new FormData()
     fd.set("bookingId", bookingId)
     fd.set("date", date)
+    fd.set("leg", leg)
     startDropTransition(async () => {
       if (isUnassigned) {
         await unassignDriverAction(fd)
@@ -567,12 +585,20 @@ function DriverColumn({
             {driver!.shipday_email ?? <span className="text-amber-500">No Shipday email</span>}
           </p>
         )}
-        {!isUnassigned && total > 0 && (
-          <div className="flex gap-2 mt-1.5 text-[10px] text-gray-400 font-semibold">
-            {pickups.length > 0 && <span>↑ {pickups.length} pickup{pickups.length !== 1 ? "s" : ""}</span>}
-            {deliveries.length > 0 && <span>↓ {deliveries.length} delivery{deliveries.length !== 1 ? "ies" : "y"}</span>}
-          </div>
-        )}
+        {!isUnassigned && total > 0 && (() => {
+          // `pickups` here is really "everything assigned to this driver
+          // right now" (see DispatchBoard below) — split it by actual leg so
+          // this line reflects real pickup vs. delivery counts, not the raw
+          // prop name.
+          const pickupCount   = pickups.filter(b => legFor(b.status) === "pickup").length
+          const deliveryCount = pickups.filter(b => legFor(b.status) === "delivery").length
+          return (
+            <div className="flex gap-2 mt-1.5 text-[10px] text-gray-400 font-semibold">
+              {pickupCount > 0 && <span>↑ {pickupCount} pickup{pickupCount !== 1 ? "s" : ""}</span>}
+              {deliveryCount > 0 && <span>↓ {deliveryCount} delivery{deliveryCount !== 1 ? "ies" : "y"}</span>}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Cards — grouped by date */}
@@ -583,10 +609,15 @@ function DriverColumn({
           </p>
         )}
         {(() => {
-          // Merge pickups + deliveries, tag each with type, sort by date
+          // Merge pickups + deliveries, tag each with its actual leg (not
+          // just "pickup" for everything) — a driver-relevant order can be
+          // in either the pickup phase (confirmed/picked_up) or the delivery
+          // phase (at_warehouse/ready/ready_at_warehouse/out_for_delivery),
+          // and each phase is assigned/tracked via its own DB column. See
+          // legFor() above.
           const all = [
-            ...pickups.map(b => ({ ...b, _type: "pickup" as const })),
-            ...deliveries.map(b => ({ ...b, _type: "delivery" as const })),
+            ...pickups.map(b => ({ ...b, _type: legFor(b.status) })),
+            ...deliveries.map(b => ({ ...b, _type: legFor(b.status) })),
           ].sort((a, b) => {
             const da = a._type === "pickup" ? a.pickup_date : a.delivery_date
             const db = b._type === "pickup" ? b.pickup_date : b.delivery_date
@@ -617,7 +648,8 @@ function DriverColumn({
                 <div className="space-y-1.5">
                   {items.map(b => (
                     <KanbanCard key={b.id + b._type} booking={b} type={b._type} date={date}
-                      drivers={drivers} currentDriverId={b.assigned_driver_id}
+                      drivers={drivers}
+                      currentDriverId={b._type === "delivery" ? b.assigned_delivery_driver_id : b.assigned_driver_id}
                       assignDriverAction={assignDriverAction}
                       unassignDriverAction={unassignDriverAction}
                       rescheduleAction={rescheduleAction}
@@ -657,7 +689,19 @@ export function DispatchBoard({
   cancelAction: (fd: FormData) => Promise<void>
   setBookingStatusAction: (fd: FormData) => Promise<void>
 }) {
-  const unassigned = orders.filter(b => !b.assigned_driver_id)
+  // Which of a booking's two driver-assignment columns is relevant right now
+  // depends on its current leg — a pickup-phase order is unassigned/assigned
+  // via assigned_driver_id, a delivery-phase order via
+  // assigned_delivery_driver_id. Using assigned_driver_id alone here used to
+  // mean a delivered-phase order with no delivery driver yet (but a pickup
+  // driver from days earlier still on record) never showed up as needing
+  // attention, and a driver's column could show an order that isn't
+  // actually theirs for its current leg.
+  function driverIdFor(b: DispatchBooking): string | null {
+    return legFor(b.status) === "delivery" ? b.assigned_delivery_driver_id : b.assigned_driver_id
+  }
+
+  const unassigned = orders.filter(b => !driverIdFor(b))
 
   return (
     <div>
@@ -678,7 +722,7 @@ export function DispatchBoard({
 
         {/* One column per driver */}
         {drivers.map(driver => {
-          const mine = orders.filter(b => b.assigned_driver_id === driver.id)
+          const mine = orders.filter(b => driverIdFor(b) === driver.id)
           return (
             <DriverColumn
               key={driver.id}

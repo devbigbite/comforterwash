@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { format, parseISO } from "date-fns"
 import { revalidatePath } from "next/cache"
-import { reschedulePickup, rescheduleDelivery, assignDriver, cancelShipdayOrders } from "@/app/actions/shipday"
+import { reschedulePickup, rescheduleDelivery, assignPickupDriver, assignDeliveryDriver, cancelShipdayOrders } from "@/app/actions/shipday"
 import { SeedDispatchButton } from "@/components/admin/SeedDispatchButton"
 import { DispatchBoard } from "@/components/admin/DispatchBoard"
 import { OperatorDispatch } from "@/components/admin/OperatorDispatch"
@@ -19,6 +19,16 @@ import { syncPhaseFromStatus } from "@/lib/order-status-sync"
 // before mutating, so a dispatcher session for one tenant can't touch
 // another tenant's orders/runs even if it knew the id.
 
+// Which DB column + Shipday leg a booking's current status belongs to. The
+// pickup driver (customer -> facility/warehouse) and delivery driver
+// (facility/warehouse -> customer) are not always the same person, so they're
+// tracked as two separate columns (assigned_driver_id / assigned_delivery_driver_id)
+// and assigned independently — see lib/order-status-sync.ts comment history
+// and DispatchBoard.tsx's legFor() for the client-side mirror of this logic.
+function legFor(status: string): "pickup" | "delivery" {
+  return ["at_warehouse", "ready", "ready_at_warehouse", "out_for_delivery"].includes(status) ? "delivery" : "pickup"
+}
+
 async function assignDriverAction(formData: FormData) {
   "use server"
   await requireAdmin()
@@ -26,16 +36,31 @@ async function assignDriverAction(formData: FormData) {
   const driverEmail = formData.get("driverEmail")  as string
   const driverId    = formData.get("driverId")     as string
   const date        = formData.get("date")         as string
+  // "leg" is passed explicitly by the client (it already knows which column
+  // a card belongs to from its status) but falls back to deriving it from
+  // the booking's current status server-side, so this action stays correct
+  // even if called from somewhere that doesn't pass it.
+  const legParam    = formData.get("leg") as string | null
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
-  const { ok } = await assignDriver(bookingId, driverEmail)
-  await supabase.from("bookings").update({ assigned_driver_id: driverId || null }).eq("id", bookingId).eq("location_id", locationId)
+  let leg = legParam === "pickup" || legParam === "delivery" ? legParam : null
+  if (!leg) {
+    const { data: booking } = await supabase.from("bookings").select("status").eq("id", bookingId).single()
+    leg = legFor(booking?.status ?? "confirmed")
+  }
+
+  const { ok } = leg === "delivery"
+    ? await assignDeliveryDriver(bookingId, driverEmail)
+    : await assignPickupDriver(bookingId, driverEmail)
+
+  const column = leg === "delivery" ? "assigned_delivery_driver_id" : "assigned_driver_id"
+  await supabase.from("bookings").update({ [column]: driverId || null }).eq("id", bookingId).eq("location_id", locationId)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "driver_assigned",
     notes: ok
-      ? `Driver assigned in Shipday: ${driverEmail}`
-      : `Driver assignment attempted (${driverEmail}) — carrier may not exist in Shipday`,
+      ? `${leg === "delivery" ? "Delivery" : "Pickup"} driver assigned in Shipday: ${driverEmail}`
+      : `${leg === "delivery" ? "Delivery" : "Pickup"} driver assignment attempted (${driverEmail}) — carrier may not exist in Shipday`,
     created_by: "admin",
   })
   revalidatePath(`/admin/dispatch?date=${date}`)
@@ -46,12 +71,21 @@ async function unassignDriverAction(formData: FormData) {
   await requireAdmin()
   const bookingId = formData.get("bookingId") as string
   const date      = formData.get("date")      as string
+  const legParam  = formData.get("leg") as string | null
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
-  await supabase.from("bookings").update({ assigned_driver_id: null }).eq("id", bookingId).eq("location_id", locationId)
+
+  let leg = legParam === "pickup" || legParam === "delivery" ? legParam : null
+  if (!leg) {
+    const { data: booking } = await supabase.from("bookings").select("status").eq("id", bookingId).single()
+    leg = legFor(booking?.status ?? "confirmed")
+  }
+  const column = leg === "delivery" ? "assigned_delivery_driver_id" : "assigned_driver_id"
+
+  await supabase.from("bookings").update({ [column]: null }).eq("id", bookingId).eq("location_id", locationId)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "driver_unassigned",
-    notes: "Driver unassigned by dispatcher",
+    notes: `${leg === "delivery" ? "Delivery" : "Pickup"} driver unassigned by dispatcher`,
     created_by: "admin",
   })
   revalidatePath(`/admin/dispatch?date=${date}`)
@@ -260,7 +294,7 @@ export default async function DispatchPage({
       pickup_date, pickup_time_window, delivery_date, delivery_time_window,
       service_type, num_bags, num_comforters, status,
       shipday_pickup_order_id, shipday_delivery_order_id,
-      assigned_driver_id, assigned_operator_id,
+      assigned_driver_id, assigned_delivery_driver_id, assigned_operator_id,
       assigned_facility:facilities!assigned_facility_id(id, name)
     `)
     .eq("location_id", locationId)
@@ -281,13 +315,24 @@ export default async function DispatchPage({
     .select(`
       id, short_code, customer_name, service_type, num_bags, num_comforters, status,
       assigned_facility:facilities!assigned_facility_id(name),
-      assigned_driver:workers!assigned_driver_id(name)
+      assigned_driver:workers!assigned_driver_id(name),
+      assigned_delivery_driver:workers!assigned_delivery_driver_id(name)
     `)
     .eq("location_id", locationId)
     .not("status", "in", '("delivered","cancelled")')
     .order("created_at", { ascending: false })
 
-  const aerialOrders = (aerialData ?? []) as AerialOrder[]
+  // The badge on the Aerial View card should show whichever driver is
+  // actually relevant to the order's current leg — a delivery-phase order
+  // (at_warehouse/ready/ready_at_warehouse/out_for_delivery) cares about who
+  // has the delivery leg, not whoever did the original pickup days earlier.
+  const DELIVERY_LEG_STATUSES = ["at_warehouse", "ready", "ready_at_warehouse", "out_for_delivery"]
+  const aerialOrders = ((aerialData ?? []) as (AerialOrder & {
+    assigned_delivery_driver: { name: string } | null
+  })[]).map(o => ({
+    ...o,
+    assigned_driver: DELIVERY_LEG_STATUSES.includes(o.status) ? o.assigned_delivery_driver : o.assigned_driver,
+  })) as AerialOrder[]
   const aerialOrdersById = Object.fromEntries(aerialOrders.map(o => [o.id, o]))
 
   // In-progress orders for operator dispatch (at facility).
@@ -466,6 +511,7 @@ export type DispatchBooking = {
   shipday_pickup_order_id: number | null
   shipday_delivery_order_id: number | null
   assigned_driver_id: string | null
+  assigned_delivery_driver_id: string | null
   assigned_operator_id: string | null
   assigned_facility: { id: string; name: string } | null
 }
