@@ -61,7 +61,12 @@ export default async function OrdersPage({
     .order("created_at", { ascending: false })
     .limit(200)
 
-  if (status !== "all") query = query.eq("status", status)
+  // "All" previously meant every order ever, including cancelled ones — so
+  // a cancelled order sat in the default view forever, mixed in with active
+  // work. Cancelled orders are still fully visible, just one tab-click away
+  // (the Cancelled tab) instead of cluttering the default list.
+  if (status === "all") query = query.neq("status", "cancelled")
+  else query = query.eq("status", status)
   if (q) query = query.or(`short_code.ilike.%${q}%,customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%`)
 
   const { data: ordersData, error: ordersError } = await query
@@ -75,8 +80,11 @@ export default async function OrdersPage({
     .eq("location_id", locationId)
   if (statusesError) console.error("[admin/orders] Failed to load status counts:", statusesError.message)
   const allStatuses = allStatusesData ?? []
-  const counts: Record<string, number> = { all: allStatuses.length }
+  const counts: Record<string, number> = {}
   allStatuses.forEach(({ status: s }) => { counts[s] = (counts[s] ?? 0) + 1 })
+  // Matches the query above — "All" excludes cancelled, so the tab count
+  // doesn't disagree with what's actually listed under it.
+  counts.all = allStatuses.filter(({ status: s }) => s !== "cancelled").length
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
