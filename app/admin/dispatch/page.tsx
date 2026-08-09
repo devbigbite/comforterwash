@@ -342,6 +342,13 @@ export default async function DispatchPage({
   // does not set assigned_facility_id (that's a separate manual bulk-routing
   // step from /admin/routing), so requiring it here was silently hiding
   // every order moved via drag-and-drop.
+  //
+  // "ready" is deliberately excluded — once an order is folded and ready,
+  // the operator's work on it is done; it's the driver's turn (Driver Routes
+  // tab / Aerial View's "Ready for Pickup" bucket). Including it here meant
+  // an order stayed on an operator's Operator Assignments card indefinitely
+  // even after nothing was left for them to do, which read as if the order
+  // was still their responsibility.
   const { data: facilityOrders } = await supabase
     .from("bookings")
     .select(`
@@ -349,7 +356,7 @@ export default async function DispatchPage({
       assigned_operator_id,
       assigned_facility:facilities!assigned_facility_id(id, name)
     `)
-    .in("status", ["at_facility", "in_washer", "in_dryer", "folded", "ready"])
+    .in("status", ["at_facility", "in_washer", "in_dryer", "folded"])
     .order("customer_name")
 
   // Current bag-level stage per order, so dispatchers can see and roll back
