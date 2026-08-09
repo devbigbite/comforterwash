@@ -18,6 +18,20 @@ const SERVICE_LABEL: Record<string, string> = {
   wash_only:      "🧺 Wash Only",
 }
 
+// Same badge as /admin/orders — see comment there. Surfaces the
+// already-stored subscription_frequency/commercial_account_id directly on
+// the result row instead of requiring a separate trip to /admin/subscriptions
+// to cross-reference by name/phone.
+function CustomerTypeBadge({ frequency, isCommercial }: { frequency: string | null; isCommercial: boolean }) {
+  if (isCommercial) {
+    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase whitespace-nowrap">🏢 Commercial</span>
+  }
+  if (frequency === "weekly" || frequency === "biweekly") {
+    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 uppercase whitespace-nowrap">🔁 {frequency}</span>
+  }
+  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 uppercase whitespace-nowrap">One-time</span>
+}
+
 export default async function SearchPage({
   searchParams,
 }: {
@@ -29,7 +43,7 @@ export default async function SearchPage({
 
   let query = supabase
     .from("bookings")
-    .select("id, short_code, created_at, customer_name, customer_email, customer_phone, customer_address, pickup_date, delivery_date, status, service_type, customer_final_cents, num_comforters, comforter_size")
+    .select("id, short_code, created_at, customer_name, customer_email, customer_phone, customer_address, pickup_date, delivery_date, status, service_type, customer_final_cents, num_comforters, comforter_size, subscription_frequency, commercial_account_id")
     .eq("location_id", locationId)
     .order("created_at", { ascending: false })
     .limit(50)
@@ -140,6 +154,9 @@ export default async function SearchPage({
                     <td className="px-4 py-3">
                       <p className="font-semibold text-[#0D2240]">{b.customer_name}</p>
                       <p className="text-xs text-gray-400">{b.customer_phone}</p>
+                      <div className="mt-1">
+                        <CustomerTypeBadge frequency={b.subscription_frequency} isCommercial={!!b.commercial_account_id} />
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs">
                       <span>{SERVICE_LABEL[b.service_type] ?? b.service_type}</span>
