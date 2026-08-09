@@ -43,6 +43,10 @@ export interface CommercialAccount {
   next_pickup_date: string | null
   num_bags: number
   service_type: string
+  detergent: string | null
+  fabric_softener: boolean
+  oxi_clean: boolean
+  color_safe_bleach: boolean
 }
 
 export interface CommercialInvoice {
@@ -80,6 +84,10 @@ export async function addCommercialAccount(formData: FormData) {
     minimum_amount_cents: Math.round(parseFloat(formData.get("minimum_amount") as string) * 100) || null,
     notes: (formData.get("notes") as string)?.trim() || null,
     access_instructions: (formData.get("access_instructions") as string)?.trim() || null,
+    detergent: (formData.get("detergent") as string)?.trim() || null,
+    fabric_softener: formData.get("fabric_softener") === "on",
+    oxi_clean: formData.get("oxi_clean") === "on",
+    color_safe_bleach: formData.get("color_safe_bleach") === "on",
   })
 
   if (error) return { error: error.message }
@@ -106,6 +114,10 @@ export async function updateCommercialAccount(formData: FormData) {
     minimum_amount_cents: Math.round(parseFloat(formData.get("minimum_amount") as string) * 100) || null,
     notes: (formData.get("notes") as string)?.trim() || null,
     access_instructions: (formData.get("access_instructions") as string)?.trim() || null,
+    detergent: (formData.get("detergent") as string)?.trim() || null,
+    fabric_softener: formData.get("fabric_softener") === "on",
+    oxi_clean: formData.get("oxi_clean") === "on",
+    color_safe_bleach: formData.get("color_safe_bleach") === "on",
   }).eq("id", id)
 
   if (error) return { error: error.message }
@@ -223,6 +235,10 @@ export async function createCommercialAccountSelfServe(formData: FormData) {
       address: (formData.get("address") as string)?.trim() || null,
       notes: (formData.get("notes") as string)?.trim() || null,
       access_instructions: (formData.get("access_instructions") as string)?.trim() || null,
+      detergent: (formData.get("detergent") as string)?.trim() || null,
+      fabric_softener: formData.get("fabric_softener") === "on",
+      oxi_clean: formData.get("oxi_clean") === "on",
+      color_safe_bleach: formData.get("color_safe_bleach") === "on",
     })
     .select("access_code")
     .single()
@@ -553,7 +569,7 @@ export async function createCommercialOrder(formData: FormData): Promise<{ succe
 
   const { data: account } = await supabase
     .from("commercial_accounts")
-    .select("id, business_name, contact_name, contact_email, contact_phone, address, status, stripe_payment_method_id, access_instructions")
+    .select("id, business_name, contact_name, contact_email, contact_phone, address, status, stripe_payment_method_id, access_instructions, detergent, fabric_softener, oxi_clean, color_safe_bleach")
     .eq("id", accountId)
     .single()
 
@@ -572,6 +588,15 @@ export async function createCommercialOrder(formData: FormData): Promise<{ succe
 
   try {
     const { createBooking } = await import("./bookings")
+    // Same detergent/extras pattern as the residential subscription path
+    // (recurring-engine.ts) — the account's saved wash preferences apply to
+    // every order generated for it, manual or recurring, so staff/the
+    // account's own contact never has to re-specify them per order.
+    const extrasList = [
+      account.fabric_softener ? "Fabric Softener" : null,
+      account.oxi_clean ? "OxiClean" : null,
+      account.color_safe_bleach ? "Color-Safe Bleach" : null,
+    ].filter(Boolean)
     const booking = await createBooking({
       customerName: account.contact_name || account.business_name,
       customerEmail: account.contact_email || "",
@@ -588,6 +613,8 @@ export async function createCommercialOrder(formData: FormData): Promise<{ succe
       commercialAccountId: account.id,
       paymentStatusOverride: "pending_weight",
       specialInstructions: account.access_instructions ?? undefined,
+      detergent: account.detergent ?? undefined,
+      extras: extrasList.length ? extrasList.join(", ") : undefined,
     })
 
     revalidatePath("/admin/commercial")

@@ -49,6 +49,32 @@ export function CommercialSignupForm({
         <input name="notes" placeholder="Estimated volume, preferred pickup days…" className={inp} />
       </div>
 
+      {/* Wash preferences — applied to every order generated for this
+          account (manual or recurring) so staff never has to guess or ask
+          again per order. Optional at signup since staff can always fill
+          these in later from the admin side if the business skips them. */}
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Detergent Preference (optional)</label>
+        <input name="detergent" placeholder="e.g. Free & Clear, Original Scent…" className={inp} />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Add-ons (optional)</label>
+        <div className="flex flex-wrap gap-4 pt-1">
+          <label className="flex items-center gap-2 text-sm text-[#0D2240]">
+            <input type="checkbox" name="fabric_softener" className="rounded border-gray-300" />
+            Fabric Softener
+          </label>
+          <label className="flex items-center gap-2 text-sm text-[#0D2240]">
+            <input type="checkbox" name="oxi_clean" className="rounded border-gray-300" />
+            OxiClean
+          </label>
+          <label className="flex items-center gap-2 text-sm text-[#0D2240]">
+            <input type="checkbox" name="color_safe_bleach" className="rounded border-gray-300" />
+            Color-Safe Bleach
+          </label>
+        </div>
+      </div>
+
       {state?.error && (
         <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-600">
           {state.error}

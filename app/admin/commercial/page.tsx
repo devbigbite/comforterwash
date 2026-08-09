@@ -85,6 +85,33 @@ function AccountFields({ a }: { a?: CommercialAccount }) {
         <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Notes</label>
         <input name="notes" defaultValue={val("notes")} placeholder="Contract details, internal notes…" className={inp} />
       </div>
+      {/* Wash preferences — applied to every order generated for this
+          account, manual or auto-recurring, so nobody has to re-specify them
+          per order (same pattern as residential monthly-plan subscriptions). */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Detergent Preference</label>
+          <input name="detergent" defaultValue={val("detergent")} placeholder="e.g. Free & Clear, Original Scent…" className={inp} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Add-ons</label>
+          <div className="flex flex-wrap items-center gap-4 h-full pt-1">
+            <label className="flex items-center gap-2 text-sm text-[#0D2240]">
+              <input type="checkbox" name="fabric_softener" defaultChecked={a?.fabric_softener ?? false} className="rounded border-gray-300" />
+              Fabric Softener
+            </label>
+            <label className="flex items-center gap-2 text-sm text-[#0D2240]">
+              <input type="checkbox" name="oxi_clean" defaultChecked={a?.oxi_clean ?? false} className="rounded border-gray-300" />
+              OxiClean
+            </label>
+            <label className="flex items-center gap-2 text-sm text-[#0D2240]">
+              <input type="checkbox" name="color_safe_bleach" defaultChecked={a?.color_safe_bleach ?? false} className="rounded border-gray-300" />
+              Color-Safe Bleach
+            </label>
+          </div>
+        </div>
+      </div>
+      <p className="text-[11px] text-gray-400 -mt-2">Applied automatically to every order created for this account — manual or auto-recurring.</p>
     </>
   )
 }
@@ -220,6 +247,16 @@ export default async function CommercialAccountsPage() {
                 <div className="mt-1 space-y-0.5 text-sm text-gray-500">
                   {a.address && <p>📍 {a.address}</p>}
                   {a.access_instructions && <p className="text-amber-700">🚪 {a.access_instructions}</p>}
+                  {(a.detergent || a.fabric_softener || a.oxi_clean || a.color_safe_bleach) && (
+                    <p className="text-blue-700">
+                      🧺 {[
+                        a.detergent,
+                        a.fabric_softener ? "Fabric Softener" : null,
+                        a.oxi_clean ? "OxiClean" : null,
+                        a.color_safe_bleach ? "Color-Safe Bleach" : null,
+                      ].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
                   {a.contact_name && <p>{a.contact_name}{a.contact_phone ? ` · ${a.contact_phone}` : ""}{a.contact_email ? ` · ${a.contact_email}` : ""}</p>}
                   <p className="text-xs text-gray-400">
                     {a.rate_type.replace("_", " ")}{a.rate_amount_cents ? ` · $${(a.rate_amount_cents / 100).toFixed(2)}` : ""}
