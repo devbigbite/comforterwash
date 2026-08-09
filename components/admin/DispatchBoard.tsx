@@ -260,7 +260,16 @@ function KanbanCard({
         <p className="text-[10px] text-gray-400 truncate mt-0.5">{b.customer_address}</p>
         {(() => {
           const action = DRIVER_ACTION[b.status]
-          const d = ["out_for_delivery","ready_at_warehouse"].includes(b.status) ? b.delivery_date : b.pickup_date
+          // Was hardcoded to only ["out_for_delivery","ready_at_warehouse"]
+          // — that predates the pickup/delivery leg split and missed
+          // "ready", which is also a delivery-leg status (folded at
+          // facility, waiting on a driver to bring it to the customer).
+          // That mismatch is exactly what made a "ready" order's card show
+          // "Needs a driver · [pickup date]" instead of the actual date
+          // that matters once an order's past pickup: its delivery date.
+          // `type` is this card's actual leg (see legFor() above), so use
+          // that instead of re-deriving it from a partial status list.
+          const d = type === "delivery" ? b.delivery_date : b.pickup_date
           let dateLabel = ""
           if (d) {
             if (isToday(parseISO(d))) dateLabel = " · Today"
