@@ -30,6 +30,13 @@ const SMS_TEMPLATES = {
 
   delivered: (name: string, businessName = "WashFoldClean") =>
     `Hi ${name}! Your laundry has been delivered! Thanks for choosing ${businessName} 🧺`,
+
+  // Sent right after weight is entered — previously nothing told the
+  // customer what their order actually weighed. Deliberately no pricing
+  // here per explicit request — the full rate/total breakdown lives in the
+  // email instead; this text is just a warm "here's your weight" note.
+  weight_confirmed: (name: string, weightLbs: string, businessName = "WashFoldClean") =>
+    `Hi ${name}, thanks for trusting us with your laundry! 🧺 Your order weighed in at ${weightLbs} lbs. Thank you for choosing ${businessName}!`,
 }
 
 // ── Core send function — Twilio REST API via fetch ───────────────────────────
@@ -107,7 +114,8 @@ export async function sendBookingNotification(
   const branding = await getBranding()
   // Extra trailing arg is ignored by templates that don't declare a
   // businessName param — safe to always pass it.
-  const message = SMS_TEMPLATES[notificationType](...(templateArgs as [string, ...string[]]), branding.business_name)
+  const templateFn = SMS_TEMPLATES[notificationType] as (...args: string[]) => string
+  const message = templateFn(...templateArgs, branding.business_name)
   const result  = await sendSMS(booking.customer_phone, message)
 
   if (result.success) {

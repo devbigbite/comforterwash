@@ -132,6 +132,40 @@ export async function sendOrderPickedUpEmail(toEmail: string, data: OrderPickedU
 }
 
 // ─────────────────────────────────────────────────────────────────
+// 4b. Customer: Weight & Billing Confirmed
+// ─────────────────────────────────────────────────────────────────
+// Sent right after a driver/operator/admin enters the scale weight. Until
+// this existed, a customer had no idea their order had even been weighed.
+// Deliberately no pricing here per explicit request — just a warm
+// thank-you + the weight, matching the SMS version's tone. Kept as a
+// standalone inline template (not routed through the email-templates.ts
+// customizable-override system like the others above) since it's a short
+// courtesy note, not marketing copy a tenant would want to restyle.
+export interface WeightConfirmedData {
+  customerName: string
+  shortCode: string | null
+  weightLbs: number
+}
+export async function sendWeightConfirmedEmail(toEmail: string, data: WeightConfirmedData) {
+  const branding = await getEmailBranding()
+  const orderLabel = data.shortCode ? `Order ${data.shortCode}` : "Your order"
+  const trackUrl = `https://${branding.websiteDomain}/track/${data.shortCode ?? ""}`
+  const html = `
+    <div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:${branding.primaryColor};margin:0 0 12px">Thanks for trusting us with your laundry, ${data.customerName.split(" ")[0]}! 🧺</h2>
+      <p style="color:#333;font-size:15px;line-height:1.5">${orderLabel} weighed in at <strong>${data.weightLbs} lbs</strong>. Thank you for choosing ${branding.businessName}!</p>
+      <a href="${trackUrl}" style="display:inline-block;margin-top:12px;color:${branding.accentColor};font-weight:600;text-decoration:none">Track your order →</a>
+      <p style="color:#aaa;font-size:12px;margin-top:24px">${branding.businessName} · ${branding.supportPhone}</p>
+    </div>`
+  return safeSend({
+    from: await fromCustomer(),
+    to: [toEmail],
+    subject: `Thanks! ${orderLabel} weighed in at ${data.weightLbs} lbs`,
+    html,
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────
 // 5. Customer: Out for Delivery
 // ─────────────────────────────────────────────────────────────────
 export async function sendOutForDeliveryEmail(toEmail: string, data: OutForDeliveryData) {

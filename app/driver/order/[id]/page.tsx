@@ -7,6 +7,7 @@ import DriverOrderClient from "./order-client"
 import { capturePayment } from "@/app/actions/stripe"
 import { updateBookingStatus } from "@/app/actions/bookings"
 import { sendBookingNotification } from "@/lib/sms"
+import { sendWeightConfirmedEmail } from "@/lib/email"
 import { syncPhaseFromStatus } from "@/lib/order-status-sync"
 
 const CUSTOMER_MIN_LBS = 20
@@ -157,7 +158,7 @@ async function confirmDropoff(formData: FormData) {
   // Look up booking to get locked-in rate for customer billing
   const { data: bk } = await supabase
     .from("bookings")
-    .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents, assigned_facility_id, location_id")
+    .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents, assigned_facility_id, location_id, short_code, customer_name, customer_email, customer_phone")
     .eq("id", bookingId)
     .single()
 
@@ -244,6 +245,27 @@ async function confirmDropoff(formData: FormData) {
     }
   } catch (err) {
     console.error("[stripe] Capture failed after dropoff:", err)
+  }
+
+  // Tell the customer their order was weighed — same notification as the
+  // admin/operator weigh-in path (app/actions/weigh-in.ts). Deliberately no
+  // pricing per explicit request — just a warm thank-you + the weight.
+  // Skipped entirely if the earlier booking-update failed, since
+  // customer_final_cents/actual_weight_lbs wouldn't actually be saved yet.
+  if (!dropoffUpdateError) {
+    try {
+      if (bk?.customer_phone) {
+        await sendBookingNotification(bookingId, "weight_confirmed",
+          bk.customer_name?.split(" ")[0] ?? "there", String(weightLbs))
+      }
+      if (bk?.customer_email) {
+        await sendWeightConfirmedEmail(bk.customer_email, {
+          customerName: bk.customer_name ?? "Valued Customer",
+          shortCode: bk.short_code ?? null,
+          weightLbs,
+        })
+      }
+    } catch (e) { console.error("[driver] Weight-confirmed notification failed:", e) }
   }
 
   revalidatePath(`/driver/order/${bookingId}`)

@@ -93,7 +93,14 @@ export function OrderSnapshot({ order, compact }: { order: OrderSnapshotData; co
         <Field label="Customer" value={
           <>
             {order.customer_name}
-            <span className="block text-xs font-normal text-gray-400">{order.customer_phone}{" · "}{customerType}</span>
+            <span className="block text-xs font-normal text-gray-400 mt-0.5">{order.customer_phone}</span>
+            <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+              order.commercial_account_id ? "bg-indigo-100 text-indigo-700"
+              : (order.subscription_frequency === "weekly" || order.subscription_frequency === "biweekly") ? "bg-teal-100 text-teal-700"
+              : "bg-gray-100 text-gray-500"
+            }`}>
+              {customerType}
+            </span>
           </>
         } />
         <Field label="Service" value={SERVICE_LABEL[order.service_type] ?? order.service_type} />

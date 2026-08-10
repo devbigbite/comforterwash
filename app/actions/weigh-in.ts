@@ -15,6 +15,8 @@
 // overwrites an existing weight or double-charges the customer.
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { sendSMS, sendBookingNotification } from "@/lib/sms"
+import { sendWeightConfirmedEmail } from "@/lib/email"
 
 export interface WeighInResult {
   success?: boolean
@@ -23,6 +25,12 @@ export interface WeighInResult {
   customerFinalCents?: number
   facilityCostCents?: number
 }
+
+const CUSTOMER_MIN_LBS = 20
+// Fallback only — used when a booking has no locked-in price_per_lb_cents
+// (shouldn't normally happen for a real consumer booking; kept as a safety
+// net so weighing never hard-fails on a data gap).
+const DEFAULT_RATE_CENTS: Record<string, number> = { wash_fold: 250, wash_only: 199, comforter_wash: 0 }
 
 export async function recordWeightAndCharge(
   bookingId: string,
@@ -35,7 +43,7 @@ export async function recordWeightAndCharge(
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("actual_weight_lbs, assigned_facility_id, stripe_payment_intent_id, customer_final_cents, service_type, commercial_account_id, recurring_subscription_id")
+    .select("actual_weight_lbs, assigned_facility_id, stripe_payment_intent_id, customer_final_cents, service_type, commercial_account_id, recurring_subscription_id, price_per_lb_cents, short_code, customer_name, customer_email, customer_phone")
     .eq("id", bookingId)
     .single()
 
@@ -44,8 +52,8 @@ export async function recordWeightAndCharge(
 
   // Commercial pay-at-time-of-service accounts price off their own
   // negotiated rate_type/rate_amount_cents/minimum_amount_cents instead of
-  // the consumer DEFAULT_RATE table — see commercial_accounts.
-  let commercialAccount: { rate_type: string; rate_amount_cents: number | null; minimum_amount_cents: number | null } | null = null
+  // the consumer per-lb rate — see commercial_accounts.
+  let commercialAccount: { rate_type: string; rate_amount_cents: number | null; minimum_amount_cents: number | null; business_name?: string } | null = null
   if (booking.commercial_account_id) {
     const { data } = await supabase
       .from("commercial_accounts")
@@ -56,6 +64,16 @@ export async function recordWeightAndCharge(
   }
 
   let customerFinalCents: number
+  // Consumer rate: this booking's own locked-in price_per_lb_cents (set at
+  // checkout time — e.g. a customer quoted $2.69/lb should always be billed
+  // $2.69/lb, not a generic default) takes priority over DEFAULT_RATE_CENTS.
+  // Previously this function ignored price_per_lb_cents entirely, so weight
+  // entered from the admin/operator weigh-in card could silently undercharge
+  // (or overcharge) a customer relative to what the driver-app path
+  // (confirmDropoff, which did read this field) would have billed for the
+  // exact same order.
+  const consumerRateCents = booking.price_per_lb_cents ?? DEFAULT_RATE_CENTS[booking.service_type as string] ?? 250
+  const chargedLbs = Math.max(weightLbs, CUSTOMER_MIN_LBS)
   if (commercialAccount) {
     const rateAmount = commercialAccount.rate_amount_cents ?? 0
     const rawCents =
@@ -64,10 +82,7 @@ export async function recordWeightAndCharge(
       rateAmount // per_load — same flat amount per order
     customerFinalCents = Math.max(rawCents, commercialAccount.minimum_amount_cents ?? 0)
   } else {
-    const DEFAULT_RATE: Record<string, number> = { wash_fold: 250, wash_only: 199, comforter_wash: 0 }
-    const ratePerLbCents = DEFAULT_RATE[booking.service_type as string] ?? 250
-    const customerChargeLbs = Math.max(weightLbs, 20)
-    customerFinalCents = customerChargeLbs * ratePerLbCents
+    customerFinalCents = chargedLbs * consumerRateCents
   }
 
   let facilityCostCents = 0
@@ -126,6 +141,33 @@ export async function recordWeightAndCharge(
       }
     } catch (e) { console.error("[weigh-in] Subscription charge failed:", e) }
   }
+
+  // Tell the customer their order was weighed — fire-and-forget so a
+  // notification failure never blocks the (already-committed) weight/
+  // billing save. Deliberately no pricing in these messages per explicit
+  // request — just a warm thank-you + the weight. Billing itself is still
+  // computed and charged as normal above; customers can see the full
+  // amount on their card statement or by tracking the order.
+  try {
+    if (commercialAccount) {
+      if (booking.customer_phone) {
+        await sendSMS(booking.customer_phone,
+          `Hi ${booking.customer_name?.split(" ")[0] ?? "there"}, thank you for your order! 🧺 It weighed in at ${weightLbs} lbs. We appreciate your business!`)
+      }
+    } else {
+      if (booking.customer_phone) {
+        await sendBookingNotification(bookingId, "weight_confirmed",
+          booking.customer_name?.split(" ")[0] ?? "there", String(weightLbs))
+      }
+      if (booking.customer_email) {
+        await sendWeightConfirmedEmail(booking.customer_email, {
+          customerName: booking.customer_name ?? "Valued Customer",
+          shortCode: booking.short_code,
+          weightLbs,
+        })
+      }
+    }
+  } catch (e) { console.error("[weigh-in] Weight-confirmed notification failed:", e) }
 
   return { success: true, customerFinalCents, facilityCostCents }
 }
