@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import Link from "next/link"
+import { OrderRow } from "@/components/admin/order-row"
 
 export const dynamic = "force-dynamic"
 
@@ -14,21 +15,6 @@ const STATUS_TABS = [
   { key: "delivered",   label: "Delivered" },
   { key: "cancelled",   label: "Cancelled" },
 ]
-
-const STATUS_BADGE: Record<string, string> = {
-  confirmed:   "bg-blue-100 text-blue-700",
-  picked_up:   "bg-amber-100 text-amber-700",
-  in_progress: "bg-purple-100 text-purple-700",
-  ready:       "bg-cyan-100 text-cyan-700",
-  delivered:   "bg-green-100 text-green-700",
-  cancelled:   "bg-red-100 text-red-700",
-}
-
-const SERVICE_LABEL: Record<string, string> = {
-  comforter_wash: "🛏️ Comforter",
-  wash_fold:      "👕 W&F",
-  wash_only:      "🧺 Wash Only",
-}
 
 // subscription_frequency has been stored on every booking since recurring
 // support was added, but nothing in the admin UI ever displayed it — the
@@ -56,7 +42,17 @@ export default async function OrdersPage({
 
   let query = supabase
     .from("bookings")
-    .select("id, short_code, created_at, customer_name, customer_email, customer_phone, pickup_date, delivery_date, status, service_type, customer_final_cents, num_comforters, comforter_size, num_bags, subscription_frequency, commercial_account_id")
+    .select(`
+      id, short_code, created_at, customer_name, customer_email, customer_phone,
+      customer_address, delivery_address,
+      pickup_date, pickup_time_window, delivery_date, delivery_time_window,
+      status, service_type, customer_final_cents, num_comforters, comforter_size,
+      comforter_sizes, num_bags, detergent, extras, promo_code, promo_discount_cents,
+      subscription_frequency, commercial_account_id,
+      assigned_driver:workers!assigned_driver_id(name),
+      assigned_delivery_driver:workers!assigned_delivery_driver_id(name),
+      assigned_operator:workers!assigned_operator_id(name)
+    `)
     .eq("location_id", locationId)
     .order("created_at", { ascending: false })
     .limit(200)
@@ -160,51 +156,7 @@ export default async function OrdersPage({
             </thead>
             <tbody className="divide-y divide-gray-50">
               {orders.map((b) => (
-                <tr key={b.id} className="hover:bg-gray-50 transition-colors group">
-                  <td className="px-4 py-3 font-mono text-xs font-bold text-[#0D2240] whitespace-nowrap">
-                    {b.short_code?.toUpperCase() ?? b.id.slice(0, 8).toUpperCase()}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <p className="font-semibold text-[#0D2240]">{b.customer_name}</p>
-                    <div className="mt-0.5">
-                      <CustomerTypeBadge frequency={b.subscription_frequency} isCommercial={!!b.commercial_account_id} />
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                    {b.customer_phone}
-                  </td>
-                  <td className="px-4 py-3 text-xs whitespace-nowrap">
-                    {SERVICE_LABEL[b.service_type] ?? b.service_type}
-                    {b.comforter_size && (
-                      <span className="ml-1 text-gray-400 capitalize">({b.comforter_size})</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 text-center">
-                    {b.num_bags ?? b.num_comforters ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                    {b.pickup_date ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                    {b.delivery_date ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-[#0D2240] whitespace-nowrap">
-                    ${((b.customer_final_cents ?? 0) / 100).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${STATUS_BADGE[b.status] ?? "bg-gray-100 text-gray-500"}`}>
-                      {b.status?.replace(/_/g, " ")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/admin/orders/${b.id}`}
-                      className="text-[#E8726A] text-xs font-bold hover:underline opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
-                    >
-                      Open →
-                    </Link>
-                  </td>
-                </tr>
+                <OrderRow key={b.id} order={b as never} CustomerTypeBadge={CustomerTypeBadge} />
               ))}
             </tbody>
           </table>

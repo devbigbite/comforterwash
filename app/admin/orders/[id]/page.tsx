@@ -17,6 +17,7 @@ import { recordWeightAndCharge } from "@/app/actions/weigh-in"
 import { updateFacilityDetails } from "@/app/actions/facility-board"
 import PhotoUploader from "@/app/operator/order/[id]/photo-uploader"
 import { WeightEntryForm } from "@/components/admin/WeightEntryForm"
+import { OrderSnapshot } from "@/components/admin/order-snapshot"
 
 // bookings has its own location_id — every inline action below verifies the
 // bookingId it's given actually belongs to the current tenant before doing
@@ -320,7 +321,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       *,
       shipday_pickup_order_id,
       shipday_delivery_order_id,
-      assigned_facility:facilities!assigned_facility_id(id, name, processing_mode, rate_per_lb, minimum_lbs, partner_access_code)
+      assigned_facility:facilities!assigned_facility_id(id, name, processing_mode, rate_per_lb, minimum_lbs, partner_access_code),
+      assigned_driver:workers!assigned_driver_id(name),
+      assigned_delivery_driver:workers!assigned_delivery_driver_id(name),
+      assigned_operator:workers!assigned_operator_id(name)
     `)
     .eq("id", id)
     .eq("location_id", locationId)
@@ -442,6 +446,15 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             </Link>
             <Link href="/admin" className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors">← Admin</Link>
           </div>
+        </div>
+
+        {/* Order Snapshot — at-a-glance pickup/delivery timing, what's inside,
+            who it's for, who's handling it, what it costs. Everything below
+            this (billing breakdown, photos, event log) is the deep-dive view;
+            this card exists so nobody has to scroll through all of that just
+            to answer "when's this picked up / what's in it." */}
+        <div className="mb-6">
+          <OrderSnapshot order={booking} />
         </div>
 
         {/* Billing Breakdown — full width, top */}
