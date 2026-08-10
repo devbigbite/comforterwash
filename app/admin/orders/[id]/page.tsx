@@ -361,7 +361,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       .filter(e => e.event_type === eventType && e.photo_url)
       .map(e => e.photo_url as string)
 
-  const orderCode = booking.id.slice(0, 8).toUpperCase()
+  // short_code is the one real order number staff and customers both use
+  // (matches the Order Snapshot card, receipts, dispatch, etc). Only fall
+  // back to a UUID fragment for old rows that predate short_code.
+  const orderCode = (booking.short_code as string | null)?.toUpperCase()
+    ?? booking.id.slice(0, 8).toUpperCase()
 
   const assignedFacility = booking.assigned_facility as {
     id: string; name: string; processing_mode: string
@@ -438,6 +442,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               </span>
             </div>
             <p className="text-sm text-gray-400">{booking.customer_name} · {booking.customer_phone}</p>
+            <p className="text-[10px] text-gray-300 font-mono mt-0.5">internal id: {booking.id}</p>
           </div>
           <div className="flex items-center gap-3">
             <Link href={`/admin/orders/${id}/labels`}
