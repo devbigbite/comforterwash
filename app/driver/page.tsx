@@ -60,6 +60,9 @@ function DriverHomeInner() {
         setPickups(queue.pickups)
         setDeliveries(queue.deliveries)
         setPendingRuns(runs)
+        // Reflect real per-booking notified state on load instead of always
+        // starting unclicked — see the comment in getDriverQueue.
+        setRouteStarted(queue.routeAlreadyStarted)
       } finally {
         setRouteLoading(false)
       }

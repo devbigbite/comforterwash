@@ -20,8 +20,9 @@ export interface DriverOrder {
 export async function getDriverQueue(driverId: string): Promise<{
   pickups: DriverOrder[]
   deliveries: DriverOrder[]
+  routeAlreadyStarted: boolean
 }> {
-  if (!driverId) return { pickups: [], deliveries: [] }
+  if (!driverId) return { pickups: [], deliveries: [], routeAlreadyStarted: false }
 
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
@@ -70,10 +71,33 @@ export async function getDriverQueue(driverId: string): Promise<{
   if (!isOwner) deliveriesQuery = deliveriesQuery.eq("assigned_delivery_driver_id", driverId)
 
   const [{ data: pickups }, { data: deliveries }] = await Promise.all([pickupsQuery, deliveriesQuery])
+  const pickupList = (pickups ?? []) as DriverOrder[]
+
+  // The "Start Route — Notify All Customers" button's on-screen state was
+  // previously plain client useState, reset to unclicked on every page
+  // load/navigation — so a driver who tapped it, then left and came back to
+  // the page (as happened here), saw the button lit up again as if nothing
+  // had happened, even though notifyRouteStart is itself idempotent and
+  // wouldn't re-send. Confusing and, if someone assumed the idempotency
+  // guard away, risked a driver tapping it "just to be safe" on a route that
+  // was already notified. Deriving the initial state from whether today's
+  // pickups already have a driver_enroute_pickup event fixes the display to
+  // match reality on load, not just within a single session.
+  let routeAlreadyStarted = false
+  if (pickupList.length) {
+    const { data: notifiedEvents } = await supabase
+      .from("order_events")
+      .select("booking_id")
+      .eq("event_type", "driver_enroute_pickup")
+      .in("booking_id", pickupList.map(p => p.id))
+    const notifiedIds = new Set((notifiedEvents ?? []).map(e => e.booking_id as string))
+    routeAlreadyStarted = pickupList.every(p => notifiedIds.has(p.id))
+  }
 
   return {
-    pickups:    (pickups    ?? []) as DriverOrder[],
+    pickups:    pickupList,
     deliveries: (deliveries ?? []) as DriverOrder[],
+    routeAlreadyStarted,
   }
 }
 

@@ -199,7 +199,7 @@ export default function DriverOrderClient({
     setSubmitting("dropoff")
     const fd = new FormData(e.currentTarget)
     fd.set("driverName",       driverName.trim())
-    fd.set("weightLbs",        totalWeight.toFixed(1))
+    fd.set("weightLbs",        totalWeight.toFixed(2))
     fd.set("dropoffLocation",  dropoffLocation)
     if (floorPhotoUrl) fd.set("floorPhotoUrl", floorPhotoUrl)
     await confirmDropoff(fd)
@@ -239,7 +239,17 @@ export default function DriverOrderClient({
   // made an untouched order look like it was already mid-flow.
   const needsDropoff   = somePickedUp || (allPickedUp && !allAtWarehouse && !allAtFacility)
   const inPickupFlow   = allPending || needsDropoff
-  const inDeliveryFlow = allReadyAtWarehouse || allOutForDel
+  // A "ready" order that already has a delivery driver assigned (which is
+  // the only way this page gets reached for a "ready" booking — see
+  // getDriverQueue's deliveriesQuery, which includes "ready" alongside
+  // "ready_at_warehouse"/"out_for_delivery" specifically so directly-assigned
+  // deliveries show up without waiting on a warehouse transport run) is
+  // meant to be actionable immediately, not just a status to wait on.
+  // Previously this state fell through to a dead-end "Ready at Facility"
+  // banner with no button — the driver had no way to start delivery or take
+  // the delivery photo, even though confirmDelivery already supports
+  // advancing straight from "ready" to "out_for_delivery".
+  const inDeliveryFlow = allReady || allReadyAtWarehouse || allOutForDel
   const showPickup     = inPickupFlow   && !isDeliveryDay
   const showDelivery   = inDeliveryFlow && !isPickupDay
   const dropoffWord    = dropoffLocation === "facility" ? "facility" : "warehouse"
@@ -254,8 +264,8 @@ export default function DriverOrderClient({
   : allAtWarehouse  ? { label: "At Warehouse",      sub: "Waiting for transport run to assign to facility",            bg: "bg-amber-500",  icon: "🏪" }
   : allAtFacility && !allReady
                     ? { label: "Being Processed",   sub: `At facility${assignedFacilityName ? ` (${assignedFacilityName})` : ""} · delivery ${deliveryDate}`, bg: "bg-purple-600", icon: "🏭" }
-  : allReady && !allReadyAtWarehouse
-                    ? { label: "Ready at Facility", sub: "Awaiting return transport run to warehouse",                 bg: "bg-green-600",  icon: "✅" }
+  : allReady && !allReadyAtWarehouse && !allOutForDel
+                    ? { label: "Ready for Delivery", sub: "Collect the bags and start your delivery run below",        bg: "bg-green-600",  icon: "✅" }
   : null
 
   return (
@@ -455,7 +465,12 @@ export default function DriverOrderClient({
                           <span className={`w-14 shrink-0 text-sm font-bold uppercase tracking-wide ${isPrimary ? "text-gray-600" : "text-[#E8726A]"}`}>
                             {isPrimary ? `Bag ${i + 1}` : `Extra ${i - bags.length + 1}`}
                           </span>
-                          <input type="number" step="0.1" min="0.1" value={w}
+                          {/* step="0.01" — a digital scale reads two decimal
+                              places (e.g. 17.85 lbs). step="0.1" made the
+                              browser silently reject/round any 2-decimal
+                              value to the nearest tenth (17.85 -> 17.80),
+                              quietly changing what the driver typed. */}
+                          <input type="number" step="0.01" min="0.01" value={w}
                             onChange={e => updateBagWeight(i, e.target.value)} placeholder="0.0"
                             className={`flex-1 rounded-xl border-2 px-3 py-2.5 text-center text-2xl font-bold font-mono text-[#0D2240] focus:outline-none transition-colors
                               ${hasValue ? "border-green-400 bg-green-50" : "border-gray-200 focus:border-[#E8726A]"}`} />
@@ -475,11 +490,11 @@ export default function DriverOrderClient({
                   <div className={`mt-3 rounded-xl px-4 py-3 flex items-center justify-between ${allSlotsWeighed && totalWeight > 0 ? "bg-[#0D2240]" : "bg-gray-100"}`}>
                     <span className={`text-base font-bold ${allSlotsWeighed && totalWeight > 0 ? "text-white/70" : "text-gray-400"}`}>Total</span>
                     <span className={`text-2xl font-black font-mono ${allSlotsWeighed && totalWeight > 0 ? "text-[#E8726A]" : "text-gray-300"}`}>
-                      {totalWeight > 0 ? `${totalWeight.toFixed(1)} lbs` : "— lbs"}
+                      {totalWeight > 0 ? `${totalWeight.toFixed(2)} lbs` : "— lbs"}
                     </span>
                   </div>
                   <input type="hidden" name="bookingId" value={bookingId} />
-                  <input type="hidden" name="weightLbs" value={totalWeight.toFixed(1)} />
+                  <input type="hidden" name="weightLbs" value={totalWeight.toFixed(2)} />
                   {weightError && (
                     <p className="text-red-500 text-sm font-semibold mt-2">⚠ Enter weight for all bags before confirming — weighing is required</p>
                   )}
@@ -509,8 +524,8 @@ export default function DriverOrderClient({
                   {submitting === "dropoff"
                     ? "Saving…"
                     : dropoffLocation === "facility"
-                      ? `🏭 Confirm Facility Drop-off · ${totalWeight > 0 ? totalWeight.toFixed(1) + " lbs" : "enter weights"}`
-                      : `🏪 Confirm Warehouse Drop-off · ${totalWeight > 0 ? totalWeight.toFixed(1) + " lbs" : "enter weights"}`}
+                      ? `🏭 Confirm Facility Drop-off · ${totalWeight > 0 ? totalWeight.toFixed(2) + " lbs" : "enter weights"}`
+                      : `🏪 Confirm Warehouse Drop-off · ${totalWeight > 0 ? totalWeight.toFixed(2) + " lbs" : "enter weights"}`}
                 </button>
               </form>
             )}
@@ -537,13 +552,6 @@ export default function DriverOrderClient({
         </div>
       )}
 
-      {allReady && !allReadyAtWarehouse && (
-        <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5 text-center">
-          <p className="text-green-700 font-extrabold text-xl">✅ Ready at Facility</p>
-          <p className="text-green-600 text-base mt-1">Bags are clean. Awaiting return transport run to warehouse.</p>
-        </div>
-      )}
-
       {/* ══════════════════════════════════════════════════════════════ */}
       {/* DELIVERY PHASE                                                 */}
       {/* ══════════════════════════════════════════════════════════════ */}
@@ -559,20 +567,32 @@ export default function DriverOrderClient({
 
           <div className="bg-white p-5 space-y-5">
 
-            {/* Step 1: Pick up from warehouse */}
-            {allReadyAtWarehouse && (
+            {/* Step 1: Collect the finished bags — from the warehouse if this
+                order went through a transport run (allReadyAtWarehouse), or
+                directly from the facility if it's a direct-assigned delivery
+                that skipped the warehouse leg entirely (allReady). Either
+                way this is the same action: confirm you have the bags, then
+                start the delivery run — confirmDelivery already accepts
+                "ready" as a valid starting status for this transition. */}
+            {(allReadyAtWarehouse || (allReady && !allReadyAtWarehouse && !allOutForDel)) && (
               <div className="space-y-3">
                 <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 text-center">
-                  <p className="text-teal-700 font-extrabold">✅ Bags ready at warehouse!</p>
-                  <p className="text-teal-600 text-base mt-0.5">Go to the warehouse and collect the clean bags.</p>
+                  <p className="text-teal-700 font-extrabold">✅ Bags ready{allReadyAtWarehouse ? " at warehouse" : ""}!</p>
+                  <p className="text-teal-600 text-base mt-0.5">
+                    {allReadyAtWarehouse
+                      ? "Go to the warehouse and collect the clean bags."
+                      : `Go to${assignedFacilityName ? ` ${assignedFacilityName}` : " the facility"} and collect the clean bags.`}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-base font-extrabold text-[#0D2240] mb-0.5">Step 1 — Collect from warehouse</p>
-                  <p className="text-sm text-gray-500">Take a photo of the clean bags at the warehouse, then start the delivery run.</p>
+                  <p className="text-base font-extrabold text-[#0D2240] mb-0.5">
+                    Step 1 — Collect from {allReadyAtWarehouse ? "warehouse" : "facility"}
+                  </p>
+                  <p className="text-sm text-gray-500">Take a photo of the clean bags, then start the delivery run.</p>
                 </div>
                 <div className={`rounded-xl overflow-hidden border-2 ${warehousePickupPhotoErr ? "border-red-400" : hasWarehousePickupPhoto ? "border-green-400" : "border-gray-200"}`}>
                   <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
-                    eventType="photo_facility_pickup" label="📷 Photo at Warehouse — Clean Bags"
+                    eventType="photo_facility_pickup" label={`📷 Photo — Clean Bags at ${allReadyAtWarehouse ? "Warehouse" : "Facility"}`}
                     onPhotoUploaded={() => { setHasWarehousePickupPhoto(true); setWarehousePickupPhotoErr(false) }} />
                   <PhotoRequired taken={hasWarehousePickupPhoto} error={warehousePickupPhotoErr} />
                 </div>

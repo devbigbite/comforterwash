@@ -14,6 +14,7 @@ import { MiscFeesPanel } from "./misc-fees-panel"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { recordWeightAndCharge } from "@/app/actions/weigh-in"
+import { capturePayment, chargeCommercialAccountOrder } from "@/app/actions/stripe"
 import { updateFacilityDetails } from "@/app/actions/facility-board"
 import PhotoUploader from "@/app/operator/order/[id]/photo-uploader"
 import { WeightEntryForm } from "@/components/admin/WeightEntryForm"
@@ -202,6 +203,51 @@ async function enterWeightAction(formData: FormData) {
       created_by: "admin",
     })
   }
+  revalidatePath(`/admin/orders/${bookingId}`)
+}
+
+// Manual "Capture Payment" — surfaces the same capturePayment() that
+// confirmDropoff/recordWeightAndCharge already call automatically, for the
+// case where that automatic call never fired or silently failed (e.g. the
+// driver-app booking-update bug that left weight/billing unset even though
+// the timeline showed a weight — see order_events "⚠ Weight/billing save
+// FAILED"). Gives admin a real button instead of needing a DB fix each time.
+async function captureNowAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  await assertBookingOwnership(bookingId)
+  const supabase = createAdminClient()
+  try {
+    await capturePayment(bookingId)
+    await supabase.from("order_events").insert({
+      booking_id: bookingId, event_type: "weight_confirmed",
+      notes: "Payment captured manually by admin", created_by: "admin",
+    })
+  } catch (err) {
+    await supabase.from("order_events").insert({
+      booking_id: bookingId, event_type: "weight_confirmed",
+      notes: `Manual capture failed: ${err instanceof Error ? err.message : "unknown error"}`,
+      created_by: "admin",
+    })
+  }
+  revalidatePath(`/admin/orders/${bookingId}`)
+}
+
+// Manual "Retry Charge" for commercial pay-at-service accounts — each call
+// creates a fresh Stripe PaymentIntent (chargeCommercialAccountOrder doesn't
+// reuse the failed one), so this is safe to click again after fixing
+// whatever caused the decline (expired card, closed Link connection, etc).
+async function retryCommercialChargeAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  await assertBookingOwnership(bookingId)
+  const supabase = createAdminClient()
+  const result = await chargeCommercialAccountOrder(bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId, event_type: "weight_confirmed",
+    notes: result.success ? "Commercial charge retried and succeeded (admin)" : `Retry failed: ${result.error}`,
+    created_by: "admin",
+  })
   revalidatePath(`/admin/orders/${bookingId}`)
 }
 
@@ -505,6 +551,36 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 Pre-authorized: ${(preAuthCents / 100).toFixed(2)} ·
                 Payment: <span className="font-semibold">{booking.payment_status}</span>
               </p>
+            )}
+
+            {/* Consumer pre-auth still uncaptured — happens when the
+                automatic capture in confirmDropoff/recordWeightAndCharge
+                never fired (network blip, or the booking-update bug that
+                left weight set but skipped the capture step entirely). */}
+            {!booking.commercial_account_id && booking.payment_status === "pre_authorized" && (
+              <form action={captureNowAction} className="mt-4 flex flex-col items-center gap-1">
+                <input type="hidden" name="bookingId" value={booking.id} />
+                <button type="submit"
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors">
+                  💳 Capture Payment — ${(customerFinalCents! / 100).toFixed(2)}
+                </button>
+                <p className="text-xs text-gray-400">Charges the card on file for the billed amount now.</p>
+              </form>
+            )}
+
+            {/* Commercial pay-at-service charge failed (declined card, closed
+                Link connection, etc). Each retry creates a fresh
+                PaymentIntent, so it's safe to click again after fixing the
+                payment method on file. */}
+            {booking.commercial_account_id && booking.payment_status === "failed" && (
+              <form action={retryCommercialChargeAction} className="mt-4 flex flex-col items-center gap-1">
+                <input type="hidden" name="bookingId" value={booking.id} />
+                <button type="submit"
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors">
+                  🔁 Retry Charge — ${(customerFinalCents! / 100).toFixed(2)}
+                </button>
+                <p className="text-xs text-gray-400">Verify the commercial account's card on file before retrying.</p>
+              </form>
             )}
           </div>
         ) : booking.service_type === "wash_fold" && (

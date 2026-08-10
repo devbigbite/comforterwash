@@ -187,7 +187,7 @@ async function confirmDropoff(formData: FormData) {
   const eventType     = dropoffLocation === "facility" ? "dropped_at_facility" : "dropped_at_warehouse"
   const locationLabel = dropoffLocation === "facility" ? "facility" : "warehouse"
 
-  await supabase.from("bookings").update({
+  const { error: dropoffUpdateError } = await supabase.from("bookings").update({
     actual_weight_lbs:      weightLbs,
     customer_final_cents:   customerFinalCents,
     weight_entered_by:      driverName,
@@ -196,6 +196,23 @@ async function confirmDropoff(formData: FormData) {
     ...(assignedFacilityId ? { assigned_facility_id: assignedFacilityId } : {}),
     ...(floorPhotoUrl ? { facility_floor_photo_url: floorPhotoUrl } : {}),
   }).eq("id", bookingId)
+
+  // This update was previously unchecked — if it failed, the driver still
+  // saw a "Dropped at facility" success screen and the timeline still logged
+  // a "Weight: ... lbs · Customer billed: ..." event (that note is built from
+  // this function's local variables, not read back from the row), so nothing
+  // looked wrong until someone opened the admin order page later and found
+  // actual_weight_lbs/customer_final_cents still null despite the timeline
+  // showing a weight. Logging the failure loudly instead of swallowing it.
+  if (dropoffUpdateError) {
+    console.error("[driver] confirmDropoff booking update failed:", dropoffUpdateError.message)
+    await supabase.from("order_events").insert({
+      booking_id: bookingId,
+      event_type: "weight_confirmed",
+      notes: `⚠ Weight/billing save FAILED: ${dropoffUpdateError.message} — weight was ${weightLbs} lbs, re-enter from the admin order page`,
+      created_by: driverName,
+    })
+  }
 
   await supabase.from("order_bags").update({ status: newStatus })
     .eq("booking_id", bookingId).eq("status", "picked_up")
