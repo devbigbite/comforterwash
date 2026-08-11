@@ -90,30 +90,49 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
             </div>
           ) : (
             <div className="space-y-2">
-              {orders.map(o => (
-                <div key={o.id} className="flex items-center gap-3 flex-wrap rounded-xl border border-gray-100 px-4 py-3 text-sm">
-                  <span className="font-bold text-[#0D2240] w-20 shrink-0">{o.short_code ?? o.id.slice(0, 6).toUpperCase()}</span>
-                  <span className="text-gray-500">{o.pickup_date}</span>
-                  <span className="text-gray-400">
-                    {o.actual_weight_lbs ? `${o.actual_weight_lbs} lbs` : "—"}
-                    {/* Shows the math (weight × rate) so the charged amount is
-                        never a mystery number — this is the exact ask that
-                        prompted adding it: "a breakdown of the weight and
-                        pricing details" for understanding future charges. */}
-                    {o.actual_weight_lbs && account.rate_type === "per_lb" && account.rate_amount_cents && (
-                      <span className="text-[10px] text-gray-400 ml-1">
-                        (× ${(account.rate_amount_cents / 100).toFixed(2)}/lb)
-                      </span>
-                    )}
-                  </span>
-                  <span className="font-bold text-[#0D2240] ml-auto">
-                    {o.customer_final_cents != null ? `$${(o.customer_final_cents / 100).toFixed(2)}` : "—"}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${PAYMENT_STATUS_STYLE[o.payment_status ?? "pending"] ?? "bg-gray-100 text-gray-500 border-gray-200"}`}>
-                    {PAYMENT_STATUS_LABEL[o.payment_status ?? "pending"] ?? o.payment_status}
-                  </span>
+              {orders.map(o => {
+                // Only show a bag breakdown when at least one bag actually has
+                // a weight recorded — orders weighed before per-bag capture
+                // existed have order_bags rows but no weight_lbs on them.
+                const bagBreakdown = (o.order_bags ?? [])
+                  .filter(b => b.weight_lbs != null)
+                  .sort((a, b) => a.bag_number - b.bag_number)
+                return (
+                <div key={o.id} className="rounded-xl border border-gray-100 px-4 py-3 text-sm">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="font-bold text-[#0D2240] w-20 shrink-0">{o.short_code ?? o.id.slice(0, 6).toUpperCase()}</span>
+                    <span className="text-gray-500">{o.pickup_date}</span>
+                    <span className="text-gray-400">
+                      {o.actual_weight_lbs ? `${o.actual_weight_lbs} lbs` : "—"}
+                      {/* Shows the math (weight × rate) so the charged amount is
+                          never a mystery number — this is the exact ask that
+                          prompted adding it: "a breakdown of the weight and
+                          pricing details" for understanding future charges. */}
+                      {o.actual_weight_lbs && account.rate_type === "per_lb" && account.rate_amount_cents && (
+                        <span className="text-[10px] text-gray-400 ml-1">
+                          (× ${(account.rate_amount_cents / 100).toFixed(2)}/lb)
+                        </span>
+                      )}
+                    </span>
+                    <span className="font-bold text-[#0D2240] ml-auto">
+                      {o.customer_final_cents != null ? `$${(o.customer_final_cents / 100).toFixed(2)}` : "—"}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${PAYMENT_STATUS_STYLE[o.payment_status ?? "pending"] ?? "bg-gray-100 text-gray-500 border-gray-200"}`}>
+                      {PAYMENT_STATUS_LABEL[o.payment_status ?? "pending"] ?? o.payment_status}
+                    </span>
+                  </div>
+                  {bagBreakdown.length > 0 && (
+                    <div className="mt-2 pl-1 flex flex-wrap gap-x-4 gap-y-0.5">
+                      {bagBreakdown.map(b => (
+                        <span key={b.bag_number} className="text-[11px] text-gray-400">
+                          Bag {b.bag_number}: <span className="text-gray-600 font-semibold">{b.weight_lbs} lbs</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

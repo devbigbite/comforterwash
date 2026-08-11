@@ -187,7 +187,14 @@ async function enterWeightAction(formData: FormData) {
   const bookingId = formData.get("bookingId") as string
   const weightLbs = parseFloat(formData.get("weightLbs") as string)
   await assertBookingOwnership(bookingId)
-  const result = await recordWeightAndCharge(bookingId, weightLbs, "admin")
+  // Per-bag breakdown, submitted as JSON [{bagId, weightLbs}] — optional, and
+  // never affects the total/billing above, which is computed from weightLbs.
+  const bagWeightsRaw = formData.get("bagWeights") as string | null
+  let bagWeights: { bagId: string; weightLbs: number }[] | undefined
+  if (bagWeightsRaw) {
+    try { bagWeights = JSON.parse(bagWeightsRaw) } catch { /* ignore malformed payload */ }
+  }
+  const result = await recordWeightAndCharge(bookingId, weightLbs, "admin", bagWeights)
   const supabase = createAdminClient()
   if (result.error) {
     await supabase.from("order_events").insert({
@@ -654,6 +661,7 @@ export default async function OrderDetailPage({
             <WeightEntryForm
               bookingId={booking.id}
               bagCount={bags?.length || (booking.num_bags as number | null) || 1}
+              bagIds={bags?.map(b => b.id as string)}
               action={enterWeightAction}
             />
           </div>
@@ -882,6 +890,7 @@ export default async function OrderDetailPage({
                       <p className="font-bold text-[#0D2240] text-sm font-mono">{bag.label_code}</p>
                       <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
                         {bag.status?.replace(/_/g, " ")}
+                        {bag.weight_lbs != null && ` · ${bag.weight_lbs} lbs`}
                       </p>
                     </div>
                     <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0 ${

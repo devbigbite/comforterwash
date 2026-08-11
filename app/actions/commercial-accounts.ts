@@ -169,6 +169,10 @@ export interface CommercialOrderHistoryItem {
   customer_final_cents: number | null
   payment_status: string | null
   created_at: string
+  // Per-bag weight breakdown, when captured at weigh-in — lets a commercial
+  // customer see how the order total was made up bag-by-bag instead of just
+  // one combined number (requested after a payment-retry billing question).
+  order_bags?: { bag_number: number; weight_lbs: number | null }[]
 }
 
 export async function getCommercialAccountOrderHistory(code: string): Promise<{
@@ -181,7 +185,7 @@ export async function getCommercialAccountOrderHistory(code: string): Promise<{
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("bookings")
-    .select("id, short_code, pickup_date, delivery_date, status, actual_weight_lbs, customer_final_cents, payment_status, created_at")
+    .select("id, short_code, pickup_date, delivery_date, status, actual_weight_lbs, customer_final_cents, payment_status, created_at, order_bags(bag_number, weight_lbs)")
     .eq("commercial_account_id", account.id)
     .order("created_at", { ascending: false })
 

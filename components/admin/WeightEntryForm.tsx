@@ -5,6 +5,12 @@ import { useState, useTransition } from "react"
 interface Props {
   bookingId: string
   bagCount: number
+  // Real order_bags row ids, in display order — when present, per-bag
+  // weights are submitted alongside the total so they can be saved onto each
+  // bag (see recordWeightAndCharge's optional bagWeights param) and later
+  // shown as a breakdown, e.g. on the commercial billing history page. Falls
+  // back to bagCount-only (no per-bag persistence) if ids aren't available.
+  bagIds?: string[]
   action: (formData: FormData) => Promise<void>
 }
 
@@ -13,8 +19,9 @@ interface Props {
 // missed or double-counted, the operator/admin sees it immediately instead
 // of guessing at a single combined number). The form still calls the same
 // recordWeightAndCharge action as everywhere else — it just sums the
-// per-bag readings into the one total that function expects.
-export function WeightEntryForm({ bookingId, bagCount, action }: Props) {
+// per-bag readings into the one total that function expects, and now also
+// passes the individual readings through so they can be persisted per bag.
+export function WeightEntryForm({ bookingId, bagCount, bagIds, action }: Props) {
   const count = Math.max(1, bagCount || 1)
   const [weights, setWeights] = useState<string[]>(Array(count).fill(""))
   const [pending, startTransition] = useTransition()
@@ -37,6 +44,10 @@ export function WeightEntryForm({ bookingId, bagCount, action }: Props) {
     const fd = new FormData()
     fd.append("bookingId", bookingId)
     fd.append("weightLbs", String(total))
+    if (bagIds?.length === weights.length) {
+      const bagWeights = weights.map((w, i) => ({ bagId: bagIds[i], weightLbs: parseFloat(w) }))
+      fd.append("bagWeights", JSON.stringify(bagWeights))
+    }
     startTransition(() => { action(fd) })
   }
 

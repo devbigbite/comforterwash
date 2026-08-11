@@ -36,6 +36,11 @@ export async function recordWeightAndCharge(
   bookingId: string,
   weightLbs: number,
   enteredBy: string,
+  // Optional per-bag breakdown (bag id -> lbs), captured at the same weigh-in
+  // moment the total is entered. Purely informational/display — billing math
+  // above only ever uses the total `weightLbs`, so a missing or partial
+  // breakdown never affects what the customer is charged.
+  bagWeights?: { bagId: string; weightLbs: number }[],
 ): Promise<WeighInResult> {
   if (!(weightLbs > 0)) return { error: "Enter a weight greater than 0 lbs" }
 
@@ -105,6 +110,17 @@ export async function recordWeightAndCharge(
   if (updateError) {
     console.error("[weigh-in] booking update failed:", updateError.message)
     return { error: updateError.message }
+  }
+
+  if (bagWeights?.length) {
+    // Best-effort — a failure here should never undo the weight/billing
+    // update above, which has already succeeded and (for commercial/consumer
+    // charges below) is about to trigger a real charge.
+    for (const { bagId, weightLbs: lbs } of bagWeights) {
+      if (!(lbs > 0)) continue
+      const { error } = await supabase.from("order_bags").update({ weight_lbs: lbs }).eq("id", bagId).eq("booking_id", bookingId)
+      if (error) console.error("[weigh-in] per-bag weight save failed:", bagId, error.message)
+    }
   }
 
   if (booking.commercial_account_id && customerFinalCents) {
