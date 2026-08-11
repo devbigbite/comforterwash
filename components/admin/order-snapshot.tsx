@@ -82,7 +82,14 @@ export function OrderSnapshot({ order, compact }: { order: OrderSnapshotData; co
   // shown as "2 comforters").
   const countUnit = order.service_type === "comforter_wash" ? "comforter" : "bag"
   const amountCents = order.customer_final_cents ?? order.total_amount ?? 0
-  const address = order.delivery_address || order.customer_address
+  // Show pickup and delivery addresses separately when they're known to
+  // differ (or when only one is known) rather than collapsing to a single
+  // "Delivery Address" field — a commercial customer asked to see both, and
+  // silently picking one hid the fact that pickup can be a different address
+  // than delivery.
+  const pickupAddress = order.customer_address || null
+  const deliveryAddress = order.delivery_address || order.customer_address || null
+  const sameAddress = pickupAddress && deliveryAddress && pickupAddress === deliveryAddress
 
   const customerType = order.commercial_account_id
     ? "🏢 Commercial"
@@ -145,7 +152,14 @@ export function OrderSnapshot({ order, compact }: { order: OrderSnapshotData; co
           } />
         )}
 
-        {address && <Field label="Delivery Address" value={<span className="text-xs font-normal">{address}</span>} />}
+        {sameAddress ? (
+          pickupAddress && <Field label="Pickup & Delivery Address" value={<span className="text-xs font-normal">{pickupAddress}</span>} />
+        ) : (
+          <>
+            {pickupAddress && <Field label="Pickup Address" value={<span className="text-xs font-normal">{pickupAddress}</span>} />}
+            {deliveryAddress && <Field label="Delivery Address" value={<span className="text-xs font-normal">{deliveryAddress}</span>} />}
+          </>
+        )}
 
         {(order.assigned_driver || order.assigned_delivery_driver || order.assigned_operator) && (
           <Field label="Assigned To" value={

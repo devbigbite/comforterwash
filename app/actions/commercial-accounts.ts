@@ -166,6 +166,7 @@ export interface CommercialOrderHistoryItem {
   pickup_time_window: string | null
   delivery_date: string
   delivery_time_window: string | null
+  customer_address: string | null
   delivery_address: string | null
   status: string
   service_type: string
@@ -200,7 +201,7 @@ export async function getCommercialAccountOrderHistory(code: string): Promise<{
     .from("bookings")
     .select(`
       id, short_code, pickup_date, pickup_time_window, delivery_date, delivery_time_window,
-      delivery_address, status, service_type, num_bags, num_comforters, comforter_size,
+      customer_address, delivery_address, status, service_type, num_bags, num_comforters, comforter_size,
       comforter_sizes, detergent, extras, actual_weight_lbs, customer_final_cents,
       payment_status, created_at, order_bags(bag_number, weight_lbs),
       assigned_driver:workers!assigned_driver_id(name),

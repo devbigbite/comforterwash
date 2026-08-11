@@ -149,7 +149,7 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
                   service_type: o.service_type,
                   customer_name: account.business_name,
                   customer_phone: account.contact_phone,
-                  customer_address: null,
+                  customer_address: o.customer_address,
                   delivery_address: o.delivery_address,
                   pickup_date: o.pickup_date,
                   pickup_time_window: o.pickup_time_window,
