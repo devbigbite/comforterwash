@@ -19,16 +19,29 @@ const STATUS_BADGE: Record<string, string> = {
   cancelled:   "bg-red-100 text-red-700",
 }
 
+// Inlined here (rather than passed down as a prop from the server component)
+// because Next.js can't serialize a function across the server/client
+// boundary — passing CustomerTypeBadge as a prop from a Server Component
+// into this "use client" component threw "Functions cannot be passed
+// directly to Client Components" and 500'd the whole Orders page.
+function CustomerTypeBadge({ frequency, isCommercial }: { frequency: string | null; isCommercial: boolean }) {
+  if (isCommercial) {
+    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase whitespace-nowrap">🏢 Commercial</span>
+  }
+  if (frequency === "weekly" || frequency === "biweekly") {
+    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 uppercase whitespace-nowrap">🔁 {frequency}</span>
+  }
+  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 uppercase whitespace-nowrap">One-time</span>
+}
+
 // Click-to-expand row — lets a dispatcher scan the list and pull up an
 // order's full snapshot (pickup/delivery timing, what's inside, who it's
 // for/assigned to, cost) inline, without leaving the Orders list to open
 // each order's full detail page one at a time.
 export function OrderRow({
   order,
-  CustomerTypeBadge,
 }: {
   order: OrderSnapshotData & { created_at: string }
-  CustomerTypeBadge: (props: { frequency: string | null; isCommercial: boolean }) => React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const b = order

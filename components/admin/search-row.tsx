@@ -19,15 +19,26 @@ const STATUS_BADGE: Record<string, string> = {
   cancelled:   "bg-red-100 text-red-700",
 }
 
+// Inlined here (not passed as a prop) because a Server Component can't pass
+// a function into a "use client" component — see order-row.tsx for the
+// matching fix, which had the same bug and 500'd the Orders page.
+function CustomerTypeBadge({ frequency, isCommercial }: { frequency: string | null; isCommercial: boolean }) {
+  if (isCommercial) {
+    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase whitespace-nowrap">🏢 Commercial</span>
+  }
+  if (frequency === "weekly" || frequency === "biweekly") {
+    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 uppercase whitespace-nowrap">🔁 {frequency}</span>
+  }
+  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 uppercase whitespace-nowrap">One-time</span>
+}
+
 // Same click-to-expand pattern as components/admin/order-row.tsx (Orders
 // list) — lets a search result be pulled up as a full snapshot inline
 // without navigating to the order detail page for each hit.
 export function SearchRow({
   order,
-  CustomerTypeBadge,
 }: {
   order: OrderSnapshotData & { created_at: string }
-  CustomerTypeBadge: (props: { frequency: string | null; isCommercial: boolean }) => React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const b = order

@@ -16,21 +16,6 @@ const STATUS_TABS = [
   { key: "cancelled",   label: "Cancelled" },
 ]
 
-// subscription_frequency has been stored on every booking since recurring
-// support was added, but nothing in the admin UI ever displayed it — the
-// only way to tell whether a customer was a one-time order or a standing
-// subscriber was to separately go check the /admin/subscriptions list and
-// cross-reference by name/phone. This surfaces it right on the order row.
-function CustomerTypeBadge({ frequency, isCommercial }: { frequency: string | null; isCommercial: boolean }) {
-  if (isCommercial) {
-    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase whitespace-nowrap">🏢 Commercial</span>
-  }
-  if (frequency === "weekly" || frequency === "biweekly") {
-    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 uppercase whitespace-nowrap">🔁 {frequency}</span>
-  }
-  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 uppercase whitespace-nowrap">One-time</span>
-}
-
 export default async function OrdersPage({
   searchParams,
 }: {
@@ -156,7 +141,7 @@ export default async function OrdersPage({
             </thead>
             <tbody className="divide-y divide-gray-50">
               {orders.map((b) => (
-                <OrderRow key={b.id} order={b as never} CustomerTypeBadge={CustomerTypeBadge} />
+                <OrderRow key={b.id} order={b as never} />
               ))}
             </tbody>
           </table>

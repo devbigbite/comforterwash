@@ -4,20 +4,6 @@ import { requireAdmin } from "@/lib/auth-guard"
 import Link from "next/link"
 import { SearchRow } from "@/components/admin/search-row"
 
-// Same badge as /admin/orders — see comment there. Surfaces the
-// already-stored subscription_frequency/commercial_account_id directly on
-// the result row instead of requiring a separate trip to /admin/subscriptions
-// to cross-reference by name/phone.
-function CustomerTypeBadge({ frequency, isCommercial }: { frequency: string | null; isCommercial: boolean }) {
-  if (isCommercial) {
-    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase whitespace-nowrap">🏢 Commercial</span>
-  }
-  if (frequency === "weekly" || frequency === "biweekly") {
-    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 uppercase whitespace-nowrap">🔁 {frequency}</span>
-  }
-  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 uppercase whitespace-nowrap">One-time</span>
-}
-
 export default async function SearchPage({
   searchParams,
 }: {
@@ -143,7 +129,7 @@ export default async function SearchPage({
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {results.map((b) => (
-                  <SearchRow key={b.id} order={b as never} CustomerTypeBadge={CustomerTypeBadge} />
+                  <SearchRow key={b.id} order={b as never} />
                 ))}
               </tbody>
             </table>
