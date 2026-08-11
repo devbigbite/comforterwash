@@ -163,8 +163,14 @@ export interface CommercialOrderHistoryItem {
   id: string
   short_code: string | null
   pickup_date: string
+  pickup_time_window: string | null
   delivery_date: string
+  delivery_time_window: string | null
+  delivery_address: string | null
   status: string
+  service_type: string
+  num_bags: number | null
+  num_comforters: number | null
   actual_weight_lbs: number | null
   customer_final_cents: number | null
   payment_status: string | null
@@ -185,7 +191,7 @@ export async function getCommercialAccountOrderHistory(code: string): Promise<{
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("bookings")
-    .select("id, short_code, pickup_date, delivery_date, status, actual_weight_lbs, customer_final_cents, payment_status, created_at, order_bags(bag_number, weight_lbs)")
+    .select("id, short_code, pickup_date, pickup_time_window, delivery_date, delivery_time_window, delivery_address, status, service_type, num_bags, num_comforters, actual_weight_lbs, customer_final_cents, payment_status, created_at, order_bags(bag_number, weight_lbs)")
     .eq("commercial_account_id", account.id)
     .order("created_at", { ascending: false })
 

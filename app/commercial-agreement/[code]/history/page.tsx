@@ -18,6 +18,30 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
   pending:        "Pending",
 }
 
+const SERVICE_LABEL: Record<string, string> = {
+  comforter_wash: "🛏️ Comforter Wash",
+  wash_fold:      "👕 Wash & Fold",
+  wash_only:      "🧺 Wash Only",
+}
+
+// Prior version always used PAYMENT_STATUS_LABEL keyed off payment_status,
+// which mislabeled orders that haven't even been picked up yet as "Awaiting
+// Weigh-In" (payment_status defaults to pending_weight the moment a booking
+// is created) — a customer flagged this on order 714600, which was still
+// days away from its scheduled pickup. This now looks at the order's actual
+// status first so an unpicked-up order reads "Awaiting Pickup" instead.
+function getStatusBadge(o: { status: string; payment_status: string | null; actual_weight_lbs: number | null }) {
+  if (o.payment_status === "captured" || o.payment_status === "paid")
+    return { label: "Charged", style: PAYMENT_STATUS_STYLE.captured }
+  if (o.payment_status === "failed")
+    return { label: "Charge Failed", style: PAYMENT_STATUS_STYLE.failed }
+  if (!o.actual_weight_lbs && (o.status === "confirmed" || !o.status))
+    return { label: "Awaiting Pickup", style: PAYMENT_STATUS_STYLE.pending_weight }
+  if (!o.actual_weight_lbs)
+    return { label: "Awaiting Weigh-In", style: PAYMENT_STATUS_STYLE.pending_weight }
+  return { label: PAYMENT_STATUS_LABEL[o.payment_status ?? "pending"] ?? o.payment_status ?? "Pending", style: PAYMENT_STATUS_STYLE[o.payment_status ?? "pending"] ?? PAYMENT_STATUS_STYLE.pending }
+}
+
 export default async function CommercialAccountHistoryPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
   const result = await getCommercialAccountOrderHistory(code)
@@ -97,11 +121,26 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
                 const bagBreakdown = (o.order_bags ?? [])
                   .filter(b => b.weight_lbs != null)
                   .sort((a, b) => a.bag_number - b.bag_number)
+                const bagCount = o.num_bags ?? o.num_comforters ?? 1
+                const countUnit = o.service_type === "comforter_wash" ? "comforter" : "bag"
+                const badge = getStatusBadge(o)
                 return (
-                <div key={o.id} className="rounded-xl border border-gray-100 px-4 py-3 text-sm">
-                  <div className="flex items-center gap-3 flex-wrap">
+                // <details> gives click-to-expand with no client JS needed —
+                // clicking the order number (inside <summary>) reveals a
+                // snapshot-style panel (service, bags, pickup/delivery
+                // windows, address, weight breakdown), matching the detail
+                // level admins see on the order page, so a commercial
+                // customer doesn't have to email in to ask what was in an
+                // order.
+                <details key={o.id} className="group rounded-xl border border-gray-100 px-4 py-3 text-sm">
+                  <summary className="flex items-center gap-3 flex-wrap cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                    <span className="text-gray-300 group-open:rotate-90 transition-transform shrink-0">▶</span>
                     <span className="font-bold text-[#0D2240] w-20 shrink-0">{o.short_code ?? o.id.slice(0, 6).toUpperCase()}</span>
-                    <span className="text-gray-500">{o.pickup_date}</span>
+                    <span className="text-gray-500">
+                      Picked up {o.pickup_date}
+                      <span className="text-gray-300 mx-1">·</span>
+                      Delivered {o.delivery_date || "—"}
+                    </span>
                     <span className="text-gray-400">
                       {o.actual_weight_lbs ? `${o.actual_weight_lbs} lbs` : "—"}
                       {/* Shows the math (weight × rate) so the charged amount is
@@ -117,20 +156,54 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
                     <span className="font-bold text-[#0D2240] ml-auto">
                       {o.customer_final_cents != null ? `$${(o.customer_final_cents / 100).toFixed(2)}` : "—"}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${PAYMENT_STATUS_STYLE[o.payment_status ?? "pending"] ?? "bg-gray-100 text-gray-500 border-gray-200"}`}>
-                      {PAYMENT_STATUS_LABEL[o.payment_status ?? "pending"] ?? o.payment_status}
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${badge.style}`}>
+                      {badge.label}
                     </span>
-                  </div>
-                  {bagBreakdown.length > 0 && (
-                    <div className="mt-2 pl-1 flex flex-wrap gap-x-4 gap-y-0.5">
-                      {bagBreakdown.map(b => (
-                        <span key={b.bag_number} className="text-[11px] text-gray-400">
-                          Bag {b.bag_number}: <span className="text-gray-600 font-semibold">{b.weight_lbs} lbs</span>
-                        </span>
-                      ))}
+                  </summary>
+
+                  <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Service</p>
+                      <p className="text-sm font-semibold text-[#0D2240] mt-0.5">{SERVICE_LABEL[o.service_type] ?? o.service_type}</p>
                     </div>
-                  )}
-                </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Bags / Comforters</p>
+                      <p className="text-sm font-semibold text-[#0D2240] mt-0.5">{bagCount} {countUnit}{bagCount !== 1 ? "s" : ""}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Pickup</p>
+                      <p className="text-sm font-semibold text-[#0D2240] mt-0.5">
+                        {o.pickup_date}
+                        <span className="block text-xs font-normal text-gray-400">{o.pickup_time_window ?? "—"}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Delivery</p>
+                      <p className="text-sm font-semibold text-[#0D2240] mt-0.5">
+                        {o.delivery_date || "—"}
+                        <span className="block text-xs font-normal text-gray-400">{o.delivery_time_window ?? "—"}</span>
+                      </p>
+                    </div>
+                    {o.delivery_address && (
+                      <div className="col-span-2">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Delivery Address</p>
+                        <p className="text-xs font-normal text-[#0D2240] mt-0.5">{o.delivery_address}</p>
+                      </div>
+                    )}
+                    {bagBreakdown.length > 0 && (
+                      <div className="col-span-2 sm:col-span-3">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Weight Breakdown</p>
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                          {bagBreakdown.map(b => (
+                            <span key={b.bag_number} className="text-[11px] text-gray-400">
+                              Bag {b.bag_number}: <span className="text-gray-600 font-semibold">{b.weight_lbs} lbs</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </details>
                 )
               })}
             </div>
