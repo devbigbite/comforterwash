@@ -79,6 +79,8 @@ interface Props {
   notifyPickupEnroute: (fd: FormData) => Promise<void>
   confirmPickup:    (fd: FormData) => Promise<void>
   confirmDropoff:   (fd: FormData) => Promise<void>
+  // confirmDelivery is still passed by the parent page but intentionally
+  // unused here — delivery completion now happens entirely in Shipday.
   confirmDelivery:  (fd: FormData) => Promise<void>
   recordPhotoEvent: (fd: FormData) => Promise<void>
 }
@@ -101,7 +103,7 @@ export default function DriverOrderClient({
   allOutForDel, allDone,
   pickupDate, deliveryDate, assignedFacilityName,
   enrouteAlreadySent,
-  notifyPickupEnroute, confirmPickup, confirmDropoff, confirmDelivery, recordPhotoEvent,
+  notifyPickupEnroute, confirmPickup, confirmDropoff, recordPhotoEvent,
 }: Props) {
   const today         = new Date().toISOString().split("T")[0]
   const isPickupDay   = pickupDate  === today
@@ -127,10 +129,8 @@ export default function DriverOrderClient({
   const [hasWarehouseDropoffPhoto, setHasWarehouseDropoffPhoto] = useState(false)
   const [warehouseDropoffPhotoErr, setWarehouseDropoffPhotoErr] = useState(false)
   const [floorPhotoUrl,            setFloorPhotoUrl]            = useState<string | null>(null)
-  const [hasWarehousePickupPhoto,  setHasWarehousePickupPhoto]  = useState(false)
-  const [warehousePickupPhotoErr,  setWarehousePickupPhotoErr]  = useState(false)
-  const [hasDeliveryPhoto,         setHasDeliveryPhoto]         = useState(false)
-  const [deliveryPhotoErr,         setDeliveryPhotoErr]         = useState(false)
+  // Delivery-side photo/action state removed — delivery is now completed
+  // entirely in Shipday (see DELIVERY PHASE section below), not in this app.
 
   // Auto-init: color from available pool, name from clock-in session
   useEffect(() => {
@@ -206,29 +206,8 @@ export default function DriverOrderClient({
     setSubmitting(null)
   }
 
-  async function handleDeliveryStart() {
-    if (!requireName()) return
-    if (!hasWarehousePickupPhoto) { setWarehousePickupPhotoErr(true); return }
-    setSubmitting("start")
-    const fd = new FormData()
-    fd.append("bookingId",   bookingId)
-    fd.append("driverName",  driverName.trim())
-    fd.append("nextStatus",  "out_for_delivery")
-    await confirmDelivery(fd)
-    setSubmitting(null)
-  }
-
-  async function handleDelivered() {
-    if (!requireName()) return
-    if (!hasDeliveryPhoto) { setDeliveryPhotoErr(true); return }
-    setSubmitting("delivered")
-    const fd = new FormData()
-    fd.append("bookingId",  bookingId)
-    fd.append("driverName", driverName.trim())
-    fd.append("nextStatus", "delivered")
-    await confirmDelivery(fd)
-    setSubmitting(null)
-  }
+  // handleDeliveryStart/handleDelivered removed — delivery completion now
+  // happens entirely in Shipday, not in this app (see DELIVERY PHASE below).
 
   // Phase logic
   // "Needs drop-off" is a genuinely different state from "hasn't been picked
@@ -553,7 +532,17 @@ export default function DriverOrderClient({
       )}
 
       {/* ══════════════════════════════════════════════════════════════ */}
-      {/* DELIVERY PHASE                                                 */}
+      {/* DELIVERY PHASE — info-only, no action buttons here on purpose.  */}
+      {/* Delivery is completed entirely in Shipday (mark delivered +     */}
+      {/* photo there) — our webhook pulls that status and photo back    */}
+      {/* automatically. Having both this app's old "Start Delivery Run  */}
+      {/* / Confirm Delivered" buttons AND Shipday's own completion flow */}
+      {/* live at the same time left drivers guessing which one to use,  */}
+      {/* which is exactly what caused order 977763 to sit stuck with no */}
+      {/* clear path to close it out. One leg, one app, no choice to     */}
+      {/* make. Pickup + facility drop-off still happen in this app —    */}
+      {/* those collect data (bag count, color, weight) Shipday has no   */}
+      {/* concept of at all.                                             */}
       {/* ══════════════════════════════════════════════════════════════ */}
       {showDelivery && (
         <div className="rounded-2xl overflow-hidden border-2 border-[#0D2240]">
@@ -561,71 +550,26 @@ export default function DriverOrderClient({
             <span className="text-2xl">🚐</span>
             <div>
               <p className="text-white font-extrabold text-lg uppercase tracking-wide">Delivery Phase</p>
-              <p className="text-white/70 text-sm">Collect clean bags from warehouse · deliver to customer</p>
+              <p className="text-white/70 text-sm">Complete this delivery in Shipday</p>
             </div>
           </div>
 
-          <div className="bg-white p-5 space-y-5">
-
-            {/* Step 1: Collect the finished bags — from the warehouse if this
-                order went through a transport run (allReadyAtWarehouse), or
-                directly from the facility if it's a direct-assigned delivery
-                that skipped the warehouse leg entirely (allReady). Either
-                way this is the same action: confirm you have the bags, then
-                start the delivery run — confirmDelivery already accepts
-                "ready" as a valid starting status for this transition. */}
-            {(allReadyAtWarehouse || (allReady && !allReadyAtWarehouse && !allOutForDel)) && (
-              <div className="space-y-3">
-                <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 text-center">
-                  <p className="text-teal-700 font-extrabold">✅ Bags ready{allReadyAtWarehouse ? " at warehouse" : ""}!</p>
-                  <p className="text-teal-600 text-base mt-0.5">
-                    {allReadyAtWarehouse
-                      ? "Go to the warehouse and collect the clean bags."
-                      : `Go to${assignedFacilityName ? ` ${assignedFacilityName}` : " the facility"} and collect the clean bags.`}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-base font-extrabold text-[#0D2240] mb-0.5">
-                    Step 1 — Collect from {allReadyAtWarehouse ? "warehouse" : "facility"}
-                  </p>
-                  <p className="text-sm text-gray-500">Take a photo of the clean bags, then start the delivery run.</p>
-                </div>
-                <div className={`rounded-xl overflow-hidden border-2 ${warehousePickupPhotoErr ? "border-red-400" : hasWarehousePickupPhoto ? "border-green-400" : "border-gray-200"}`}>
-                  <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
-                    eventType="photo_facility_pickup" label={`📷 Photo — Clean Bags at ${allReadyAtWarehouse ? "Warehouse" : "Facility"}`}
-                    onPhotoUploaded={() => { setHasWarehousePickupPhoto(true); setWarehousePickupPhotoErr(false) }} />
-                  <PhotoRequired taken={hasWarehousePickupPhoto} error={warehousePickupPhotoErr} />
-                </div>
-                <button onClick={handleDeliveryStart} disabled={submitting === "start"}
-                  className="w-full bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-50 text-white font-extrabold py-4 rounded-2xl text-lg transition-colors">
-                  {submitting === "start" ? "Starting…" : "🚐 Start Delivery Run"}
-                </button>
-              </div>
-            )}
-
-            {/* Step 2: Deliver to customer */}
-            {allOutForDel && (
-              <div className="space-y-3">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-                  <p className="text-blue-700 font-extrabold">🚐 Out for delivery</p>
-                  <p className="text-blue-600 text-base mt-0.5">Head to the customer and hand over the clean bags.</p>
-                </div>
-                <div>
-                  <p className="text-base font-extrabold text-[#0D2240] mb-0.5">Step 2 — Deliver to customer</p>
-                  <p className="text-sm text-gray-500">Take a photo at the customer's door, then confirm delivery.</p>
-                </div>
-                <div className={`rounded-xl overflow-hidden border-2 ${deliveryPhotoErr ? "border-red-400" : hasDeliveryPhoto ? "border-green-400" : "border-gray-200"}`}>
-                  <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
-                    eventType="photo_customer_delivery" label="📷 Photo at Customer — Delivery"
-                    onPhotoUploaded={() => { setHasDeliveryPhoto(true); setDeliveryPhotoErr(false) }} />
-                  <PhotoRequired taken={hasDeliveryPhoto} error={deliveryPhotoErr} />
-                </div>
-                <button onClick={handleDelivered} disabled={submitting === "delivered"}
-                  className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-extrabold py-4 rounded-2xl text-lg transition-colors">
-                  {submitting === "delivered" ? "Confirming…" : "🎉 Confirm Delivered to Customer"}
-                </button>
-              </div>
-            )}
+          <div className="bg-white p-5 space-y-4">
+            <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 text-center">
+              <p className="text-teal-700 font-extrabold">
+                {allOutForDel ? "🚐 Out for delivery" : `✅ Bags ready${allReadyAtWarehouse ? " at warehouse" : ""}!`}
+              </p>
+              <p className="text-teal-600 text-base mt-0.5">
+                {allOutForDel
+                  ? "Head to the customer and complete this delivery in Shipday — mark it delivered and take the photo there."
+                  : allReadyAtWarehouse
+                    ? "Go to the warehouse, collect the bags, and run the delivery through Shipday."
+                    : `Go to${assignedFacilityName ? ` ${assignedFacilityName}` : " the facility"}, collect the bags, and run the delivery through Shipday.`}
+              </p>
+            </div>
+            <p className="text-xs text-gray-400 text-center">
+              This order will update to "Delivered" here automatically once you complete it in Shipday — no separate step needed in this app.
+            </p>
           </div>
         </div>
       )}
