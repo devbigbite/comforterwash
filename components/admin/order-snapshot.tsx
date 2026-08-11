@@ -68,6 +68,14 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 export function OrderSnapshot({ order, compact }: { order: OrderSnapshotData; compact?: boolean }) {
   const orderCode = order.short_code?.toUpperCase() ?? order.id.slice(0, 8).toUpperCase()
   const bagCount = order.num_bags ?? order.num_comforters ?? 1
+  // Whether to label the count "bag" or "comforter" must come from
+  // service_type, not from which of num_bags/num_comforters happens to be
+  // truthy — a wash_fold order can carry a leftover non-null num_comforters
+  // value (e.g. a default of 1 that nothing ever cleared) even though
+  // num_bags is the field that actually supplied bagCount above, which
+  // mislabeled real bag orders as "comforters" (see order 977763 — 2 bags,
+  // shown as "2 comforters").
+  const countUnit = order.service_type === "comforter_wash" ? "comforter" : "bag"
   const amountCents = order.customer_final_cents ?? order.total_amount ?? 0
   const address = order.delivery_address || order.customer_address
 
@@ -117,7 +125,7 @@ export function OrderSnapshot({ order, compact }: { order: OrderSnapshotData; co
         } />
         <Field label="Bags / Comforters" value={
           <>
-            {bagCount} {order.num_comforters ? "comforter" : "bag"}{bagCount !== 1 ? "s" : ""}
+            {bagCount} {countUnit}{bagCount !== 1 ? "s" : ""}
             {(order.comforter_size || order.comforter_sizes) && (
               <span className="block text-xs font-normal text-gray-400 capitalize">{order.comforter_sizes || order.comforter_size}</span>
             )}

@@ -28,6 +28,15 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
     .filter(o => o.payment_status === "captured" || o.payment_status === "paid")
     .reduce((sum, o) => sum + (o.customer_final_cents ?? 0), 0)
 
+  // Surfaces the account's own rate so this page fully answers "how is my
+  // weekly bill calculated" on its own — a commercial customer asked for
+  // exactly this (a weight + pricing breakdown) after a payment retry, and
+  // per-order weight/amount alone doesn't show the rate that connects them.
+  const rateLabel =
+    account.rate_type === "per_lb" ? `$${((account.rate_amount_cents ?? 0) / 100).toFixed(2)} per lb` :
+    account.rate_type === "per_load" ? `$${((account.rate_amount_cents ?? 0) / 100).toFixed(2)} per load` :
+    account.rate_amount_cents != null ? `$${(account.rate_amount_cents / 100).toFixed(2)} flat rate` : null
+
   return (
     <div className="min-h-screen bg-[#f7f8fb] py-10 px-4">
       <div className="mx-auto max-w-3xl">
@@ -38,6 +47,11 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
             </Link>
             <h1 className="text-2xl font-extrabold text-[#0D2240] mt-2">Order &amp; Billing History</h1>
             <p className="text-sm text-gray-400 mt-1">{account.business_name} · WashFold Orlando</p>
+            {rateLabel && (
+              <p className="text-sm text-[#0D2240] font-semibold mt-2 bg-[#f7f8fb] border border-gray-100 rounded-xl px-3 py-2 inline-block">
+                Your rate: {rateLabel}{account.minimum_amount_cents != null && ` · $${(account.minimum_amount_cents / 100).toFixed(2)} minimum per order`}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
@@ -69,7 +83,18 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
                 <div key={o.id} className="flex items-center gap-3 flex-wrap rounded-xl border border-gray-100 px-4 py-3 text-sm">
                   <span className="font-bold text-[#0D2240] w-20 shrink-0">{o.short_code ?? o.id.slice(0, 6).toUpperCase()}</span>
                   <span className="text-gray-500">{o.pickup_date}</span>
-                  <span className="text-gray-400">{o.actual_weight_lbs ? `${o.actual_weight_lbs} lbs` : "—"}</span>
+                  <span className="text-gray-400">
+                    {o.actual_weight_lbs ? `${o.actual_weight_lbs} lbs` : "—"}
+                    {/* Shows the math (weight × rate) so the charged amount is
+                        never a mystery number — this is the exact ask that
+                        prompted adding it: "a breakdown of the weight and
+                        pricing details" for understanding future charges. */}
+                    {o.actual_weight_lbs && account.rate_type === "per_lb" && account.rate_amount_cents && (
+                      <span className="text-[10px] text-gray-400 ml-1">
+                        (× ${(account.rate_amount_cents / 100).toFixed(2)}/lb)
+                      </span>
+                    )}
+                  </span>
                   <span className="font-bold text-[#0D2240] ml-auto">
                     {o.customer_final_cents != null ? `$${(o.customer_final_cents / 100).toFixed(2)}` : "—"}
                   </span>
