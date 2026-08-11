@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { notFound } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { PartnerPortalClient } from "@/components/partner/PartnerPortalClient"
-import { createFacilityStripeAccount, syncFacilityStripeStatus, getFacilityPayouts } from "@/app/actions/facility-payments"
+import { createFacilityStripeAccount, syncFacilityStripeStatusPublic, getFacilityPayouts } from "@/app/actions/facility-payments"
 
 const OPERATOR_ZONE = ["at_facility", "in_washer", "in_dryer", "folded"]
 const AT_FACILITY_STATUSES = ["at_facility", "in_washer", "in_dryer", "folded", "ready"]
@@ -72,7 +72,7 @@ async function syncStripe(formData: FormData) {
   "use server"
   const facilityId   = formData.get("facilityId") as string
   const facilityCode = formData.get("facilityCode") as string
-  await syncFacilityStripeStatus(facilityId)
+  await syncFacilityStripeStatusPublic(facilityId, facilityCode)
   const { redirect } = await import("next/navigation")
   redirect(`/partner/${facilityCode}`)
 }
@@ -96,7 +96,7 @@ export default async function PartnerPortalPage({ params, searchParams }: {
 
   // Auto-sync Stripe status on return from onboarding
   if ((sp.stripe_return || sp.stripe_refresh) && facility.stripe_account_id) {
-    await syncFacilityStripeStatus(facility.id)
+    await syncFacilityStripeStatusPublic(facility.id, code)
     // Re-fetch after sync
     const { data: refreshed } = await supabase
       .from("facilities")

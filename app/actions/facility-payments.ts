@@ -77,11 +77,14 @@ export async function createFacilityStripeAccount(
 }
 
 // ── Sync onboarding status from Stripe ───────────────────────────────────────
-export async function syncFacilityStripeStatus(
+// Core logic shared by both an admin-gated caller (admin/facilities, staff
+// manually refreshing a facility's status) and a code-gated caller (the
+// public partner portal, auto-syncing the instant a facility partner
+// returns from Stripe onboarding). Neither wrapper below skips its own
+// auth check — this just avoids duplicating the actual Stripe call/DB write.
+async function syncFacilityStripeStatusCore(
   facilityId: string,
 ): Promise<{ complete?: boolean; error?: string }> {
-  await requireAdmin()
-
   const supabase = createAdminClient()
   const { data: facility } = await supabase
     .from("facilities")
@@ -103,6 +106,37 @@ export async function syncFacilityStripeStatus(
 
   revalidatePath("/admin/facilities")
   return { complete }
+}
+
+// Admin-gated — used from /admin/facilities.
+export async function syncFacilityStripeStatus(
+  facilityId: string,
+): Promise<{ complete?: boolean; error?: string }> {
+  await requireAdmin()
+  return syncFacilityStripeStatusCore(facilityId)
+}
+
+// Code-gated (not admin-gated) — used from the public /partner/[code] portal,
+// same trust model as createFacilityStripeAccount above: the facility's own
+// access code stands in for admin auth here, since the person hitting this
+// page is the facility partner, not platform staff. Previously this call
+// site used the admin-gated function above, which threw "Unauthorized:
+// admin access required" and crashed the entire page the instant a facility
+// partner returned from Stripe's onboarding flow.
+export async function syncFacilityStripeStatusPublic(
+  facilityId: string,
+  facilityCode: string,
+): Promise<{ complete?: boolean; error?: string }> {
+  const supabase = createAdminClient()
+  const { data: facility } = await supabase
+    .from("facilities")
+    .select("id")
+    .eq("id", facilityId)
+    .eq("partner_access_code", facilityCode)
+    .single()
+
+  if (!facility) return { error: "Facility not found" }
+  return syncFacilityStripeStatusCore(facilityId)
 }
 
 // ── Issue payout to facility ──────────────────────────────────────────────────
