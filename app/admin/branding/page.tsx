@@ -451,7 +451,9 @@ function EmailDomainSection() {
 
 // Read-only, generated server-side (DB default on the locations row) — this
 // is what closes the "two apps disagree" gap: pasting this exact URL into
-// Shipday → Settings → Webhooks makes a delivery marked complete in Shipday
+// Shipday (Integrations → API Credentials → Add API Link, in Shipday's own
+// dashboard — confirmed against Shipday's docs, not a "Settings → Webhooks"
+// menu as originally assumed) makes a delivery marked complete in Shipday
 // automatically mark it delivered in our app too, instead of the two systems
 // silently drifting apart (which is what happened to order 977763 — Shipday
 // knew it was delivered, our app never did, and it sat stuck in Aerial View
@@ -472,7 +474,8 @@ function WebhookUrlField({ secret }: { secret: string }) {
     <div className="rounded-xl bg-teal-50 border border-teal-200 p-4 space-y-2">
       <p className="text-xs font-bold text-teal-800 uppercase tracking-wide">🔗 Webhook URL — keep Shipday &amp; this app in sync</p>
       <p className="text-xs text-teal-700">
-        Paste this into Shipday → Settings → Webhooks. Once connected, a delivery marked complete in Shipday
+        In Shipday, go to <span className="font-semibold">Integrations → API Credentials → Add API Link</span> and paste
+        this as the URL (leave the Token field blank). Once connected, a delivery marked complete in Shipday
         automatically marks it delivered here too — no more orders stuck showing as "in progress" after they've
         actually been dropped off.
       </p>

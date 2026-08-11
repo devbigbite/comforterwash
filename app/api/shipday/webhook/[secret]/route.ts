@@ -31,31 +31,40 @@ import { updateBookingStatus } from "@/app/actions/bookings"
 // rather than silently swallowed — this exact silent-failure pattern already
 // bit this app once this session (the confirmDropoff unchecked-update bug).
 
-// Shipday's webhook payload shape has varied across API versions in
-// practice; read defensively rather than assuming one exact shape.
+// Per Shipday's actual webhook docs (docs.shipday.com/reference/order-status-update-2),
+// the payload is snake_case: { timestamp, event, order_status, order: { id, order_number, ... }, ... }.
+// Read defensively anyway — Shipday's older integrations/docs used camelCase
+// (orderId/orderNumber), and this endpoint shouldn't hard-fail if a field
+// comes through differently than expected.
 function extractOrderId(body: Record<string, unknown>): number | null {
   const order = (body.order as Record<string, unknown> | undefined) ?? body
-  const raw = order.orderId ?? order.id ?? body.orderId ?? body.id
+  const raw = order.id ?? order.orderId ?? body.orderId ?? body.id
   const n = typeof raw === "string" ? parseInt(raw, 10) : raw
   return typeof n === "number" && !isNaN(n) ? n : null
 }
 
 function extractOrderNumber(body: Record<string, unknown>): string | null {
   const order = (body.order as Record<string, unknown> | undefined) ?? body
-  const raw = order.orderNumber ?? body.orderNumber
+  const raw = order.order_number ?? order.orderNumber ?? body.order_number ?? body.orderNumber
   return typeof raw === "string" ? raw : null
 }
 
+// "event" is the primary field Shipday sends; "order_status" is a secondary
+// field on the same payload reflecting the order's status after the event
+// (e.g. event=ORDER_PIKEDUP, order_status=PICKED_UP) — checked as a fallback
+// in case an integration only sends one of the two.
 function extractEventType(body: Record<string, unknown>): string {
-  const raw = body.event ?? body.eventType ?? body.status ?? body.orderStatus
+  const raw = body.event ?? body.order_status ?? body.eventType ?? body.status ?? body.orderStatus
   return typeof raw === "string" ? raw.toUpperCase() : "UNKNOWN"
 }
 
+// Real enum values per Shipday's docs — note "ORDER_PIKEDUP" (their typo,
+// not "PICKED_UP") is the actual event name for a completed pickup.
 const DELIVERY_COMPLETE_EVENTS = new Set([
-  "ORDER_COMPLETED", "COMPLETED", "ORDER_DELIVERED", "DELIVERED", "ALREADY_DELIVERED",
+  "ORDER_COMPLETED", "ALREADY_DELIVERED",
 ])
 const PICKUP_COMPLETE_EVENTS = new Set([
-  "ORDER_PICKED_UP", "PICKED_UP", "ORDER_READY_TO_DELIVER",
+  "ORDER_PIKEDUP", "PICKED_UP", "READY_TO_DELIVER",
 ])
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ secret: string }> }) {
