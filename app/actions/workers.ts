@@ -212,7 +212,7 @@ export async function createStripeConnectAccount(workerId: string) {
   }
 
   // Generate fresh onboarding link (valid for 24h)
-  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://comforterwash.com"
   const link = await stripe.accountLinks.create({
     account: accountId,
     refresh_url: `${origin}/admin/workers/${workerId}?refresh=1`,

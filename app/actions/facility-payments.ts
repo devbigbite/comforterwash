@@ -59,7 +59,13 @@ export async function createFacilityStripeAccount(
       .eq("id", facilityId)
   }
 
-  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+  // Stripe rejects account-link URLs that aren't HTTPS on a live-mode
+  // request ("Livemode requests must always be redirected via HTTPS") — the
+  // old localhost fallback here (unlike every other NEXT_PUBLIC_SITE_URL
+  // fallback in this codebase, which already defaults to the real domain)
+  // silently broke this specific flow the moment account creation started
+  // succeeding, since it never got this far before.
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://comforterwash.com"
   const link = await stripe.accountLinks.create({
     account:     accountId,
     refresh_url: `${origin}/partner/${facilityCode}?stripe_refresh=1`,
