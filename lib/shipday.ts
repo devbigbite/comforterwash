@@ -277,12 +277,27 @@ export async function createShipdayOrder(
         details: `Comforter #${i + 1} — Delivery`,
       }))
 
+  // Deliberately blank — Shipday auto-sends its own tracking-link SMS ("out
+  // for delivery") and delivery-confirmation SMS/email whenever an order has
+  // a customer phone/email on file (confirmed against Shipday's own
+  // marketing/docs: "Tracking links are automatically sent via SMS as soon
+  // as the order is out for delivery" / "Customers receive a text or email
+  // confirmation when their order is delivered" — not a togglable-off
+  // default, it's core to their product). Every customer notification for
+  // this app already goes out through our own app/lib/sms.ts + lib/email.ts
+  // — leaving these populated meant customers were very likely getting
+  // double-texted, once from Shipday and once from us, for every pickup and
+  // delivery. Shipday doesn't need contact info to route/navigate, only to
+  // message the customer directly — so leaving it blank makes that
+  // physically impossible regardless of whatever's toggled in their
+  // dashboard settings.
+  const NO_SHIPDAY_CUSTOMER_CONTACT = { customerEmail: "", customerPhoneNumber: "" }
+
   const pickupPayload = {
     orderNumber: `${baseCode}P`,
     customerName: booking.customer_name,
     customerAddress: booking.customer_address,
-    customerEmail: booking.customer_email,
-    customerPhoneNumber: booking.customer_phone,
+    ...NO_SHIPDAY_CUSTOMER_CONTACT,
     restaurantName: businessName,
     restaurantAddress: facilityAddress,
     restaurantPhoneNumber: facilityPhone,
@@ -300,8 +315,7 @@ export async function createShipdayOrder(
     orderNumber: `${baseCode}D`,
     customerName: booking.customer_name,
     customerAddress: booking.customer_address,
-    customerEmail: booking.customer_email,
-    customerPhoneNumber: booking.customer_phone,
+    ...NO_SHIPDAY_CUSTOMER_CONTACT,
     restaurantName: businessName,
     restaurantAddress: facilityAddress,
     restaurantPhoneNumber: facilityPhone,
