@@ -37,6 +37,15 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
     account.rate_type === "per_load" ? `$${((account.rate_amount_cents ?? 0) / 100).toFixed(2)} per load` :
     account.rate_amount_cents != null ? `$${(account.rate_amount_cents / 100).toFixed(2)} flat rate` : null
 
+  // For per-lb accounts, the minimum is really a minimum weight — showing it
+  // as a dollar figure obscures the thing that actually varies (how many lbs
+  // an order needs to hit before the per-lb math kicks in). Convert using the
+  // account's own rate so it stays correct if the rate ever changes.
+  const minimumLbs =
+    account.rate_type === "per_lb" && account.minimum_amount_cents != null && account.rate_amount_cents
+      ? account.minimum_amount_cents / account.rate_amount_cents
+      : null
+
   return (
     <div className="min-h-screen bg-[#f7f8fb] py-10 px-4">
       <div className="mx-auto max-w-3xl">
@@ -49,7 +58,9 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
             <p className="text-sm text-gray-400 mt-1">{account.business_name} · WashFold Orlando</p>
             {rateLabel && (
               <p className="text-sm text-[#0D2240] font-semibold mt-2 bg-[#f7f8fb] border border-gray-100 rounded-xl px-3 py-2 inline-block">
-                Your rate: {rateLabel}{account.minimum_amount_cents != null && ` · $${(account.minimum_amount_cents / 100).toFixed(2)} minimum per order`}
+                Your rate: {rateLabel}
+                {minimumLbs != null && ` · ${minimumLbs % 1 === 0 ? minimumLbs : minimumLbs.toFixed(1)} lbs minimum per order`}
+                {minimumLbs == null && account.minimum_amount_cents != null && ` · $${(account.minimum_amount_cents / 100).toFixed(2)} minimum per order`}
               </p>
             )}
           </div>
