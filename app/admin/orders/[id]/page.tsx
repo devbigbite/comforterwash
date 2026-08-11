@@ -720,7 +720,7 @@ export default async function OrderDetailPage({
                 { label: "Delivery", value: `${booking.delivery_date} · ${booking.delivery_time_window}` },
                 { label: "Service", value: booking.service_type === "wash_fold" ? "Wash & Fold" : "Comforter Wash" },
                 { label: "Items", value: booking.service_type === "wash_fold" ? `~${booking.pounds} lbs est.` : `${booking.num_comforters} comforter(s)` },
-                { label: "Bags", value: `${booking.num_bags ?? bags?.length ?? 1} bag(s)` },
+                { label: "Bags", value: (booking.num_bags ?? bags?.length) ? `${booking.num_bags ?? bags?.length} bag(s)` : "Not yet counted" },
                 { label: "Pre-auth", value: preAuthCents ? `$${(preAuthCents / 100).toFixed(2)}` : "—" },
                 { label: "Paid", value: booking.payment_status },
               ].map(({ label, value }) => (

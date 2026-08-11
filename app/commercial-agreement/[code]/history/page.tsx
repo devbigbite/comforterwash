@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getCommercialAccountOrderHistory } from "@/app/actions/commercial-accounts"
+import { OrderSnapshot, type OrderSnapshotData } from "@/components/admin/order-snapshot"
 
 const PAYMENT_STATUS_STYLE: Record<string, string> = {
   captured:       "bg-green-50 text-green-700 border-green-200",
@@ -16,12 +17,6 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
   failed:         "Charge Failed",
   pending_weight: "Awaiting Weigh-In",
   pending:        "Pending",
-}
-
-const SERVICE_LABEL: Record<string, string> = {
-  comforter_wash: "🛏️ Comforter Wash",
-  wash_fold:      "👕 Wash & Fold",
-  wash_only:      "🧺 Wash Only",
 }
 
 // Prior version always used PAYMENT_STATUS_LABEL keyed off payment_status,
@@ -136,24 +131,49 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
                 const bagBreakdown = (o.order_bags ?? [])
                   .filter(b => b.weight_lbs != null)
                   .sort((a, b) => a.bag_number - b.bag_number)
-                // Don't invent a bag count — a wash_fold order gets its real
-                // num_bags at pickup (the driver counts and bags it), so
-                // before that it's genuinely unknown, not "1". Silently
-                // defaulting to 1 misrepresented orders that hadn't been
-                // picked up yet (see order 714600).
-                const bagCount = o.num_bags ?? o.num_comforters ?? null
-                const countUnit = o.service_type === "comforter_wash" ? "comforter" : "bag"
                 const badge = getStatusBadge(o)
                 const picked = pickupHappened(o.status)
                 const delivered = deliveryHappened(o.status)
+
+                // Real physical bags (order_bags rows) only exist once a
+                // driver has actually counted/bagged the order at pickup —
+                // that's the authoritative count. booking.num_bags before
+                // that point is just an estimate carried over from signup/
+                // recurring setup, so it's ignored here in favor of "not yet
+                // counted" until the real count exists.
+                const realBagCount = o.order_bags?.length || null
+                const snapshot: OrderSnapshotData = {
+                  short_code: o.short_code,
+                  id: o.id,
+                  status: o.status,
+                  service_type: o.service_type,
+                  customer_name: account.business_name,
+                  customer_phone: account.contact_phone,
+                  customer_address: null,
+                  delivery_address: o.delivery_address,
+                  pickup_date: o.pickup_date,
+                  pickup_time_window: o.pickup_time_window,
+                  delivery_date: o.delivery_date,
+                  delivery_time_window: o.delivery_time_window,
+                  num_bags: realBagCount ?? (picked ? o.num_bags : null),
+                  num_comforters: realBagCount ? null : (picked ? o.num_comforters : null),
+                  comforter_size: o.comforter_size,
+                  comforter_sizes: o.comforter_sizes,
+                  detergent: o.detergent,
+                  extras: o.extras,
+                  customer_final_cents: o.customer_final_cents,
+                  commercial_account_id: account.id,
+                  assigned_driver: o.assigned_driver,
+                  assigned_delivery_driver: o.assigned_delivery_driver,
+                  assigned_operator: o.assigned_operator,
+                }
+
                 return (
                 // <details> gives click-to-expand with no client JS needed —
-                // clicking the order number (inside <summary>) reveals a
-                // snapshot-style panel (service, bags, pickup/delivery
-                // windows, address, weight breakdown), matching the detail
-                // level admins see on the order page, so a commercial
-                // customer doesn't have to email in to ask what was in an
-                // order.
+                // clicking the order number (inside <summary>) reveals the
+                // same OrderSnapshot panel admins see on the order page, so
+                // a commercial customer doesn't have to email in to ask what
+                // was in an order.
                 <details key={o.id} className="group rounded-xl border border-gray-100 px-4 py-3 text-sm">
                   <summary className="flex items-center gap-3 flex-wrap cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                     <span className="text-gray-300 group-open:rotate-90 transition-transform shrink-0">▶</span>
@@ -183,39 +203,10 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
                     </span>
                   </summary>
 
-                  <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Service</p>
-                      <p className="text-sm font-semibold text-[#0D2240] mt-0.5">{SERVICE_LABEL[o.service_type] ?? o.service_type}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Bags / Comforters</p>
-                      <p className="text-sm font-semibold text-[#0D2240] mt-0.5">
-                        {bagCount != null ? `${bagCount} ${countUnit}${bagCount !== 1 ? "s" : ""}` : "Not yet counted"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{picked ? "Picked Up" : "Scheduled Pickup"}</p>
-                      <p className="text-sm font-semibold text-[#0D2240] mt-0.5">
-                        {o.pickup_date}
-                        <span className="block text-xs font-normal text-gray-400">{o.pickup_time_window ?? "—"}</span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{delivered ? "Delivered" : "Scheduled Delivery"}</p>
-                      <p className="text-sm font-semibold text-[#0D2240] mt-0.5">
-                        {o.delivery_date || "—"}
-                        <span className="block text-xs font-normal text-gray-400">{o.delivery_time_window ?? "—"}</span>
-                      </p>
-                    </div>
-                    {o.delivery_address && (
-                      <div className="col-span-2">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Delivery Address</p>
-                        <p className="text-xs font-normal text-[#0D2240] mt-0.5">{o.delivery_address}</p>
-                      </div>
-                    )}
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <OrderSnapshot order={snapshot} compact />
                     {bagBreakdown.length > 0 && (
-                      <div className="col-span-2 sm:col-span-3">
+                      <div className="mt-3 pt-3 border-t border-gray-100">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Weight Breakdown</p>
                         <div className="flex flex-wrap gap-x-4 gap-y-0.5">
                           {bagBreakdown.map(b => (

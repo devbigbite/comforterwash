@@ -171,10 +171,17 @@ export interface CommercialOrderHistoryItem {
   service_type: string
   num_bags: number | null
   num_comforters: number | null
+  comforter_size: string | null
+  comforter_sizes: string | null
+  detergent: string | null
+  extras: string | null
   actual_weight_lbs: number | null
   customer_final_cents: number | null
   payment_status: string | null
   created_at: string
+  assigned_driver: { name: string } | null
+  assigned_delivery_driver: { name: string } | null
+  assigned_operator: { name: string } | null
   // Per-bag weight breakdown, when captured at weigh-in — lets a commercial
   // customer see how the order total was made up bag-by-bag instead of just
   // one combined number (requested after a payment-retry billing question).
@@ -191,11 +198,19 @@ export async function getCommercialAccountOrderHistory(code: string): Promise<{
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("bookings")
-    .select("id, short_code, pickup_date, pickup_time_window, delivery_date, delivery_time_window, delivery_address, status, service_type, num_bags, num_comforters, actual_weight_lbs, customer_final_cents, payment_status, created_at, order_bags(bag_number, weight_lbs)")
+    .select(`
+      id, short_code, pickup_date, pickup_time_window, delivery_date, delivery_time_window,
+      delivery_address, status, service_type, num_bags, num_comforters, comforter_size,
+      comforter_sizes, detergent, extras, actual_weight_lbs, customer_final_cents,
+      payment_status, created_at, order_bags(bag_number, weight_lbs),
+      assigned_driver:workers!assigned_driver_id(name),
+      assigned_delivery_driver:workers!assigned_delivery_driver_id(name),
+      assigned_operator:workers!assigned_operator_id(name)
+    `)
     .eq("commercial_account_id", account.id)
     .order("created_at", { ascending: false })
 
-  return { account, orders: (data ?? []) as CommercialOrderHistoryItem[] }
+  return { account, orders: (data ?? []) as unknown as CommercialOrderHistoryItem[] }
 }
 
 // ── Self-serve signup (public, no admin auth) ────────────────────────────────

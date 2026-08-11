@@ -67,7 +67,12 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 
 export function OrderSnapshot({ order, compact }: { order: OrderSnapshotData; compact?: boolean }) {
   const orderCode = order.short_code?.toUpperCase() ?? order.id.slice(0, 8).toUpperCase()
-  const bagCount = order.num_bags ?? order.num_comforters ?? 1
+  // Don't silently default to 1 — num_bags/num_comforters is often just a
+  // placeholder estimate on a booking that hasn't been picked up yet (real
+  // bags aren't counted until then), and showing "1 bag" for an order that
+  // hasn't actually been counted misrepresents it as settled fact. Null
+  // means genuinely unknown; render that honestly instead.
+  const bagCount = order.num_bags ?? order.num_comforters ?? null
   // Whether to label the count "bag" or "comforter" must come from
   // service_type, not from which of num_bags/num_comforters happens to be
   // truthy — a wash_fold order can carry a leftover non-null num_comforters
@@ -125,7 +130,7 @@ export function OrderSnapshot({ order, compact }: { order: OrderSnapshotData; co
         } />
         <Field label="Bags / Comforters" value={
           <>
-            {bagCount} {countUnit}{bagCount !== 1 ? "s" : ""}
+            {bagCount != null ? `${bagCount} ${countUnit}${bagCount !== 1 ? "s" : ""}` : "Not yet counted"}
             {(order.comforter_size || order.comforter_sizes) && (
               <span className="block text-xs font-normal text-gray-400 capitalize">{order.comforter_sizes || order.comforter_size}</span>
             )}
