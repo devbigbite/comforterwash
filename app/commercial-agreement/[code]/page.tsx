@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { getCommercialAccountByCode, signCommercialAgreement } from "@/app/actions/commercial-accounts"
 import { SignAgreementForm } from "./sign-form"
 import CommercialCardSetup from "@/components/commercial-card-setup"
+import { UpdatePaymentToggle } from "./update-payment-toggle"
 
 export default async function CommercialAgreementPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
@@ -44,18 +45,27 @@ export default async function CommercialAgreementPage({ params }: { params: Prom
               </div>
 
               {account.stripe_payment_method_id ? (
-                <div className="rounded-xl bg-green-50 border border-green-200 p-5 text-center">
-                  <p className="font-bold text-green-700">✅ Payment method on file — account setup complete</p>
-                  <p className="text-sm text-green-700/80 mt-1">
-                    {account.card_brand ? `${account.card_brand.toUpperCase()} ` : ""}
-                    {account.card_last4 ? `ending in ${account.card_last4}` : "Card saved"}
-                  </p>
-                  <Link
-                    href={`/commercial-agreement/${code}/history`}
-                    className="inline-block mt-3 text-sm font-bold text-[#0D2240] hover:underline"
-                  >
-                    View Order &amp; Billing History →
-                  </Link>
+                <div className="space-y-3">
+                  <div className="rounded-xl bg-green-50 border border-green-200 p-5 text-center">
+                    <p className="font-bold text-green-700">✅ Payment method on file — account setup complete</p>
+                    <p className="text-sm text-green-700/80 mt-1">
+                      {account.card_brand ? `${account.card_brand.toUpperCase()} ` : ""}
+                      {account.card_last4 ? `ending in ${account.card_last4}` : "Card saved"}
+                    </p>
+                    <Link
+                      href={`/commercial-agreement/${code}/history`}
+                      className="inline-block mt-3 text-sm font-bold text-[#0D2240] hover:underline"
+                    >
+                      View Order &amp; Billing History →
+                    </Link>
+                  </div>
+                  {/* Lets the customer swap the card on file at any time —
+                      e.g. after a decline like "connection to the user's
+                      Link account has been closed," or if their card
+                      expired. Previously the only path to a card already on
+                      file was a one-time setup at signing; there was no way
+                      to update it afterward without a manual admin/DB fix. */}
+                  <UpdatePaymentToggle accountId={account.id} />
                 </div>
               ) : (
                 <div>

@@ -330,6 +330,48 @@ export async function getCommercialAccountByCode(code: string): Promise<Commerci
   return (data as CommercialAccount) ?? null
 }
 
+// Self-serve "update your card on file" — reuses the exact same
+// access_code link as the agreement page (see /commercial-agreement/[code]),
+// which already shows an "Update Payment Method" option once a card is on
+// file. Built for the case where a saved payment method starts failing
+// (e.g. "The connection to the user's Link account has been closed") —
+// previously the only fix was a manual DB edit or asking the customer to
+// call in; this lets an admin send them a link to fix it themselves.
+export async function sendPaymentUpdateLink(accountId: string): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  const { data: account } = await supabase
+    .from("commercial_accounts")
+    .select("access_code, business_name, contact_email, contact_phone")
+    .eq("id", accountId)
+    .maybeSingle()
+
+  if (!account) return { error: "Account not found" }
+  if (!account.contact_email && !account.contact_phone) return { error: "No contact email or phone on file for this account" }
+
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://comforterwash.com"
+  const link = `${SITE_URL}/commercial-agreement/${account.access_code}`
+
+  let sent = false
+  if (account.contact_email) {
+    const { sendPaymentUpdateNeededEmail } = await import("@/lib/email")
+    await sendPaymentUpdateNeededEmail({
+      toEmail: account.contact_email,
+      businessName: account.business_name,
+      link,
+    })
+    sent = true
+  }
+  if (account.contact_phone) {
+    const { sendSMS } = await import("@/lib/sms")
+    const result = await sendSMS(account.contact_phone,
+      `Hi, this is WashFold Orlando. Your payment method on file needs to be updated for ${account.business_name}'s account. Please update it here: ${link}`)
+    if (result.success) sent = true
+  }
+
+  return sent ? { success: true } : { error: "Failed to send — check contact info on file" }
+}
+
 export async function signCommercialAgreement(formData: FormData): Promise<{ error?: string; success?: boolean }> {
   const code = formData.get("code") as string
   const signedName = (formData.get("signed_name") as string)?.trim()

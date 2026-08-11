@@ -455,6 +455,39 @@ export async function sendCommercialAccountInviteEmail(data: CommercialInviteEma
   return safeSend({ from: await fromAdmin(), to: [data.toEmail], subject, html })
 }
 
+// Distinct from the invite email above — that one says "you're invited to
+// set up a commercial account," which is confusing/wrong to send an
+// already-active account whose card just needs updating (e.g. after a
+// "connection to the user's Link account has been closed" decline). Reuses
+// the same access_code link (the agreement page already offers an "Update
+// Payment Method" option once a card is on file), just with copy that
+// matches what's actually being asked of them.
+export async function sendPaymentUpdateNeededEmail(data: CommercialInviteEmailData) {
+  if (!data.toEmail) return null
+  const branding = await getEmailBranding()
+  const subject = `Action needed: update your payment method — ${branding.businessName}`
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:${branding.primaryColor};margin-bottom:4px">Please update your payment method</h2>
+      <p style="color:#666;font-size:14px;margin-bottom:24px">
+        We ran into an issue charging the card on file for <strong>${data.businessName}</strong>'s account with ${branding.businessName}.
+        Please update your payment method below so we can keep your orders running smoothly — it only takes a minute.
+      </p>
+      <div style="text-align:center;margin-bottom:24px">
+        <a href="${data.link}" style="display:inline-block;background:${branding.accentColor};color:white;font-weight:800;font-size:14px;text-decoration:none;padding:14px 28px;border-radius:999px">
+          Update Payment Method →
+        </a>
+      </div>
+      <p style="color:#999;font-size:12px;line-height:1.6">
+        If the button doesn't work, copy and paste this link into your browser:<br>
+        <a href="${data.link}" style="color:${branding.accentColor}">${data.link}</a>
+      </p>
+      <p style="margin-top:24px;font-size:12px;color:#aaa">${branding.businessName} · ${branding.supportPhone}</p>
+    </div>
+  `
+  return safeSend({ from: await fromAdmin(), to: [data.toEmail], subject, html })
+}
+
 export async function sendGiftCardEmail(data: GiftCardEmailData) {
   if (!data.toEmail) return null
   const branding = await getEmailBranding()

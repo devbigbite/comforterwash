@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { format } from "date-fns"
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
@@ -15,6 +15,7 @@ import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { recordWeightAndCharge } from "@/app/actions/weigh-in"
 import { capturePayment, chargeCommercialAccountOrder } from "@/app/actions/stripe"
+import { sendPaymentUpdateLink } from "@/app/actions/commercial-accounts"
 import { updateFacilityDetails } from "@/app/actions/facility-board"
 import PhotoUploader from "@/app/operator/order/[id]/photo-uploader"
 import { WeightEntryForm } from "@/components/admin/WeightEntryForm"
@@ -212,25 +213,37 @@ async function enterWeightAction(formData: FormData) {
 // driver-app booking-update bug that left weight/billing unset even though
 // the timeline showed a weight — see order_events "⚠ Weight/billing save
 // FAILED"). Gives admin a real button instead of needing a DB fix each time.
+// Both actions below previously ended with just revalidatePath — if the
+// underlying Stripe call failed again (e.g. the same declined Link
+// connection), the page re-rendered looking identical to before the click,
+// with zero visible feedback that anything had even run. The only trace was
+// a note buried in the order_events timeline further down the page, easy to
+// miss. Now redirecting with a billingMsg param the page reads and shows as
+// a banner right at the top, so a failed retry is impossible to miss.
 async function captureNowAction(formData: FormData) {
   "use server"
   const bookingId = formData.get("bookingId") as string
   await assertBookingOwnership(bookingId)
   const supabase = createAdminClient()
+  let msg: string
   try {
     await capturePayment(bookingId)
     await supabase.from("order_events").insert({
       booking_id: bookingId, event_type: "weight_confirmed",
       notes: "Payment captured manually by admin", created_by: "admin",
     })
+    msg = "ok:Payment captured successfully."
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : "unknown error"
     await supabase.from("order_events").insert({
       booking_id: bookingId, event_type: "weight_confirmed",
-      notes: `Manual capture failed: ${err instanceof Error ? err.message : "unknown error"}`,
+      notes: `Manual capture failed: ${errMsg}`,
       created_by: "admin",
     })
+    msg = `err:Capture failed — ${errMsg}`
   }
   revalidatePath(`/admin/orders/${bookingId}`)
+  redirect(`/admin/orders/${bookingId}?billingMsg=${encodeURIComponent(msg)}`)
 }
 
 // Manual "Retry Charge" for commercial pay-at-service accounts — each call
@@ -248,7 +261,24 @@ async function retryCommercialChargeAction(formData: FormData) {
     notes: result.success ? "Commercial charge retried and succeeded (admin)" : `Retry failed: ${result.error}`,
     created_by: "admin",
   })
+  const msg = result.success ? "ok:Charge succeeded." : `err:Charge failed again — ${result.error}`
   revalidatePath(`/admin/orders/${bookingId}`)
+  redirect(`/admin/orders/${bookingId}?billingMsg=${encodeURIComponent(msg)}`)
+}
+
+// Sends the commercial account's existing self-serve access_code link (see
+// /commercial-agreement/[code], which now offers an "Update Payment Method"
+// option even once a card is already on file) so a customer whose card is
+// declining — e.g. "connection to the user's Link account has been closed" —
+// can fix it themselves instead of it requiring a manual admin/DB fix.
+async function sendPaymentUpdateLinkAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const commercialAccountId = formData.get("commercialAccountId") as string
+  await assertBookingOwnership(bookingId)
+  const result = await sendPaymentUpdateLink(commercialAccountId)
+  const msg = result.success ? "ok:Update-payment link sent to the customer." : `err:${result.error}`
+  redirect(`/admin/orders/${bookingId}?billingMsg=${encodeURIComponent(msg)}`)
 }
 
 // Bag count adjustment — same reconciliation approach as the driver app's
@@ -356,9 +386,15 @@ async function logFinishedProductPhoto(formData: FormData) {
   revalidatePath(`/admin/orders/${bookingId}`)
 }
 
-export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrderDetailPage({
+  params, searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ billingMsg?: string }>
+}) {
   await requireAdmin()
   const { id } = await params
+  const { billingMsg } = await searchParams
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const { data: booking } = await supabase
@@ -499,6 +535,14 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </div>
         </div>
 
+        {billingMsg && (
+          <div className={`mb-6 rounded-2xl border p-4 text-sm font-semibold ${
+            billingMsg.startsWith("ok:") ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"
+          }`}>
+            {billingMsg.startsWith("ok:") ? "✅ " : "⚠️ "}{billingMsg.slice(billingMsg.indexOf(":") + 1)}
+          </div>
+        )}
+
         {/* Order Snapshot — at-a-glance pickup/delivery timing, what's inside,
             who it's for, who's handling it, what it costs. Everything below
             this (billing breakdown, photos, event log) is the deep-dive view;
@@ -573,14 +617,24 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 PaymentIntent, so it's safe to click again after fixing the
                 payment method on file. */}
             {booking.commercial_account_id && booking.payment_status === "failed" && (
-              <form action={retryCommercialChargeAction} className="mt-4 flex flex-col items-center gap-1">
-                <input type="hidden" name="bookingId" value={booking.id} />
-                <button type="submit"
-                  className="bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors">
-                  🔁 Retry Charge — ${(customerFinalCents! / 100).toFixed(2)}
-                </button>
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <form action={retryCommercialChargeAction}>
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <button type="submit"
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors">
+                    🔁 Retry Charge — ${(customerFinalCents! / 100).toFixed(2)}
+                  </button>
+                </form>
                 <p className="text-xs text-gray-400">Verify the commercial account's card on file before retrying.</p>
-              </form>
+                <form action={sendPaymentUpdateLinkAction}>
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <input type="hidden" name="commercialAccountId" value={booking.commercial_account_id} />
+                  <button type="submit"
+                    className="text-[#0D2240] font-bold text-sm px-4 py-2 rounded-xl border-2 border-[#0D2240] hover:bg-[#0D2240] hover:text-white transition-colors">
+                    💳 Send Update Payment Link to Customer
+                  </button>
+                </form>
+              </div>
             )}
           </div>
         ) : booking.service_type === "wash_fold" && (
