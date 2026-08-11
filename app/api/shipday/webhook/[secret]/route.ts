@@ -58,6 +58,21 @@ function extractEventType(body: Record<string, unknown>): string {
   return typeof raw === "string" ? raw.toUpperCase() : "UNKNOWN"
 }
 
+// Shipday's own proof-of-delivery photo — sent as order.podUrls, an array of
+// URL strings. If a driver completes delivery through Shipday instead of our
+// own app, that photo would otherwise stay trapped in Shipday and never
+// reach the customer's tracking page, since our own delivery flow requires
+// its own photo_customer_delivery step that this driver never went through.
+// Pulling the first podUrl through here means the customer-facing tracking
+// page shows a delivery photo either way, regardless of which app the
+// driver actually used.
+function extractPodUrl(body: Record<string, unknown>): string | null {
+  const order = (body.order as Record<string, unknown> | undefined) ?? body
+  const raw = order.podUrls ?? order.pod_urls
+  if (Array.isArray(raw) && typeof raw[0] === "string") return raw[0]
+  return null
+}
+
 // Real enum values per Shipday's docs — note "ORDER_PIKEDUP" (their typo,
 // not "PICKED_UP") is the actual event name for a completed pickup.
 const DELIVERY_COMPLETE_EVENTS = new Set([
@@ -138,6 +153,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sec
   })
 
   if (leg === "delivery" && DELIVERY_COMPLETE_EVENTS.has(eventType)) {
+    const podUrl = extractPodUrl(body)
+    if (podUrl) {
+      // Only pull it in if we don't already have one from our own driver app
+      // (e.g. a driver who took the photo in our app first, then also
+      // completed the order in Shipday) — first photo wins, never overwrite.
+      const { data: existingPhoto } = await supabase
+        .from("order_events")
+        .select("id")
+        .eq("booking_id", booking.id)
+        .eq("event_type", "photo_customer_delivery")
+        .limit(1)
+        .maybeSingle()
+      if (!existingPhoto) {
+        await supabase.from("order_events").insert({
+          booking_id: booking.id,
+          event_type: "photo_customer_delivery",
+          photo_url: podUrl,
+          notes: "Photo at customer — bags delivered (via Shipday)",
+          created_by: "shipday",
+        })
+      }
+    }
     if (booking.status !== "delivered") {
       try {
         await updateBookingStatus(booking.id, "delivered")
