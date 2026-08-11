@@ -449,6 +449,45 @@ function EmailDomainSection() {
   )
 }
 
+// Read-only, generated server-side (DB default on the locations row) — this
+// is what closes the "two apps disagree" gap: pasting this exact URL into
+// Shipday → Settings → Webhooks makes a delivery marked complete in Shipday
+// automatically mark it delivered in our app too, instead of the two systems
+// silently drifting apart (which is what happened to order 977763 — Shipday
+// knew it was delivered, our app never did, and it sat stuck in Aerial View
+// indefinitely).
+function WebhookUrlField({ secret }: { secret: string }) {
+  const [copied, setCopied] = useState(false)
+  const url = typeof window !== "undefined"
+    ? `${window.location.origin}/api/shipday/webhook/${secret}`
+    : ""
+
+  function copy() {
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="rounded-xl bg-teal-50 border border-teal-200 p-4 space-y-2">
+      <p className="text-xs font-bold text-teal-800 uppercase tracking-wide">🔗 Webhook URL — keep Shipday &amp; this app in sync</p>
+      <p className="text-xs text-teal-700">
+        Paste this into Shipday → Settings → Webhooks. Once connected, a delivery marked complete in Shipday
+        automatically marks it delivered here too — no more orders stuck showing as "in progress" after they've
+        actually been dropped off.
+      </p>
+      <div className="flex gap-2">
+        <input readOnly value={url} onClick={e => (e.target as HTMLInputElement).select()}
+          className="flex-1 border border-teal-200 rounded-lg px-3 py-2 text-xs font-mono text-teal-900 bg-white focus:outline-none" />
+        <button type="button" onClick={copy}
+          className="shrink-0 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors">
+          {copied ? "✓ Copied" : "Copy"}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Delivery dispatch (Shipday) — each tenant brings their own account so
 // driver dispatch/tracking is fully isolated, not shared across tenants ──────
 function DispatchSection() {
@@ -550,6 +589,8 @@ function DispatchSection() {
           <p className="text-xs text-gray-400">
             This is where drivers pick up processed orders from — it can differ from the public business address above.
           </p>
+
+          {settings.shipday_webhook_secret && <WebhookUrlField secret={settings.shipday_webhook_secret} />}
         </div>
       )}
 
