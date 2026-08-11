@@ -475,9 +475,10 @@ function WebhookUrlField({ secret }: { secret: string }) {
       <p className="text-xs font-bold text-teal-800 uppercase tracking-wide">🔗 Webhook URL — keep Shipday &amp; this app in sync</p>
       <p className="text-xs text-teal-700">
         In Shipday, go to <span className="font-semibold">Integrations → API Credentials → Add API Link</span> and paste
-        this as the URL (leave the Token field blank). Once connected, a delivery marked complete in Shipday
-        automatically marks it delivered here too — no more orders stuck showing as "in progress" after they've
-        actually been dropped off.
+        this as the URL. Shipday also requires a Token field — it isn't checked on our end, so any short value works
+        (e.g. <span className="font-mono">washfold-webhook</span>). Once connected, a delivery marked complete in
+        Shipday automatically marks it delivered here too — no more orders stuck showing as "in progress" after
+        they've actually been dropped off.
       </p>
       <div className="flex gap-2">
         <input readOnly value={url} onClick={e => (e.target as HTMLInputElement).select()}
