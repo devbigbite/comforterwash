@@ -42,6 +42,21 @@ function getStatusBadge(o: { status: string; payment_status: string | null; actu
   return { label: PAYMENT_STATUS_LABEL[o.payment_status ?? "pending"] ?? o.payment_status ?? "Pending", style: PAYMENT_STATUS_STYLE[o.payment_status ?? "pending"] ?? PAYMENT_STATUS_STYLE.pending }
 }
 
+// "confirmed" is the only status before a driver has actually picked the
+// order up (every other status — picked_up, at_facility, in_washer, ...,
+// delivered — means it's at least been picked up). "delivered" is the only
+// status meaning delivery has actually happened. Previously the row always
+// said "Picked up {date}" / "Delivered {date}" using the *scheduled* dates
+// regardless of real progress, which read as a false claim for an order
+// still days away from pickup (see order 714600, scheduled 8/14, showing
+// "Picked up 2026-08-14 · Delivered 2026-08-17" while still just confirmed).
+function pickupHappened(status: string) {
+  return status !== "confirmed" && !!status
+}
+function deliveryHappened(status: string) {
+  return status === "delivered"
+}
+
 export default async function CommercialAccountHistoryPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
   const result = await getCommercialAccountOrderHistory(code)
@@ -121,9 +136,16 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
                 const bagBreakdown = (o.order_bags ?? [])
                   .filter(b => b.weight_lbs != null)
                   .sort((a, b) => a.bag_number - b.bag_number)
-                const bagCount = o.num_bags ?? o.num_comforters ?? 1
+                // Don't invent a bag count — a wash_fold order gets its real
+                // num_bags at pickup (the driver counts and bags it), so
+                // before that it's genuinely unknown, not "1". Silently
+                // defaulting to 1 misrepresented orders that hadn't been
+                // picked up yet (see order 714600).
+                const bagCount = o.num_bags ?? o.num_comforters ?? null
                 const countUnit = o.service_type === "comforter_wash" ? "comforter" : "bag"
                 const badge = getStatusBadge(o)
+                const picked = pickupHappened(o.status)
+                const delivered = deliveryHappened(o.status)
                 return (
                 // <details> gives click-to-expand with no client JS needed —
                 // clicking the order number (inside <summary>) reveals a
@@ -137,9 +159,9 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
                     <span className="text-gray-300 group-open:rotate-90 transition-transform shrink-0">▶</span>
                     <span className="font-bold text-[#0D2240] w-20 shrink-0">{o.short_code ?? o.id.slice(0, 6).toUpperCase()}</span>
                     <span className="text-gray-500">
-                      Picked up {o.pickup_date}
+                      {picked ? "Picked up" : "Scheduled pickup"} {o.pickup_date}
                       <span className="text-gray-300 mx-1">·</span>
-                      Delivered {o.delivery_date || "—"}
+                      {o.delivery_date ? `${delivered ? "Delivered" : "Scheduled delivery"} ${o.delivery_date}` : "—"}
                     </span>
                     <span className="text-gray-400">
                       {o.actual_weight_lbs ? `${o.actual_weight_lbs} lbs` : "—"}
@@ -168,17 +190,19 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Bags / Comforters</p>
-                      <p className="text-sm font-semibold text-[#0D2240] mt-0.5">{bagCount} {countUnit}{bagCount !== 1 ? "s" : ""}</p>
+                      <p className="text-sm font-semibold text-[#0D2240] mt-0.5">
+                        {bagCount != null ? `${bagCount} ${countUnit}${bagCount !== 1 ? "s" : ""}` : "Not yet counted"}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Pickup</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{picked ? "Picked Up" : "Scheduled Pickup"}</p>
                       <p className="text-sm font-semibold text-[#0D2240] mt-0.5">
                         {o.pickup_date}
                         <span className="block text-xs font-normal text-gray-400">{o.pickup_time_window ?? "—"}</span>
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Delivery</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{delivered ? "Delivered" : "Scheduled Delivery"}</p>
                       <p className="text-sm font-semibold text-[#0D2240] mt-0.5">
                         {o.delivery_date || "—"}
                         <span className="block text-xs font-normal text-gray-400">{o.delivery_time_window ?? "—"}</span>
