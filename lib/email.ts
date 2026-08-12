@@ -40,6 +40,10 @@ async function getEmailBranding(overrideLocationId?: string): Promise<EmailBrand
     primaryColor: b.primary_color,
     accentColor: b.accent_color,
     supportPhone: b.support_phone ?? "(407) 123-4567",
+    // Support is email-only at this stage — no phone/text line is shown to
+    // customers yet, so this always resolves to the shared support inbox
+    // rather than a per-tenant column (there isn't one yet).
+    supportEmail: SEND_DOMAIN,
     websiteDomain: "washfoldorlando.com",
   }
 }

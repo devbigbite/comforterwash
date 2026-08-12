@@ -52,6 +52,7 @@ export interface EmailBranding {
   primaryColor: string
   accentColor: string
   supportPhone: string
+  supportEmail: string
   websiteDomain: string   // no protocol, e.g. "washfoldorlando.com"
 }
 
@@ -60,6 +61,7 @@ export const DEFAULT_EMAIL_BRANDING: EmailBranding = {
   primaryColor: "#0D2240",
   accentColor: "#E8726A",
   supportPhone: "(407) 123-4567",
+  supportEmail: "clean@washfoldorlando.com",
   websiteDomain: "washfoldorlando.com",
 }
 
@@ -95,6 +97,18 @@ function detailRow(label: string, value: string): string {
     <span class="detail-label">${label}</span>
     <span class="detail-value">${value}</span>
   </div>`
+}
+
+// ─── DATE FORMATTING ──────────────────────────────────────────────
+// pickup/delivery dates arrive as raw ISO strings (from Stripe metadata /
+// DB columns) — this renders them as "Friday, August 14" for customer- and
+// admin-facing emails instead of the raw timestamp. Falls back to the raw
+// input untouched if it isn't parseable, so nothing ever breaks silently.
+function formatDate(isoOrDate: string): string {
+  if (!isoOrDate) return isoOrDate
+  const date = new Date(isoOrDate)
+  if (isNaN(date.getTime())) return isoOrDate
+  return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })
 }
 
 // ─── SERVICE LABEL HELPER ─────────────────────────────────────────
@@ -147,14 +161,14 @@ export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: Em
   const html = emailShell(`
     <div class="body">
       <div class="hero-badge">✅ Booking Confirmed</div>
-      <h1>${ov.headline ?? `You're all set, ${firstName}!`}</h1>
-      <p class="subtitle">${ov.body ?? "Your laundry pickup is scheduled. We'll send a reminder the morning of pickup — just have everything ready."}</p>
+      <h1>${ov.headline?.replace(/\{\{first_name\}\}/g, firstName) ?? `You're all set, ${firstName}!`}</h1>
+      <p class="subtitle">${ov.body?.replace(/\{\{first_name\}\}/g, firstName) ?? "Your laundry pickup is scheduled. We'll send a reminder the morning of pickup — just have everything ready."}</p>
 
       <div class="detail-card">
         ${detailRow("Service", serviceLabel(d.serviceType))}
         ${itemRow}
-        ${detailRow("Pickup", `${d.pickupDate} · ${d.pickupTimeWindow}`)}
-        ${detailRow("Delivery", `${d.deliveryDate} · ${d.deliveryTimeWindow}`)}
+        ${detailRow("Pickup", `${formatDate(d.pickupDate)} · ${d.pickupTimeWindow}`)}
+        ${detailRow("Delivery", `${formatDate(d.deliveryDate)} · ${d.deliveryTimeWindow}`)}
         ${detailRow("Pickup address", d.pickupAddress)}
         ${detailRow("Est. total", d.estimatedTotal)}
         ${detailRow("Order code", `<span style="font-family:monospace;font-weight:800;font-size:15px;letter-spacing:2px;color:#0D2240;">${d.shortCode ?? d.bookingId.slice(0, 6).toUpperCase()}</span>`)}
@@ -173,8 +187,8 @@ export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: Em
         <p>💡 <strong>Heads up:</strong> Your card is pre-authorized. For Wash &amp; Fold and Wash Only orders, the final charge is based on actual weight — so you only pay for what you send.</p>
       </div>
 
-      <p style="font-size:14px;color:#374151;margin-bottom:8px;">Questions? Reply to this email or text us anytime.</p>
-      <p style="font-size:14px;color:#374151;"><strong>📞 ${branding.supportPhone}</strong></p>
+      <p style="font-size:14px;color:#374151;margin-bottom:8px;">Questions? Reply to this email anytime.</p>
+      <p style="font-size:14px;color:#374151;"><strong>✉️ ${branding.supportEmail}</strong></p>
     </div>
     <div class="footer">
       <p>${branding.businessName} · Pickup &amp; Delivery Laundry Service<br/>
@@ -184,7 +198,7 @@ export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: Em
   `, branding)
 
   return {
-    subject: ov.subject?.replace(/\{\{service_type\}\}/g, serviceLabel(d.serviceType).replace(/&amp;/g, "&")).replace(/\{\{pickup_date\}\}/g, d.pickupDate) ?? `✅ Booking confirmed — ${serviceLabel(d.serviceType).replace(/&amp;/g, "&")} pickup ${d.pickupDate}`,
+    subject: ov.subject?.replace(/\{\{service_type\}\}/g, serviceLabel(d.serviceType).replace(/&amp;/g, "&")).replace(/\{\{pickup_date\}\}/g, formatDate(d.pickupDate)) ?? `✅ Booking confirmed — ${serviceLabel(d.serviceType).replace(/&amp;/g, "&")} pickup ${formatDate(d.pickupDate)}`,
     html,
   }
 }
@@ -233,8 +247,8 @@ export function buildAdminNewOrderEmail(d: AdminNewOrderData, ov: EmailTemplateO
         ${detailRow("Phone", `<a href="tel:${d.customerPhone}" style="color:#E8726A;">${d.customerPhone}</a>`)}
         ${detailRow("Service", serviceLabel(d.serviceType))}
         ${itemRow}
-        ${detailRow("Pickup", `${d.pickupDate} · ${d.pickupTimeWindow}`)}
-        ${detailRow("Delivery", `${d.deliveryDate} · ${d.deliveryTimeWindow}`)}
+        ${detailRow("Pickup", `${formatDate(d.pickupDate)} · ${d.pickupTimeWindow}`)}
+        ${detailRow("Delivery", `${formatDate(d.deliveryDate)} · ${d.deliveryTimeWindow}`)}
         ${detailRow("Address", d.pickupAddress)}
         ${detailRow("Pre-auth total", d.preAuthTotal)}
         ${detailRow("Booking ID", `<span style="font-family:monospace;font-size:12px;">${d.bookingId}</span>`)}
@@ -290,8 +304,8 @@ export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplat
 
       ${ov.contact_note != null
         ? `<p style="font-size:14px;color:#374151;">${ov.contact_note}</p>`
-        : `<p style="font-size:14px;color:#374151;">Need to reschedule or have questions? Text or call us ASAP.</p>
-      <p style="font-size:14px;color:#374151;margin-top:8px;"><strong>📞 ${branding.supportPhone}</strong></p>`
+        : `<p style="font-size:14px;color:#374151;">Need to reschedule or have questions? Reply to this email ASAP.</p>
+      <p style="font-size:14px;color:#374151;margin-top:8px;"><strong>✉️ ${branding.supportEmail}</strong></p>`
       }
     </div>
     <div class="footer">
@@ -379,10 +393,10 @@ export function buildOutForDeliveryEmail(d: OutForDeliveryData, ov: EmailTemplat
       </div>
 
       <div class="alert-box">
-        <p>🏡 <strong>Not home?</strong> Text us a safe place to leave your order and we'll take care of it.</p>
+        <p>🏡 <strong>Not home?</strong> Reply to this email with a safe place to leave your order and we'll take care of it.</p>
       </div>
 
-      <p style="font-size:14px;color:#374151;"><strong>📞 ${branding.supportPhone}</strong></p>
+      <p style="font-size:14px;color:#374151;"><strong>✉️ ${branding.supportEmail}</strong></p>
     </div>
     <div class="footer">
       <p>${branding.businessName} · <a href="https://${branding.websiteDomain}">${branding.websiteDomain}</a></p>
