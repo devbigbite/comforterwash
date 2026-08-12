@@ -117,7 +117,14 @@ export interface ShipdayConfig {
 }
 
 export async function getShipdayConfig(): Promise<ShipdayConfig> {
-  const locationId = await getLocationId()
+  return getShipdayConfigForLocation(await getLocationId())
+}
+
+// Cron routes have no request hostname to resolve "the current tenant" from
+// (see app/api/cron/reminders/route.ts's brandingFor for the same problem) —
+// this lets a cron job look up any given location's Shipday credentials
+// directly instead of relying on request-scoped getLocationId().
+export async function getShipdayConfigForLocation(locationId: string): Promise<ShipdayConfig> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("locations")
