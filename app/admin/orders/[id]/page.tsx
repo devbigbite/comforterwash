@@ -11,6 +11,8 @@ import {
 } from "@/app/actions/shipday"
 import { getMiscFees } from "@/app/actions/fees"
 import { MiscFeesPanel } from "./misc-fees-panel"
+import { getOrderIssueNotes } from "@/app/actions/order-issue-notes"
+import { OrderIssueNotesPanel } from "./order-issue-notes-panel"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { recordWeightAndCharge } from "@/app/actions/weigh-in"
@@ -440,6 +442,7 @@ export default async function OrderDetailPage({
     .order("name")
 
   const miscFees = await getMiscFees(id)
+  const issueNotes = await getOrderIssueNotes(id)
 
   // Photos already on file per event type — passed into each PhotoUploader
   // as initialPhotos so a page refresh shows what's actually saved instead
@@ -1063,6 +1066,13 @@ export default async function OrderDetailPage({
 
         {/* Misc Fees */}
         <MiscFeesPanel bookingId={id} initialFees={miscFees} />
+
+        <OrderIssueNotesPanel
+          bookingId={id}
+          initialNotes={issueNotes}
+          hasEmail={!!booking.customer_email}
+          hasPhone={!!booking.customer_phone}
+        />
 
         {/* Event timeline */}
         <div className="mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">

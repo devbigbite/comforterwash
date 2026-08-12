@@ -448,6 +448,45 @@ export function buildDeliveredEmail(d: DeliveredData, ov: EmailTemplateOverride 
   }
 }
 
+// ─── 6b. ORDER ISSUE / NOTE — manual, staff-reviewed note about a specific
+// order (a stain, a missing item, damage, etc.). Not part of the automated
+// pickup/delivery lifecycle; only sent when a staff member explicitly
+// clicks Send on a note from the admin order page (see
+// app/actions/order-issue-notes.ts).
+export interface OrderIssueData {
+  customerName: string
+  customerEmail: string
+  note: string
+  shortCode?: string
+}
+
+export function buildOrderIssueEmail(d: OrderIssueData, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): { subject: string; html: string } {
+  const firstName = d.customerName.split(" ")[0]
+
+  const html = emailShell(`
+    <div class="body">
+      <div class="hero-badge">📝 A note about your order</div>
+      <h1>Hi ${firstName}, quick update</h1>
+      <p class="subtitle">${d.shortCode ? `Regarding your order <strong>#${d.shortCode}</strong>:` : "Regarding your order:"}</p>
+
+      <div class="detail-card">
+        <p style="font-size:15px;color:#111827;line-height:1.6;">${d.note.replace(/\n/g, "<br/>")}</p>
+      </div>
+
+      <p style="font-size:14px;color:#374151;margin-bottom:8px;">Questions? Reply to this email anytime.</p>
+      <p style="font-size:14px;color:#374151;"><strong>✉️ ${branding.supportEmail}</strong></p>
+    </div>
+    <div class="footer">
+      <p>${branding.businessName} · <a href="https://${branding.websiteDomain}">${branding.websiteDomain}</a></p>
+    </div>
+  `, branding)
+
+  return {
+    subject: `📝 A note about your order${d.shortCode ? ` #${d.shortCode}` : ""} — ${branding.businessName}`,
+    html,
+  }
+}
+
 // ─── 7. ACCOUNT READY (new customer account created) ──────────────
 export interface AccountReadyData {
   customerName: string

@@ -9,12 +9,14 @@ import {
   buildOutForDeliveryEmail,
   buildDeliveredEmail,
   buildAccountReadyEmail,
+  buildOrderIssueEmail,
   type BookingConfirmationData,
   type AdminNewOrderData,
   type PickupReminderData,
   type OrderPickedUpData,
   type OutForDeliveryData,
   type DeliveredData,
+  type OrderIssueData,
 } from "./email-templates"
 import { getEmailTemplate } from "@/app/actions/email-templates"
 import { getBranding, getLocationId } from "@/lib/location"
@@ -98,6 +100,16 @@ async function safeSend(payload: Parameters<typeof resend.emails.send>[0]) {
 export async function sendBookingConfirmationEmail(data: BookingConfirmationData) {
   const [ov, branding] = await Promise.all([getEmailTemplate("customer_booking_confirmation"), getEmailBranding()])
   const { subject, html } = buildBookingConfirmationEmail(data, ov ?? {}, branding)
+  return safeSend({ from: await fromCustomer(), to: [data.customerEmail], subject, html })
+}
+
+// ─────────────────────────────────────────────────────────────────
+// 1b. Customer: Order Issue / Note (manual, staff-reviewed — see
+// app/actions/order-issue-notes.ts)
+// ─────────────────────────────────────────────────────────────────
+export async function sendOrderIssueEmail(data: OrderIssueData) {
+  const branding = await getEmailBranding()
+  const { subject, html } = buildOrderIssueEmail(data, branding)
   return safeSend({ from: await fromCustomer(), to: [data.customerEmail], subject, html })
 }
 
