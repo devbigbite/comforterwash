@@ -93,7 +93,7 @@ export default async function RootLayout({
             </div>
           )}
           {!isDemo && isDemoTenant && (
-            <div className="sticky top-0 z-[60] bg-[#0D2240] text-white text-sm font-semibold text-center py-2 px-4">
+            <div className="sticky top-0 z-[60] bg-[#0D2240] text-white text-lg font-semibold text-center py-3 px-4">
               This site is a demo. To schedule live service, visit{" "}
               <a href="https://washfoldorlando.com" className="underline underline-offset-2 hover:opacity-80">
                 washfoldorlando.com
