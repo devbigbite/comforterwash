@@ -9,6 +9,8 @@ export interface UnprintedOrder {
   bag_count: number
   hold_at_facility: boolean
   delivery_date: string | null
+  assigned_operator_id: string | null
+  assigned_operator_name: string | null
 }
 
 /**
@@ -16,17 +18,29 @@ export interface UnprintedOrder {
  * hold_at_facility gets set is from that decision, which only appears once
  * the operator has marked the order Ready) and haven't had their bag
  * receipts printed yet. Powers the shared print station's queue.
+ *
+ * Includes the assigned operator's name so the print station can group
+ * "To Print" into a box per operator, with an "Unassigned" box for orders
+ * with no assigned_operator_id — makes it obvious at a glance whose orders
+ * are waiting on a print at a shared packing-table station.
  */
 export async function getUnprintedOrders(): Promise<UnprintedOrder[]> {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("bookings")
-    .select("id, short_code, output_bags, num_bags, hold_at_facility, delivery_date")
+    .select("id, short_code, output_bags, num_bags, hold_at_facility, delivery_date, assigned_operator_id")
     .eq("location_id", locationId)
     .not("hold_at_facility", "is", null)
     .is("receipts_printed_at", null)
     .not("status", "in", '("delivered","cancelled")')
     .order("delivery_date", { ascending: true })
+
+  const operatorIds = Array.from(new Set((data ?? []).map(b => b.assigned_operator_id).filter(Boolean))) as string[]
+  const nameById = new Map<string, string>()
+  if (operatorIds.length > 0) {
+    const { data: workers } = await supabase.from("workers").select("id, name").in("id", operatorIds)
+    for (const w of workers ?? []) nameById.set(w.id, w.name)
+  }
 
   return (data ?? []).map(b => ({
     id: b.id,
@@ -34,6 +48,8 @@ export async function getUnprintedOrders(): Promise<UnprintedOrder[]> {
     bag_count: b.output_bags ?? b.num_bags ?? 1,
     hold_at_facility: b.hold_at_facility as boolean,
     delivery_date: b.delivery_date,
+    assigned_operator_id: b.assigned_operator_id ?? null,
+    assigned_operator_name: b.assigned_operator_id ? nameById.get(b.assigned_operator_id) ?? null : null,
   }))
 }
 
@@ -57,7 +73,12 @@ export async function markReceiptsPrinted(bookingId: string): Promise<void> {
   await supabase.from("bookings").update({ receipts_printed_at: new Date().toISOString() }).eq("id", bookingId).eq("location_id", locationId)
 }
 
-export interface PrintedOrder extends UnprintedOrder {
+export interface PrintedOrder {
+  id: string
+  short_code: string | null
+  bag_count: number
+  hold_at_facility: boolean
+  delivery_date: string | null
   receipts_printed_at: string
 }
 

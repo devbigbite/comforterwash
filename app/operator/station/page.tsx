@@ -51,6 +51,22 @@ function StationInner() {
     // stays as the original print time, this is just a history-backed reprint.
   }
 
+  function groupByOperator(list: UnprintedOrder[]) {
+    const groups = new Map<string, { key: string; name: string; orders: UnprintedOrder[] }>()
+    for (const order of list) {
+      const key = order.assigned_operator_id ?? "unassigned"
+      const name = order.assigned_operator_name ?? "Unassigned"
+      if (!groups.has(key)) groups.set(key, { key, name, orders: [] })
+      groups.get(key)!.orders.push(order)
+    }
+    // Named-operator groups sorted alphabetically, "Unassigned" always last
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.key === "unassigned") return 1
+      if (b.key === "unassigned") return -1
+      return a.name.localeCompare(b.name)
+    })
+  }
+
   function timeAgo(iso: string) {
     const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
     if (mins < 1) return "just now"
@@ -104,24 +120,36 @@ function StationInner() {
           </div>
         )}
 
-        {!loading && tab === "unprinted" && orders.map(order => (
-          <div key={order.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="font-mono font-extrabold text-2xl text-[#0D2240] tracking-wide">
-                {(order.short_code ?? order.id.slice(0, 8)).toUpperCase()}
+        {!loading && tab === "unprinted" && orders.length > 0 && groupByOperator(orders).map(group => (
+          <div key={group.key} className="bg-[#f0f1f5] rounded-2xl border border-gray-200 p-3">
+            <div className="flex items-center justify-between px-1 pb-2">
+              <p className="text-[#0D2240] font-extrabold text-sm uppercase tracking-wide">
+                {group.name}
               </p>
-              <p className="text-gray-400 text-sm mt-0.5">
-                {order.bag_count} bag{order.bag_count !== 1 ? "s" : ""} ·{" "}
-                {order.hold_at_facility ? "📍 Floor" : "📦 Storage"}
-              </p>
+              <span className="text-gray-400 text-xs font-bold">{group.orders.length}</span>
             </div>
-            <button
-              onClick={() => handlePrint(order)}
-              disabled={printingId === order.id}
-              className="shrink-0 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-50 text-white font-extrabold text-base px-6 py-3.5 rounded-xl transition-colors"
-            >
-              {printingId === order.id ? "Opening…" : "🖨️ Print"}
-            </button>
+            <div className="space-y-3">
+              {group.orders.map(order => (
+                <div key={order.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-mono font-extrabold text-2xl text-[#0D2240] tracking-wide">
+                      {(order.short_code ?? order.id.slice(0, 8)).toUpperCase()}
+                    </p>
+                    <p className="text-gray-400 text-sm mt-0.5">
+                      {order.bag_count} bag{order.bag_count !== 1 ? "s" : ""} ·{" "}
+                      {order.hold_at_facility ? "📍 Floor" : "📦 Storage"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handlePrint(order)}
+                    disabled={printingId === order.id}
+                    className="shrink-0 bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-50 text-white font-extrabold text-base px-6 py-3.5 rounded-xl transition-colors"
+                  >
+                    {printingId === order.id ? "Opening…" : "🖨️ Print"}
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
 
