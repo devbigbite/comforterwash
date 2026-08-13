@@ -12,13 +12,13 @@ import {
  * dedicated packing-table PC connected to the thermal receipt printer.
  * Log in once as Owner on this browser (bypasses per-operator order
  * assignment so any operator's order shows up here), then leave this tab
- * open. Lists every order that's landed at the facility and hasn't been
- * printed yet — printing happens at the START of processing, before the
- * Floor/Storage decision, so hold_at_facility is often still undecided here
- * (see getUnprintedOrders in app/actions/operator-queue.ts). Tap Print, it
- * opens the receipts (one per packed bag) and fires the print dialog
- * automatically. A second tab shows recently-printed orders in case any
- * need a reprint.
+ * open. Lists every active (not delivered/cancelled) order that hasn't been
+ * printed yet — printing happens at the START of processing, as soon as an
+ * order is confirmed/assigned, even before pickup, so hold_at_facility is
+ * often still undecided here (see getUnprintedOrders in
+ * app/actions/operator-queue.ts). Tap Print, it opens the receipts (one per
+ * packed bag) and fires the print dialog automatically. A second tab shows
+ * recently-printed orders in case any need a reprint.
  */
 function StationInner() {
   const [tab, setTab] = useState<"unprinted" | "printed">("unprinted")

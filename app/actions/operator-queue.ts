@@ -14,14 +14,16 @@ export interface UnprintedOrder {
 }
 
 /**
- * Orders that have landed at the facility and haven't had their bag
+ * Any active (not delivered/cancelled) order that hasn't had its bag
  * receipts printed yet. Powers the shared print station's queue.
  *
  * Printing now happens at the START of an order's processing (see the Wash
- * Operator manual) — right when it reaches the facility — rather than being
- * gated behind the Floor/Storage decision, which still happens later, after
- * folding. So this only requires the order to have reached at_facility (or
- * beyond) and not yet be printed; hold_at_facility is very often still null
+ * Operator manual) — as soon as the order is confirmed and assigned, even
+ * before it's physically been picked up from the customer — rather than
+ * being gated behind the Floor/Storage decision (which still happens later,
+ * after folding) or behind the order having already reached the facility.
+ * So this intentionally does NOT filter by status beyond excluding
+ * delivered/cancelled; hold_at_facility is very often still null
  * (undecided) at print time, and that's expected, not a bug.
  *
  * Includes the assigned operator's name so the print station can group
@@ -35,7 +37,7 @@ export async function getUnprintedOrders(): Promise<UnprintedOrder[]> {
     .from("bookings")
     .select("id, short_code, output_bags, num_bags, hold_at_facility, delivery_date, assigned_operator_id")
     .eq("location_id", locationId)
-    .in("status", ["at_facility", "in_washer", "in_dryer", "folded", "ready"])
+    .not("status", "in", '("delivered","cancelled")')
     .is("receipts_printed_at", null)
     .order("delivery_date", { ascending: true })
 
