@@ -7,7 +7,7 @@ import { cookies } from "next/headers"
 import { LangProvider } from "@/components/lang-provider"
 import { SiteNav } from "@/components/site-nav"
 import type { Locale } from "@/lib/i18n"
-import { getBranding } from "@/lib/location"
+import { getBranding, getLocationId, WASHFOLD_DEMO_LOCATION_ID } from "@/lib/location"
 import "./globals.css"
 
 const inter = Inter({
@@ -43,6 +43,10 @@ export default async function RootLayout({
   const initialLocale: Locale = cookieStore.get("wf_locale")?.value === "es" ? "es" : "en"
   const branding = await getBranding()
   const isDemo = !!cookieStore.get("demo_location_id")?.value
+  // The WashFoldDemo *tenant* itself (browsed directly, not via the ?as=
+  // impersonation cookie above) — a prospect landing on washfoldclean.com
+  // should be told this is a sandbox and pointed at the real, live site.
+  const isDemoTenant = (await getLocationId()) === WASHFOLD_DEMO_LOCATION_ID
 
   return (
     <html
@@ -85,6 +89,14 @@ export default async function RootLayout({
               👋 You're viewing the WashFoldClean Demo — no real orders or payments happen here.{" "}
               <a href="/demo/exit" className="underline underline-offset-2 hover:opacity-80">
                 Exit Demo
+              </a>
+            </div>
+          )}
+          {!isDemo && isDemoTenant && (
+            <div className="sticky top-0 z-[60] bg-[#0D2240] text-white text-sm font-semibold text-center py-2 px-4">
+              This site is a demo. To schedule live service, visit{" "}
+              <a href="https://washfoldorlando.com" className="underline underline-offset-2 hover:opacity-80">
+                washfoldorlando.com
               </a>
             </div>
           )}
