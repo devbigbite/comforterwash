@@ -7,17 +7,22 @@ export interface UnprintedOrder {
   id: string
   short_code: string | null
   bag_count: number
-  hold_at_facility: boolean
+  hold_at_facility: boolean | null
   delivery_date: string | null
   assigned_operator_id: string | null
   assigned_operator_name: string | null
 }
 
 /**
- * Orders that are finished (Floor/Storage decision made — the only way
- * hold_at_facility gets set is from that decision, which only appears once
- * the operator has marked the order Ready) and haven't had their bag
+ * Orders that have landed at the facility and haven't had their bag
  * receipts printed yet. Powers the shared print station's queue.
+ *
+ * Printing now happens at the START of an order's processing (see the Wash
+ * Operator manual) — right when it reaches the facility — rather than being
+ * gated behind the Floor/Storage decision, which still happens later, after
+ * folding. So this only requires the order to have reached at_facility (or
+ * beyond) and not yet be printed; hold_at_facility is very often still null
+ * (undecided) at print time, and that's expected, not a bug.
  *
  * Includes the assigned operator's name so the print station can group
  * "To Print" into a box per operator, with an "Unassigned" box for orders
@@ -30,9 +35,8 @@ export async function getUnprintedOrders(): Promise<UnprintedOrder[]> {
     .from("bookings")
     .select("id, short_code, output_bags, num_bags, hold_at_facility, delivery_date, assigned_operator_id")
     .eq("location_id", locationId)
-    .not("hold_at_facility", "is", null)
+    .in("status", ["at_facility", "in_washer", "in_dryer", "folded", "ready"])
     .is("receipts_printed_at", null)
-    .not("status", "in", '("delivered","cancelled")')
     .order("delivery_date", { ascending: true })
 
   const operatorIds = Array.from(new Set((data ?? []).map(b => b.assigned_operator_id).filter(Boolean))) as string[]
@@ -46,7 +50,7 @@ export async function getUnprintedOrders(): Promise<UnprintedOrder[]> {
     id: b.id,
     short_code: b.short_code,
     bag_count: b.output_bags ?? b.num_bags ?? 1,
-    hold_at_facility: b.hold_at_facility as boolean,
+    hold_at_facility: (b.hold_at_facility as boolean | null) ?? null,
     delivery_date: b.delivery_date,
     assigned_operator_id: b.assigned_operator_id ?? null,
     assigned_operator_name: b.assigned_operator_id ? nameById.get(b.assigned_operator_id) ?? null : null,

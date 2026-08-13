@@ -11,11 +11,14 @@ import {
  * Shared "print station" screen — meant to stay open indefinitely on a
  * dedicated packing-table PC connected to the thermal receipt printer.
  * Log in once as Owner on this browser (bypasses per-operator order
- * assignment so any operator's finished order shows up here), then leave
- * this tab open. Lists every order that's Ready with its Floor/Storage
- * decision made but not yet printed — tap Print, it opens the receipts
- * (one per packed bag) and fires the print dialog automatically. A second
- * tab shows recently-printed orders in case any need a reprint.
+ * assignment so any operator's order shows up here), then leave this tab
+ * open. Lists every order that's landed at the facility and hasn't been
+ * printed yet — printing happens at the START of processing, before the
+ * Floor/Storage decision, so hold_at_facility is often still undecided here
+ * (see getUnprintedOrders in app/actions/operator-queue.ts). Tap Print, it
+ * opens the receipts (one per packed bag) and fires the print dialog
+ * automatically. A second tab shows recently-printed orders in case any
+ * need a reprint.
  */
 function StationInner() {
   const [tab, setTab] = useState<"unprinted" | "printed">("unprinted")
@@ -116,7 +119,7 @@ function StationInner() {
           <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
             <p className="text-4xl mb-3">✅</p>
             <p className="text-[#0D2240] font-bold text-lg">All caught up</p>
-            <p className="text-gray-400 text-base mt-1">No finished orders waiting on receipts. This list updates automatically.</p>
+            <p className="text-gray-400 text-base mt-1">No orders at the facility waiting on receipts. This list updates automatically.</p>
           </div>
         )}
 
@@ -137,7 +140,9 @@ function StationInner() {
                     </p>
                     <p className="text-gray-400 text-sm mt-0.5">
                       {order.bag_count} bag{order.bag_count !== 1 ? "s" : ""} ·{" "}
-                      {order.hold_at_facility ? "📍 Floor" : "📦 Storage"}
+                      {order.hold_at_facility === null
+                        ? "⏳ Floor/Storage not decided yet"
+                        : order.hold_at_facility ? "📍 Floor" : "📦 Storage"}
                     </p>
                   </div>
                   <button
