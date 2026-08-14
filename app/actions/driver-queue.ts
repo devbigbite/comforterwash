@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId, getBranding } from "@/lib/location"
 import { sendSMS } from "@/lib/sms"
 import { sendPickupReminderToCustomer } from "@/lib/email"
+import { geocodeAddress, distanceMiles, type LatLng } from "@/lib/geocoding"
 
 export interface DriverOrder {
   id: string
@@ -46,7 +47,7 @@ export async function getDriverQueue(driverId: string): Promise<{
   // driver in the admin view yet never appear on that driver's phone.
   let pickupsQuery = supabase
     .from("bookings")
-    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
+    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags, address_lat, address_lng")
     .eq("location_id", locationId)
     .lte("pickup_date", today)
     .in("status", ["confirmed", "picked_up"])
@@ -63,15 +64,38 @@ export async function getDriverQueue(driverId: string): Promise<{
   // this delivery.
   let deliveriesQuery = supabase
     .from("bookings")
-    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags")
+    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags, address_lat, address_lng")
     .eq("location_id", locationId)
     .lte("delivery_date", today)
     .in("status", ["ready", "ready_at_warehouse", "out_for_delivery"])
     .order("delivery_date")
   if (!isOwner) deliveriesQuery = deliveriesQuery.eq("assigned_delivery_driver_id", driverId)
 
+  // Driver's route starting point (Admin -> Workers -> [driver] -> Route
+  // Starting Point), if one has been set. "owner" has no worker row, so it
+  // never gets distance sorting — falls back to plain date ordering, same
+  // as any driver with no starting point configured.
+  let startPoint: LatLng | null = null
+  if (!isOwner) {
+    const { data: worker } = await supabase
+      .from("workers")
+      .select("route_start_lat, route_start_lng")
+      .eq("id", driverId)
+      .eq("location_id", locationId)
+      .maybeSingle()
+    if (worker?.route_start_lat != null && worker?.route_start_lng != null) {
+      startPoint = { lat: worker.route_start_lat as number, lng: worker.route_start_lng as number }
+    }
+  }
+
   const [{ data: pickups }, { data: deliveries }] = await Promise.all([pickupsQuery, deliveriesQuery])
-  const pickupList = (pickups ?? []) as DriverOrder[]
+  let pickupList    = (pickups ?? [])    as (DriverOrder & { address_lat: number | null; address_lng: number | null })[]
+  let deliveryList  = (deliveries ?? []) as (DriverOrder & { address_lat: number | null; address_lng: number | null })[]
+
+  if (startPoint) {
+    pickupList   = await sortByDistanceFromStart(supabase, pickupList, startPoint)
+    deliveryList = await sortByDistanceFromStart(supabase, deliveryList, startPoint)
+  }
 
   // The "Start Route — Notify All Customers" button's on-screen state was
   // previously plain client useState, reset to unclicked on every page
@@ -96,9 +120,42 @@ export async function getDriverQueue(driverId: string): Promise<{
 
   return {
     pickups:    pickupList,
-    deliveries: (deliveries ?? []) as DriverOrder[],
+    deliveries: deliveryList,
     routeAlreadyStarted,
   }
+}
+
+// ── Distance sort ─────────────────────────────────────────────────────────
+// Orders each pass by straight-line distance from the driver's route
+// starting point. Best-effort: any address that fails to geocode (bad
+// address, geocoding API unavailable, etc.) sorts to the end rather than
+// blocking the whole list — a driver should never see an empty queue just
+// because one address couldn't be resolved.
+async function sortByDistanceFromStart<T extends { id: string; customer_address: string; address_lat: number | null; address_lng: number | null }>(
+  supabase: ReturnType<typeof createAdminClient>,
+  orders: T[],
+  start: LatLng,
+): Promise<T[]> {
+  const withDistance = await Promise.all(orders.map(async (order) => {
+    let point: LatLng | null = order.address_lat != null && order.address_lng != null
+      ? { lat: order.address_lat, lng: order.address_lng }
+      : null
+
+    if (!point && order.customer_address) {
+      point = await geocodeAddress(order.customer_address)
+      if (point) {
+        // Cache so the next queue load (or the delivery pass on this same
+        // booking) doesn't re-geocode the same address.
+        await supabase.from("bookings").update({ address_lat: point.lat, address_lng: point.lng }).eq("id", order.id)
+      }
+    }
+
+    return { order, distance: point ? distanceMiles(start, point) : Infinity }
+  }))
+
+  return withDistance
+    .sort((a, b) => a.distance - b.distance)
+    .map(w => w.order)
 }
 
 // ── Notify every customer on today's pickup route at once ────────────────────

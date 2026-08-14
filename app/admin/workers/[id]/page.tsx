@@ -5,9 +5,10 @@ import Link from "next/link"
 import {
   createStripeConnectAccount, syncStripeStatus, issuePayout, updatePayRates,
   addWorkerDocument, deleteWorkerDocument, addMileageReport, deleteMileageReport,
-  updateWorkerRoles, getWorkerDetail,
+  updateWorkerRoles, getWorkerDetail, updateDriverRouteStart,
 } from "@/app/actions/workers"
 import { setWorkerPin, clearWorkerPin, setWorkerLang } from "@/app/actions/staff"
+import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 type Worker = {
   id: string
@@ -31,6 +32,9 @@ type Worker = {
   ic_agreement_role: string | null
   lang: string | null
   created_at: string
+  route_start_address: string | null
+  route_start_lat: number | null
+  route_start_lng: number | null
 }
 
 type Payout = {
@@ -98,6 +102,11 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
   const [workerLang, setWorkerLang_] = useState<"en" | "es">("en")
   const [langSaving, setLangSaving]  = useState(false)
 
+  // Route starting point (drivers only)
+  const [routeStart, setRouteStart]           = useState("")
+  const [routeStartMsg, setRouteStartMsg]     = useState<{ type: "ok" | "err"; text: string } | null>(null)
+  const [routeStartSaving, setRouteStartSaving] = useState(false)
+
   // Payout form state
   const [payType, setPayType] = useState("delivery")
   const [miles, setMiles] = useState("")
@@ -133,6 +142,7 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
     getWorkerDetail(workerId).then(({ worker: w, payouts: p, documents: d, mileageReports: m }) => {
       setWorker(w as Worker | null)
       setWorkerLang_(((w as Worker | null)?.lang ?? "en") as "en" | "es")
+      setRouteStart((w as Worker | null)?.route_start_address ?? "")
       setPayouts(p as Payout[])
       setDocuments(d as WorkerDocument[])
       setMileageReports(m as MileageReport[])
@@ -229,6 +239,15 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
     await clearWorkerPin(worker!.name)
     setPinSaving(false)
     setPinMsg({ type: "ok", text: "PIN cleared." })
+  }
+
+  async function handleSaveRouteStart() {
+    setRouteStartSaving(true); setRouteStartMsg(null)
+    const result = await updateDriverRouteStart(workerId, routeStart)
+    setRouteStartSaving(false)
+    if (result?.error) { setRouteStartMsg({ type: "err", text: result.error }); return }
+    setRouteStartMsg({ type: "ok", text: routeStart.trim() ? "Starting point saved — this driver's queue will now sort by distance from here." : "Starting point cleared — this driver's queue is back to date-only ordering." })
+    refreshWorker()
   }
 
   async function handleRates(e: React.FormEvent<HTMLFormElement>) {
@@ -426,6 +445,37 @@ export default function WorkerDetailPage({ params }: { params: Promise<{ id: str
           ))}
         </div>
       </div>
+
+      {/* Route Starting Point (drivers only) */}
+      {isDriver && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="font-extrabold text-[#0D2240] text-base mb-1">Route Starting Point</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Where this driver's route begins each day (e.g. the facility, or wherever they actually start).
+            When set, their pickup and delivery queue is automatically sorted by distance from this address
+            instead of just by date. Leave blank to keep the plain date-based order.
+          </p>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <AddressAutocomplete
+                value={routeStart}
+                onChange={setRouteStart}
+                onPlaceSelect={(parts) => setRouteStart([parts.street, parts.city, parts.state, parts.zip].filter(Boolean).join(", "))}
+                placeholder="e.g. 123 Facility Way, Orlando, FL"
+              />
+            </div>
+            <button type="button" onClick={handleSaveRouteStart} disabled={routeStartSaving}
+              className="bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors uppercase tracking-wide shrink-0">
+              {routeStartSaving ? "Saving…" : "Save"}
+            </button>
+          </div>
+          {routeStartMsg && (
+            <p className={`text-xs font-semibold mt-2 ${routeStartMsg.type === "ok" ? "text-green-600" : "text-red-500"}`}>
+              {routeStartMsg.text}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Roles */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">

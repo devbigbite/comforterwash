@@ -5,6 +5,7 @@ import { stripe } from "@/lib/stripe"
 import { revalidatePath } from "next/cache"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
+import { geocodeAddress } from "@/lib/geocoding"
 
 // ── Worker detail bundle (admin) ──────────────────────────────────────────────
 // Replaces direct anon-client reads on the worker detail page. workers /
@@ -170,6 +171,42 @@ export async function updatePayRates(formData: FormData) {
   }).eq("id", workerId).eq("location_id", locationId)
 
   revalidatePath("/admin/workers")
+}
+
+// ── Driver route starting point ────────────────────────────────────────────
+// Sets the address a driver's route is considered to begin from (e.g. the
+// facility, or wherever they actually start their day). getDriverQueue()
+// (app/actions/driver-queue.ts) uses this to sort that driver's pickups and
+// deliveries by distance instead of just date. Geocoded on save so the
+// sort doesn't have to hit the geocoding API on every single queue load.
+export async function updateDriverRouteStart(workerId: string, address: string): Promise<{ error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+
+  const trimmed = address.trim()
+  if (!trimmed) {
+    // Clearing the field turns distance sorting back off for this driver —
+    // getDriverQueue() falls back to date-only ordering when lat/lng are null.
+    await supabase.from("workers").update({
+      route_start_address: null, route_start_lat: null, route_start_lng: null,
+    }).eq("id", workerId).eq("location_id", locationId)
+    revalidatePath(`/admin/workers/${workerId}`)
+    return {}
+  }
+
+  const point = await geocodeAddress(trimmed)
+  if (!point) {
+    return { error: "Couldn't locate that address — double-check it and try again. (Route ordering will stay off until this succeeds.)" }
+  }
+
+  await supabase.from("workers").update({
+    route_start_address: trimmed,
+    route_start_lat: point.lat,
+    route_start_lng: point.lng,
+  }).eq("id", workerId).eq("location_id", locationId)
+
+  revalidatePath(`/admin/workers/${workerId}`)
+  return {}
 }
 
 // ── Create Stripe Connect Express account + return onboarding URL ─────────────
