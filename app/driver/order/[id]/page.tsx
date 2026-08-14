@@ -9,13 +9,7 @@ import { updateBookingStatus } from "@/app/actions/bookings"
 import { sendBookingNotification } from "@/lib/sms"
 import { sendWeightConfirmedEmail } from "@/lib/email"
 import { syncPhaseFromStatus } from "@/lib/order-status-sync"
-
-const CUSTOMER_MIN_LBS = 20
-const DEFAULT_RATE_CENTS: Record<string, number> = {
-  wash_fold:  250, // $2.50/lb one-time default
-  wash_only:  199, // $1.99/lb
-  comforter_wash: 0,
-}
+import { CUSTOMER_MIN_LBS, DEFAULT_RATE_CENTS } from "@/app/actions/weigh-in"
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pending", picked_up: "Picked Up",
@@ -474,12 +468,6 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
                 <div><p className="text-gray-500 text-sm">Est. lbs</p><p className="font-bold text-[#0D2240]">{booking.pounds ?? "—"}</p></div>
                 <div><p className="text-gray-500 text-sm">Actual lbs</p><p className={`font-bold ${booking.actual_weight_lbs ? "text-green-600" : "text-gray-300"}`}>{booking.actual_weight_lbs ?? "—"}</p></div>
               </div>
-              {booking.actual_weight_lbs && (
-                <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between text-sm">
-                  <span className="text-gray-500">Customer charge</span>
-                  <span className="font-bold text-[#0D2240]">${((booking.customer_final_cents ?? 0) / 100).toFixed(2)} ({Math.max(booking.actual_weight_lbs, CUSTOMER_MIN_LBS)} lbs)</span>
-                </div>
-              )}
             </>
           )}
         </div>
