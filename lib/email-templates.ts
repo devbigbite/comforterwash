@@ -286,11 +286,20 @@ export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplat
   const dayWord = when === "tomorrow" ? "tomorrow" : "today"
   const badge = when === "tomorrow" ? "🚗 Pickup Tomorrow" : "🚗 Pickup Today"
 
+  // Admin-saved template overrides (Admin -> Templates) are static text with
+  // placeholders substituted in, so any override that hard-coded the word
+  // "today" instead of using {{day_word}} would say "today" even on the
+  // evening-before reminder run (when: "tomorrow") — badge and text would
+  // then visibly contradict each other, as happened with the live
+  // pickup_reminder template. {{day_word}} lets a saved override stay
+  // accurate for both cron runs instead of hard-coding one or the other.
+  const withDayWord = (s: string) => s.replace(/\{\{day_word\}\}/g, dayWord)
+
   const html = emailShell(`
     <div class="body">
       <div class="hero-badge">${badge}</div>
-      <h1>${ov.headline?.replace(/\{\{first_name\}\}/g, firstName) ?? `We're coming ${dayWord}, ${firstName}!`}</h1>
-      <p class="subtitle">${ov.body?.replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow) ?? `Just a reminder — your laundry pickup is scheduled for ${dayWord}. Please have everything ready to go.`}</p>
+      <h1>${ov.headline != null ? withDayWord(ov.headline.replace(/\{\{first_name\}\}/g, firstName)) : `We're coming ${dayWord}, ${firstName}!`}</h1>
+      <p class="subtitle">${ov.body != null ? withDayWord(ov.body.replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow)) : `Just a reminder — your laundry pickup is scheduled for ${dayWord}. Please have everything ready to go.`}</p>
 
       <div class="detail-card">
         ${detailRow("Service", serviceLabel(d.serviceType))}
@@ -299,23 +308,23 @@ export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplat
       </div>
 
       <div class="alert-box">
-        <p>${ov.alert_box ?? "📦 <strong>Getting ready?</strong> Please have your laundry in bags near the front door. Our driver will knock/ring and wait a couple minutes."}</p>
+        <p>${ov.alert_box != null ? withDayWord(ov.alert_box) : "📦 <strong>Getting ready?</strong> Please have your laundry in bags near the front door. Our driver will knock/ring and wait a couple minutes."}</p>
       </div>
 
       ${ov.contact_note != null
-        ? `<p style="font-size:14px;color:#374151;">${ov.contact_note}</p>`
+        ? `<p style="font-size:14px;color:#374151;">${withDayWord(ov.contact_note)}</p>`
         : `<p style="font-size:14px;color:#374151;">Need to reschedule or have questions? Reply to this email ASAP.</p>
       <p style="font-size:14px;color:#374151;margin-top:8px;"><strong>✉️ ${branding.supportEmail}</strong></p>`
       }
     </div>
     <div class="footer">
       <p>${branding.businessName} · <a href="https://${branding.websiteDomain}">${branding.websiteDomain}</a></p>
-      ${ov.footer_note !== null && ov.footer_note !== undefined ? `<p style="margin-top:10px;font-size:11px;color:#b0b8c4;">${ov.footer_note}</p>` : ""}
+      ${ov.footer_note !== null && ov.footer_note !== undefined ? `<p style="margin-top:10px;font-size:11px;color:#b0b8c4;">${withDayWord(ov.footer_note)}</p>` : ""}
     </div>
   `, branding)
 
   return {
-    subject: ov.subject?.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow) ?? `🚗 Pickup ${dayWord} ${d.pickupTimeWindow} — ${branding.businessName}`,
+    subject: ov.subject != null ? withDayWord(ov.subject.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{pickup_time\}\}/g, d.pickupTimeWindow)) : `🚗 Pickup ${dayWord} ${d.pickupTimeWindow} — ${branding.businessName}`,
     html,
   }
 }

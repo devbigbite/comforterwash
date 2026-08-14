@@ -249,6 +249,17 @@ export default function EmailTemplatesPage() {
 
                     {/* Fields */}
                     <div className="px-6 py-5 space-y-5">
+                      {selected.key === "pickup_reminder" && (
+                        <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5 text-xs text-blue-800">
+                          This template is reused for both the same-day and the evening-before reminder. Use{" "}
+                          <code className="bg-white px-1 py-0.5 rounded border border-blue-200">{"{{day_word}}"}</code>{" "}
+                          anywhere you'd write "today" so it correctly reads "tomorrow" on the evening-before send —
+                          typing "today" directly will make that email say "today" a day early. Also available:{" "}
+                          <code className="bg-white px-1 py-0.5 rounded border border-blue-200">{"{{first_name}}"}</code>{" "}
+                          and{" "}
+                          <code className="bg-white px-1 py-0.5 rounded border border-blue-200">{"{{pickup_time}}"}</code>.
+                        </div>
+                      )}
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
                           Subject Line
