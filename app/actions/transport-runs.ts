@@ -7,6 +7,7 @@ import { todayET } from "@/lib/date-et"
 import { getAllFacilityWindows } from "@/app/actions/facility-windows"
 import { isWithinAccessWindow } from "@/lib/facility-utils"
 import { getLocationId, getShipdayConfig, getBranding } from "@/lib/location"
+import { CUSTOMER_MIN_LBS } from "@/app/actions/weigh-in"
 
 export interface TransportRun {
   id: string
@@ -271,7 +272,10 @@ export async function completeTransportRun(formData: FormData) {
     for (const bk of bookings ?? []) {
       let facilityCostCents: number | null = null
       if (facility?.rate_per_lb && bk.actual_weight_lbs) {
-        const facilityLbs = Math.max(bk.actual_weight_lbs, facility.minimum_lbs ?? 0)
+        // Same floor as weigh-in.ts: a facility's own minimum_lbs can only
+        // raise the payout, never let it undercut the customer's own
+        // CUSTOMER_MIN_LBS billing minimum.
+        const facilityLbs = Math.max(bk.actual_weight_lbs, facility.minimum_lbs ?? 0, CUSTOMER_MIN_LBS)
         facilityCostCents = Math.round(facilityLbs * facility.rate_per_lb * 100)
       }
 

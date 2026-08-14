@@ -26,7 +26,7 @@ export interface WeighInResult {
   facilityCostCents?: number
 }
 
-const CUSTOMER_MIN_LBS = 20
+export const CUSTOMER_MIN_LBS = 20
 // Fallback only — used when a booking has no locked-in price_per_lb_cents
 // (shouldn't normally happen for a real consumer booking; kept as a safety
 // net so weighing never hard-fails on a data gap).
@@ -95,7 +95,18 @@ export async function recordWeightAndCharge(
     const { data: facility } = await supabase
       .from("facilities").select("rate_per_lb, minimum_lbs").eq("id", booking.assigned_facility_id).single()
     if (facility?.rate_per_lb) {
-      facilityCostCents = Math.round(Math.max(weightLbs, facility.minimum_lbs ?? 0) * facility.rate_per_lb * 100)
+      // Whenever an order is light enough that the customer gets billed the
+      // CUSTOMER_MIN_LBS minimum instead of their actual weight, the facility
+      // that processed it must be paid for that same minimum too — not just
+      // whatever lower weight actually came off the scale. A facility's own
+      // minimum_lbs (its separate contractual floor, e.g. a facility that
+      // requires 30 lbs minimum regardless of what we bill customers) can
+      // still raise this further, but must never be allowed to silently
+      // undercut the customer minimum — that was the bug here: this facility
+      // has minimum_lbs = 0, so a sub-20lb order paid the facility only for
+      // the real weight while the customer was charged for a full 20 lbs.
+      const facilityBillableLbs = Math.max(weightLbs, facility.minimum_lbs ?? 0, CUSTOMER_MIN_LBS)
+      facilityCostCents = Math.round(facilityBillableLbs * facility.rate_per_lb * 100)
     }
   }
 
