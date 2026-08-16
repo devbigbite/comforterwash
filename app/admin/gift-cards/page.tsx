@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation"
 import { getGiftCards } from "@/app/actions/gift-cards"
+import { isAdminForCurrentLocation } from "@/lib/auth-guard"
 
 export const dynamic = "force-dynamic"
 
@@ -9,6 +11,11 @@ const STATUS_BADGE: Record<string, string> = {
 }
 
 export default async function GiftCardsAdminPage() {
+  // getGiftCards() calls the requireAdmin()-gated action, which throws
+  // instead of returning for a logged-out/unauthorized visitor — check
+  // first and redirect gracefully instead of crashing the page.
+  if (!(await isAdminForCurrentLocation())) redirect("/admin/login")
+
   const cards = await getGiftCards()
   const totalOutstandingCents = cards
     .filter(c => c.status === "active")

@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation"
 import { getAbandonedCheckouts } from "@/app/actions/checkout-attempts"
+import { isAdminForCurrentLocation } from "@/lib/auth-guard"
 
 export const dynamic = "force-dynamic"
 
@@ -25,6 +27,11 @@ function digitsOnly(phone: string | null): string {
 }
 
 export default async function AbandonedCheckoutsPage() {
+  // getAbandonedCheckouts() calls the requireAdmin()-gated action, which
+  // throws instead of returning for a logged-out/unauthorized visitor —
+  // check first and redirect gracefully instead of crashing the page.
+  if (!(await isAdminForCurrentLocation())) redirect("/admin/login")
+
   const attempts = await getAbandonedCheckouts()
 
   return (

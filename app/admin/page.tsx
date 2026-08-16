@@ -1,4 +1,5 @@
 import type React from "react"
+import { redirect } from "next/navigation"
 import { getBookings } from "@/app/actions/bookings"
 import { getFulfillmentMode } from "@/app/actions/walkin"
 import { getMyBillingStatus } from "@/app/actions/platform-billing"
@@ -6,6 +7,7 @@ import { getBranding, getLocationId, ORLANDO_LOCATION_ID, DEFAULT_BRANDING } fro
 import { getAdminViewMode, getOperatingModeConfirmed } from "@/app/actions/branding"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { todayET } from "@/lib/pickup-cutoff"
+import { isAdminForCurrentLocation } from "@/lib/auth-guard"
 import {
   Truck,
   Users,
@@ -42,6 +44,18 @@ type Module = {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function AdminHub() {
+  // Gate BEFORE calling any admin-only action below. getMyBillingStatus()
+  // internally calls requireAdmin(), which throws rather than returning a
+  // result — if that throw ever reaches this far it crashes the entire page
+  // render (Next.js shows the generic "Application error" screen) instead of
+  // sending an unauthenticated/unauthorized visitor to the login page. This
+  // mirrors the fix already applied to syncFacilityStripeStatus's public
+  // call site in app/actions/facility-payments.ts — never let an
+  // admin-gated action run unconditionally on a path a logged-out or
+  // unauthorized visitor can reach.
+  const isAdmin = await isAdminForCurrentLocation()
+  if (!isAdmin) redirect("/admin/login")
+
   const [bookings, branding, fulfillmentMode, billingStatus, locationId, viewMode] = await Promise.all([
     getBookings(), getBranding(), getFulfillmentMode(), getMyBillingStatus(), getLocationId(), getAdminViewMode(),
   ])
