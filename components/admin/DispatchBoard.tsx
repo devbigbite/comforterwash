@@ -14,6 +14,12 @@ const DRAG_SOURCE_MIME  = "application/x-washfold-source-driver"
 // on another column writes to the right assignment column server-side —
 // the drop target only otherwise knows the bookingId, not its status/leg.
 const DRAG_LEG_MIME      = "application/x-washfold-leg"
+// Separate MIME for within-column stop reordering (see ReorderableTodayList
+// below) — deliberately distinct from DRAG_BOOKING_MIME so a reorder drag
+// never also matches DriverColumn's own onDragOver/onDrop (which only look
+// for DRAG_BOOKING_MIME) and gets misread as a request to move the card to a
+// different driver.
+const DRAG_REORDER_MIME  = "application/x-washfold-reorder-index"
 
 const SERVICE_LABELS: Record<string, string> = {
   wash_fold:      "W&F",
@@ -493,6 +499,138 @@ function KanbanCard({
   )
 }
 
+// ─── Reorderable "Today" list (manual route order, no Shipday required) ──────
+// Native HTML5 drag-and-drop, same approach AerialView.tsx already uses for
+// its status buckets — no extra dependency. Only rendered for today's group
+// in an assigned driver's column (see DriverColumn below): reordering makes
+// sense for a specific driver's specific day, not for the unassigned pool or
+// for future/past dates a driver hasn't started yet.
+function ReorderableTodayList({
+  items,
+  type,
+  date,
+  drivers,
+  currentDriverIdFor,
+  assignDriverAction,
+  unassignDriverAction,
+  rescheduleAction,
+  cancelAction,
+  setBookingStatusAction,
+  reorderAction,
+}: {
+  items: (DispatchBooking & { _type: "pickup" | "delivery" })[]
+  type: "pickup" | "delivery"
+  date: string
+  drivers: { id: string; name: string; shipday_email: string | null }[]
+  currentDriverIdFor: (b: DispatchBooking & { _type: "pickup" | "delivery" }) => string | null
+  assignDriverAction: (fd: FormData) => Promise<void>
+  unassignDriverAction: (fd: FormData) => Promise<void>
+  rescheduleAction: (fd: FormData) => Promise<void>
+  cancelAction: (fd: FormData) => Promise<void>
+  setBookingStatusAction: (fd: FormData) => Promise<void>
+  reorderAction: (bookingIdsInOrder: string[]) => Promise<{ ok: boolean; error?: string }>
+}) {
+  const router = useRouter()
+  // Local, optimistic order — starts from whatever order the server already
+  // gave us (i.e. respects manual_route_sequence / Shipday sequence / the
+  // distance fallback from getDriverQueue, mirrored here via the same
+  // date-then-id ordering the parent group already applied) and only
+  // reshuffles on an actual drop, so a background revalidate mid-drag never
+  // visibly snaps cards back before the drop completes.
+  const [order, setOrder] = useState<string[]>(items.map(b => b.id))
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [overIndex, setOverIndex] = useState<number | null>(null)
+  const [saving, startSaveTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  const byId = new Map(items.map(b => [b.id, b]))
+  // items can gain/lose rows between renders (a card moved to another
+  // driver, a new one dropped in) — fold in anything not already in `order`
+  // rather than trusting stale local state alone.
+  const currentOrder = [...order.filter(id => byId.has(id)), ...items.filter(b => !order.includes(b.id)).map(b => b.id)]
+
+  function handleDragStart(e: React.DragEvent, index: number) {
+    e.dataTransfer.setData(DRAG_REORDER_MIME, String(index))
+    e.dataTransfer.effectAllowed = "move"
+    setDragIndex(index)
+  }
+
+  function handleDragOver(e: React.DragEvent, index: number) {
+    if (!e.dataTransfer.types.includes(DRAG_REORDER_MIME)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+    setOverIndex(index)
+  }
+
+  function handleDrop(e: React.DragEvent, dropIndex: number) {
+    e.preventDefault()
+    setOverIndex(null)
+    const fromRaw = e.dataTransfer.getData(DRAG_REORDER_MIME)
+    const from = fromRaw === "" ? dragIndex : parseInt(fromRaw, 10)
+    setDragIndex(null)
+    if (from == null || isNaN(from) || from === dropIndex) return
+
+    const next = [...currentOrder]
+    const [moved] = next.splice(from, 1)
+    next.splice(dropIndex, 0, moved)
+    setOrder(next)
+    setError(null)
+
+    startSaveTransition(async () => {
+      const result = await reorderAction(next)
+      if (!result.ok) setError(result.error ?? "Failed to save order")
+      router.refresh()
+    })
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 px-1 mb-1">
+        <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Today</span>
+        <span className="text-[9px] text-gray-300">· drag ⠿ to set stop order</span>
+        {saving && <span className="text-[9px] text-gray-400 ml-auto">Saving…</span>}
+      </div>
+      {error && <p className="text-[10px] text-red-500 px-1 mb-1">{error}</p>}
+      <div className="space-y-1.5">
+        {currentOrder.map((id, i) => {
+          const b = byId.get(id)
+          if (!b) return null
+          return (
+            <div
+              key={id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, i)}
+              onDragOver={(e) => handleDragOver(e, i)}
+              onDragLeave={() => setOverIndex(null)}
+              onDrop={(e) => handleDrop(e, i)}
+              onDragEnd={() => { setDragIndex(null); setOverIndex(null) }}
+              className={`relative rounded-xl transition-shadow ${
+                overIndex === i && dragIndex !== null && dragIndex !== i ? "ring-2 ring-[#0D2240]/40" : ""
+              } ${dragIndex === i ? "opacity-40" : ""}`}
+            >
+              <div className="absolute left-1.5 top-1.5 z-10 text-[10px] font-black text-white bg-[#0D2240] rounded-full w-4 h-4 flex items-center justify-center cursor-grab active:cursor-grabbing select-none">
+                {i + 1}
+              </div>
+              <KanbanCard
+                booking={b}
+                type={b._type}
+                date={date}
+                drivers={drivers}
+                currentDriverId={currentDriverIdFor(b)}
+                assignDriverAction={assignDriverAction}
+                unassignDriverAction={unassignDriverAction}
+                rescheduleAction={rescheduleAction}
+                cancelAction={cancelAction}
+                setBookingStatusAction={setBookingStatusAction}
+              />
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── Driver column ────────────────────────────────────────────────────────────
 
 function DriverColumn({
@@ -506,6 +644,7 @@ function DriverColumn({
   rescheduleAction,
   cancelAction,
   setBookingStatusAction,
+  reorderAction,
 }: {
   driver: { id: string; name: string; shipday_email: string | null } | null // null = "Unassigned"
   pickups: DispatchBooking[]
@@ -517,6 +656,7 @@ function DriverColumn({
   rescheduleAction: (fd: FormData) => Promise<void>
   cancelAction: (fd: FormData) => Promise<void>
   setBookingStatusAction: (fd: FormData) => Promise<void>
+  reorderAction: (bookingIdsInOrder: string[]) => Promise<{ ok: boolean; error?: string }>
 }) {
   const router = useRouter()
   const isUnassigned = driver === null
@@ -644,12 +784,41 @@ function DriverColumn({
 
           return Object.entries(groups).map(([dateKey, items]) => {
             let label = dateKey
+            let isTodayGroup = false
             try {
               const parsed = parseISO(dateKey)
-              if (isToday(parsed)) label = "Today"
+              isTodayGroup = isToday(parsed)
+              if (isTodayGroup) label = "Today"
               else if (isTomorrow(parsed)) label = "Tomorrow"
               else label = format(parsed, "EEE, MMM d")
             } catch {}
+
+            // Today's stops, for an actual (non-"Unassigned") driver, get the
+            // drag-to-reorder list instead of the plain static one — that's
+            // the one case a dispatcher would realistically want to hand-set
+            // a route order (see setManualRouteOrder in
+            // app/actions/driver-queue.ts). Every other date/column keeps the
+            // simple list since reordering a future day or the unassigned
+            // pool doesn't mean anything yet.
+            if (isTodayGroup && !isUnassigned) {
+              return (
+                <div key={dateKey} className="mb-3">
+                  <ReorderableTodayList
+                    items={items}
+                    type="pickup"
+                    date={date}
+                    drivers={drivers}
+                    currentDriverIdFor={(b) => b._type === "delivery" ? b.assigned_delivery_driver_id : b.assigned_driver_id}
+                    assignDriverAction={assignDriverAction}
+                    unassignDriverAction={unassignDriverAction}
+                    rescheduleAction={rescheduleAction}
+                    cancelAction={cancelAction}
+                    setBookingStatusAction={setBookingStatusAction}
+                    reorderAction={reorderAction}
+                  />
+                </div>
+              )
+            }
 
             return (
               <div key={dateKey} className="mb-3">
@@ -687,6 +856,7 @@ export function DispatchBoard({
   rescheduleAction,
   cancelAction,
   setBookingStatusAction,
+  reorderAction,
 }: {
   date: string
   pickups: DispatchBooking[]
@@ -697,6 +867,7 @@ export function DispatchBoard({
   rescheduleAction: (fd: FormData) => Promise<void>
   cancelAction: (fd: FormData) => Promise<void>
   setBookingStatusAction: (fd: FormData) => Promise<void>
+  reorderAction: (bookingIdsInOrder: string[]) => Promise<{ ok: boolean; error?: string }>
 }) {
   // Which of a booking's two driver-assignment columns is relevant right now
   // depends on its current leg — a pickup-phase order is unassigned/assigned
@@ -727,6 +898,7 @@ export function DispatchBoard({
           rescheduleAction={rescheduleAction}
           cancelAction={cancelAction}
           setBookingStatusAction={setBookingStatusAction}
+          reorderAction={reorderAction}
         />
 
         {/* One column per driver */}
@@ -745,6 +917,7 @@ export function DispatchBoard({
               rescheduleAction={rescheduleAction}
               cancelAction={cancelAction}
               setBookingStatusAction={setBookingStatusAction}
+              reorderAction={reorderAction}
             />
           )
         })}

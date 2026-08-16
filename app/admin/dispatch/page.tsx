@@ -10,6 +10,7 @@ import { AerialView } from "@/components/admin/AerialView"
 import type { AerialOrder } from "@/types/dispatch"
 import { getTransportRuns } from "@/app/actions/transport-runs"
 import type { TransportRun } from "@/app/actions/transport-runs"
+import { setManualRouteOrder } from "@/app/actions/driver-queue"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { syncPhaseFromStatus } from "@/lib/order-status-sync"
@@ -470,6 +471,7 @@ export default async function DispatchPage({
             rescheduleAction={rescheduleAction}
             cancelAction={cancelAction}
             setBookingStatusAction={driverQuickActionAdmin}
+            reorderAction={setManualRouteOrder}
           />
         )}
 

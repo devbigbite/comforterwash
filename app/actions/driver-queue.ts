@@ -5,6 +5,8 @@ import { getLocationId, getBranding } from "@/lib/location"
 import { sendSMS } from "@/lib/sms"
 import { sendPickupReminderToCustomer } from "@/lib/email"
 import { geocodeAddress, distanceMiles, type LatLng } from "@/lib/geocoding"
+import { requireAdmin } from "@/lib/auth-guard"
+import { revalidatePath } from "next/cache"
 
 export interface DriverOrder {
   id: string
@@ -64,7 +66,7 @@ export async function getDriverQueue(driverId: string): Promise<{
   // driver in the admin view yet never appear on that driver's phone.
   let pickupsQuery = supabase
     .from("bookings")
-    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags, address_lat, address_lng, shipday_pickup_sequence")
+    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags, address_lat, address_lng, shipday_pickup_sequence, manual_route_sequence")
     .eq("location_id", locationId)
     .lte("pickup_date", today)
     .in("status", ["confirmed", "picked_up"])
@@ -81,7 +83,7 @@ export async function getDriverQueue(driverId: string): Promise<{
   // this delivery.
   let deliveriesQuery = supabase
     .from("bookings")
-    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags, address_lat, address_lng, shipday_delivery_sequence")
+    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags, address_lat, address_lng, shipday_delivery_sequence, manual_route_sequence")
     .eq("location_id", locationId)
     .lte("delivery_date", today)
     .in("status", ["ready", "ready_at_warehouse", "out_for_delivery"])
@@ -106,19 +108,23 @@ export async function getDriverQueue(driverId: string): Promise<{
   }
 
   const [{ data: pickups }, { data: deliveries }] = await Promise.all([pickupsQuery, deliveriesQuery])
-  let pickupList    = (pickups ?? [])    as (DriverOrder & { address_lat: number | null; address_lng: number | null; shipday_pickup_sequence: number | null })[]
-  let deliveryList  = (deliveries ?? []) as (DriverOrder & { address_lat: number | null; address_lng: number | null; shipday_delivery_sequence: number | null })[]
+  let pickupList    = (pickups ?? [])    as (DriverOrder & { address_lat: number | null; address_lng: number | null; shipday_pickup_sequence: number | null; manual_route_sequence: number | null })[]
+  let deliveryList  = (deliveries ?? []) as (DriverOrder & { address_lat: number | null; address_lng: number | null; shipday_delivery_sequence: number | null; manual_route_sequence: number | null })[]
 
   if (startPoint) {
     pickupList   = await sortByDistanceFromStart(supabase, pickupList, startPoint)
     deliveryList = await sortByDistanceFromStart(supabase, deliveryList, startPoint)
   }
 
-  // Shipday's optimized sequence (when this tenant uses it) always wins over
-  // the distance/date fallback above.
-  pickupList = sortBySequence(pickupList.map(o => ({ ...o, __sequence: o.shipday_pickup_sequence })))
+  // Sequence priority: Shipday's real route-optimizer result first (when
+  // this tenant uses Shipday and this stop has been routed there), then a
+  // dispatcher's manual drag-to-reorder override (see setManualRouteOrder
+  // below — this is the only ordering signal available to a tenant that
+  // doesn't use Shipday at all), then whatever the distance/date fallback
+  // above already produced.
+  pickupList = sortBySequence(pickupList.map(o => ({ ...o, __sequence: o.shipday_pickup_sequence ?? o.manual_route_sequence })))
     .map(({ __sequence, ...rest }) => rest) as typeof pickupList
-  deliveryList = sortBySequence(deliveryList.map(o => ({ ...o, __sequence: o.shipday_delivery_sequence })))
+  deliveryList = sortBySequence(deliveryList.map(o => ({ ...o, __sequence: o.shipday_delivery_sequence ?? o.manual_route_sequence })))
     .map(({ __sequence, ...rest }) => rest) as typeof deliveryList
 
   // The "Start Route — Notify All Customers" button's on-screen state was
@@ -147,6 +153,52 @@ export async function getDriverQueue(driverId: string): Promise<{
     deliveries: deliveryList,
     routeAlreadyStarted,
   }
+}
+
+// ── Manual stop order (dispatch board drag-and-drop) ──────────────────────
+// The reorder counterpart to the Shipday sequence columns, for tenants that
+// don't use Shipday's route optimizer (or for a dispatcher who just wants to
+// override it for one day). Called from the dispatch board with the full
+// list of booking ids for one driver's "Today" lane, in the exact order the
+// dispatcher dropped them in — writes 1, 2, 3... across that list.
+//
+// Deliberately whole-list-replace, not a single before/after move: a native
+// HTML5 drag-and-drop reorder already computes the full new order client-side
+// (see ReorderableTodayList in components/admin/DispatchBoard.tsx), so
+// there's no reason to reconstruct that server-side from a single dropped
+// index — and always sending the complete list means a dropped or
+// out-of-order request can never leave two stops sharing the same number.
+//
+// Scoped to the given location so a dispatcher session for one tenant can't
+// reorder another tenant's bookings even if it somehow had the ids.
+export async function setManualRouteOrder(bookingIdsInOrder: string[]): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin()
+  if (!bookingIdsInOrder.length) return { ok: true }
+
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+
+  // One update per row rather than a bulk upsert — this table doesn't have
+  // a natural "values list" write path through supabase-js, and this list
+  // is always small (one driver's stops for one day), so the extra
+  // round-trips aren't a real cost here.
+  const results = await Promise.all(
+    bookingIdsInOrder.map((id, i) =>
+      supabase.from("bookings")
+        .update({ manual_route_sequence: i + 1 })
+        .eq("id", id)
+        .eq("location_id", locationId)
+    )
+  )
+
+  const failed = results.find(r => r.error)
+  if (failed?.error) {
+    console.error("[driver-queue] setManualRouteOrder failed:", failed.error)
+    return { ok: false, error: failed.error.message }
+  }
+
+  revalidatePath("/admin/dispatch")
+  return { ok: true }
 }
 
 // ── Distance sort ─────────────────────────────────────────────────────────
