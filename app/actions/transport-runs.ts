@@ -7,7 +7,7 @@ import { todayET } from "@/lib/date-et"
 import { getAllFacilityWindows } from "@/app/actions/facility-windows"
 import { isWithinAccessWindow } from "@/lib/facility-utils"
 import { getLocationId, getShipdayConfig, getBranding } from "@/lib/location"
-import { CUSTOMER_MIN_LBS } from "@/app/actions/weigh-in"
+import { CUSTOMER_MIN_LBS } from "@/lib/pricing-constants"
 
 export interface TransportRun {
   id: string

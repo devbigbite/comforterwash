@@ -9,7 +9,7 @@ import { updateBookingStatus } from "@/app/actions/bookings"
 import { sendBookingNotification } from "@/lib/sms"
 import { sendWeightConfirmedEmail } from "@/lib/email"
 import { syncPhaseFromStatus } from "@/lib/order-status-sync"
-import { CUSTOMER_MIN_LBS, DEFAULT_RATE_CENTS } from "@/app/actions/weigh-in"
+import { CUSTOMER_MIN_LBS, DEFAULT_RATE_CENTS } from "@/lib/pricing-constants"
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pending", picked_up: "Picked Up",
