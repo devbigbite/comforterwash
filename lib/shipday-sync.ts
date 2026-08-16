@@ -26,6 +26,13 @@ interface ShipdayOrderDetails {
   orderNumber: string
   orderStatus?: { incomplete: boolean; accepted: boolean; orderState: string }
   proofOfDelivery?: { imageUrls?: string[] } | null
+  // Route position from Shipday's optimizer, if this order is part of a
+  // route — see docs.shipday.com/reference/order-status-update-2. Riding
+  // along on the same GET this function already makes rather than a
+  // separate call, since this poll is a best-effort fallback, not the
+  // primary path (the webhook's extractSequenceNumber is — see
+  // app/api/shipday/webhook/[secret]/route.ts).
+  order_sequence_number?: number | null
 }
 
 const DELIVERED_STATES = new Set(["ALREADY_DELIVERED"])
@@ -100,6 +107,18 @@ export async function pollShipdayDeliveries(): Promise<ShipdaySyncResult> {
 
     const order = await fetchShipdayOrder(orderNumber, config.apiKey)
     if (!order) continue
+
+    // Capture the route position even for a booking that isn't delivered
+    // yet — this poll already has the order details in hand, and the
+    // delivery-completion check below returns early for most rows on any
+    // given run, so gating this behind it would mean a booking's sequence
+    // number only ever gets backfilled here on the one run where it happens
+    // to already be delivered (i.e. almost never useful in practice).
+    if (order.order_sequence_number != null) {
+      await supabase.from("bookings")
+        .update({ shipday_delivery_sequence: order.order_sequence_number })
+        .eq("id", booking.id)
+    }
 
     const state = order.orderStatus?.orderState
     if (!state || !DELIVERED_STATES.has(state)) continue

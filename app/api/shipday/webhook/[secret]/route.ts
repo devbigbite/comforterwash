@@ -73,6 +73,19 @@ function extractPodUrl(body: Record<string, unknown>): string | null {
   return null
 }
 
+// Shipday's route optimizer stamps each order with its position in the
+// optimized stop order once an admin groups orders into a route — see
+// docs.shipday.com/reference/order-status-update-2's order_sequence_number
+// field ("Order Sequence number if the order is a part of a route."). Reads
+// defensively like the other extractors above: snake_case per the real docs,
+// camelCase checked as a fallback.
+function extractSequenceNumber(body: Record<string, unknown>): number | null {
+  const order = (body.order as Record<string, unknown> | undefined) ?? body
+  const raw = order.order_sequence_number ?? order.orderSequenceNumber ?? body.order_sequence_number
+  const n = typeof raw === "string" ? parseInt(raw, 10) : raw
+  return typeof n === "number" && !isNaN(n) ? n : null
+}
+
 // Real enum values per Shipday's docs — note "ORDER_PIKEDUP" (their typo,
 // not "PICKED_UP") is the actual event name for a completed pickup.
 const DELIVERY_COMPLETE_EVENTS = new Set([
@@ -109,6 +122,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sec
   const shipdayOrderId = extractOrderId(body)
   const orderNumber = extractOrderNumber(body)
   const eventType = extractEventType(body)
+  const sequenceNumber = extractSequenceNumber(body)
 
   if (!shipdayOrderId) {
     console.error("[shipday-webhook] Could not extract an order id from payload:", JSON.stringify(body).slice(0, 500))
@@ -148,9 +162,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sec
   await supabase.from("order_events").insert({
     booking_id: booking.id,
     event_type: "shipday_webhook",
-    notes: `Shipday ${leg} event: ${eventType}${orderNumber ? ` (${orderNumber})` : ""}`,
+    notes: `Shipday ${leg} event: ${eventType}${orderNumber ? ` (${orderNumber})` : ""}${sequenceNumber != null ? ` — route stop #${sequenceNumber}` : ""}`,
     created_by: "shipday",
   })
+
+  // Capture the optimized route position independent of event type — an
+  // admin re-optimizing a route in Shipday doesn't necessarily fire a
+  // pickup/delivery-complete event, so this shouldn't be gated behind the
+  // completion branches below. Only writes when a sequence number is
+  // actually present so an unrelated event (e.g. a plain status ping) never
+  // clears out a previously-known sequence with null.
+  if (sequenceNumber != null) {
+    const column = leg === "pickup" ? "shipday_pickup_sequence" : "shipday_delivery_sequence"
+    await supabase.from("bookings").update({ [column]: sequenceNumber }).eq("id", booking.id)
+  }
 
   if (leg === "delivery" && DELIVERY_COMPLETE_EVENTS.has(eventType)) {
     const podUrl = extractPodUrl(body)

@@ -18,6 +18,23 @@ export interface DriverOrder {
   num_bags: number
 }
 
+// Orders by Shipday's optimized route position (lower stop number first)
+// when present — this is a real multi-stop optimization, so it takes
+// priority over the straight-line-distance fallback below. Any order with
+// no sequence number (tenant doesn't use Shipday, or this particular stop
+// was never added to a Shipday route) keeps whatever position it already
+// had from the sort applied before this — Array.sort is stable, so passing
+// in an already date/distance-sorted list here just moves the sequenced
+// stops into their optimized slots and leaves everything else untouched.
+function sortBySequence<T extends { __sequence: number | null }>(orders: T[]): T[] {
+  return [...orders].sort((a, b) => {
+    if (a.__sequence == null && b.__sequence == null) return 0
+    if (a.__sequence == null) return 1
+    if (b.__sequence == null) return -1
+    return a.__sequence - b.__sequence
+  })
+}
+
 export async function getDriverQueue(driverId: string): Promise<{
   pickups: DriverOrder[]
   deliveries: DriverOrder[]
@@ -47,7 +64,7 @@ export async function getDriverQueue(driverId: string): Promise<{
   // driver in the admin view yet never appear on that driver's phone.
   let pickupsQuery = supabase
     .from("bookings")
-    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags, address_lat, address_lng")
+    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags, address_lat, address_lng, shipday_pickup_sequence")
     .eq("location_id", locationId)
     .lte("pickup_date", today)
     .in("status", ["confirmed", "picked_up"])
@@ -64,7 +81,7 @@ export async function getDriverQueue(driverId: string): Promise<{
   // this delivery.
   let deliveriesQuery = supabase
     .from("bookings")
-    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags, address_lat, address_lng")
+    .select("id, short_code, customer_name, customer_address, pickup_date, delivery_date, status, service_type, num_bags, address_lat, address_lng, shipday_delivery_sequence")
     .eq("location_id", locationId)
     .lte("delivery_date", today)
     .in("status", ["ready", "ready_at_warehouse", "out_for_delivery"])
@@ -89,13 +106,20 @@ export async function getDriverQueue(driverId: string): Promise<{
   }
 
   const [{ data: pickups }, { data: deliveries }] = await Promise.all([pickupsQuery, deliveriesQuery])
-  let pickupList    = (pickups ?? [])    as (DriverOrder & { address_lat: number | null; address_lng: number | null })[]
-  let deliveryList  = (deliveries ?? []) as (DriverOrder & { address_lat: number | null; address_lng: number | null })[]
+  let pickupList    = (pickups ?? [])    as (DriverOrder & { address_lat: number | null; address_lng: number | null; shipday_pickup_sequence: number | null })[]
+  let deliveryList  = (deliveries ?? []) as (DriverOrder & { address_lat: number | null; address_lng: number | null; shipday_delivery_sequence: number | null })[]
 
   if (startPoint) {
     pickupList   = await sortByDistanceFromStart(supabase, pickupList, startPoint)
     deliveryList = await sortByDistanceFromStart(supabase, deliveryList, startPoint)
   }
+
+  // Shipday's optimized sequence (when this tenant uses it) always wins over
+  // the distance/date fallback above.
+  pickupList = sortBySequence(pickupList.map(o => ({ ...o, __sequence: o.shipday_pickup_sequence })))
+    .map(({ __sequence, ...rest }) => rest) as typeof pickupList
+  deliveryList = sortBySequence(deliveryList.map(o => ({ ...o, __sequence: o.shipday_delivery_sequence })))
+    .map(({ __sequence, ...rest }) => rest) as typeof deliveryList
 
   // The "Start Route — Notify All Customers" button's on-screen state was
   // previously plain client useState, reset to unclicked on every page
