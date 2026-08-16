@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
 import { getAllLocations, updateLocation, inviteLocationAdmin, getLocationAdmins, removeLocationAdmin, deleteLocation, enterTenantAdmin, type DeleteLocationResult } from "@/app/actions/super-admin"
-import { setLocationPlanPrice, createBillingCheckoutLink, cancelLocationBilling } from "@/app/actions/platform-billing"
+import { setLocationPlanPrice, createBillingCheckoutLink, cancelLocationBilling, sendBillingCheckoutEmail } from "@/app/actions/platform-billing"
 
 // Mirrors middleware.ts's PLATFORM_DOMAIN — used here just to build the
 // "View Site" link, not for any actual host resolution.
@@ -68,6 +68,9 @@ export default function SuperAdminPage() {
   const [billSaving, setBillSaving] = useState(false)
   const [billMsg, setBillMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
+  const [billEmailTo, setBillEmailTo] = useState("")
+  const [billEmailSending, setBillEmailSending] = useState(false)
+  const [billEmailMsg, setBillEmailMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
 
   // Delete
   const [deleteForId, setDeleteForId] = useState<string | null>(null)
@@ -92,6 +95,13 @@ export default function SuperAdminPage() {
     setBillPriceDollars(loc.plan_price_cents ? (loc.plan_price_cents / 100).toFixed(2) : "")
     setBillMsg(null)
     setCheckoutUrl(null)
+    setBillEmailTo("")
+    setBillEmailMsg(null)
+    // Best-effort: prefill with this tenant's first admin email so the super-admin
+    // usually doesn't have to type it, without blocking the modal on the lookup.
+    getLocationAdmins(loc.id).then(admins => {
+      if (admins[0]?.email) setBillEmailTo(admins[0].email)
+    })
   }
 
   async function handleSavePlanPrice() {
@@ -114,6 +124,16 @@ export default function SuperAdminPage() {
     setBillSaving(false)
     if (res.error) { setBillMsg({ type: "err", text: res.error }); return }
     setCheckoutUrl(res.url ?? null)
+  }
+
+  async function handleEmailCheckoutLink() {
+    if (!billingForId || !checkoutUrl) return
+    setBillEmailSending(true)
+    setBillEmailMsg(null)
+    const res = await sendBillingCheckoutEmail(billingForId, billEmailTo, checkoutUrl)
+    setBillEmailSending(false)
+    if (res.error) { setBillEmailMsg({ type: "err", text: res.error }); return }
+    setBillEmailMsg({ type: "ok", text: `Sent to ${billEmailTo}.` })
   }
 
   async function handleCancelBilling() {
@@ -504,6 +524,31 @@ export default function SuperAdminPage() {
                   <div className="mt-3 bg-slate-50 rounded-lg p-3">
                     <p className="text-xs text-slate-500 mb-1">Send this to the tenant — they enter their own card:</p>
                     <a href={checkoutUrl} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline break-all">{checkoutUrl}</a>
+
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Email to</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          value={billEmailTo}
+                          onChange={e => setBillEmailTo(e.target.value)}
+                          placeholder="tenant@example.com"
+                          className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        />
+                        <button
+                          onClick={handleEmailCheckoutLink}
+                          disabled={billEmailSending || !billEmailTo.trim()}
+                          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium px-4 rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          {billEmailSending ? "Sending…" : "Email Link"}
+                        </button>
+                      </div>
+                      {billEmailMsg && (
+                        <p className={`text-xs mt-2 font-medium ${billEmailMsg.type === "ok" ? "text-green-600" : "text-red-500"}`}>
+                          {billEmailMsg.text}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

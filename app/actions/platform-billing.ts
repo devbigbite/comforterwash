@@ -102,6 +102,62 @@ export async function createBillingCheckoutLink(locationId: string): Promise<{ u
   return { url: session.url }
 }
 
+// Emails a previously-generated checkout link straight to a tenant contact.
+// createBillingCheckoutLink only returns the URL — this is the separate,
+// explicit "actually send it" step, mirroring sendSignupLinkToLead's send
+// logic but for an existing tenant location rather than a demo lead. The
+// checkout URL is passed in (not regenerated here) so this always emails
+// exactly the link the super-admin saw on screen and can re-send an
+// already-generated link without creating a second Stripe Checkout session.
+export async function sendBillingCheckoutEmail(
+  locationId: string,
+  toEmail: string,
+  checkoutUrl: string,
+): Promise<{ error?: string; success?: true }> {
+  await requireSuperAdmin()
+
+  if (!toEmail.trim() || !toEmail.includes("@")) return { error: "Enter a valid email address" }
+  if (!checkoutUrl) return { error: "Generate a checkout link first" }
+
+  const supabase = createAdminClient()
+  const { data: loc } = await supabase
+    .from("locations")
+    .select("name, plan_name, plan_price_cents")
+    .eq("id", locationId)
+    .single()
+  if (!loc) return { error: "Location not found" }
+
+  const priceDisplay = loc.plan_price_cents ? ` ($${(loc.plan_price_cents / 100).toFixed(2)}/mo)` : ""
+
+  const result = await resend.emails.send({
+    from: "WashFoldClean <clean@washfoldorlando.com>",
+    to: [toEmail.trim()],
+    subject: `${loc.name} — your WashFoldClean billing checkout link`,
+    html: `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#333">
+        <p style="font-size:15px;line-height:1.6">Hi,</p>
+        <p style="font-size:15px;line-height:1.6">
+          Here's the checkout link to set up billing for <strong>${loc.name}</strong> on the
+          <strong>${loc.plan_name || "Platform"}</strong> plan${priceDisplay}. Enter your card on
+          Stripe's secure page — we never see or store your card details.
+        </p>
+        <div style="text-align:center;margin:24px 0">
+          <a href="${checkoutUrl}" style="display:inline-block;background:#E8726A;color:white;font-weight:800;font-size:14px;text-decoration:none;padding:12px 28px;border-radius:999px;text-transform:uppercase;letter-spacing:0.5px">
+            Complete Billing Setup →
+          </a>
+        </div>
+        <p style="font-size:14px;color:#888;line-height:1.6">
+          Questions? Just reply to this email.
+        </p>
+        <p style="font-size:14px;color:#888;margin-top:24px">— The WashFoldClean Team</p>
+      </div>
+    `,
+  })
+
+  if (result.error) return { error: result.error.message }
+  return { success: true }
+}
+
 // Read-only billing-status check for a tenant's own admin (not super-admin) —
 // used to show a soft banner if their platform subscription lapses. Orlando
 // is the original owner-operated business, not a paying tenant of itself, so
