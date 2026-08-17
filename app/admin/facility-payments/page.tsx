@@ -4,6 +4,7 @@ import { getLocationId } from "@/lib/location"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { FacilityPayoutForms } from "@/components/admin/FacilityPayoutForms"
 import { PAYMENT_METHOD_LABEL } from "@/lib/facility-payment-methods"
+import { todayET } from "@/lib/pickup-cutoff"
 
 export const dynamic = "force-dynamic"
 
@@ -81,9 +82,11 @@ export default async function FacilityPaymentsPage() {
   const totalAccrued     = rows.reduce((s, r) => s + r.accruedCents, 0)
   const totalPaid        = rows.reduce((s, r) => s + r.paidCents, 0)
 
-  const today = new Date()
-  const defaultTo   = today.toISOString().split("T")[0]
-  const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]
+  // todayET, not new Date().toISOString() — the server runs in UTC, so after
+  // 8pm Eastern a raw toISOString() date is already "tomorrow" and the
+  // prefilled Period To would sit a day ahead of the operator's actual date.
+  const defaultTo   = todayET()
+  const defaultFrom = `${defaultTo.slice(0, 7)}-01`
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
