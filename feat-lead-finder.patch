@@ -1,0 +1,718 @@
+From 6a6ed0a884017fca880783e9ccd52392f7aca428 Mon Sep 17 00:00:00 2001
+From: "JB (via Claude)" <jbtanon@gmail.com>
+Date: Mon, 17 Aug 2026 16:00:45 +0000
+Subject: [PATCH] =?UTF-8?q?feat:=20add=20Lead=20Finder=20=E2=80=94=20Scrap?=
+ =?UTF-8?q?eGraphAI-backed=20commercial=20prospecting=20tool?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+New /admin/leads page, its own nav item (separate from Commercial
+Accounts, which is signed-up billing customers — leads are just
+prospects). Admin enters a free-text category (spas, gyms, Airbnb
+property managers, mom groups, whatever) and a geographic area, plus a
+result count (3-20). This calls ScrapeGraphAI's searchScraper API
+server-side with a structured output_schema so results come back as
+clean business_name/contact_name/email/phone/website/service_area
+fields instead of prose to parse.
+
+searchScraper is async (POST returns a request_id in queued/processing
+state), so app/actions/leads.ts stores that request_id and the admin UI
+polls checkLeadSearchStatus() client-side every few seconds rather than
+holding one serverless invocation open for the 60-90+ seconds these
+searches have taken in manual testing.
+
+New tables (migration already applied directly via Supabase MCP, not
+included in this diff since there's no local migrations/ folder in this
+repo): lead_searches (one row per search, tracks status/request_id) and
+commercial_leads (one row per extracted lead, FK to the search it came
+from). Followed the app's existing convention of no RLS — access
+controlled entirely through requireAdmin()-gated server actions, same as
+every other table.
+
+Requires SGAI_API_KEY as a Vercel env var — not set yet, needs to be
+added before this works in production.
+---
+ app/actions/leads.ts                 | 291 +++++++++++++++++++++++++++
+ app/admin/leads/lead-search-form.tsx | 167 +++++++++++++++
+ app/admin/leads/leads-table.tsx      | 136 +++++++++++++
+ app/admin/leads/page.tsx             |  35 ++++
+ components/admin/admin-header.tsx    |   5 +
+ 5 files changed, 634 insertions(+)
+ create mode 100644 app/actions/leads.ts
+ create mode 100644 app/admin/leads/lead-search-form.tsx
+ create mode 100644 app/admin/leads/leads-table.tsx
+ create mode 100644 app/admin/leads/page.tsx
+
+diff --git a/app/actions/leads.ts b/app/actions/leads.ts
+new file mode 100644
+index 0000000..9679cd6
+--- /dev/null
++++ b/app/actions/leads.ts
+@@ -0,0 +1,291 @@
++"use server"
++
++import { createAdminClient } from "@/lib/supabase/admin"
++import { getLocationId } from "@/lib/location"
++import { requireAdmin } from "@/lib/auth-guard"
++import { revalidatePath } from "next/cache"
++
++// ── Lead Finder ────────────────────────────────────────────────────────────
++// Prospecting tool for commercial-account outreach (spas, gyms, Airbnb
++// property managers, mom groups, etc.) backed by ScrapeGraphAI's
++// searchScraper API. Deliberately separate from commercial-accounts.ts:
++// commercial_accounts is a signed-up, billing customer; a "lead" here is
++// just a prospect pulled from a web search, most of which never convert.
++//
++// searchScraper is async — POSTing a search returns a request_id in
++// "queued"/"processing" state, not the results themselves. We store that
++// request_id and let the admin UI poll checkLeadSearchStatus() every few
++// seconds until it flips to "completed" (or "failed"), rather than holding
++// a single serverless function open for however long the search takes
++// (searches have taken 60-90+ seconds in manual testing — well past a
++// typical Vercel function timeout).
++
++const SGAI_BASE = "https://api.scrapegraphai.com/v1/searchscraper"
++
++type LeadResult = {
++  business_name?: string
++  contact_name?: string
++  email?: string
++  phone?: string
++  website?: string
++  service_area?: string
++  source_url?: string
++}
++
++export interface LeadSearch {
++  id: string
++  category: string
++  geo_area: string
++  num_results: number
++  status: "queued" | "processing" | "completed" | "failed"
++  error: string | null
++  created_at: string
++  completed_at: string | null
++  lead_count: number
++}
++
++export interface CommercialLead {
++  id: string
++  search_id: string | null
++  category: string | null
++  business_name: string | null
++  contact_name: string | null
++  email: string | null
++  phone: string | null
++  website: string | null
++  service_area: string | null
++  source_url: string | null
++  status: "new" | "contacted" | "responded" | "won" | "not_interested"
++  notes: string | null
++  created_at: string
++}
++
++function sgaiKey(): string {
++  const key = process.env.SGAI_API_KEY
++  if (!key) throw new Error("SGAI_API_KEY env var not set — add it in Vercel project settings.")
++  return key
++}
++
++// The exact shape we ask ScrapeGraphAI to return — an array of leads, each
++// with the fields the admin UI displays. Sent as output_schema on the
++// search request so extraction comes back pre-structured instead of us
++// having to parse markdown/prose.
++const LEADS_OUTPUT_SCHEMA = {
++  type: "object",
++  properties: {
++    leads: {
++      type: "array",
++      items: {
++        type: "object",
++        properties: {
++          business_name: { type: "string", description: "Name of the business" },
++          contact_name:  { type: "string", description: "Owner or manager's name, if listed" },
++          email:         { type: "string", description: "A contact email address, if listed" },
++          phone:         { type: "string", description: "A contact phone number, if listed" },
++          website:       { type: "string", description: "The business's website URL" },
++          service_area:  { type: "string", description: "The geographic area they serve, if stated" },
++        },
++      },
++    },
++  },
++  required: ["leads"],
++}
++
++// ── Start a search ───────────────────────────────────────────────────────
++export async function startLeadSearch(
++  category: string,
++  geoArea: string,
++  numResults: number,
++): Promise<{ searchId: string } | { error: string }> {
++  await requireAdmin()
++
++  const cleanCategory = category.trim()
++  const cleanGeoArea  = geoArea.trim()
++  if (!cleanCategory) return { error: "Enter a lead category (e.g. \"local spas\")." }
++  if (!cleanGeoArea) return { error: "Enter a geographic area (e.g. \"Orlando, FL\")." }
++  const clampedResults = Math.min(20, Math.max(3, Math.round(numResults) || 10))
++
++  const locationId = await getLocationId()
++  const supabase = createAdminClient()
++
++  const { data: searchRow, error: insertError } = await supabase
++    .from("lead_searches")
++    .insert({
++      location_id: locationId,
++      category: cleanCategory,
++      geo_area: cleanGeoArea,
++      num_results: clampedResults,
++      status: "queued",
++    })
++    .select("id")
++    .single()
++
++  if (insertError || !searchRow) return { error: "Couldn't save the search. Try again." }
++
++  try {
++    const res = await fetch(SGAI_BASE, {
++      method: "POST",
++      headers: {
++        accept: "application/json",
++        "Content-Type": "application/json",
++        "SGAI-APIKEY": sgaiKey(),
++      },
++      body: JSON.stringify({
++        user_prompt: `Find local ${cleanCategory} businesses in ${cleanGeoArea}. For each one, find the business name, an owner or manager's name if listed, a contact email address, a phone number, their website, and the geographic area they serve.`,
++        num_results: clampedResults,
++        extraction_mode: true,
++        output_schema: LEADS_OUTPUT_SCHEMA,
++      }),
++    })
++
++    if (!res.ok) {
++      const body = await res.text().catch(() => "")
++      await supabase.from("lead_searches").update({ status: "failed", error: `ScrapeGraphAI ${res.status}: ${body.slice(0, 300)}` }).eq("id", searchRow.id)
++      return { error: "The search failed to start. Check the ScrapeGraphAI API key and credit balance." }
++    }
++
++    const data = await res.json() as { request_id?: string; status?: string }
++    await supabase
++      .from("lead_searches")
++      .update({ request_id: data.request_id ?? null, status: (data.status as string) ?? "processing" })
++      .eq("id", searchRow.id)
++  } catch (err) {
++    await supabase.from("lead_searches").update({ status: "failed", error: String(err).slice(0, 300) }).eq("id", searchRow.id)
++    return { error: "Couldn't reach ScrapeGraphAI. Try again in a moment." }
++  }
++
++  revalidatePath("/admin/leads")
++  return { searchId: searchRow.id }
++}
++
++// ── Poll a search's status; parses + saves leads once completed ───────────
++export async function checkLeadSearchStatus(searchId: string): Promise<{
++  status: LeadSearch["status"]
++  error?: string
++  leadCount?: number
++}> {
++  await requireAdmin()
++
++  const supabase = createAdminClient()
++  const { data: search } = await supabase
++    .from("lead_searches")
++    .select("id, request_id, status, error")
++    .eq("id", searchId)
++    .single()
++
++  if (!search) return { status: "failed", error: "Search not found." }
++  if (search.status === "completed" || search.status === "failed") {
++    return { status: search.status, error: search.error ?? undefined }
++  }
++  if (!search.request_id) return { status: "processing" }
++
++  try {
++    const res = await fetch(`${SGAI_BASE}/${search.request_id}`, {
++      headers: { "SGAI-APIKEY": sgaiKey() },
++    })
++    if (!res.ok) return { status: "processing" } // transient — keep polling
++
++    const data = await res.json() as {
++      status?: string
++      result?: { leads?: LeadResult[] }
++      reference_urls?: string[]
++      error?: string
++    }
++
++    if (data.status === "failed") {
++      await supabase.from("lead_searches").update({ status: "failed", error: data.error ?? "Unknown error", completed_at: new Date().toISOString() }).eq("id", searchId)
++      return { status: "failed", error: data.error ?? "Unknown error" }
++    }
++
++    if (data.status !== "completed") {
++      await supabase.from("lead_searches").update({ status: "processing" }).eq("id", searchId)
++      return { status: "processing" }
++    }
++
++    // Completed — parse + save leads, then mark the search done.
++    const { data: searchMeta } = await supabase
++      .from("lead_searches")
++      .select("location_id, category")
++      .eq("id", searchId)
++      .single()
++
++    const leads = data.result?.leads ?? []
++    const refUrls = data.reference_urls ?? []
++    if (leads.length && searchMeta) {
++      const rows = leads
++        .filter(l => l.business_name || l.email || l.phone)
++        .map((l, i) => ({
++          location_id: searchMeta.location_id,
++          search_id: searchId,
++          category: searchMeta.category,
++          business_name: l.business_name ?? null,
++          contact_name: l.contact_name ?? null,
++          email: l.email ?? null,
++          phone: l.phone ?? null,
++          website: l.website ?? null,
++          service_area: l.service_area ?? null,
++          source_url: l.source_url ?? refUrls[i] ?? null,
++        }))
++      if (rows.length) await supabase.from("commercial_leads").insert(rows)
++    }
++
++    await supabase.from("lead_searches").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", searchId)
++    revalidatePath("/admin/leads")
++    return { status: "completed", leadCount: leads.length }
++  } catch (err) {
++    return { status: "processing" } // network hiccup — keep polling, don't fail the whole search over it
++  }
++}
++
++// ── Reads ───────────────────────────────────────────────────────────────
++export async function getLeadSearches(): Promise<LeadSearch[]> {
++  await requireAdmin()
++  const locationId = await getLocationId()
++  const supabase = createAdminClient()
++
++  const { data: searches } = await supabase
++    .from("lead_searches")
++    .select("id, category, geo_area, num_results, status, error, created_at, completed_at")
++    .eq("location_id", locationId)
++    .order("created_at", { ascending: false })
++    .limit(50)
++
++  if (!searches?.length) return []
++
++  const { data: counts } = await supabase
++    .from("commercial_leads")
++    .select("search_id")
++    .in("search_id", searches.map(s => s.id))
++
++  const countBySearch = new Map<string, number>()
++  for (const row of counts ?? []) {
++    if (!row.search_id) continue
++    countBySearch.set(row.search_id, (countBySearch.get(row.search_id) ?? 0) + 1)
++  }
++
++  return searches.map(s => ({ ...s, lead_count: countBySearch.get(s.id) ?? 0 })) as LeadSearch[]
++}
++
++export async function getLeads(searchId?: string): Promise<CommercialLead[]> {
++  await requireAdmin()
++  const locationId = await getLocationId()
++  const supabase = createAdminClient()
++
++  let query = supabase
++    .from("commercial_leads")
++    .select("id, search_id, category, business_name, contact_name, email, phone, website, service_area, source_url, status, notes, created_at")
++    .eq("location_id", locationId)
++    .order("created_at", { ascending: false })
++
++  if (searchId) query = query.eq("search_id", searchId)
++
++  const { data } = await query.limit(500)
++  return (data ?? []) as CommercialLead[]
++}
++
++export async function updateLeadStatus(leadId: string, status: CommercialLead["status"]): Promise<void> {
++  await requireAdmin()
++  const supabase = createAdminClient()
++  await supabase.from("commercial_leads").update({ status }).eq("id", leadId)
++  revalidatePath("/admin/leads")
++}
+diff --git a/app/admin/leads/lead-search-form.tsx b/app/admin/leads/lead-search-form.tsx
+new file mode 100644
+index 0000000..07bcf6b
+--- /dev/null
++++ b/app/admin/leads/lead-search-form.tsx
+@@ -0,0 +1,167 @@
++"use client"
++
++import { useState, useEffect, useRef } from "react"
++import { startLeadSearch, checkLeadSearchStatus, type LeadSearch } from "@/app/actions/leads"
++
++const STATUS_BADGE: Record<string, string> = {
++  queued:     "bg-gray-100 text-gray-500 border border-gray-200",
++  processing: "bg-blue-50 text-blue-700 border border-blue-200",
++  completed:  "bg-green-50 text-green-700 border border-green-200",
++  failed:     "bg-red-50 text-red-700 border border-red-200",
++}
++
++const STATUS_LABEL: Record<string, string> = {
++  queued:     "Queued",
++  processing: "Searching…",
++  completed:  "Done",
++  failed:     "Failed",
++}
++
++// Suggested categories — just a convenience row of buttons that fill in the
++// category field, not a fixed list. Any free text can be typed instead.
++const SUGGESTED_CATEGORIES = [
++  "local spas", "gyms", "Airbnb property managers", "mom groups",
++  "hair salons", "hotels", "senior living communities", "real estate agents",
++]
++
++export function LeadSearchForm({ initialSearches }: { initialSearches: LeadSearch[] }) {
++  const [category, setCategory]     = useState("")
++  const [geoArea, setGeoArea]       = useState("")
++  const [numResults, setNumResults] = useState(10)
++  const [submitting, setSubmitting] = useState(false)
++  const [error, setError]           = useState<string | null>(null)
++  const [searches, setSearches]     = useState(initialSearches)
++  const pollTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
++
++  // Resume polling for any search that was still in flight on page load
++  // (e.g. the admin navigated away and came back).
++  useEffect(() => {
++    for (const s of initialSearches) {
++      if (s.status === "queued" || s.status === "processing") pollSearch(s.id)
++    }
++    return () => {
++      for (const t of Object.values(pollTimers.current)) clearTimeout(t)
++    }
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [])
++
++  function pollSearch(searchId: string) {
++    const tick = async () => {
++      const result = await checkLeadSearchStatus(searchId)
++      setSearches(prev => prev.map(s => s.id === searchId ? { ...s, status: result.status, error: result.error ?? null } : s))
++      if (result.status === "queued" || result.status === "processing") {
++        pollTimers.current[searchId] = setTimeout(tick, 4000)
++      } else {
++        delete pollTimers.current[searchId]
++        if (result.status === "completed") {
++          // Refresh the page data (new leads) without losing form state.
++          window.location.reload()
++        }
++      }
++    }
++    pollTimers.current[searchId] = setTimeout(tick, 3000)
++  }
++
++  async function handleSubmit(e: React.FormEvent) {
++    e.preventDefault()
++    setError(null)
++    setSubmitting(true)
++    const result = await startLeadSearch(category, geoArea, numResults)
++    setSubmitting(false)
++    if ("error" in result) {
++      setError(result.error)
++      return
++    }
++    setSearches(prev => [
++      { id: result.searchId, category, geo_area: geoArea, num_results: numResults, status: "queued", error: null, created_at: new Date().toISOString(), completed_at: null, lead_count: 0 },
++      ...prev,
++    ])
++    setCategory("")
++    setGeoArea("")
++    pollSearch(result.searchId)
++  }
++
++  return (
++    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
++      <form onSubmit={handleSubmit} className="grid sm:grid-cols-[1.2fr_1fr_auto_auto] gap-3 items-end">
++        <div>
++          <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Lead category</label>
++          <input
++            type="text"
++            value={category}
++            onChange={e => setCategory(e.target.value)}
++            placeholder="e.g. local spas"
++            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:border-[#0D2240] focus:ring-2 focus:ring-[#0D2240]/10"
++          />
++        </div>
++        <div>
++          <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Geographic area</label>
++          <input
++            type="text"
++            value={geoArea}
++            onChange={e => setGeoArea(e.target.value)}
++            placeholder="e.g. Orlando, FL"
++            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:border-[#0D2240] focus:ring-2 focus:ring-[#0D2240]/10"
++          />
++        </div>
++        <div>
++          <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide"># results</label>
++          <input
++            type="number"
++            min={3}
++            max={20}
++            value={numResults}
++            onChange={e => setNumResults(Number(e.target.value))}
++            className="w-20 px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:border-[#0D2240] focus:ring-2 focus:ring-[#0D2240]/10"
++          />
++        </div>
++        <button
++          type="submit"
++          disabled={submitting}
++          className="bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-50 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap"
++        >
++          {submitting ? "Starting…" : "Find Leads"}
++        </button>
++      </form>
++
++      <div className="flex flex-wrap gap-1.5 mt-3">
++        {SUGGESTED_CATEGORIES.map(c => (
++          <button
++            key={c}
++            type="button"
++            onClick={() => setCategory(c)}
++            className="text-xs font-semibold text-gray-500 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-full px-2.5 py-1 transition-colors"
++          >
++            {c}
++          </button>
++        ))}
++      </div>
++
++      {error && <p className="text-sm text-red-600 font-medium mt-3">{error}</p>}
++
++      {searches.length > 0 && (
++        <div className="mt-5 pt-5 border-t border-gray-100 space-y-2">
++          {searches.slice(0, 8).map(s => (
++            <div key={s.id} className="flex items-center justify-between text-sm gap-3">
++              <div className="min-w-0">
++                <span className="font-semibold text-[#0D2240]">{s.category}</span>
++                <span className="text-gray-400"> in {s.geo_area} · {s.num_results} results</span>
++              </div>
++              <div className="flex items-center gap-2 shrink-0">
++                {s.status === "completed" && <span className="text-xs text-gray-400">{s.lead_count} leads</span>}
++                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${STATUS_BADGE[s.status]}`}>
++                  {STATUS_LABEL[s.status]}
++                </span>
++              </div>
++            </div>
++          ))}
++          {searches.some(s => s.status === "failed" && s.error) && (
++            <p className="text-xs text-red-500 mt-1">
++              {searches.find(s => s.status === "failed")?.error}
++            </p>
++          )}
++        </div>
++      )}
++    </div>
++  )
++}
+diff --git a/app/admin/leads/leads-table.tsx b/app/admin/leads/leads-table.tsx
+new file mode 100644
+index 0000000..4e3f89b
+--- /dev/null
++++ b/app/admin/leads/leads-table.tsx
+@@ -0,0 +1,136 @@
++"use client"
++
++import { useState } from "react"
++import { updateLeadStatus, type CommercialLead } from "@/app/actions/leads"
++
++const STATUS_OPTIONS: CommercialLead["status"][] = ["new", "contacted", "responded", "won", "not_interested"]
++
++const STATUS_BADGE: Record<string, string> = {
++  new:            "bg-gray-100 text-gray-600 border border-gray-200",
++  contacted:      "bg-blue-50 text-blue-700 border border-blue-200",
++  responded:      "bg-amber-50 text-amber-700 border border-amber-200",
++  won:            "bg-green-50 text-green-700 border border-green-200",
++  not_interested: "bg-red-50 text-red-500 border border-red-200",
++}
++
++function toCsv(leads: CommercialLead[]): string {
++  const headers = ["Category", "Business", "Contact", "Email", "Phone", "Website", "Service Area", "Status", "Source URL"]
++  const rows = leads.map(l => [
++    l.category, l.business_name, l.contact_name, l.email, l.phone, l.website, l.service_area, l.status, l.source_url,
++  ])
++  const escape = (v: string | null) => `"${(v ?? "").replace(/"/g, '""')}"`
++  return [headers.map(escape).join(","), ...rows.map(r => r.map(escape).join(","))].join("\n")
++}
++
++export function LeadsTable({ initialLeads }: { initialLeads: CommercialLead[] }) {
++  const [leads, setLeads] = useState(initialLeads)
++  const [filter, setFilter] = useState<string>("all")
++
++  async function handleStatusChange(leadId: string, status: CommercialLead["status"]) {
++    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status } : l))
++    await updateLeadStatus(leadId, status)
++  }
++
++  function handleExport() {
++    const csv = toCsv(visibleLeads)
++    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
++    const url = URL.createObjectURL(blob)
++    const a = document.createElement("a")
++    a.href = url
++    a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`
++    a.click()
++    URL.revokeObjectURL(url)
++  }
++
++  const categories = Array.from(new Set(leads.map(l => l.category).filter(Boolean))) as string[]
++  const visibleLeads = filter === "all" ? leads : leads.filter(l => l.category === filter)
++
++  if (leads.length === 0) {
++    return (
++      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">
++        <p className="text-4xl mb-3">🔍</p>
++        <p className="text-[#0D2240] font-bold">No leads yet</p>
++        <p className="text-gray-400 text-sm mt-1">Run a search above to start pulling in prospects.</p>
++      </div>
++    )
++  }
++
++  return (
++    <div>
++      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
++        <div className="flex items-center gap-2 flex-wrap">
++          <button
++            onClick={() => setFilter("all")}
++            className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${filter === "all" ? "bg-[#0D2240] text-white" : "bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100"}`}
++          >
++            All
++          </button>
++          {categories.map(c => (
++            <button
++              key={c}
++              onClick={() => setFilter(c)}
++              className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${filter === c ? "bg-[#0D2240] text-white" : "bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100"}`}
++            >
++              {c}
++            </button>
++          ))}
++        </div>
++        <button
++          onClick={handleExport}
++          className="text-xs font-bold text-[#0D2240] bg-white border border-gray-200 hover:bg-gray-50 rounded-full px-3 py-1.5 transition-colors"
++        >
++          ⬇ Export CSV
++        </button>
++      </div>
++
++      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
++        <div className="overflow-x-auto">
++          <table className="w-full text-sm">
++            <thead>
++              <tr className="border-b border-gray-100 text-left text-xs text-gray-400 uppercase tracking-wide">
++                <th className="px-4 py-3 font-bold">Business</th>
++                <th className="px-4 py-3 font-bold">Contact</th>
++                <th className="px-4 py-3 font-bold">Email / Phone</th>
++                <th className="px-4 py-3 font-bold">Website</th>
++                <th className="px-4 py-3 font-bold">Category</th>
++                <th className="px-4 py-3 font-bold">Status</th>
++              </tr>
++            </thead>
++            <tbody>
++              {visibleLeads.map(l => (
++                <tr key={l.id} className="border-b border-gray-50 last:border-0">
++                  <td className="px-4 py-3 font-semibold text-[#0D2240] max-w-[200px] truncate">{l.business_name || "—"}</td>
++                  <td className="px-4 py-3 text-gray-600">{l.contact_name || "—"}</td>
++                  <td className="px-4 py-3 text-gray-600">
++                    {l.email && <div className="truncate max-w-[200px]">{l.email}</div>}
++                    {l.phone && <div className="text-gray-400">{l.phone}</div>}
++                    {!l.email && !l.phone && "—"}
++                  </td>
++                  <td className="px-4 py-3">
++                    {l.website ? (
++                      <a href={l.website.startsWith("http") ? l.website : `https://${l.website}`} target="_blank" rel="noreferrer" className="text-[#E8726A] hover:underline truncate max-w-[160px] block">
++                        {l.website.replace(/^https?:\/\//, "")}
++                      </a>
++                    ) : "—"}
++                  </td>
++                  <td className="px-4 py-3 text-gray-500">{l.category || "—"}</td>
++                  <td className="px-4 py-3">
++                    <select
++                      value={l.status}
++                      onChange={e => handleStatusChange(l.id, e.target.value as CommercialLead["status"])}
++                      className={`text-xs font-bold rounded-full px-2.5 py-1 outline-none cursor-pointer ${STATUS_BADGE[l.status]}`}
++                    >
++                      {STATUS_OPTIONS.map(s => (
++                        <option key={s} value={s}>{s.replace("_", " ")}</option>
++                      ))}
++                    </select>
++                  </td>
++                </tr>
++              ))}
++            </tbody>
++          </table>
++        </div>
++      </div>
++    </div>
++  )
++}
+diff --git a/app/admin/leads/page.tsx b/app/admin/leads/page.tsx
+new file mode 100644
+index 0000000..d873b71
+--- /dev/null
++++ b/app/admin/leads/page.tsx
+@@ -0,0 +1,35 @@
++import { redirect } from "next/navigation"
++import { getLeadSearches, getLeads } from "@/app/actions/leads"
++import { isAdminForCurrentLocation } from "@/lib/auth-guard"
++import { LeadSearchForm } from "./lead-search-form"
++import { LeadsTable } from "./leads-table"
++
++export const dynamic = "force-dynamic"
++
++export default async function LeadsPage() {
++  if (!(await isAdminForCurrentLocation())) redirect("/admin/login")
++
++  const [searches, leads] = await Promise.all([getLeadSearches(), getLeads()])
++
++  return (
++    <div className="max-w-5xl mx-auto px-4 py-8">
++      <div className="mb-8">
++        <h1 className="text-2xl font-extrabold text-[#0D2240]">Lead Finder</h1>
++        <p className="text-sm text-gray-400 mt-0.5">
++          Search for local businesses to pitch commercial laundry service to — spas, gyms, Airbnb property
++          managers, mom groups, whatever category you want to target. Each search costs ScrapeGraphAI credits
++          (roughly 30 credits for 3 results, +10 per additional result).
++        </p>
++      </div>
++
++      <LeadSearchForm initialSearches={searches} />
++
++      <div className="mt-10">
++        <h2 className="text-lg font-extrabold text-[#0D2240] mb-3">
++          Leads {leads.length > 0 && <span className="text-gray-400 font-semibold">({leads.length})</span>}
++        </h2>
++        <LeadsTable initialLeads={leads} />
++      </div>
++    </div>
++  )
++}
+diff --git a/components/admin/admin-header.tsx b/components/admin/admin-header.tsx
+index b8af285..6cc2a45 100644
+--- a/components/admin/admin-header.tsx
++++ b/components/admin/admin-header.tsx
+@@ -54,6 +54,11 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
+       href: "/admin/search",
+       label: es ? "Buscar" : "Search",
+     },
++    {
++      type: "link",
++      href: "/admin/leads",
++      label: es ? "Prospectos" : "Leads",
++    },
+     {
+       type: "dropdown",
+       label: es ? "Clientes" : "Customers",
+-- 
+2.43.0
+
