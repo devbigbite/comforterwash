@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "lib/order-billing.ts",
+    "app/actions/weigh-in.ts",
+    "app/driver/order/[id]/page.tsx",
+    "app/admin/orders/[id]/page.tsx",
+    "app/commercial-agreement/[code]/history/page.tsx",
+    "next-env.d.ts"
+  ]
+}

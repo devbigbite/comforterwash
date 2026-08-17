@@ -17,7 +17,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { sendSMS, sendBookingNotification } from "@/lib/sms"
 import { sendWeightConfirmedEmail } from "@/lib/email"
-import { CUSTOMER_MIN_LBS, DEFAULT_RATE_CENTS } from "@/lib/pricing-constants"
+import { calculateOrderBilling } from "@/lib/order-billing"
 
 export interface WeighInResult {
   success?: boolean
@@ -50,60 +50,20 @@ export async function recordWeightAndCharge(
   if (!booking) return { error: "Order not found" }
   if (booking.actual_weight_lbs) return { skipped: true, customerFinalCents: booking.customer_final_cents ?? undefined }
 
-  // Commercial pay-at-time-of-service accounts price off their own
-  // negotiated rate_type/rate_amount_cents/minimum_amount_cents instead of
-  // the consumer per-lb rate — see commercial_accounts.
-  let commercialAccount: { rate_type: string; rate_amount_cents: number | null; minimum_amount_cents: number | null; business_name?: string } | null = null
-  if (booking.commercial_account_id) {
-    const { data } = await supabase
-      .from("commercial_accounts")
-      .select("rate_type, rate_amount_cents, minimum_amount_cents")
-      .eq("id", booking.commercial_account_id)
-      .single()
-    commercialAccount = data
-  }
-
-  let customerFinalCents: number
-  // Consumer rate: this booking's own locked-in price_per_lb_cents (set at
-  // checkout time — e.g. a customer quoted $2.69/lb should always be billed
-  // $2.69/lb, not a generic default) takes priority over DEFAULT_RATE_CENTS.
-  // Previously this function ignored price_per_lb_cents entirely, so weight
-  // entered from the admin/operator weigh-in card could silently undercharge
-  // (or overcharge) a customer relative to what the driver-app path
-  // (confirmDropoff, which did read this field) would have billed for the
-  // exact same order.
-  const consumerRateCents = booking.price_per_lb_cents ?? DEFAULT_RATE_CENTS[booking.service_type as string] ?? 250
-  const chargedLbs = Math.max(weightLbs, CUSTOMER_MIN_LBS)
-  if (commercialAccount) {
-    const rateAmount = commercialAccount.rate_amount_cents ?? 0
-    const rawCents =
-      commercialAccount.rate_type === "per_lb" ? Math.round(weightLbs * rateAmount) :
-      commercialAccount.rate_type === "flat" ? rateAmount :
-      rateAmount // per_load — same flat amount per order
-    customerFinalCents = Math.max(rawCents, commercialAccount.minimum_amount_cents ?? 0)
-  } else {
-    customerFinalCents = chargedLbs * consumerRateCents
-  }
-
-  let facilityCostCents = 0
-  if (booking.assigned_facility_id) {
-    const { data: facility } = await supabase
-      .from("facilities").select("rate_per_lb, minimum_lbs").eq("id", booking.assigned_facility_id).single()
-    if (facility?.rate_per_lb) {
-      // Whenever an order is light enough that the customer gets billed the
-      // CUSTOMER_MIN_LBS minimum instead of their actual weight, the facility
-      // that processed it must be paid for that same minimum too — not just
-      // whatever lower weight actually came off the scale. A facility's own
-      // minimum_lbs (its separate contractual floor, e.g. a facility that
-      // requires 30 lbs minimum regardless of what we bill customers) can
-      // still raise this further, but must never be allowed to silently
-      // undercut the customer minimum — that was the bug here: this facility
-      // has minimum_lbs = 0, so a sub-20lb order paid the facility only for
-      // the real weight while the customer was charged for a full 20 lbs.
-      const facilityBillableLbs = Math.max(weightLbs, facility.minimum_lbs ?? 0, CUSTOMER_MIN_LBS)
-      facilityCostCents = Math.round(facilityBillableLbs * facility.rate_per_lb * 100)
-    }
-  }
+  // Pricing lives in lib/order-billing.ts so this path and the driver app's
+  // confirmDropoff cannot drift apart again — they had, and the driver copy
+  // was billing commercial accounts at the consumer rate and never writing
+  // facility_cost_cents at all.
+  const { customerFinalCents, facilityCostCents, isCommercial } = await calculateOrderBilling(
+    supabase,
+    {
+      service_type:          booking.service_type ?? null,
+      price_per_lb_cents:    booking.price_per_lb_cents ?? null,
+      commercial_account_id: booking.commercial_account_id ?? null,
+      assigned_facility_id:  booking.assigned_facility_id ?? null,
+    },
+    weightLbs,
+  )
 
   const { error: updateError } = await supabase.from("bookings").update({
     actual_weight_lbs: weightLbs,
@@ -171,7 +131,7 @@ export async function recordWeightAndCharge(
   // computed and charged as normal above; customers can see the full
   // amount on their card statement or by tracking the order.
   try {
-    if (commercialAccount) {
+    if (isCommercial) {
       if (booking.customer_phone) {
         await sendSMS(booking.customer_phone,
           `Hi ${booking.customer_name?.split(" ")[0] ?? "there"}, thank you for your order! 🧺 It weighed in at ${weightLbs} lbs. We appreciate your business!`)

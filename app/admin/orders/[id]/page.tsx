@@ -16,6 +16,7 @@ import { OrderIssueNotesPanel } from "./order-issue-notes-panel"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { recordWeightAndCharge } from "@/app/actions/weigh-in"
+import { calculateOrderBilling } from "@/lib/order-billing"
 import { capturePayment, chargeCommercialAccountOrder } from "@/app/actions/stripe"
 import { sendPaymentUpdateLink } from "@/app/actions/commercial-accounts"
 import { updateFacilityDetails } from "@/app/actions/facility-board"
@@ -31,6 +32,18 @@ async function assertBookingOwnership(bookingId: string) {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase.from("bookings").select("id").eq("id", bookingId).eq("location_id", locationId).maybeSingle()
   if (!data) throw new Error("Order not found for this account")
+}
+
+// What the Billing Breakdown says under the customer total. Deliberately
+// plain-language: "captured" is Stripe's word, not something an admin
+// glancing at the page should have to translate.
+const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  captured:       "charged",
+  paid:           "charged",
+  pre_authorized: "pre-authorized, not yet charged",
+  pending_weight: "not charged yet",
+  pending:        "charge pending",
+  failed:         "charge failed",
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -164,19 +177,61 @@ async function assignDriverAction(formData: FormData) {
   revalidatePath(`/admin/orders/${bookingId}`)
 }
 
+// The result of cancelShipdayOrders() used to be discarded, and the timeline
+// event claimed "pickup + delivery orders cancelled" unconditionally. Shipday
+// refuses DELETE on a task that's already picked_up or ready_to_deliver
+// ("Delete is not allowed for picked_up and ready_to_deliver statuses"), so a
+// half-failed cancel logged as a clean success and the still-live task stayed
+// on a driver's route with nothing on this page saying so. Now each leg is
+// reported individually and a partial failure surfaces as a banner.
 async function cancelShipdayAction(formData: FormData) {
   "use server"
   const bookingId = formData.get("bookingId") as string
   await assertBookingOwnership(bookingId)
   const supabase = createAdminClient()
-  await cancelShipdayOrders(bookingId)
+
+  const { data: ids } = await supabase
+    .from("bookings")
+    .select("shipday_pickup_order_id, shipday_delivery_order_id")
+    .eq("id", bookingId)
+    .single()
+  const hadPickup = !!ids?.shipday_pickup_order_id
+  const hadDelivery = !!ids?.shipday_delivery_order_id
+
+  const { pickupCancelled, deliveryCancelled } = await cancelShipdayOrders(bookingId)
+
+  const pickupFailed = hadPickup && !pickupCancelled
+  const deliveryFailed = hadDelivery && !deliveryCancelled
+
+  // Clear only the legs that actually came back cancelled, so the Dispatch
+  // card keeps showing the ID of anything still live in Shipday.
+  const cleared: Record<string, null> = {}
+  if (hadPickup && pickupCancelled) cleared.shipday_pickup_order_id = null
+  if (hadDelivery && deliveryCancelled) cleared.shipday_delivery_order_id = null
+  if (Object.keys(cleared).length) {
+    await supabase.from("bookings").update(cleared).eq("id", bookingId)
+  }
+
+  const parts: string[] = []
+  if (hadPickup) parts.push(`pickup ${ids!.shipday_pickup_order_id} ${pickupCancelled ? "cancelled" : "NOT cancelled"}`)
+  if (hadDelivery) parts.push(`delivery ${ids!.shipday_delivery_order_id} ${deliveryCancelled ? "cancelled" : "NOT cancelled"}`)
+
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "shipday_cancelled",
-    notes: `Shipday pickup + delivery orders cancelled by admin`,
+    notes: parts.length
+      ? `Shipday cancel by admin — ${parts.join(" · ")}`
+      : "Shipday cancel requested by admin, but no Shipday order IDs were on file",
     created_by: "admin",
   })
+
+  const failedLegs = [pickupFailed && "pickup", deliveryFailed && "delivery"].filter(Boolean).join(" and ")
+  const msg = failedLegs
+    ? `err:Shipday would not cancel the ${failedLegs} task — it's likely already picked up or ready to deliver. Cancel it in the Shipday dashboard directly.`
+    : "ok:Shipday orders cancelled."
+
   revalidatePath(`/admin/orders/${bookingId}`)
+  redirect(`/admin/orders/${bookingId}?billingMsg=${encodeURIComponent(msg)}`)
 }
 
 // Weight entry from the admin page — routes through the same
@@ -214,6 +269,70 @@ async function enterWeightAction(formData: FormData) {
     })
   }
   revalidatePath(`/admin/orders/${bookingId}`)
+}
+
+// Recompute billing from the weight already on file. Recovery path for an
+// order whose weight saved but whose money figures didn't — which used to be
+// unfixable from the UI: the weight-entry card hides itself once
+// actual_weight_lbs is set, and recordWeightAndCharge deliberately no-ops on
+// any order that already has a weight (so it can't double-charge). That left
+// a direct database edit as the only way out. Concretely this recovers
+// orders weighed by the old driver-app path, which wrote customer_final_cents
+// at the consumer rate even for commercial accounts and never wrote
+// facility_cost_cents at all. Refuses once payment is captured, since by then
+// changing the figure would no longer match what the customer actually paid.
+async function recalcBillingAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  await assertBookingOwnership(bookingId)
+  const supabase = createAdminClient()
+
+  const { data: bk } = await supabase
+    .from("bookings")
+    .select("actual_weight_lbs, service_type, price_per_lb_cents, commercial_account_id, assigned_facility_id, customer_final_cents, facility_cost_cents, payment_status")
+    .eq("id", bookingId)
+    .single()
+
+  const weightLbs = Number(bk?.actual_weight_lbs ?? 0)
+  let msg: string
+
+  if (!bk) {
+    msg = "err:Order not found."
+  } else if (!(weightLbs > 0)) {
+    msg = "err:No weight on file yet — enter the weight first."
+  } else if (bk.payment_status === "captured") {
+    msg = "err:Payment is already captured — recalculating would no longer match what the customer paid. Adjust in Stripe instead."
+  } else {
+    const billing = await calculateOrderBilling(supabase, {
+      service_type:          bk.service_type ?? null,
+      price_per_lb_cents:    bk.price_per_lb_cents ?? null,
+      commercial_account_id: bk.commercial_account_id ?? null,
+      assigned_facility_id:  bk.assigned_facility_id ?? null,
+    }, weightLbs)
+
+    const { error } = await supabase.from("bookings").update({
+      customer_final_cents: billing.customerFinalCents,
+      facility_cost_cents:  billing.facilityCostCents,
+    }).eq("id", bookingId)
+
+    if (error) {
+      msg = `err:Recalculation failed — ${error.message}`
+    } else {
+      const was = bk.customer_final_cents
+      await supabase.from("order_events").insert({
+        booking_id: bookingId,
+        event_type: "weight_confirmed",
+        notes: `Billing recalculated by admin from ${weightLbs} lbs — customer $${(billing.customerFinalCents / 100).toFixed(2)} (${billing.basis})`
+          + `, facility cost $${(billing.facilityCostCents / 100).toFixed(2)}`
+          + (was != null && was !== billing.customerFinalCents ? ` · was $${(was / 100).toFixed(2)}` : ""),
+        created_by: "admin",
+      })
+      msg = `ok:Billing recalculated — customer $${(billing.customerFinalCents / 100).toFixed(2)}, facility cost $${(billing.facilityCostCents / 100).toFixed(2)}.`
+    }
+  }
+
+  revalidatePath(`/admin/orders/${bookingId}`)
+  redirect(`/admin/orders/${bookingId}?billingMsg=${encodeURIComponent(msg)}`)
 }
 
 // Manual "Capture Payment" — surfaces the same capturePayment() that
@@ -267,10 +386,10 @@ async function retryCommercialChargeAction(formData: FormData) {
   const result = await chargeCommercialAccountOrder(bookingId)
   await supabase.from("order_events").insert({
     booking_id: bookingId, event_type: "weight_confirmed",
-    notes: result.success ? "Commercial charge retried and succeeded (admin)" : `Retry failed: ${result.error}`,
+    notes: result.success ? "Commercial charge dispatched by admin — succeeded" : `Commercial charge failed: ${result.error}`,
     created_by: "admin",
   })
-  const msg = result.success ? "ok:Charge succeeded." : `err:Charge failed again — ${result.error}`
+  const msg = result.success ? "ok:Charge succeeded." : `err:Charge failed — ${result.error}`
   revalidatePath(`/admin/orders/${bookingId}`)
   redirect(`/admin/orders/${bookingId}?billingMsg=${encodeURIComponent(msg)}`)
 }
@@ -441,6 +560,22 @@ export default async function OrderDetailPage({
     .eq("active", true)
     .order("name")
 
+  // Whether this order's commercial account can actually be charged. Read
+  // here rather than inferred from payment_status, because "no card on file"
+  // and "card declined" are different problems with different fixes, and
+  // payment_status can't tell them apart — an account that has never had a
+  // usable card just sits at pending_weight forever, looking identical to an
+  // order still waiting to be weighed.
+  const { data: commercialAccount } = booking.commercial_account_id
+    ? await supabase
+        .from("commercial_accounts")
+        .select("id, business_name, stripe_customer_id, stripe_payment_method_id, card_brand, card_last4")
+        .eq("id", booking.commercial_account_id)
+        .maybeSingle()
+    : { data: null }
+
+  const commercialCardOnFile = !!(commercialAccount?.stripe_customer_id && commercialAccount?.stripe_payment_method_id)
+
   const miscFees = await getMiscFees(id)
   const issueNotes = await getOrderIssueNotes(id)
 
@@ -575,7 +710,17 @@ export default async function OrderDetailPage({
               <div className="text-center bg-green-50 border border-green-100 rounded-xl p-4">
                 <p className="text-xs text-gray-400 mb-1">Customer Revenue</p>
                 <p className="text-2xl font-extrabold text-green-700">${(customerFinalCents! / 100).toFixed(2)}</p>
-                <p className="text-xs text-gray-400">captured</p>
+                {/* This label was hardcoded to "captured", which asserted the
+                    money had been collected on every order that had a total —
+                    including ones still sitting at pending_weight with nothing
+                    charged. Read the real payment_status instead. */}
+                <p className={`text-xs ${
+                  booking.payment_status === "captured" || booking.payment_status === "paid"
+                    ? "text-gray-400"
+                    : "text-amber-600 font-semibold"
+                }`}>
+                  {PAYMENT_STATUS_LABEL[booking.payment_status as string] ?? booking.payment_status ?? "not charged"}
+                </p>
               </div>
               <div className="text-center bg-red-50 border border-red-100 rounded-xl p-4">
                 <p className="text-xs text-gray-400 mb-1">Facility Cost</p>
@@ -607,6 +752,16 @@ export default async function OrderDetailPage({
               </p>
             )}
 
+            {booking.payment_status !== "captured" && (
+              <form action={recalcBillingAction} className="mt-3 flex justify-center">
+                <input type="hidden" name="bookingId" value={booking.id} />
+                <button type="submit"
+                  className="text-xs text-gray-400 hover:text-[#0D2240] underline underline-offset-2 transition-colors">
+                  Recalculate billing from the recorded weight
+                </button>
+              </form>
+            )}
+
             {/* Consumer pre-auth still uncaptured — happens when the
                 automatic capture in confirmDropoff/recordWeightAndCharge
                 never fired (network blip, or the booking-update bug that
@@ -622,36 +777,97 @@ export default async function OrderDetailPage({
               </form>
             )}
 
-            {/* Commercial pay-at-service charge failed (declined card, closed
-                Link connection, etc). Each retry creates a fresh
-                PaymentIntent, so it's safe to click again after fixing the
-                payment method on file. */}
-            {booking.commercial_account_id && booking.payment_status === "failed" && (
-              <div className="mt-4 flex flex-col items-center gap-2">
+          </div>
+        ) : booking.service_type === "wash_fold" && (
+          actualWeightLbs ? (
+            /* Weight IS on file, but the money figures aren't. This is a
+               broken row, not a normal waiting state — and the old copy here
+               said "weight not yet entered" regardless, which sent staff
+               hunting for a weight that had been recorded days earlier while
+               the real problem (billing never computed, nothing charged)
+               went unnoticed all the way through delivery. */
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 text-sm text-red-700">
+              <p>
+                <span className="font-bold">⚠️ Billing incomplete</span> — the weight <span className="font-bold">is</span> on file
+                ({actualWeightLbs} lbs{booking.weight_entered_by ? `, entered by ${booking.weight_entered_by}` : ""}
+                {booking.weight_entered_at ? ` on ${format(new Date(booking.weight_entered_at as string), "MMM d")}` : ""}),
+                but the billing figures were never finished, so nothing has been charged for this order.
+              </p>
+              <p className="text-xs text-red-600/80 mt-1">
+                Missing: {customerFinalCents == null ? "customer total" : null}
+                {customerFinalCents == null && facilityCostCents === null ? " and " : null}
+                {facilityCostCents === null ? "facility cost" : null}.
+                Recalculating recomputes both from the recorded weight, using the commercial account rate if this order has one.
+              </p>
+              <form action={recalcBillingAction} className="mt-3">
+                <input type="hidden" name="bookingId" value={booking.id} />
+                <button type="submit"
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors">
+                  🧮 Recalculate Billing
+                </button>
+              </form>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-sm text-amber-700">
+              <span className="font-bold">⚖️ Billing pending</span> — weight not yet entered.
+              Billing will be calculated once the driver or operator records the actual weight.
+              {preAuthCents && ` Pre-authorized: $${(preAuthCents / 100).toFixed(2)}.`}
+            </div>
+          )
+        )}
+
+        {/* Commercial payment method. A commercial order is charged
+            off-session against the card stored on the ACCOUNT, so when there
+            is no usable card the order silently never gets charged — and
+            nothing on this page said so. The previous version of this only
+            appeared once payment_status was "failed", which never happens if
+            the charge was never attempted in the first place: that's exactly
+            how order 714600 reached out-for-delivery uncharged with no
+            visible warning. Shown for any commercial order that hasn't been
+            paid, and it distinguishes "no card on file" (customer must
+            re-enter it) from "card on file, just not charged yet". */}
+        {booking.commercial_account_id && booking.payment_status !== "captured" && booking.payment_status !== "paid" && (
+          <div className={`rounded-2xl border p-4 mb-6 ${
+            commercialCardOnFile ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"
+          }`}>
+            {commercialCardOnFile ? (
+              <>
+                <p className="text-sm font-bold text-amber-800">
+                  💳 Not charged yet — card on file: {commercialAccount?.card_brand ?? "card"} ···· {commercialAccount?.card_last4 ?? "????"}
+                </p>
+                <p className="text-xs text-amber-700/80 mt-1">
+                  {commercialAccount?.business_name ?? "This account"} has a usable payment method, so this order can be charged now.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-bold text-red-700">
+                  💳 No payment method on file for {commercialAccount?.business_name ?? "this account"}
+                </p>
+                <p className="text-xs text-red-600/80 mt-1">
+                  This order can't be charged or invoiced until the customer re-enters their card — saved cards don't carry across a Stripe account change, so the customer and payment-method IDs stored here belonged to the old account and no longer resolve.
+                </p>
+              </>
+            )}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {commercialCardOnFile && !!customerFinalCents && (
                 <form action={retryCommercialChargeAction}>
                   <input type="hidden" name="bookingId" value={booking.id} />
                   <button type="submit"
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors">
-                    🔁 Retry Charge — ${(customerFinalCents! / 100).toFixed(2)}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors">
+                    💳 Charge ${(customerFinalCents / 100).toFixed(2)}
                   </button>
                 </form>
-                <p className="text-xs text-gray-400">Verify the commercial account's card on file before retrying.</p>
-                <form action={sendPaymentUpdateLinkAction}>
-                  <input type="hidden" name="bookingId" value={booking.id} />
-                  <input type="hidden" name="commercialAccountId" value={booking.commercial_account_id} />
-                  <button type="submit"
-                    className="text-[#0D2240] font-bold text-sm px-4 py-2 rounded-xl border-2 border-[#0D2240] hover:bg-[#0D2240] hover:text-white transition-colors">
-                    💳 Send Update Payment Link to Customer
-                  </button>
-                </form>
-              </div>
-            )}
-          </div>
-        ) : booking.service_type === "wash_fold" && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-sm text-amber-700">
-            <span className="font-bold">⚖️ Billing pending</span> — weight not yet entered.
-            Billing will be calculated once the driver or operator records the actual weight.
-            {preAuthCents && ` Pre-authorized: $${(preAuthCents / 100).toFixed(2)}.`}
+              )}
+              <form action={sendPaymentUpdateLinkAction}>
+                <input type="hidden" name="bookingId" value={booking.id} />
+                <input type="hidden" name="commercialAccountId" value={booking.commercial_account_id as string} />
+                <button type="submit"
+                  className="text-[#0D2240] font-bold text-sm px-4 py-2 rounded-xl border-2 border-[#0D2240] hover:bg-[#0D2240] hover:text-white transition-colors">
+                  💳 Send Update Payment Link to Customer
+                </button>
+              </form>
+            </div>
           </div>
         )}
 

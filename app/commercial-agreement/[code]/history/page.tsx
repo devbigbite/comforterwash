@@ -34,6 +34,12 @@ function getStatusBadge(o: { status: string; payment_status: string | null; actu
     return { label: "Awaiting Pickup", style: PAYMENT_STATUS_STYLE.pending_weight }
   if (!o.actual_weight_lbs)
     return { label: "Awaiting Weigh-In", style: PAYMENT_STATUS_STYLE.pending_weight }
+  // Weight IS recorded but payment_status is still the pending_weight
+  // default — i.e. the charge never got dispatched. Falling through to the
+  // label map here showed the customer "Awaiting Weigh-In" on an order that
+  // had been weighed and was already out for delivery (order 714600).
+  if (o.payment_status === "pending_weight")
+    return { label: "Pending", style: PAYMENT_STATUS_STYLE.pending }
   return { label: PAYMENT_STATUS_LABEL[o.payment_status ?? "pending"] ?? o.payment_status ?? "Pending", style: PAYMENT_STATUS_STYLE[o.payment_status ?? "pending"] ?? PAYMENT_STATUS_STYLE.pending }
 }
 

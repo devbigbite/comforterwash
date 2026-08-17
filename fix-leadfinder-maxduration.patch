@@ -1,0 +1,52 @@
+From 055678f9c9d718523ef348ca107881f75be501d1 Mon Sep 17 00:00:00 2001
+From: "JB (via Claude)" <jbtanon@gmail.com>
+Date: Mon, 17 Aug 2026 19:13:27 +0000
+Subject: [PATCH] fix: move maxDuration out of the leads server-actions file
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Vercel build failed: "Only async functions are allowed to be exported in
+a 'use server' file." maxDuration was added directly to
+app/actions/leads.ts in the last patch, which breaks that rule. Moved it
+to app/admin/leads/page.tsx instead — Next.js applies a route segment's
+maxDuration to Server Actions invoked from that route, so the 300s
+budget for long-running ScrapeGraphAI searches still applies.
+---
+ app/actions/leads.ts     | 4 +++-
+ app/admin/leads/page.tsx | 4 ++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/app/actions/leads.ts b/app/actions/leads.ts
+index b15ced6..0938dc9 100644
+--- a/app/actions/leads.ts
++++ b/app/actions/leads.ts
+@@ -26,7 +26,9 @@ import { revalidatePath } from "next/cache"
+ // polling UI still works — it just reads back whatever startLeadSearch
+ // already wrote to Supabase, no external call.
+ 
+-export const maxDuration = 300
++// `maxDuration` can't live here — a "use server" file may only export async
++// functions. It's set instead on app/admin/leads/page.tsx, which Next.js
++// applies to Server Actions invoked from that route segment.
+ 
+ const SGAI_BASE = "https://v2-api.scrapegraphai.com/api/search"
+ 
+diff --git a/app/admin/leads/page.tsx b/app/admin/leads/page.tsx
+index d873b71..a8ad998 100644
+--- a/app/admin/leads/page.tsx
++++ b/app/admin/leads/page.tsx
+@@ -5,6 +5,10 @@ import { LeadSearchForm } from "./lead-search-form"
+ import { LeadsTable } from "./leads-table"
+ 
+ export const dynamic = "force-dynamic"
++// Lead searches can take 60-90+ seconds (ScrapeGraphAI's v2 /search call
++// is synchronous, no polling). Applies to Server Actions invoked from
++// this route, not just the page render itself.
++export const maxDuration = 300
+ 
+ export default async function LeadsPage() {
+   if (!(await isAdminForCurrentLocation())) redirect("/admin/login")
+-- 
+2.43.0
+

@@ -4,12 +4,12 @@ import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import LabelReference from "./label-reference"
 import DriverOrderClient from "./order-client"
-import { capturePayment } from "@/app/actions/stripe"
+import { capturePayment, chargeCommercialAccountOrder } from "@/app/actions/stripe"
 import { updateBookingStatus } from "@/app/actions/bookings"
 import { sendBookingNotification } from "@/lib/sms"
 import { sendWeightConfirmedEmail } from "@/lib/email"
 import { syncPhaseFromStatus } from "@/lib/order-status-sync"
-import { CUSTOMER_MIN_LBS, DEFAULT_RATE_CENTS } from "@/lib/pricing-constants"
+import { calculateOrderBilling } from "@/lib/order-billing"
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pending", picked_up: "Picked Up",
@@ -152,7 +152,7 @@ async function confirmDropoff(formData: FormData) {
   // Look up booking to get locked-in rate for customer billing
   const { data: bk } = await supabase
     .from("bookings")
-    .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents, assigned_facility_id, location_id, short_code, customer_name, customer_email, customer_phone")
+    .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents, assigned_facility_id, location_id, short_code, customer_name, customer_email, customer_phone, commercial_account_id")
     .eq("id", bookingId)
     .single()
 
@@ -170,13 +170,25 @@ async function confirmDropoff(formData: FormData) {
     if (facilities?.length === 1) assignedFacilityId = facilities[0].id
   }
 
-  const ratePerLbCents = bk?.price_per_lb_cents
-    ?? DEFAULT_RATE_CENTS[bk?.service_type ?? "wash_fold"]
-    ?? 250
-
-  // Calculate customer billing (facility cost calculated later when facility is assigned)
-  const customerChargeLbs  = Math.max(weightLbs, CUSTOMER_MIN_LBS)
-  const customerFinalCents = customerChargeLbs * ratePerLbCents
+  // Both money figures are computed here, by the same helper the admin and
+  // operator weigh-in paths use (lib/order-billing.ts). This used to be a
+  // local copy of the consumer per-lb math that (a) ignored commercial
+  // account rates entirely and (b) never computed facility cost at all,
+  // leaving facility_cost_cents NULL — which is what made the admin order
+  // page insist "weight not yet entered" on an already-weighed order.
+  // assignedFacilityId (resolved just above) is passed rather than
+  // bk.assigned_facility_id so a facility auto-assigned on this very
+  // drop-off is still costed now, not silently deferred to "later".
+  const { customerFinalCents, facilityCostCents, isCommercial, basis } = await calculateOrderBilling(
+    supabase,
+    {
+      service_type:          bk?.service_type ?? null,
+      price_per_lb_cents:    bk?.price_per_lb_cents ?? null,
+      commercial_account_id: bk?.commercial_account_id ?? null,
+      assigned_facility_id:  assignedFacilityId,
+    },
+    weightLbs,
+  )
 
   const newStatus     = dropoffLocation === "facility" ? "at_facility" : "at_warehouse"
   const eventType     = dropoffLocation === "facility" ? "dropped_at_facility" : "dropped_at_warehouse"
@@ -185,6 +197,7 @@ async function confirmDropoff(formData: FormData) {
   const { error: dropoffUpdateError } = await supabase.from("bookings").update({
     actual_weight_lbs:      weightLbs,
     customer_final_cents:   customerFinalCents,
+    facility_cost_cents:    facilityCostCents,
     weight_entered_by:      driverName,
     weight_entered_at:      new Date().toISOString(),
     status:                 newStatus,
@@ -217,7 +230,7 @@ async function confirmDropoff(formData: FormData) {
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: eventType,
-    notes:      `Weight: ${weightLbs} lbs · Customer billed: ${customerChargeLbs} lbs ($${(customerFinalCents / 100).toFixed(2)}) · Dropped at ${locationLabel}`,
+    notes:      `Weight: ${weightLbs} lbs · Customer billed $${(customerFinalCents / 100).toFixed(2)} (${basis}) · Facility cost $${(facilityCostCents / 100).toFixed(2)} · Dropped at ${locationLabel}`,
     created_by: driverName,
   })
 
@@ -232,13 +245,33 @@ async function confirmDropoff(formData: FormData) {
     })
   }
 
-  // Trigger Stripe capture
-  try {
-    if (bk?.service_type === "wash_fold" && bk.stripe_payment_intent_id && bk.pre_auth_cents) {
-      await capturePayment(bookingId)
+  // Dispatch the actual charge. Commercial pay-at-service accounts have no
+  // pre-auth to capture — they're charged off-session against the card on
+  // file — so the old capture-only branch silently skipped them and left
+  // payment_status stuck at "pending_weight" through delivery. Mirrors the
+  // dispatch logic in app/actions/weigh-in.ts.
+  if (isCommercial && customerFinalCents) {
+    try {
+      const result = await chargeCommercialAccountOrder(bookingId)
+      if (result.error) {
+        await supabase.from("order_events").insert({
+          booking_id: bookingId,
+          event_type: "commercial_charge_failed",
+          notes: `Charge failed: ${result.error}`,
+          created_by: "system",
+        })
+      }
+    } catch (err) {
+      console.error("[stripe] Commercial charge failed after dropoff:", err)
     }
-  } catch (err) {
-    console.error("[stripe] Capture failed after dropoff:", err)
+  } else {
+    try {
+      if (bk?.service_type === "wash_fold" && bk.stripe_payment_intent_id && bk.pre_auth_cents) {
+        await capturePayment(bookingId)
+      }
+    } catch (err) {
+      console.error("[stripe] Capture failed after dropoff:", err)
+    }
   }
 
   // Tell the customer their order was weighed — same notification as the
