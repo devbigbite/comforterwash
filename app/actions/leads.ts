@@ -8,19 +8,27 @@ import { revalidatePath } from "next/cache"
 // ── Lead Finder ────────────────────────────────────────────────────────────
 // Prospecting tool for commercial-account outreach (spas, gyms, Airbnb
 // property managers, mom groups, etc.) backed by ScrapeGraphAI's
-// searchScraper API. Deliberately separate from commercial-accounts.ts:
+// v2 /search API. Deliberately separate from commercial-accounts.ts:
 // commercial_accounts is a signed-up, billing customer; a "lead" here is
 // just a prospect pulled from a web search, most of which never convert.
 //
-// searchScraper is async — POSTing a search returns a request_id in
-// "queued"/"processing" state, not the results themselves. We store that
-// request_id and let the admin UI poll checkLeadSearchStatus() every few
-// seconds until it flips to "completed" (or "failed"), rather than holding
-// a single serverless function open for however long the search takes
-// (searches have taken 60-90+ seconds in manual testing — well past a
-// typical Vercel function timeout).
+// NOTE: this used to target ScrapeGraphAI's v1 "searchScraper" endpoint
+// (api.scrapegraphai.com/v1/searchscraper), which was an async job you'd
+// poll by request_id. That endpoint now rejects v2-issued API keys with
+// "Invalid API key" + a v1 deprecation notice. The current API
+// (confirmed against ScrapeGraphAI's official SDK source, since the
+// hosted docs pages 404 for the v2 reference) is a single SYNCHRONOUS
+// call to v2-api.scrapegraphai.com/api/search — no request_id, no
+// polling endpoint. We hold the request open for the duration of the
+// search (searches have taken 60-90+ seconds in manual testing) and rely
+// on `maxDuration` below to keep Vercel from timing the function out.
+// checkLeadSearchStatus() is kept only so the existing client-side
+// polling UI still works — it just reads back whatever startLeadSearch
+// already wrote to Supabase, no external call.
 
-const SGAI_BASE = "https://api.scrapegraphai.com/v1/searchscraper"
+export const maxDuration = 300
+
+const SGAI_BASE = "https://v2-api.scrapegraphai.com/api/search"
 
 type LeadResult = {
   business_name?: string
@@ -68,9 +76,10 @@ function sgaiKey(): string {
 }
 
 // The exact shape we ask ScrapeGraphAI to return — an array of leads, each
-// with the fields the admin UI displays. Sent as output_schema on the
-// search request so extraction comes back pre-structured instead of us
-// having to parse markdown/prose.
+// with the fields the admin UI displays. Sent as `schema` on the search
+// request (v2 field name; was `output_schema` under v1) so extraction
+// comes back pre-structured instead of us having to parse markdown/prose.
+// v2 requires `prompt` to be set whenever `schema` is set.
 const LEADS_OUTPUT_SCHEMA = {
   type: "object",
   properties: {
@@ -132,93 +141,41 @@ export async function startLeadSearch(
         "SGAI-APIKEY": sgaiKey(),
       },
       body: JSON.stringify({
-        user_prompt: `Find local ${cleanCategory} businesses in ${cleanGeoArea}. For each one, find the business name, an owner or manager's name if listed, a contact email address, a phone number, their website, and the geographic area they serve.`,
+        // v2 field names — `query` is the short search query, `prompt` is
+        // the extraction instruction paired with `schema`. (v1 used a
+        // single `user_prompt` + `output_schema` + `extraction_mode`,
+        // none of which the v2 endpoint accepts.)
+        query: `local ${cleanCategory} businesses in ${cleanGeoArea}`,
+        prompt: `Find local ${cleanCategory} businesses in ${cleanGeoArea}. For each one, find the business name, an owner or manager's name if listed, a contact email address, a phone number, their website, and the geographic area they serve.`,
         num_results: clampedResults,
-        extraction_mode: true,
-        output_schema: LEADS_OUTPUT_SCHEMA,
+        schema: LEADS_OUTPUT_SCHEMA,
+        location_geo_code: "us",
       }),
     })
 
     if (!res.ok) {
       const body = await res.text().catch(() => "")
-      await supabase.from("lead_searches").update({ status: "failed", error: `ScrapeGraphAI ${res.status}: ${body.slice(0, 300)}` }).eq("id", searchRow.id)
+      await supabase.from("lead_searches").update({ status: "failed", error: `ScrapeGraphAI ${res.status}: ${body.slice(0, 300)}`, completed_at: new Date().toISOString() }).eq("id", searchRow.id)
       return { error: "The search failed to start. Check the ScrapeGraphAI API key and credit balance." }
     }
 
-    const data = await res.json() as { request_id?: string; status?: string }
-    await supabase
-      .from("lead_searches")
-      .update({ request_id: data.request_id ?? null, status: (data.status as string) ?? "processing" })
-      .eq("id", searchRow.id)
-  } catch (err) {
-    await supabase.from("lead_searches").update({ status: "failed", error: String(err).slice(0, 300) }).eq("id", searchRow.id)
-    return { error: "Couldn't reach ScrapeGraphAI. Try again in a moment." }
-  }
-
-  revalidatePath("/admin/leads")
-  return { searchId: searchRow.id }
-}
-
-// ── Poll a search's status; parses + saves leads once completed ───────────
-export async function checkLeadSearchStatus(searchId: string): Promise<{
-  status: LeadSearch["status"]
-  error?: string
-  leadCount?: number
-}> {
-  await requireAdmin()
-
-  const supabase = createAdminClient()
-  const { data: search } = await supabase
-    .from("lead_searches")
-    .select("id, request_id, status, error")
-    .eq("id", searchId)
-    .single()
-
-  if (!search) return { status: "failed", error: "Search not found." }
-  if (search.status === "completed" || search.status === "failed") {
-    return { status: search.status, error: search.error ?? undefined }
-  }
-  if (!search.request_id) return { status: "processing" }
-
-  try {
-    const res = await fetch(`${SGAI_BASE}/${search.request_id}`, {
-      headers: { "SGAI-APIKEY": sgaiKey() },
-    })
-    if (!res.ok) return { status: "processing" } // transient — keep polling
-
+    // v2 /search is synchronous — the full result comes back in this same
+    // response, not via a request_id you poll later.
     const data = await res.json() as {
-      status?: string
-      result?: { leads?: LeadResult[] }
-      reference_urls?: string[]
-      error?: string
+      json_data?: { leads?: LeadResult[] }
+      json?: { leads?: LeadResult[] }
+      results?: { url?: string }[]
     }
+    const leads = data.json_data?.leads ?? data.json?.leads ?? []
+    const refUrls = (data.results ?? []).map(r => r.url).filter((u): u is string => !!u)
 
-    if (data.status === "failed") {
-      await supabase.from("lead_searches").update({ status: "failed", error: data.error ?? "Unknown error", completed_at: new Date().toISOString() }).eq("id", searchId)
-      return { status: "failed", error: data.error ?? "Unknown error" }
-    }
-
-    if (data.status !== "completed") {
-      await supabase.from("lead_searches").update({ status: "processing" }).eq("id", searchId)
-      return { status: "processing" }
-    }
-
-    // Completed — parse + save leads, then mark the search done.
-    const { data: searchMeta } = await supabase
-      .from("lead_searches")
-      .select("location_id, category")
-      .eq("id", searchId)
-      .single()
-
-    const leads = data.result?.leads ?? []
-    const refUrls = data.reference_urls ?? []
-    if (leads.length && searchMeta) {
+    if (leads.length) {
       const rows = leads
         .filter(l => l.business_name || l.email || l.phone)
         .map((l, i) => ({
-          location_id: searchMeta.location_id,
-          search_id: searchId,
-          category: searchMeta.category,
+          location_id: locationId,
+          search_id: searchRow.id,
+          category: cleanCategory,
           business_name: l.business_name ?? null,
           contact_name: l.contact_name ?? null,
           email: l.email ?? null,
@@ -230,12 +187,52 @@ export async function checkLeadSearchStatus(searchId: string): Promise<{
       if (rows.length) await supabase.from("commercial_leads").insert(rows)
     }
 
-    await supabase.from("lead_searches").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", searchId)
-    revalidatePath("/admin/leads")
-    return { status: "completed", leadCount: leads.length }
+    await supabase
+      .from("lead_searches")
+      .update({ status: "completed", completed_at: new Date().toISOString() })
+      .eq("id", searchRow.id)
   } catch (err) {
-    return { status: "processing" } // network hiccup — keep polling, don't fail the whole search over it
+    await supabase.from("lead_searches").update({ status: "failed", error: String(err).slice(0, 300), completed_at: new Date().toISOString() }).eq("id", searchRow.id)
+    return { error: "Couldn't reach ScrapeGraphAI. Try again in a moment." }
   }
+
+  revalidatePath("/admin/leads")
+  return { searchId: searchRow.id }
+}
+
+// ── Check a search's status ────────────────────────────────────────────
+// startLeadSearch() above now runs synchronously and writes the final
+// status (completed/failed) before returning, so this no longer calls out
+// to ScrapeGraphAI or polls by request_id — it just reads back what's in
+// Supabase. Kept as-is so the existing client-side polling UI in
+// lead-search-form.tsx (which calls this every few seconds after
+// submitting) keeps working without changes; it'll just see "completed"
+// or "failed" on its first check.
+export async function checkLeadSearchStatus(searchId: string): Promise<{
+  status: LeadSearch["status"]
+  error?: string
+  leadCount?: number
+}> {
+  await requireAdmin()
+
+  const supabase = createAdminClient()
+  const { data: search } = await supabase
+    .from("lead_searches")
+    .select("id, status, error")
+    .eq("id", searchId)
+    .single()
+
+  if (!search) return { status: "failed", error: "Search not found." }
+
+  if (search.status === "completed") {
+    const { count } = await supabase
+      .from("commercial_leads")
+      .select("id", { count: "exact", head: true })
+      .eq("search_id", searchId)
+    return { status: "completed", leadCount: count ?? 0 }
+  }
+
+  return { status: search.status as LeadSearch["status"], error: search.error ?? undefined }
 }
 
 // ── Reads ───────────────────────────────────────────────────────────────
