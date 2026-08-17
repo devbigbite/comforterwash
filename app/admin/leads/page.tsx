@@ -5,6 +5,10 @@ import { LeadSearchForm } from "./lead-search-form"
 import { LeadsTable } from "./leads-table"
 
 export const dynamic = "force-dynamic"
+// Lead searches can take 60-90+ seconds (ScrapeGraphAI's v2 /search call
+// is synchronous, no polling). Applies to Server Actions invoked from
+// this route, not just the page render itself.
+export const maxDuration = 300
 
 export default async function LeadsPage() {
   if (!(await isAdminForCurrentLocation())) redirect("/admin/login")

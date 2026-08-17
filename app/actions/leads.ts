@@ -26,7 +26,9 @@ import { revalidatePath } from "next/cache"
 // polling UI still works — it just reads back whatever startLeadSearch
 // already wrote to Supabase, no external call.
 
-export const maxDuration = 300
+// `maxDuration` can't live here — a "use server" file may only export async
+// functions. It's set instead on app/admin/leads/page.tsx, which Next.js
+// applies to Server Actions invoked from that route segment.
 
 const SGAI_BASE = "https://v2-api.scrapegraphai.com/api/search"
 
