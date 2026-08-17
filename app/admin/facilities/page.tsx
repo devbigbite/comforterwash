@@ -13,11 +13,10 @@ import { StorageEntryWindowsEditor, type StorageEntryWindow } from "@/components
 import { PartnerLinkCopy } from "@/components/admin/PartnerLinkCopy"
 import {
   syncFacilityStripeStatus,
-  issueFacilityPayout,
-  recordManualFacilityPayment,
   type FacilityPayout,
 } from "@/app/actions/facility-payments"
-import { PAYMENT_METHODS, PAYMENT_METHOD_LABEL } from "@/lib/facility-payment-methods"
+import { PAYMENT_METHOD_LABEL } from "@/lib/facility-payment-methods"
+import { FacilityPayoutForms } from "@/components/admin/FacilityPayoutForms"
 
 // ── shared field CSS ─────────────────────────────────────────────────────────
 const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-full"
@@ -708,97 +707,12 @@ export default async function FacilitiesPage() {
                     </form>
                   </div>
 
-                  {/* Issue payout — only if fully onboarded */}
-                  {f.stripe_onboarding_complete && (
-                    <div className="border border-gray-200 rounded-xl p-4 bg-white">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Issue Payout</p>
-                      <form action={issueFacilityPayout} className="space-y-2">
-                        <input type="hidden" name="facilityId" value={f.id} />
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period From</label>
-                            <input name="period_from" type="date" required
-                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period To</label>
-                            <input name="period_to" type="date" required
-                              className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Amount Override (optional)</label>
-                          <input name="amount_override" inputMode="decimal" placeholder="Leave blank to pay the period total"
-                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                          <p className="text-[10px] text-gray-400 mt-1">
-                            Pays this dollar amount instead of the calculated order total. The difference is written into the payout notes.
-                          </p>
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes (optional)</label>
-                          <input name="notes" placeholder="e.g. April week 3"
-                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                        </div>
-                        <button type="submit"
-                          className="w-full text-xs font-bold text-white bg-[#E8726A] hover:bg-[#d45f57] px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
-                          💸 Issue Payout via Stripe
-                        </button>
-                      </form>
-                    </div>
-                  )}
-
-                  {/* Record a payment made outside Stripe — always available,
-                      including for facilities with no Stripe account at all. */}
-                  <div className="border border-gray-200 rounded-xl p-4 bg-white">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Record Manual Payment</p>
-                    <p className="text-[10px] text-gray-400 mb-3">
-                      Logs a payment you already made by cash, check or bank transfer. Moves no money — it only records it here and in the partner&apos;s Payments tab.
-                    </p>
-                    <form action={recordManualFacilityPayment} className="space-y-2">
-                      <input type="hidden" name="facilityId" value={f.id} />
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Amount Paid</label>
-                          <input name="amount" required inputMode="decimal" placeholder="112.10"
-                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Method</label>
-                          <select name="payment_method" defaultValue="cash" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white">
-                            {PAYMENT_METHODS.map(m => (
-                              <option key={m.value} value={m.value}>{m.label}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period From (optional)</label>
-                          <input name="period_from" type="date" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period To (optional)</label>
-                          <input name="period_to" type="date" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Reference (optional)</label>
-                          <input name="reference" placeholder="Check #1042"
-                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes (optional)</label>
-                          <input name="notes" placeholder="e.g. paid in person"
-                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
-                        </div>
-                      </div>
-                      <button type="submit"
-                        className="w-full text-xs font-bold text-[#0D2240] bg-white border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
-                        🧾 Record Manual Payment
-                      </button>
-                    </form>
-                  </div>
+                  {/* Payout + manual payment forms — shared with
+                      /admin/facility-payments so the two never drift. */}
+                  <FacilityPayoutForms
+                    facilityId={f.id}
+                    stripeReady={!!f.stripe_onboarding_complete}
+                  />
 
                   {/* Payout history */}
                   {(payoutsByFacility[f.id] ?? []).length > 0 && (

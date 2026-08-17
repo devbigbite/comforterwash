@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Briefcase,
+  Banknote,
 } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -215,6 +216,19 @@ export default async function AdminHub() {
         { label: "Zip Codes", href: "/admin/zip-codes" },
         { label: "Service Area", href: "/admin/service-area" },
         { label: "Holidays", href: "/admin/holidays" },
+      ],
+    },
+    {
+      id: "facility-payments",
+      label: "Facility Payments",
+      description: "What each partner facility is owed, and how you've paid them.",
+      color: "#4338ca",
+      bg: "#eef2ff",
+      icon: <Banknote className="h-7 w-7" style={{ color: "#4338ca" }} />,
+      primaryHref: "/admin/facility-payments",
+      links: [
+        { label: "Pay Facilities", href: "/admin/facility-payments" },
+        { label: "Payment History", href: "/admin/facility-payments#history" },
       ],
     },
     {

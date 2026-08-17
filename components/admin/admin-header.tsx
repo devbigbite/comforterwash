@@ -95,6 +95,7 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
       items: [
         { href: "/admin/reports",  label: es ? "Reportes" : "Reports" },
         { href: "/admin/expenses", label: es ? "Gastos" : "Expenses" },
+        { href: "/admin/facility-payments", label: es ? "🏦 Pagos a Instalaciones" : "🏦 Facility Payments" },
         { href: "/admin/pricing",  label: es ? "Precios" : "Pricing" },
         { href: "/admin/tips",     label: es ? "Propinas" : "Tips" },
       ],
