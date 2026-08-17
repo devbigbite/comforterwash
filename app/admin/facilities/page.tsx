@@ -672,9 +672,8 @@ export default async function FacilitiesPage() {
               </div>
             </details>
 
-            {/* Stripe & Payouts accordion — partner attendant facilities only */}
-            {f.supports_partner_attendant && (
-              <details className="group border-t border-gray-100">
+            {/* Stripe & Payouts accordion — shown for every facility */}
+            <details className="group border-t border-gray-100">
                 <summary className="cursor-pointer px-5 py-2.5 text-xs font-semibold text-gray-400 hover:text-[#0D2240] transition-colors list-none flex items-center gap-1.5 select-none">
                   <span className="group-open:hidden">💳 Stripe &amp; Payouts</span>
                   <span className="hidden group-open:inline">💳 Close Stripe &amp; Payouts</span>
@@ -761,8 +760,7 @@ export default async function FacilitiesPage() {
                   )}
 
                 </div>
-              </details>
-            )}
+            </details>
 
             {/* Edit accordion */}
             <details className="group border-t border-gray-100">
