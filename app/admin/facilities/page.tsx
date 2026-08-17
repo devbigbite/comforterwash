@@ -17,6 +17,7 @@ import {
 } from "@/app/actions/facility-payments"
 import { PAYMENT_METHOD_LABEL } from "@/lib/facility-payment-methods"
 import { FacilityPayoutForms } from "@/components/admin/FacilityPayoutForms"
+import { todayET } from "@/lib/pickup-cutoff"
 
 // ── shared field CSS ─────────────────────────────────────────────────────────
 const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-full"
@@ -246,6 +247,10 @@ const STORAGE_LABEL: Record<number, { label: string; color: string }> = {
 
 export default async function FacilitiesPage() {
   await requireAdmin()
+  // Eastern, like the rest of the app — a UTC date rolls over at 8pm ET and
+  // would prefill tomorrow.
+  const payoutPeriodTo   = todayET()
+  const payoutPeriodFrom = `${payoutPeriodTo.slice(0, 7)}-01`
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const [{ data: facilities }, { data: allWindows }, { data: allStorageSpaces }, { data: allEntryWindows }, { data: allPayouts }] = await Promise.all([
     supabase.from("facilities").select("*, machine_groups(count)").eq("location_id", locationId).order("name"),
@@ -712,6 +717,8 @@ export default async function FacilitiesPage() {
                   <FacilityPayoutForms
                     facilityId={f.id}
                     stripeReady={!!f.stripe_onboarding_complete}
+                    defaultFrom={payoutPeriodFrom}
+                    defaultTo={payoutPeriodTo}
                   />
 
                   {/* Payout history */}

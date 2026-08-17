@@ -249,6 +249,136 @@ export async function issueFacilityPayout(
   return { success: true, amountCents }
 }
 
+// ── Dry-run a payout before any money moves ──────────────────────────────────
+// Same arithmetic issueFacilityPayout will perform, minus the Stripe call, so
+// the admin can see the exact orders and total they are about to send. Also
+// surfaces the two mistakes this flow makes easy: paying a period that was
+// already paid, and paying more than the facility has actually earned.
+export interface PayoutPreviewOrder {
+  id: string
+  short_code: string | null
+  delivery_date: string | null
+  lbs: number | null
+  cents: number
+}
+
+export interface PayoutPreview {
+  error?: string
+  facilityName?: string
+  stripeReady?: boolean
+  computedCents?: number
+  overrideCents?: number | null
+  finalCents?: number
+  ordersCount?: number
+  totalLbs?: number
+  orders?: PayoutPreviewOrder[]
+  /** Everything earned all-time minus everything paid all-time. */
+  outstandingCents?: number
+  exceedsOutstanding?: boolean
+  overlapping?: {
+    id: string
+    period_from: string | null
+    period_to: string | null
+    amount_cents: number
+    payment_method: string
+    created_at: string
+  }[]
+}
+
+export async function previewFacilityPayout(
+  facilityId: string,
+  periodFrom: string,
+  periodTo: string,
+  amountOverrideRaw?: string,
+): Promise<PayoutPreview> {
+  await requireAdmin()
+
+  if (!facilityId)             return { error: "Missing facility" }
+  if (!periodFrom || !periodTo) return { error: "Pick both a start and end date." }
+  if (periodFrom > periodTo)   return { error: "Period start is after period end." }
+
+  const supabase = createAdminClient()
+
+  const { data: facility } = await supabase
+    .from("facilities")
+    .select("id, name, stripe_account_id, stripe_onboarding_complete")
+    .eq("id", facilityId)
+    .single()
+
+  if (!facility) return { error: "Facility not found" }
+
+  // Orders inside the requested period — the ones being paid for.
+  const { data: periodOrders } = await supabase
+    .from("bookings")
+    .select("id, short_code, delivery_date, facility_cost_cents, actual_weight_lbs")
+    .eq("assigned_facility_id", facilityId)
+    .in("status", ["ready_at_warehouse", "out_for_delivery", "delivered"])
+    .gte("delivery_date", periodFrom)
+    .lte("delivery_date", periodTo)
+    .not("facility_cost_cents", "is", null)
+    .order("delivery_date", { ascending: true })
+
+  const orders: PayoutPreviewOrder[] = (periodOrders ?? []).map(o => ({
+    id:            o.id,
+    short_code:    o.short_code ?? null,
+    delivery_date: o.delivery_date ?? null,
+    lbs:           o.actual_weight_lbs ?? null,
+    cents:         o.facility_cost_cents ?? 0,
+  }))
+
+  const computedCents = orders.reduce((s, o) => s + o.cents, 0)
+  const totalLbs      = orders.reduce((s, o) => s + (o.lbs ?? 0), 0)
+
+  const overrideCents = parseDollarsToCents(amountOverrideRaw ?? null)
+  const finalCents    = overrideCents ?? computedCents
+
+  // All-time earned vs all-time paid, so "exceeds outstanding" means what it
+  // sounds like rather than being scoped to the chosen period.
+  const { data: allOrders } = await supabase
+    .from("bookings")
+    .select("facility_cost_cents")
+    .eq("assigned_facility_id", facilityId)
+    .in("status", ["ready_at_warehouse", "out_for_delivery", "delivered"])
+    .not("facility_cost_cents", "is", null)
+
+  const { data: allPayouts } = await supabase
+    .from("facility_payouts")
+    .select("id, amount_cents, period_from, period_to, payment_method, created_at")
+    .eq("facility_id", facilityId)
+
+  const earned = (allOrders  ?? []).reduce((s, o) => s + (o.facility_cost_cents ?? 0), 0)
+  const paid   = (allPayouts ?? []).reduce((s, p) => s + (p.amount_cents ?? 0), 0)
+  const outstandingCents = earned - paid
+
+  // Two ranges overlap when each starts before the other ends. Rows with no
+  // period recorded (manual payments often have none) can't be compared, so
+  // they're left out rather than guessed at.
+  const overlapping = (allPayouts ?? [])
+    .filter(p => p.period_from && p.period_to && p.period_from <= periodTo && p.period_to >= periodFrom)
+    .map(p => ({
+      id:             p.id,
+      period_from:    p.period_from,
+      period_to:      p.period_to,
+      amount_cents:   p.amount_cents,
+      payment_method: p.payment_method,
+      created_at:     p.created_at,
+    }))
+
+  return {
+    facilityName: facility.name,
+    stripeReady:  !!facility.stripe_onboarding_complete,
+    computedCents,
+    overrideCents,
+    finalCents,
+    ordersCount: orders.length,
+    totalLbs,
+    orders,
+    outstandingCents,
+    exceedsOutstanding: finalCents > outstandingCents,
+    overlapping,
+  }
+}
+
 // ── Record a payment made outside Stripe ─────────────────────────────────────
 // For facilities we pay by cash, check or bank transfer — including ones that
 // never connected a Stripe account. This moves no money; it only writes the
