@@ -55,6 +55,11 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
       label: es ? "Buscar" : "Search",
     },
     {
+      type: "link",
+      href: "/admin/leads",
+      label: es ? "Prospectos" : "Leads",
+    },
+    {
       type: "dropdown",
       label: es ? "Clientes" : "Customers",
       items: [
