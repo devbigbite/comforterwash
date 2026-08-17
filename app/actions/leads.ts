@@ -61,8 +61,9 @@ export interface CommercialLead {
 }
 
 function sgaiKey(): string {
-  const key = process.env.SGAI_API_KEY
-  if (!key) throw new Error("SGAI_API_KEY env var not set — add it in Vercel project settings.")
+  // Matches the name already set in Vercel project settings.
+  const key = process.env.SCRAPEGRAPHAI_API_KEY
+  if (!key) throw new Error("SCRAPEGRAPHAI_API_KEY env var not set — add it in Vercel project settings.")
   return key
 }
 
