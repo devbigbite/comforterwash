@@ -1,0 +1,151 @@
+From 760bc0884af5250f5f8b8d2dce9ee395cd579287 Mon Sep 17 00:00:00 2001
+From: "JB (via Claude)" <jbtanon@gmail.com>
+Date: Sun, 16 Aug 2026 23:52:27 +0000
+Subject: [PATCH] =?UTF-8?q?fix:=20never=20crash=20/admin=20on=20unauthoriz?=
+ =?UTF-8?q?ed=20access=20=E2=80=94=20redirect=20to=20login=20instead?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+app/admin/page.tsx, abandoned-checkouts, gift-cards, and walkin all called
+a requireAdmin()-gated data fetch unconditionally at the top of the page
+render. requireAdmin() throws instead of returning false for a logged-out
+or unauthorized visitor, and nothing caught that throw — so instead of
+redirecting to /admin/login, the whole page crashed with Next.js's generic
+"Application error: a server-side exception has occurred" screen.
+
+Root cause of why this could be hit at all: middleware only checks the
+legacy admin_auth cookie before letting a request through to these pages;
+it doesn't validate per-tenant Supabase-session admin status the way
+lib/auth-guard.ts's real check does. A stale/mismatched admin_auth cookie
+(e.g. from a different tenant, per auth-guard's Orlando-only legacy path)
+gets past middleware but then fails requireAdmin() inside the page render.
+
+Fix: call the non-throwing isAdminForCurrentLocation() check first on each
+of these four pages and redirect to /admin/login on failure, before any
+admin-gated action runs. Same pattern already used by
+app/operator/owner-login/page.tsx and the fix already applied to
+syncFacilityStripeStatus's public call site in
+app/actions/facility-payments.ts.
+
+Audited every app/admin/**/page.tsx for this same unconditional-call
+pattern; these were the only three beyond the already-fixed hub page.
+---
+ app/admin/abandoned-checkouts/page.tsx |  7 +++++++
+ app/admin/gift-cards/page.tsx          |  7 +++++++
+ app/admin/page.tsx                     | 14 ++++++++++++++
+ app/admin/walkin/page.tsx              |  7 +++++++
+ 4 files changed, 35 insertions(+)
+
+diff --git a/app/admin/abandoned-checkouts/page.tsx b/app/admin/abandoned-checkouts/page.tsx
+index 4921c05..ffd967d 100644
+--- a/app/admin/abandoned-checkouts/page.tsx
++++ b/app/admin/abandoned-checkouts/page.tsx
+@@ -1,4 +1,6 @@
++import { redirect } from "next/navigation"
+ import { getAbandonedCheckouts } from "@/app/actions/checkout-attempts"
++import { isAdminForCurrentLocation } from "@/lib/auth-guard"
+ 
+ export const dynamic = "force-dynamic"
+ 
+@@ -25,6 +27,11 @@ function digitsOnly(phone: string | null): string {
+ }
+ 
+ export default async function AbandonedCheckoutsPage() {
++  // getAbandonedCheckouts() calls the requireAdmin()-gated action, which
++  // throws instead of returning for a logged-out/unauthorized visitor —
++  // check first and redirect gracefully instead of crashing the page.
++  if (!(await isAdminForCurrentLocation())) redirect("/admin/login")
++
+   const attempts = await getAbandonedCheckouts()
+ 
+   return (
+diff --git a/app/admin/gift-cards/page.tsx b/app/admin/gift-cards/page.tsx
+index 4d8bbc3..034138d 100644
+--- a/app/admin/gift-cards/page.tsx
++++ b/app/admin/gift-cards/page.tsx
+@@ -1,4 +1,6 @@
++import { redirect } from "next/navigation"
+ import { getGiftCards } from "@/app/actions/gift-cards"
++import { isAdminForCurrentLocation } from "@/lib/auth-guard"
+ 
+ export const dynamic = "force-dynamic"
+ 
+@@ -9,6 +11,11 @@ const STATUS_BADGE: Record<string, string> = {
+ }
+ 
+ export default async function GiftCardsAdminPage() {
++  // getGiftCards() calls the requireAdmin()-gated action, which throws
++  // instead of returning for a logged-out/unauthorized visitor — check
++  // first and redirect gracefully instead of crashing the page.
++  if (!(await isAdminForCurrentLocation())) redirect("/admin/login")
++
+   const cards = await getGiftCards()
+   const totalOutstandingCents = cards
+     .filter(c => c.status === "active")
+diff --git a/app/admin/page.tsx b/app/admin/page.tsx
+index 853f56a..8d12e35 100644
+--- a/app/admin/page.tsx
++++ b/app/admin/page.tsx
+@@ -1,4 +1,5 @@
+ import type React from "react"
++import { redirect } from "next/navigation"
+ import { getBookings } from "@/app/actions/bookings"
+ import { getFulfillmentMode } from "@/app/actions/walkin"
+ import { getMyBillingStatus } from "@/app/actions/platform-billing"
+@@ -6,6 +7,7 @@ import { getBranding, getLocationId, ORLANDO_LOCATION_ID, DEFAULT_BRANDING } fro
+ import { getAdminViewMode, getOperatingModeConfirmed } from "@/app/actions/branding"
+ import { createAdminClient } from "@/lib/supabase/admin"
+ import { todayET } from "@/lib/pickup-cutoff"
++import { isAdminForCurrentLocation } from "@/lib/auth-guard"
+ import {
+   Truck,
+   Users,
+@@ -42,6 +44,18 @@ type Module = {
+ // ── Page ──────────────────────────────────────────────────────────────────────
+ 
+ export default async function AdminHub() {
++  // Gate BEFORE calling any admin-only action below. getMyBillingStatus()
++  // internally calls requireAdmin(), which throws rather than returning a
++  // result — if that throw ever reaches this far it crashes the entire page
++  // render (Next.js shows the generic "Application error" screen) instead of
++  // sending an unauthenticated/unauthorized visitor to the login page. This
++  // mirrors the fix already applied to syncFacilityStripeStatus's public
++  // call site in app/actions/facility-payments.ts — never let an
++  // admin-gated action run unconditionally on a path a logged-out or
++  // unauthorized visitor can reach.
++  const isAdmin = await isAdminForCurrentLocation()
++  if (!isAdmin) redirect("/admin/login")
++
+   const [bookings, branding, fulfillmentMode, billingStatus, locationId, viewMode] = await Promise.all([
+     getBookings(), getBranding(), getFulfillmentMode(), getMyBillingStatus(), getLocationId(), getAdminViewMode(),
+   ])
+diff --git a/app/admin/walkin/page.tsx b/app/admin/walkin/page.tsx
+index 4c9b9ad..f310aeb 100644
+--- a/app/admin/walkin/page.tsx
++++ b/app/admin/walkin/page.tsx
+@@ -1,7 +1,9 @@
++import { redirect } from "next/navigation"
+ import { getRecentWalkinOrders } from "@/app/actions/walkin"
+ import { WalkinForm } from "./walkin-form"
+ import { MarkPickedUpButton } from "./mark-picked-up-button"
+ import Link from "next/link"
++import { isAdminForCurrentLocation } from "@/lib/auth-guard"
+ 
+ export const dynamic = "force-dynamic"
+ 
+@@ -13,6 +15,11 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
+ }
+ 
+ export default async function WalkinPage() {
++  // getRecentWalkinOrders() calls the requireAdmin()-gated action, which
++  // throws instead of returning for a logged-out/unauthorized visitor —
++  // check first and redirect gracefully instead of crashing the page.
++  if (!(await isAdminForCurrentLocation())) redirect("/admin/login")
++
+   const orders = await getRecentWalkinOrders()
+ 
+   return (
+-- 
+2.43.0
+
