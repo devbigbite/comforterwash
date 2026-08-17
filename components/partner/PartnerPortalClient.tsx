@@ -3,6 +3,7 @@
 import { useState } from "react"
 import PhotoUploader from "@/app/operator/order/[id]/photo-uploader"
 import type { FacilityPayout } from "@/app/actions/facility-payments"
+import { PAYMENT_METHOD_LABEL } from "@/lib/facility-payment-methods"
 
 const OPERATOR_ZONE = ["at_facility", "in_washer", "in_dryer", "folded"]
 
@@ -517,13 +518,23 @@ export function PartnerPortalClient({
                         </p>
                         {p.notes && <p className="text-gray-600 text-xs mt-0.5 italic">{p.notes}</p>}
                       </div>
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                        p.status === "transferred"
-                          ? "bg-green-900/60 text-green-400"
-                          : "bg-gray-800 text-gray-500"
-                      }`}>
-                        {p.status === "transferred" ? "Paid" : p.status}
-                      </span>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                          p.status === "transferred" || p.status === "paid"
+                            ? "bg-green-900/60 text-green-400"
+                            : "bg-gray-800 text-gray-500"
+                        }`}>
+                          {p.status === "transferred" || p.status === "paid" ? "Paid" : p.status}
+                        </span>
+                        {/* Money paid by cash/check/transfer never appears in the
+                            facility's Stripe dashboard, so name the method here —
+                            otherwise a recorded payment looks like a missing one. */}
+                        {p.payment_method && p.payment_method !== "stripe" && (
+                          <span className="text-[10px] text-gray-500">
+                            {PAYMENT_METHOD_LABEL[p.payment_method] ?? p.payment_method}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

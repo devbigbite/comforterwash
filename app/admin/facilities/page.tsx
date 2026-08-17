@@ -14,8 +14,10 @@ import { PartnerLinkCopy } from "@/components/admin/PartnerLinkCopy"
 import {
   syncFacilityStripeStatus,
   issueFacilityPayout,
+  recordManualFacilityPayment,
   type FacilityPayout,
 } from "@/app/actions/facility-payments"
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABEL } from "@/lib/facility-payment-methods"
 
 // ── shared field CSS ─────────────────────────────────────────────────────────
 const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-full"
@@ -251,7 +253,7 @@ export default async function FacilitiesPage() {
     supabase.from("facility_access_windows").select("*").eq("location_id", locationId).eq("active", true).order("start_time"),
     supabase.from("storage_spaces").select("*").eq("location_id", locationId).order("active", { ascending: false }).order("name"),
     supabase.from("storage_entry_windows").select("*").eq("location_id", locationId).eq("active", true).order("start_time"),
-    supabase.from("facility_payouts").select("id, facility_id, amount_cents, period_from, period_to, orders_count, total_lbs, stripe_transfer_id, status, notes, created_at").eq("location_id", locationId).order("created_at", { ascending: false }).limit(200),
+    supabase.from("facility_payouts").select("id, facility_id, amount_cents, period_from, period_to, orders_count, total_lbs, stripe_transfer_id, status, payment_method, notes, created_at").eq("location_id", locationId).order("created_at", { ascending: false }).limit(200),
   ])
   const storageByFacility = (allStorageSpaces ?? []).reduce<Record<string, StorageSpace[]>>((acc, s) => {
     if (!acc[s.facility_id]) acc[s.facility_id] = []
@@ -725,6 +727,14 @@ export default async function FacilitiesPage() {
                           </div>
                         </div>
                         <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Amount Override (optional)</label>
+                          <input name="amount_override" inputMode="decimal" placeholder="Leave blank to pay the period total"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                          <p className="text-[10px] text-gray-400 mt-1">
+                            Pays this dollar amount instead of the calculated order total. The difference is written into the payout notes.
+                          </p>
+                        </div>
+                        <div>
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes (optional)</label>
                           <input name="notes" placeholder="e.g. April week 3"
                             className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
@@ -736,6 +746,59 @@ export default async function FacilitiesPage() {
                       </form>
                     </div>
                   )}
+
+                  {/* Record a payment made outside Stripe — always available,
+                      including for facilities with no Stripe account at all. */}
+                  <div className="border border-gray-200 rounded-xl p-4 bg-white">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Record Manual Payment</p>
+                    <p className="text-[10px] text-gray-400 mb-3">
+                      Logs a payment you already made by cash, check or bank transfer. Moves no money — it only records it here and in the partner&apos;s Payments tab.
+                    </p>
+                    <form action={recordManualFacilityPayment} className="space-y-2">
+                      <input type="hidden" name="facilityId" value={f.id} />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Amount Paid</label>
+                          <input name="amount" required inputMode="decimal" placeholder="112.10"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Method</label>
+                          <select name="payment_method" defaultValue="cash" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white">
+                            {PAYMENT_METHODS.map(m => (
+                              <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period From (optional)</label>
+                          <input name="period_from" type="date" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Period To (optional)</label>
+                          <input name="period_to" type="date" className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Reference (optional)</label>
+                          <input name="reference" placeholder="Check #1042"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Notes (optional)</label>
+                          <input name="notes" placeholder="e.g. paid in person"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white" />
+                        </div>
+                      </div>
+                      <button type="submit"
+                        className="w-full text-xs font-bold text-[#0D2240] bg-white border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-xl transition-colors uppercase tracking-wide">
+                        🧾 Record Manual Payment
+                      </button>
+                    </form>
+                  </div>
 
                   {/* Payout history */}
                   {(payoutsByFacility[f.id] ?? []).length > 0 && (
@@ -750,8 +813,13 @@ export default async function FacilitiesPage() {
                             )}
                             {p.orders_count != null && <span className="text-gray-400">{p.orders_count} orders</span>}
                             {p.total_lbs != null && <span className="text-gray-400">{Number(p.total_lbs).toFixed(1)} lbs</span>}
-                            <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ${p.status === "transferred" ? "bg-green-50 text-green-700 border border-green-200" : "bg-yellow-50 text-yellow-700 border border-yellow-200"}`}>
-                              {p.status}
+                            <span className="text-gray-400">{PAYMENT_METHOD_LABEL[p.payment_method] ?? p.payment_method}</span>
+                            <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              p.status === "transferred" || p.status === "paid"
+                                ? "bg-green-50 text-green-700 border border-green-200"
+                                : "bg-yellow-50 text-yellow-700 border border-yellow-200"
+                            }`}>
+                              {p.status === "transferred" ? "transferred" : p.status === "paid" ? "paid manually" : p.status}
                             </span>
                           </div>
                         ))}

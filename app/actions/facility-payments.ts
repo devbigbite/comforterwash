@@ -14,8 +14,48 @@ export interface FacilityPayout {
   total_lbs: number | null
   stripe_transfer_id: string | null
   status: string
+  payment_method: string
   notes: string | null
   created_at: string
+}
+
+// Shared by issueFacilityPayout and recordManualFacilityPayment: totals the
+// facility's billable work in a period so both paths store the same
+// orders_count / total_lbs context alongside the amount.
+async function summarizePeriod(
+  supabase: ReturnType<typeof createAdminClient>,
+  facilityId: string,
+  periodFrom: string | null,
+  periodTo: string | null,
+): Promise<{ amountCents: number; ordersCount: number; totalLbs: number }> {
+  if (!periodFrom || !periodTo) return { amountCents: 0, ordersCount: 0, totalLbs: 0 }
+
+  const { data: orders } = await supabase
+    .from("bookings")
+    .select("id, facility_cost_cents, actual_weight_lbs")
+    .eq("assigned_facility_id", facilityId)
+    .in("status", ["ready_at_warehouse", "out_for_delivery", "delivered"])
+    .gte("delivery_date", periodFrom)
+    .lte("delivery_date", periodTo)
+    .not("facility_cost_cents", "is", null)
+
+  return {
+    amountCents: (orders ?? []).reduce((s, o) => s + (o.facility_cost_cents ?? 0), 0),
+    ordersCount: (orders ?? []).length,
+    totalLbs:    (orders ?? []).reduce((s, o) => s + (o.actual_weight_lbs ?? 0), 0),
+  }
+}
+
+// Parses a dollars-and-cents form field ("112.10", "$112.10", "1,120") into
+// integer cents. Returns null for blank/garbage input so callers can tell
+// "left empty on purpose" apart from "typed a zero".
+function parseDollarsToCents(raw: FormDataEntryValue | null): number | null {
+  if (typeof raw !== "string") return null
+  const cleaned = raw.replace(/[$,\s]/g, "").trim()
+  if (!cleaned) return null
+  const dollars = Number(cleaned)
+  if (!Number.isFinite(dollars)) return null
+  return Math.round(dollars * 100)
 }
 
 // ── Create / resume Stripe Express account for a facility ─────────────────────
@@ -161,20 +201,27 @@ export async function issueFacilityPayout(
   if (!facility.stripe_onboarding_complete) return { error: "Facility has not completed Stripe onboarding" }
 
   // Sum facility_cost_cents for completed orders in the period
-  const { data: orders } = await supabase
-    .from("bookings")
-    .select("id, facility_cost_cents, actual_weight_lbs")
-    .eq("assigned_facility_id", facilityId)
-    .in("status", ["ready_at_warehouse", "out_for_delivery", "delivered"])
-    .gte("delivery_date", periodFrom)
-    .lte("delivery_date", periodTo)
-    .not("facility_cost_cents", "is", null)
+  const { amountCents: computedCents, ordersCount, totalLbs } =
+    await summarizePeriod(supabase, facilityId, periodFrom, periodTo)
 
-  const amountCents = (orders ?? []).reduce((s, o) => s + (o.facility_cost_cents ?? 0), 0)
+  // An optional override lets staff pay a figure that differs from what the
+  // orders add up to — a negotiated adjustment, a correction for a prior
+  // period, a partial payment. When it's blank we pay the computed total,
+  // which is the normal case.
+  const overrideCents = parseDollarsToCents(formData.get("amount_override"))
+  if (overrideCents !== null && overrideCents <= 0) {
+    return { error: "Override amount must be greater than $0." }
+  }
+  const amountCents = overrideCents ?? computedCents
+
   if (amountCents <= 0) return { error: "No billable orders found in this period." }
 
-  const totalLbs    = (orders ?? []).reduce((s, o) => s + (o.actual_weight_lbs ?? 0), 0)
-  const ordersCount = (orders ?? []).length
+  // Record the discrepancy in the notes rather than silently storing an
+  // amount that doesn't reconcile against orders_count / total_lbs.
+  const overrideNote = overrideCents !== null && overrideCents !== computedCents
+    ? `Manual amount override: $${(overrideCents / 100).toFixed(2)} (orders totalled $${(computedCents / 100).toFixed(2)})`
+    : null
+  const finalNotes = [notes, overrideNote].filter(Boolean).join(" — ") || null
 
   const transfer = await stripe.transfers.create({
     amount:      amountCents,
@@ -193,9 +240,76 @@ export async function issueFacilityPayout(
     orders_count:       ordersCount,
     total_lbs:          totalLbs,
     status:             "transferred",
-    notes,
+    payment_method:     "stripe",
+    notes:              finalNotes,
     created_by:         "admin",
   })
+
+  revalidatePath("/admin/facilities")
+  return { success: true, amountCents }
+}
+
+// ── Record a payment made outside Stripe ─────────────────────────────────────
+// For facilities we pay by cash, check or bank transfer — including ones that
+// never connected a Stripe account. This moves no money; it only writes the
+// ledger row so /admin/facilities and the partner's Payments tab reflect
+// reality. Deliberately does NOT require stripe_onboarding_complete.
+export async function recordManualFacilityPayment(
+  formData: FormData,
+): Promise<{ success?: boolean; amountCents?: number; error?: string }> {
+  await requireAdmin()
+
+  const supabase   = createAdminClient()
+  const facilityId = formData.get("facilityId") as string
+  const periodFrom = (formData.get("period_from") as string) || null
+  const periodTo   = (formData.get("period_to")   as string) || null
+  const method     = ((formData.get("payment_method") as string) || "other").trim()
+  const notes      = (formData.get("notes") as string)?.trim() || null
+  const reference  = (formData.get("reference") as string)?.trim() || null
+
+  if (!facilityId) return { error: "Missing facility" }
+
+  const amountCents = parseDollarsToCents(formData.get("amount"))
+  if (amountCents === null)  return { error: "Enter the amount you paid." }
+  if (amountCents <= 0)      return { error: "Amount must be greater than $0." }
+
+  const { data: facility } = await supabase
+    .from("facilities")
+    .select("id, location_id")
+    .eq("id", facilityId)
+    .single()
+
+  if (!facility) return { error: "Facility not found" }
+
+  // Period is optional here — a cash payment may not map to a clean date
+  // range. When one is given we still attach the order context so the row
+  // reads the same as a Stripe payout in both UIs.
+  const { ordersCount, totalLbs } = await summarizePeriod(supabase, facilityId, periodFrom, periodTo)
+
+  const noteParts = [
+    reference ? `Ref: ${reference}` : null,
+    notes,
+  ].filter(Boolean)
+
+  const { error } = await supabase.from("facility_payouts").insert({
+    facility_id:        facilityId,
+    location_id:        facility.location_id ?? null,
+    amount_cents:       amountCents,
+    stripe_transfer_id: null,
+    period_from:        periodFrom,
+    period_to:          periodTo,
+    orders_count:       periodFrom && periodTo ? ordersCount : null,
+    total_lbs:          periodFrom && periodTo ? totalLbs    : null,
+    status:             "paid",
+    payment_method:     method,
+    notes:              noteParts.join(" — ") || null,
+    created_by:         "admin",
+  })
+
+  if (error) {
+    console.error("[facility-payments] manual payment insert failed:", error.message)
+    return { error: error.message }
+  }
 
   revalidatePath("/admin/facilities")
   return { success: true, amountCents }
@@ -206,7 +320,7 @@ export async function getFacilityPayouts(facilityId: string): Promise<FacilityPa
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("facility_payouts")
-    .select("id, amount_cents, period_from, period_to, orders_count, total_lbs, stripe_transfer_id, status, notes, created_at")
+    .select("id, amount_cents, period_from, period_to, orders_count, total_lbs, stripe_transfer_id, status, payment_method, notes, created_at")
     .eq("facility_id", facilityId)
     .order("created_at", { ascending: false })
     .limit(24)
