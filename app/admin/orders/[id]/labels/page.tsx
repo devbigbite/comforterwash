@@ -1,7 +1,14 @@
 import { createAdminClient } from "@/lib/supabase/admin"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
+import { isAdminForCurrentLocation } from "@/lib/auth-guard"
 
 export default async function PrintLabelsPage({ params }: { params: Promise<{ id: string }> }) {
+  // Unlike every other /admin/** page, this one queried booking/order data
+  // directly with no admin check at all — reachable by anyone who knew or
+  // guessed a booking id, logged in or not. Add the same guard used
+  // everywhere else instead of leaving it open.
+  if (!(await isAdminForCurrentLocation())) redirect("/admin/login")
+
   const { id } = await params
   const supabase = createAdminClient()
 
