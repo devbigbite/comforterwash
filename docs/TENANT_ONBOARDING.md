@@ -7,6 +7,14 @@ wasted effort until they're cleared.
 Track progress at **`/super-admin/readiness`**, which computes this checklist
 live for every tenant.
 
+**Default to self-serve.** Unless something requires backend or
+infrastructure access you control — the domain, Stripe Connect, the sending
+domain, an admin invite, billing — it's the tenant's to configure themselves
+in their own `/admin`, not something to collect over email and enter by hand
+for them. Send them the relevant `/admin` page directly; use the readiness
+page afterward to check what's still missing rather than doing it on their
+behalf.
+
 ---
 
 ## 0. Before you start: know which flow created them
@@ -51,8 +59,10 @@ and photo ID. Tell them to budget ten minutes.
 
 `locations.support_email` is where new-order, abandoned-checkout and
 date-conflict alerts go. **With it blank, those alerts fall back to the platform
-inbox and the tenant is never told they have an order.** Set it before they take
-their first booking, not after.
+inbox and the tenant is never told they have an order.** The tenant sets this
+themselves at `/admin/branding` (see section 3) — your job is to confirm it's
+filled in via the readiness page before they take their first booking, not to
+enter it for them.
 
 ---
 
@@ -73,9 +83,12 @@ separately.
 
 ---
 
-## 3. Configuration the tenant supplies
+## 3. Configuration the tenant supplies — theirs to do, not yours
 
-Request all of this in the welcome email so it arrives in one round trip.
+This is business and branding configuration, not infrastructure — the tenant
+sets every item below themselves, directly in their own `/admin`. Point them
+to the pages below in the welcome email; don't ask them to send you the
+details so you can enter them by hand.
 
 | Item | Where it goes | Consequence if skipped |
 |---|---|---|
