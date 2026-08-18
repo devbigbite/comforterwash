@@ -108,7 +108,7 @@ details so you can enter them by hand.
 
 ### 4.1 Custom domain — order of operations matters
 
-New tenants run on `<slug>.washfold.com`. To move them to their own domain:
+New tenants run on `<slug>.washfoldclean.com`. To move them to their own domain:
 
 1. Set `custom_domain` on the location record **first** (super-admin → Edit)
 2. Add the domain in Vercel

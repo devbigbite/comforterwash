@@ -3,8 +3,10 @@ import { NextResponse, type NextRequest } from "next/server"
 import { resolveLocationFromHost, ORLANDO_LOCATION_ID, WASHFOLD_DEMO_LOCATION_ID } from "@/lib/location"
 
 // ── Platform domain (set in env or fallback) ─────────────────────────────────
-// e.g. "washfold.com" → subdomains like orlando.washfold.com are resolved
-const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfold.com"
+// e.g. "washfoldclean.com" → subdomains like perfect-spin.washfoldclean.com
+// are resolved. Must match the actual wildcard domain registered on Vercel —
+// "washfold.com" was never registered and is not a live tenant domain.
+const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfoldclean.com"
 
 // ── Simple in-memory location cache (avoids a DB hit on every request) ───────
 const locationCache = new Map<string, { id: string; expiresAt: number }>()
