@@ -64,11 +64,27 @@ async function saveAddress(formData: FormData) {
   const { data: { user } } = await supabaseUser.auth.getUser()
   if (!user) return
 
-  const address = (formData.get("address") as string)?.trim()
+  const street = ((formData.get("street") as string) ?? "").trim()
+  const unit   = ((formData.get("unit")   as string) ?? "").trim()
+  const city   = ((formData.get("city")   as string) ?? "").trim()
+  const state  = ((formData.get("state")  as string) ?? "").trim().toUpperCase()
+  const zip    = ((formData.get("zip")    as string) ?? "").trim()
+
+  // saved_address stays the single-line display form, rebuilt from the parts
+  // so the two can never disagree. Same segment order the booking forms use:
+  // "street, unit, city, ST zip", with empty pieces dropped.
+  const tail = [city, [state, zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")
+  const address = [street, unit, tail].filter(Boolean).join(", ")
+
   const supabase = createAdminClient()
   await supabase.from("profiles").upsert({
     id: user.id,
     saved_address: address,
+    saved_street: street,
+    saved_unit:   unit,
+    saved_city:   city,
+    saved_state:  state,
+    saved_zip:    zip,
     updated_at: new Date().toISOString(),
   })
   revalidatePath("/account")
@@ -403,22 +419,53 @@ export default async function AccountPage() {
         {/* ── Saved address ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">📍 Saved Address</p>
-          <form action={saveAddress} className="flex gap-2">
+          <form action={saveAddress} className="space-y-2">
             <input
-              name="address"
+              name="street"
               type="text"
-              defaultValue={profile?.saved_address ?? ""}
-              placeholder="123 Main St, Orlando FL 32801"
-              className="flex-1 rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] transition-colors"
+              defaultValue={profile?.saved_street ?? ""}
+              placeholder="Street address"
+              className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] transition-colors"
             />
+            <input
+              name="unit"
+              type="text"
+              defaultValue={profile?.saved_unit ?? ""}
+              placeholder="Apt / Unit / Suite (optional)"
+              className="w-full rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] transition-colors"
+            />
+            <div className="grid gap-2" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
+              <input
+                name="city"
+                type="text"
+                defaultValue={profile?.saved_city ?? ""}
+                placeholder="City"
+                className="min-w-0 rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] transition-colors"
+              />
+              <input
+                name="state"
+                type="text"
+                maxLength={2}
+                defaultValue={profile?.saved_state ?? ""}
+                placeholder="ST"
+                className="min-w-0 rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-center uppercase text-[#0D2240] focus:outline-none focus:border-[#E8726A] transition-colors"
+              />
+              <input
+                name="zip"
+                type="text"
+                defaultValue={profile?.saved_zip ?? ""}
+                placeholder="Zip"
+                className="min-w-0 rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:border-[#E8726A] transition-colors"
+              />
+            </div>
             <button
               type="submit"
-              className="shrink-0 bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors"
+              className="w-full bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors"
             >
               Save
             </button>
           </form>
-          <p className="text-xs text-gray-400 mt-2">Pre-filled on your next booking.</p>
+          <p className="text-xs text-gray-400 mt-2">Pre-filled on your next booking — apartment number included.</p>
         </div>
 
         {/* ── Order history ── */}

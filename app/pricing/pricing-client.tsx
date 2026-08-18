@@ -28,8 +28,11 @@ const DAYS = [
   { id: "friday",    short: "FRI", label: "Friday" },
 ]
 
-function buildAddr(street: string, city: string, state: string, zip: string) {
-  return `${street}, ${city}, ${state} ${zip}`.trim()
+function buildAddr(street: string, unit: string, city: string, state: string, zip: string) {
+  // Apt/unit gets its own comma-delimited segment right after the street —
+  // what USPS, Google Maps and Shipday all expect. Dropped when blank so
+  // single-family addresses don't grow an empty ", ,".
+  return [street, unit.trim(), `${city}, ${state} ${zip}`].filter(Boolean).join(", ").trim()
 }
 
 // ── Step indicator ─────────────────────────────────────────────────────────────
@@ -103,13 +106,14 @@ function TimeSlotPicker({ value, onChange, windows }: {
 }
 
 // ── Address block (street + city/state/zip) ────────────────────────────────────
-function AddressBlock({ label, street, city, state, zip, onChange }: {
+function AddressBlock({ label, street, unit, city, state, zip, onChange }: {
   label: string
   street: string
+  unit: string
   city: string
   state: string
   zip: string
-  onChange: (parts: { street?: string; city?: string; state?: string; zip?: string }) => void
+  onChange: (parts: { street?: string; unit?: string; city?: string; state?: string; zip?: string }) => void
 }) {
   const inputCls = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]/30"
   return (
@@ -118,10 +122,13 @@ function AddressBlock({ label, street, city, state, zip, onChange }: {
       <AddressAutocomplete
         value={street}
         onChange={v => onChange({ street: v })}
-        onPlaceSelect={parts => onChange({ street: parts.street, city: parts.city, state: parts.state, zip: parts.zip })}
+        onPlaceSelect={parts => onChange({ street: parts.street, unit: parts.unit || unit, city: parts.city, state: parts.state, zip: parts.zip })}
         placeholder="Street address"
         className={inputCls}
       />
+      <input placeholder="Apt / Unit / Suite (optional)" value={unit}
+        onChange={e => onChange({ unit: e.target.value })}
+        className={inputCls} />
       <div className="grid gap-2" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
         <input placeholder="City" value={city}
           onChange={e => onChange({ city: e.target.value })}
@@ -155,9 +162,9 @@ export default function PricingClient({
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "",
-    pickupStreet: "", pickupCity: "", pickupState: "FL", pickupZip: "",
+    pickupStreet: "", pickupUnit: "", pickupCity: "", pickupState: "FL", pickupZip: "",
     sameAddress: true,
-    deliveryStreet: "", deliveryCity: "", deliveryState: "FL", deliveryZip: "",
+    deliveryStreet: "", deliveryUnit: "", deliveryCity: "", deliveryState: "FL", deliveryZip: "",
     pickupDay: "monday", pickupWindow: defaultWindow,
     deliveryDay: "wednesday", deliveryWindow: defaultWindow,
     detergentId: detergents[0]?.id ?? "",
@@ -167,20 +174,22 @@ export default function PricingClient({
     setForm(p => ({ ...p, [k]: v }))
   }
 
-  function patchPickup(parts: { street?: string; city?: string; state?: string; zip?: string }) {
+  function patchPickup(parts: { street?: string; unit?: string; city?: string; state?: string; zip?: string }) {
     setForm(p => ({
       ...p,
       pickupStreet: parts.street  ?? p.pickupStreet,
+      pickupUnit:   parts.unit    ?? p.pickupUnit,
       pickupCity:   parts.city    ?? p.pickupCity,
       pickupState:  parts.state   ?? p.pickupState,
       pickupZip:    parts.zip     ?? p.pickupZip,
     }))
   }
 
-  function patchDelivery(parts: { street?: string; city?: string; state?: string; zip?: string }) {
+  function patchDelivery(parts: { street?: string; unit?: string; city?: string; state?: string; zip?: string }) {
     setForm(p => ({
       ...p,
       deliveryStreet: parts.street  ?? p.deliveryStreet,
+      deliveryUnit:   parts.unit    ?? p.deliveryUnit,
       deliveryCity:   parts.city    ?? p.deliveryCity,
       deliveryState:  parts.state   ?? p.deliveryState,
       deliveryZip:    parts.zip     ?? p.deliveryZip,
@@ -200,10 +209,10 @@ export default function PricingClient({
   }
 
   function getAddresses() {
-    const pickup = buildAddr(form.pickupStreet, form.pickupCity, form.pickupState, form.pickupZip)
+    const pickup = buildAddr(form.pickupStreet, form.pickupUnit, form.pickupCity, form.pickupState, form.pickupZip)
     const delivery = form.sameAddress
       ? pickup
-      : buildAddr(form.deliveryStreet, form.deliveryCity, form.deliveryState, form.deliveryZip)
+      : buildAddr(form.deliveryStreet, form.deliveryUnit, form.deliveryCity, form.deliveryState, form.deliveryZip)
     return { pickup, delivery }
   }
 
@@ -329,7 +338,7 @@ export default function PricingClient({
 
           <AddressBlock
             label="Pickup Address"
-            street={form.pickupStreet} city={form.pickupCity} state={form.pickupState} zip={form.pickupZip}
+            street={form.pickupStreet} unit={form.pickupUnit} city={form.pickupCity} state={form.pickupState} zip={form.pickupZip}
             onChange={patchPickup}
           />
 
@@ -342,7 +351,7 @@ export default function PricingClient({
           {!form.sameAddress && (
             <AddressBlock
               label="Delivery Address"
-              street={form.deliveryStreet} city={form.deliveryCity} state={form.deliveryState} zip={form.deliveryZip}
+              street={form.deliveryStreet} unit={form.deliveryUnit} city={form.deliveryCity} state={form.deliveryState} zip={form.deliveryZip}
               onChange={patchDelivery}
             />
           )}

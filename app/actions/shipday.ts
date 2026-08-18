@@ -183,3 +183,98 @@ export async function cancelShipdayOrders(
 
   return { ok: pickupCancelled || deliveryCancelled, pickupCancelled, deliveryCancelled }
 }
+
+/**
+ * Change a booking's pickup and/or delivery address after it was created, and
+ * push the change to Shipday so the driver's app doesn't keep routing to the
+ * old one.
+ *
+ * Why this exists: there was previously NO way to edit an address anywhere in
+ * the app — the admin order page rendered it read-only and no action touched
+ * `customer_address`. Corrections needed direct SQL. Compounding it, nothing
+ * ever re-synced Shipday: `patchShipdayOrder` has always supported an address
+ * but the only caller passing one (`switchPickupDropoff`) is dead code, so a
+ * corrected address would have stayed stale in the driver's app forever.
+ *
+ * Also clears the cached geocode — `address_lat`/`address_lng` were resolved
+ * from the OLD string, and a stale lat/lng is worse than none: routing would
+ * silently keep using the old coordinates while every screen showed the new
+ * address. They get re-resolved on next use.
+ */
+export async function updateOrderAddress(
+  bookingId: string,
+  customerAddress: string,
+  deliveryAddress: string,
+): Promise<{ ok: boolean; error?: string; shipdaySynced?: boolean; shipdayWarning?: string }> {
+  const pickup   = customerAddress.trim()
+  const delivery = deliveryAddress.trim()
+  if (!pickup)   return { ok: false, error: "Pickup address can't be empty." }
+  if (!delivery) return { ok: false, error: "Delivery address can't be empty." }
+
+  const supabase = createAdminClient()
+
+  const { data: before, error: readError } = await supabase
+    .from("bookings")
+    .select("customer_address, delivery_address, status")
+    .eq("id", bookingId)
+    .single()
+
+  if (readError || !before) return { ok: false, error: "Order not found." }
+
+  if (before.customer_address === pickup && before.delivery_address === delivery) {
+    return { ok: true, shipdaySynced: true }
+  }
+
+  const { error: dbError } = await supabase
+    .from("bookings")
+    .update({
+      customer_address: pickup,
+      delivery_address: delivery,
+      address_lat: null,
+      address_lng: null,
+    })
+    .eq("id", bookingId)
+
+  if (dbError) return { ok: false, error: dbError.message }
+
+  // Audit trail — an address change after booking is exactly the kind of edit
+  // someone will need to reconstruct later ("the driver went where?").
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "address_corrected",
+    notes:
+      `Pickup: "${before.customer_address ?? ""}" -> "${pickup}"` +
+      (before.delivery_address !== delivery
+        ? ` | Delivery: "${before.delivery_address ?? ""}" -> "${delivery}"`
+        : ""),
+    created_by: "admin",
+  })
+
+  // Push to Shipday. A failure here is NOT a failure of the edit — the DB is
+  // already correct and every internal screen will show it. It does mean a
+  // human has to fix Shipday by hand, so say so plainly rather than swallowing
+  // it or rolling back a correction the customer is waiting on.
+  const { pickupId, deliveryId } = await getShipdayIds(bookingId)
+  const { apiKey } = await getShipdayConfig()
+
+  const results: boolean[] = []
+  if (pickupId)   results.push(await patchShipdayOrder(pickupId,   { customerAddress: pickup },   apiKey))
+  if (deliveryId) results.push(await patchShipdayOrder(deliveryId, { customerAddress: delivery }, apiKey))
+
+  if (results.length === 0) {
+    return {
+      ok: true,
+      shipdaySynced: false,
+      shipdayWarning: "This order has no Shipday orders, so nothing needed syncing.",
+    }
+  }
+  if (results.some(r => !r)) {
+    return {
+      ok: true,
+      shipdaySynced: false,
+      shipdayWarning: "Saved here, but Shipday did NOT accept the change — update the stop in Shipday manually or the driver will route to the old address.",
+    }
+  }
+
+  return { ok: true, shipdaySynced: true }
+}

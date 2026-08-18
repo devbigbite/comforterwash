@@ -8,6 +8,7 @@ import {
   rescheduleDelivery,
   assignDriver,
   cancelShipdayOrders,
+  updateOrderAddress,
 } from "@/app/actions/shipday"
 import { getMiscFees } from "@/app/actions/fees"
 import { MiscFeesPanel } from "./misc-fees-panel"
@@ -23,6 +24,7 @@ import { updateFacilityDetails } from "@/app/actions/facility-board"
 import PhotoUploader from "@/app/operator/order/[id]/photo-uploader"
 import { WeightEntryForm } from "@/components/admin/WeightEntryForm"
 import { OrderSnapshot } from "@/components/admin/order-snapshot"
+import { AddressEditPanel } from "./address-edit-panel"
 
 // bookings has its own location_id — every inline action below verifies the
 // bookingId it's given actually belongs to the current tenant before doing
@@ -281,6 +283,30 @@ async function enterWeightAction(formData: FormData) {
 // at the consumer rate even for commercial accounts and never wrote
 // facility_cost_cents at all. Refuses once payment is captured, since by then
 // changing the figure would no longer match what the customer actually paid.
+// Correct a wrong or incomplete address (most often a missing apartment
+// number — the booking form used to drop them silently). Writes the DB and
+// re-syncs Shipday; see updateOrderAddress for why both halves matter.
+async function updateAddressAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  await assertBookingOwnership(bookingId)
+
+  const result = await updateOrderAddress(
+    bookingId,
+    (formData.get("customerAddress") as string) ?? "",
+    (formData.get("deliveryAddress") as string) ?? "",
+  )
+
+  const msg = !result.ok
+    ? `err:${result.error ?? "Could not update the address."}`
+    : result.shipdayWarning
+      ? `err:Address saved. ${result.shipdayWarning}`
+      : "ok:Address updated and synced to Shipday."
+
+  revalidatePath(`/admin/orders/${bookingId}`)
+  redirect(`/admin/orders/${bookingId}?billingMsg=${encodeURIComponent(msg)}`)
+}
+
 async function recalcBillingAction(formData: FormData) {
   "use server"
   const bookingId = formData.get("bookingId") as string
@@ -949,6 +975,16 @@ export default async function OrderDetailPage({
                 </div>
               ))}
             </dl>
+
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <AddressEditPanel
+                bookingId={id}
+                customerAddress={booking.customer_address ?? ""}
+                deliveryAddress={booking.delivery_address ?? booking.customer_address ?? ""}
+                hasShipday={!!(booking.shipday_pickup_order_id || booking.shipday_delivery_order_id)}
+                action={updateAddressAction}
+              />
+            </div>
           </div>
 
           {/* Right column: facility + bags */}

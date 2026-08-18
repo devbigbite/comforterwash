@@ -146,9 +146,9 @@ export function BookingForm() {
 
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "",
-    pickupStreet: "", pickupCity: "", pickupState: "FL", pickupZip: "",
+    pickupStreet: "", pickupUnit: "", pickupCity: "", pickupState: "FL", pickupZip: "",
     sameAddress: true,
-    deliveryStreet: "", deliveryCity: "", deliveryState: "FL", deliveryZip: "",
+    deliveryStreet: "", deliveryUnit: "", deliveryCity: "", deliveryState: "FL", deliveryZip: "",
     pickupDate: undefined as Date | undefined,
     deliveryDate: undefined as Date | undefined,
     pickupTimeWindow: "",
@@ -210,7 +210,11 @@ export function BookingForm() {
         name:  profile.fullName  || p.name,
         email: profile.fullName ? p.email : p.email,
         phone: profile.phone     || p.phone,
-        pickupStreet: profile.savedAddress ? profile.savedAddress.split(",")[0]?.trim() || p.pickupStreet : p.pickupStreet,
+        pickupStreet: profile.savedStreet || p.pickupStreet,
+        pickupUnit:   profile.savedUnit   || p.pickupUnit,
+        pickupCity:   profile.savedCity   || p.pickupCity,
+        pickupState:  profile.savedState  || p.pickupState,
+        pickupZip:    profile.savedZip    || p.pickupZip,
       }))
     }
     setEmailCheckState("verified"); setPhoneOtpLoading(false)
@@ -267,7 +271,11 @@ export function BookingForm() {
         ...p,
         name:  profile.fullName  || p.name,
         phone: profile.phone     || p.phone,
-        pickupStreet: profile.savedAddress ? profile.savedAddress.split(",")[0]?.trim() || p.pickupStreet : p.pickupStreet,
+        pickupStreet: profile.savedStreet || p.pickupStreet,
+        pickupUnit:   profile.savedUnit   || p.pickupUnit,
+        pickupCity:   profile.savedCity   || p.pickupCity,
+        pickupState:  profile.savedState  || p.pickupState,
+        pickupZip:    profile.savedZip    || p.pickupZip,
       }))
     }
     setEmailCheckState("verified")
@@ -399,8 +407,11 @@ export function BookingForm() {
     { label: tf.phone,    key: "phone", placeholder: "(407) 555-0100",   type: "tel" },
   ]
 
-  function buildAddr(street: string, city: string, state: string, zip: string) {
-    return `${street}, ${city}, ${state} ${zip}`.trim()
+  // Apt/unit goes in its own comma-delimited segment right after the street,
+  // which is what USPS, Google Maps and Shipday all expect. Omitted entirely
+  // when blank so single-family addresses don't grow an empty ", ,".
+  function buildAddr(street: string, unit: string, city: string, state: string, zip: string) {
+    return [street, unit.trim(), `${city}, ${state} ${zip}`].filter(Boolean).join(", ").trim()
   }
   const pickupAddrFull = !!formData.pickupStreet && !!formData.pickupCity && !!formData.pickupState && !!formData.pickupZip
   const deliveryAddrFull = formData.sameAddress || (!!formData.deliveryStreet && !!formData.deliveryCity && !!formData.deliveryState && !!formData.deliveryZip)
@@ -417,8 +428,8 @@ export function BookingForm() {
               { label: tf.labelName,     value: formData.name },
               { label: tf.labelPickup,   value: formData.pickupDate ? `${formatShortDate(formData.pickupDate, locale)} · ${formData.pickupTimeWindow}` : "" },
               { label: tf.labelDelivery, value: formData.deliveryDate ? `${formatShortDate(formData.deliveryDate, locale)} · ${formData.deliveryTimeWindow}` : "" },
-              { label: tf.pickupAddressLabel, value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
-              ...(!formData.sameAddress ? [{ label: tf.deliveryAddressLabel, value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
+              { label: tf.pickupAddressLabel, value: buildAddr(formData.pickupStreet, formData.pickupUnit, formData.pickupCity, formData.pickupState, formData.pickupZip) },
+              ...(!formData.sameAddress ? [{ label: tf.deliveryAddressLabel, value: buildAddr(formData.deliveryStreet, formData.deliveryUnit, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
               { label: tf.labelAddOns,   value: addOnsSummary },
             ].map(row => (
               <div key={row.label} className="flex justify-between gap-4 text-sm">
@@ -476,10 +487,10 @@ export function BookingForm() {
               customerName: formData.name,
               customerEmail: formData.email,
               customerPhone: formData.phone,
-              address: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip),
+              address: buildAddr(formData.pickupStreet, formData.pickupUnit, formData.pickupCity, formData.pickupState, formData.pickupZip),
               deliveryAddress: formData.sameAddress
-                ? buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip)
-                : buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip),
+                ? buildAddr(formData.pickupStreet, formData.pickupUnit, formData.pickupCity, formData.pickupState, formData.pickupZip)
+                : buildAddr(formData.deliveryStreet, formData.deliveryUnit, formData.deliveryCity, formData.deliveryState, formData.deliveryZip),
               pickupDate: formData.pickupDate?.toISOString() || "",
               deliveryDate: formData.deliveryDate?.toISOString() || "",
               pickupTimeWindow: formData.pickupTimeWindow,
@@ -974,8 +985,11 @@ export function BookingForm() {
                 <AddressAutocomplete
                   value={formData.pickupStreet}
                   onChange={street => setFormData(p => ({ ...p, pickupStreet: street }))}
-                  onPlaceSelect={parts => setFormData(p => ({ ...p, pickupStreet: parts.street, pickupCity: parts.city, pickupState: parts.state, pickupZip: parts.zip }))}
+                  onPlaceSelect={parts => setFormData(p => ({ ...p, pickupStreet: parts.street, pickupUnit: parts.unit || p.pickupUnit, pickupCity: parts.city, pickupState: parts.state, pickupZip: parts.zip }))}
                 />
+                <Input placeholder="Apt / Unit / Suite (optional)" value={formData.pickupUnit}
+                  onChange={e => setFormData(p => ({ ...p, pickupUnit: e.target.value }))}
+                  className="min-w-0 h-10 border-gray-200 focus:border-[var(--brand-accent)] text-sm" />
                 <div className="grid gap-2 min-w-0" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
                   <Input placeholder="City" value={formData.pickupCity}
                     onChange={e => setFormData(p => ({ ...p, pickupCity: e.target.value }))}
@@ -1002,8 +1016,11 @@ export function BookingForm() {
                   <AddressAutocomplete
                     value={formData.deliveryStreet}
                     onChange={street => setFormData(p => ({ ...p, deliveryStreet: street }))}
-                    onPlaceSelect={parts => setFormData(p => ({ ...p, deliveryStreet: parts.street, deliveryCity: parts.city, deliveryState: parts.state, deliveryZip: parts.zip }))}
+                    onPlaceSelect={parts => setFormData(p => ({ ...p, deliveryStreet: parts.street, deliveryUnit: parts.unit || p.deliveryUnit, deliveryCity: parts.city, deliveryState: parts.state, deliveryZip: parts.zip }))}
                   />
+                  <Input placeholder="Apt / Unit / Suite (optional)" value={formData.deliveryUnit}
+                    onChange={e => setFormData(p => ({ ...p, deliveryUnit: e.target.value }))}
+                    className="min-w-0 h-10 border-gray-200 focus:border-[var(--brand-accent)] text-sm" />
                   <div className="grid gap-2 min-w-0" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
                     <Input placeholder="City" value={formData.deliveryCity}
                       onChange={e => setFormData(p => ({ ...p, deliveryCity: e.target.value }))}
@@ -1039,8 +1056,8 @@ export function BookingForm() {
               {[
                 { label: tf.labelPickup,    value: formData.pickupDate ? `${formatShortDate(formData.pickupDate, locale)} · ${formData.pickupTimeWindow}` : "" },
                 { label: tf.labelDelivery,  value: formData.deliveryDate ? `${formatShortDate(formData.deliveryDate, locale)} · ${formData.deliveryTimeWindow}` : "" },
-                { label: tf.pickupAddressLabel,  value: buildAddr(formData.pickupStreet, formData.pickupCity, formData.pickupState, formData.pickupZip) },
-                ...(!formData.sameAddress ? [{ label: tf.deliveryAddressLabel, value: buildAddr(formData.deliveryStreet, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
+                { label: tf.pickupAddressLabel,  value: buildAddr(formData.pickupStreet, formData.pickupUnit, formData.pickupCity, formData.pickupState, formData.pickupZip) },
+                ...(!formData.sameAddress ? [{ label: tf.deliveryAddressLabel, value: buildAddr(formData.deliveryStreet, formData.deliveryUnit, formData.deliveryCity, formData.deliveryState, formData.deliveryZip) }] : []),
                 { label: tf.labelAddOns,    value: addOnsSummary },
               ].map(row => (
                 <div key={row.label} className="flex justify-between gap-4">

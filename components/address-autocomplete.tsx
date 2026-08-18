@@ -7,9 +7,38 @@ import { cn } from "@/lib/utils"
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface AddressParts {
   street: string
+  /**
+   * Apartment / unit / suite. Sourced from Google's `subpremise` component
+   * when the picked suggestion carries one, otherwise salvaged from whatever
+   * the customer typed into the street box (see extractUnit).
+   *
+   * This used to not exist, and the consequences were invisible and bad: the
+   * form had no unit field at all, and selecting a Google suggestion
+   * overwrote the input with just "<number> <route>" — so a customer who
+   * typed "10229 Dwell Court Apt 302" and then tapped the suggestion had
+   * "Apt 302" silently deleted in front of them. Orders from multi-unit
+   * buildings arrived undeliverable with no indication anything was lost.
+   */
+  unit: string
   city: string
   state: string
   zip: string
+}
+
+// Trailing unit designator in a hand-typed street line: "123 Main St Apt 4B",
+// "500 Oak Ave #12", "9 Pine Rd, Suite 200". Deliberately anchored to the end
+// so it can't eat part of a street name (e.g. the "Fl" in "Flagler St" is not
+// matched — a designator must be followed by an actual unit token).
+const UNIT_RE = /[,\s]+((?:apt|apartment|unit|ste|suite|bldg|building|rm|room|fl|floor|lot|trlr|#)\.?\s*#?\s*[\w-]+)\s*$/i
+
+/** Pull a trailing "Apt 4B" / "#12" / "Suite 200" off a typed street line. */
+export function extractUnit(raw: string): { street: string; unit: string } {
+  const m = raw.match(UNIT_RE)
+  if (!m) return { street: raw.trim(), unit: "" }
+  return {
+    street: raw.slice(0, m.index).replace(/[,\s]+$/, "").trim(),
+    unit:   m[1].replace(/\s+/g, " ").trim(),
+  }
 }
 
 interface AddressAutocompleteProps {
@@ -82,8 +111,14 @@ export function AddressAutocomplete({
         const place = ac.getPlace()
         if (!place?.address_components) return
 
+        // Whatever the customer actually typed, captured BEFORE we overwrite
+        // the box below — this is the only place a hand-typed unit still
+        // exists, and it is about to be destroyed.
+        const typed = inputRef.current?.value ?? ""
+
         let streetNumber = ""
         let route        = ""
+        let subpremise   = ""
         let city         = ""
         let state        = ""
         let zip          = ""
@@ -91,6 +126,7 @@ export function AddressAutocomplete({
         for (const comp of place.address_components) {
           if      (comp.types.includes("street_number"))               streetNumber = comp.long_name
           else if (comp.types.includes("route"))                       route        = comp.long_name
+          else if (comp.types.includes("subpremise"))                  subpremise   = comp.long_name
           else if (comp.types.includes("locality"))                    city         = comp.long_name
           else if (comp.types.includes("administrative_area_level_1")) state        = comp.short_name
           else if (comp.types.includes("postal_code"))                 zip          = comp.long_name
@@ -98,10 +134,17 @@ export function AddressAutocomplete({
 
         const street = [streetNumber, route].filter(Boolean).join(" ")
 
-        // Overwrite what Google put in the box (full address) with just the street
+        // Prefer Google's own subpremise; fall back to salvaging the unit the
+        // customer typed. Never emit "" when they gave us something — losing
+        // it here is exactly the bug this component used to have.
+        const unit = subpremise || extractUnit(typed).unit
+
+        // Overwrite what Google put in the box (full address) with just the
+        // street. Safe now only because `unit` was rescued above and is
+        // surfaced in its own field by the caller.
         if (inputRef.current) inputRef.current.value = street
 
-        onPlaceSelectRef.current({ street, city, state, zip })
+        onPlaceSelectRef.current({ street, unit, city, state, zip })
       })
 
       acRef.current = ac
