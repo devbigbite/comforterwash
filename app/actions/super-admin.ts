@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { DEFAULT_EMAIL_TEMPLATES } from "@/lib/default-email-templates"
 import { revalidatePath } from "next/cache"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
@@ -97,6 +98,24 @@ export async function seedNewLocation(locationId: string): Promise<void> {
   await supabase.from("service_options").insert(
     STARTER_SERVICE_OPTIONS.map(o => ({ ...o, location_id: locationId, pricing_unit: "per_order" }))
   )
+
+  // Editable copies of the transactional emails. Without these rows the
+  // tenant's /admin/templates page is empty on every tab — their email still
+  // sends using the hardcoded defaults in lib/email-templates.ts, but they
+  // have no way to change any of the wording. Seeded on a fresh location only,
+  // so re-running never clobbers a tenant's edits.
+  const { data: existing } = await supabase
+    .from("email_templates")
+    .select("key")
+    .eq("location_id", locationId)
+    .limit(1)
+
+  if (!existing?.length) {
+    const { error } = await supabase.from("email_templates").insert(
+      DEFAULT_EMAIL_TEMPLATES.map(t => ({ ...t, location_id: locationId })),
+    )
+    if (error) console.error("[seedNewLocation] email_templates seed failed:", error.message)
+  }
 }
 
 export async function createLocation(

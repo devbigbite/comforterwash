@@ -19,7 +19,7 @@ import {
   type OrderIssueData,
 } from "./email-templates"
 import { getEmailTemplate } from "@/app/actions/email-templates"
-import { getBranding, getLocationId } from "@/lib/location"
+import { getBranding, getLocationId, ORLANDO_LOCATION_ID } from "@/lib/location"
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { EmailBranding } from "./email-templates"
 
@@ -34,6 +34,40 @@ const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing_configure_in
 // address instead — only the display name changed for everyone before that.
 const SEND_DOMAIN = "clean@washfoldorlando.com"
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
+
+// Who receives operational alerts (new order, abandoned checkout, date
+// conflict) for a given tenant.
+//
+// These used to go to ADMIN_EMAIL unconditionally, which meant the platform
+// owner received every tenant's order alerts and the tenant themselves
+// received none — a new SaaS customer could take an order and never be told.
+// Now they go to the tenant's own support_email when they've set one.
+//
+// Orlando is deliberately special-cased to keep ADMIN_EMAIL on the list: it is
+// the platform owner's own business, and silently rerouting their existing
+// alerts to a different inbox would be a surprise, not a fix.
+async function adminAlertRecipients(overrideLocationId?: string): Promise<string[]> {
+  try {
+    const locationId = overrideLocationId ?? (await getLocationId())
+    const supabase = createAdminClient()
+    const { data } = await supabase
+      .from("locations")
+      .select("support_email")
+      .eq("id", locationId)
+      .single()
+
+    const tenantEmail = data?.support_email?.trim()
+    if (!tenantEmail) return [ADMIN_EMAIL]
+    if (locationId === ORLANDO_LOCATION_ID && tenantEmail !== ADMIN_EMAIL) {
+      return [tenantEmail, ADMIN_EMAIL]
+    }
+    return [tenantEmail]
+  } catch (err) {
+    // An alert with a wrong recipient still beats an alert that never sends.
+    console.error("[email] adminAlertRecipients failed, falling back:", err)
+    return [ADMIN_EMAIL]
+  }
+}
 
 async function getEmailBranding(overrideLocationId?: string): Promise<EmailBranding> {
   const b = await getBranding(overrideLocationId)
@@ -119,7 +153,7 @@ export async function sendOrderIssueEmail(data: OrderIssueData) {
 export async function sendAdminNewOrderEmail(data: AdminNewOrderData) {
   const [ov, branding] = await Promise.all([getEmailTemplate("admin_new_order"), getEmailBranding()])
   const { subject, html } = buildAdminNewOrderEmail(data, ov ?? {}, branding)
-  return safeSend({ from: await fromAdmin(), to: [ADMIN_EMAIL], subject, html })
+  return safeSend({ from: await fromAdmin(), to: await adminAlertRecipients(), subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -375,7 +409,7 @@ export async function sendAbandonedCheckoutAlertEmail(data: AbandonedCheckoutAle
       </p>
     </div>
   `
-  return safeSend({ from: await fromAdmin(), to: [ADMIN_EMAIL], subject, html })
+  return safeSend({ from: await fromAdmin(), to: await adminAlertRecipients(), subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -418,7 +452,7 @@ export async function sendDateConflictAlertEmail(data: DateConflictAlertData) {
       </p>
     </div>
   `
-  return safeSend({ from: await fromAdmin(), to: [ADMIN_EMAIL], subject, html })
+  return safeSend({ from: await fromAdmin(), to: await adminAlertRecipients(), subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────
