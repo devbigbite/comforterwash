@@ -256,6 +256,26 @@ export async function provisionSelfSignupTenant(params: {
 }): Promise<{ locationId?: string; error?: string }> {
   const supabase = createAdminClient()
 
+  // Idempotency guard — Stripe explicitly documents that webhook events can
+  // be delivered more than once (retries, redelivery after an outage, a
+  // manual "Resend" from the dashboard). Without this check, every extra
+  // delivery of the SAME checkout.session.completed would provision a
+  // second duplicate tenant and re-send the admin invite email to a real
+  // customer. If a location already exists for this Stripe subscription,
+  // this is a redelivery of an event we've already processed — hand back
+  // the existing tenant instead of creating another one.
+  if (params.stripeSubscriptionId) {
+    const { data: existing } = await supabase
+      .from("locations")
+      .select("id")
+      .eq("stripe_subscription_id", params.stripeSubscriptionId)
+      .maybeSingle()
+    if (existing) {
+      console.log(`[provisionSelfSignupTenant] location ${existing.id} already provisioned for subscription ${params.stripeSubscriptionId} — skipping duplicate creation`)
+      return { locationId: existing.id }
+    }
+  }
+
   // Re-check slug uniqueness here too — the pre-checkout check in
   // self-signup.ts only prevents most collisions; two people could still
   // complete checkout for the same slug in a race. Whoever's webhook lands
