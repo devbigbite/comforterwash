@@ -7,7 +7,7 @@ import { todayET } from "@/lib/date-et"
 import { getAllFacilityWindows } from "@/app/actions/facility-windows"
 import { isWithinAccessWindow } from "@/lib/facility-utils"
 import { getLocationId, getShipdayConfig, getBranding } from "@/lib/location"
-import { CUSTOMER_MIN_LBS } from "@/lib/pricing-constants"
+import { resolveMinLbs } from "@/lib/order-minimum"
 
 export interface TransportRun {
   id: string
@@ -266,16 +266,18 @@ export async function completeTransportRun(formData: FormData) {
     // Update each booking (need per-booking facility cost calc)
     const { data: bookings } = await supabase
       .from("bookings")
-      .select("id, actual_weight_lbs, customer_final_cents")
+      .select("id, actual_weight_lbs, customer_final_cents, service_type")
       .in("id", orderIds)
 
     for (const bk of bookings ?? []) {
       let facilityCostCents: number | null = null
       if (facility?.rate_per_lb && bk.actual_weight_lbs) {
-        // Same floor as weigh-in.ts: a facility's own minimum_lbs can only
-        // raise the payout, never let it undercut the customer's own
-        // CUSTOMER_MIN_LBS billing minimum.
-        const facilityLbs = Math.max(bk.actual_weight_lbs, facility.minimum_lbs ?? 0, CUSTOMER_MIN_LBS)
+        // Same floor as lib/order-billing.ts: a facility's own minimum_lbs
+        // can only raise the payout, never let it undercut the order minimum
+        // the customer was billed at. Both read that minimum from the same
+        // admin pricing settings so they cannot drift apart.
+        const minLbs = await resolveMinLbs(bk.service_type ?? null)
+        const facilityLbs = Math.max(bk.actual_weight_lbs, facility.minimum_lbs ?? 0, minLbs)
         facilityCostCents = Math.round(facilityLbs * facility.rate_per_lb * 100)
       }
 

@@ -13,7 +13,8 @@
 // 714600). Both callers now share this function so they cannot diverge again.
 
 import type { createAdminClient } from "@/lib/supabase/admin"
-import { CUSTOMER_MIN_LBS, DEFAULT_RATE_CENTS } from "@/lib/pricing-constants"
+import { DEFAULT_RATE_CENTS } from "@/lib/pricing-constants"
+import { resolveMinLbs } from "@/lib/order-minimum"
 
 // Typed off the service-role client every caller already uses, rather than a
 // hand-rolled structural shape — Postgrest's builders are PromiseLike rather
@@ -63,6 +64,11 @@ export async function calculateOrderBilling(
     commercial = (data as CommercialRate | null) ?? null
   }
 
+  // The order minimum, straight from the location's admin pricing settings —
+  // the same value checkout quoted this customer. Commercial accounts price
+  // off their own negotiated dollar minimum instead and ignore this.
+  const minLbs = await resolveMinLbs(booking.service_type)
+
   let customerFinalCents: number
   let basis: string
 
@@ -86,10 +92,10 @@ export async function calculateOrderBilling(
       ?? DEFAULT_RATE_CENTS[booking.service_type ?? "wash_fold"]
       ?? 250,
     )
-    const chargedLbs = Math.max(weightLbs, CUSTOMER_MIN_LBS)
+    const chargedLbs = Math.max(weightLbs, minLbs)
     customerFinalCents = Math.round(chargedLbs * rateCents)
     basis = chargedLbs > weightLbs
-      ? `consumer rate @ $${(rateCents / 100).toFixed(2)}/lb, billed at the ${CUSTOMER_MIN_LBS} lb minimum`
+      ? `consumer rate @ $${(rateCents / 100).toFixed(2)}/lb, billed at the ${minLbs} lb minimum`
       : `consumer rate @ $${(rateCents / 100).toFixed(2)}/lb`
   }
 
@@ -103,12 +109,15 @@ export async function calculateOrderBilling(
     const ratePerLb = Number(facility?.rate_per_lb ?? 0)
     if (ratePerLb > 0) {
       // Whenever an order is light enough that the customer gets billed the
-      // CUSTOMER_MIN_LBS minimum instead of their actual weight, the facility
-      // that processed it must be paid for that same minimum too — not just
+      // order minimum instead of their actual weight, the facility that
+      // processed it must be paid for that same minimum too — not just
       // whatever lower weight came off the scale. A facility's own minimum_lbs
       // (its separate contractual floor) can raise this further, but must
-      // never silently undercut the customer minimum.
-      const facilityBillableLbs = Math.max(weightLbs, Number(facility?.minimum_lbs ?? 0), CUSTOMER_MIN_LBS)
+      // never silently undercut the order minimum.
+      //
+      // Commercial orders have no lb minimum of their own (they floor on a
+      // dollar amount), so the facility floors on the standard order minimum.
+      const facilityBillableLbs = Math.max(weightLbs, Number(facility?.minimum_lbs ?? 0), minLbs)
       facilityCostCents = Math.round(facilityBillableLbs * ratePerLb * 100)
     }
   }

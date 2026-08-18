@@ -45,23 +45,32 @@ Sub-labels for the three layers, used consistently everywhere:
 
 Three words the buyer can hold in their head. Every page, every price table, every email reuses them.
 
-### Pricing structure
+### Pricing structure — one price, everything unlocked
 
-Keep the mechanics you already have ($ one-time + $ monthly, Stripe, 7-day trial) but **re-attribute what the money buys**:
+**The angle: $199 + $99/mo gets you all of it. No tiers, no add-ons, nothing held back.**
 
-- The **one-time fee is the Launch Kit + Playbook + setup** — not "setup." Setup is a nothing word. "Your business, ready to open" is the thing.
-- The **monthly is the Platform + ongoing support** — the part that keeps running.
+This is the right call, and it should be stated as loudly as the price itself. Three reasons it works better than a ladder:
 
-That single relabel makes the one-time fee feel like the smallest part of starting a business rather than a tax on signing up. It also gives you room to raise it later, because it's now attached to visible deliverables.
+1. **It removes the buyer's hardest question.** A tiered page forces someone with no business yet to guess which version of a business they're going to have. They can't. So they stall, or they pick the cheapest tier and get the worst experience. One price means the only decision is *yes or no* — which is the decision you actually want them making.
+2. **It's the proof that you're not nickel-and-diming.** Your buyer has been pitched by business-opportunity sellers before. Tiers, upsells, and "premium" locks are the exact shape of the thing they're afraid of. "Everything's included" is a trust signal, not just a pricing choice.
+3. **It makes the price feel small by contrast.** The longer the included list, the more absurd $99/mo looks. A ladder splits that list into three shorter, weaker lists.
 
-**Value anchor to put on the page:** what the buyer would pay to assemble this themselves — website build, logo, branded print design, supplier research time, a scheduling/billing system, a business coach. Show the stack, show the total, show your price. This is the single highest-leverage block you can add.
+**Re-attribute what the money buys.** Same mechanics you already have ($199 one-time + $99/mo, Stripe, 7-day trial in `lib/platform-plan.ts`), but relabeled:
 
-Optional later tiers (do NOT build now, just leave room in the architecture):
-- **Launch** — self-serve, everything digital
-- **Launch + Coaching** — adds live onboarding calls / group calls
-- **Done-With-You** — you set up their site, ZIPs, pricing, and first campaign for them
+- **$199 one-time — your business, ready to open.** Branded site live, Playbook, Launch Kit, all templates, supplier directory. Not "setup." Setup is a nothing word that sounds like a fee for the privilege of paying you.
+- **$99/month — everything stays running and stays current.** Platform, hosting, support, new templates as they're added, the community.
 
-One visible price now. Tiers are a phase-2 revenue lever once you know which support people actually ask for.
+**Put the full unlock on the page as one uninterrupted list.** Not a comparison table — a comparison table implies something to compare against. One column, one checkmark per line, twenty-plus lines, with a header that says it plainly:
+
+> **Everything below is included. There is no upgrade.**
+
+Group the list by the three layers so it reads as a system rather than a pile, but never break it into purchasable units.
+
+**The value anchor block.** Directly above or below that list, show what assembling this alone costs: website build, logo and brand, print design, supplier research time, a booking/billing system, a business coach. Show the stack, show the total, show your price. This is the single highest-leverage block you can add to the page, and "one price, all of it" is what makes the comparison land.
+
+**On the trial.** With no tiers, the 7-day trial is now doing all the risk-reversal work by itself. Make sure the page says exactly what a trial user can see and do, and what happens on day 8. Ambiguity here is the main thing that will kill a one-price page.
+
+**A note for later:** holding to one price means the only ways to grow revenue are raising it, adding operators, or selling something genuinely separate (a done-for-you setup service you *perform*, not a feature you unlock). That's a fine position to be in — just don't drift back into tiers by accident. If a feature ever ships as "Pro only," the whole trust argument above collapses.
 
 ### ⚠️ Legal flag — read this before you write earnings copy
 
@@ -80,12 +89,12 @@ Your buyer's real objections, in the order they surface:
 3. *What do I actually do on day one?* → **A visible 30-day launch timeline.** Week 1 site live, Week 2 print + first flyers, Week 3 first customers, Week 4 first commercial pitch. This is the section that converts "interested" into "signed up," and you don't have it today.
 4. *What exactly do I get?* → The three-layer stack, itemized. Not 13 undifferentiated feature cards.
 5. *What if I get stuck?* → Support, community, the guide, the manuals.
-6. *What does it cost and what's the risk?* → Price + trial + what happens if it doesn't work.
+6. *What does it cost, and what's the catch?* → One price, everything unlocked, nothing held back — then the trial terms and what happens if it doesn't work for them. "What's the catch" is the real question here; answer it before they ask.
 
 **Rewrite the hero along these lines** (concept, not final copy):
 
 > **Start a laundry pickup & delivery business from your home.**
-> We're operators, not a software company. You get the same platform we run our own business on — plus the suppliers, price sheets, marketing templates, and step-by-step playbook to actually open. English and Spanish.
+> We're operators, not a software company. You get the same platform we run our own business on — plus the suppliers, price sheets, marketing templates, and step-by-step playbook to actually open. One price, everything included. English and Spanish.
 
 Everything else on the page is evidence for that paragraph.
 
@@ -113,8 +122,9 @@ The confusion: **`/` is a customer-facing laundry business, `/platform` is a B2B
 
 /demo                 Live sandbox (keep — it's strong).
 
-/pricing              One price, what it replaces, the value stack,
-                      trial terms, refund/cancel policy, FAQ.
+/pricing              One price, the full unlock list, the value stack,
+                      trial terms, refund/cancel policy, FAQ. No tier
+                      table — a single column with "there is no upgrade."
 
 /faq                  Objection handling. "Do I need a laundromat?"
                       "Do I need a truck?" "Is this a franchise?"
@@ -177,7 +187,7 @@ Recommended path:
 
 **Phase 1 — reposition (no new features)**
 1. Rewrite `/platform` around the three-layer offer + the 30-day timeline + value anchor.
-2. Relabel the pricing so the one-time fee buys the Launch Kit, not "setup."
+2. Relabel the pricing so the one-time fee buys the Launch Kit, not "setup" — and add the full "everything included, there is no upgrade" unlock list + value anchor.
 3. Add `/how-it-works` and `/stories` (start with your own business as the case study).
 4. Decide the earnings-claims question and write to it.
 
@@ -188,7 +198,7 @@ Recommended path:
 
 **Phase 3 — leverage**
 8. `/resources/*` content engine for SEO and top-of-funnel.
-9. Coaching / Done-With-You tiers, priced off what buyers actually ask for.
+9. If you add revenue, add it as a *separate service you perform* (done-for-you setup, live coaching) — never as a feature unlock inside the product.
 10. Split domains: `washfoldclean.com` for the opportunity, `comforterwash.com` for the proof.
 
 ---
