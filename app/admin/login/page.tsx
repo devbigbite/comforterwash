@@ -12,7 +12,8 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
   const showPassword = searchParams?.wfo === "1"
 
   return (
-    <main className="min-h-screen bg-[#0f2057] flex items-center justify-center px-4">
+    <main className="min-h-screen bg-[#0f2057] flex flex-col">
+      <div className="flex-1 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-8">
@@ -80,13 +81,24 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
             </>
           )}
         </div>
+      </div>
+      </div>
 
-        <div className="text-center mt-4">
-          <a href={showPassword ? "/admin/login" : "/admin/login?wfo=1"} className="text-[11px] text-white/20 hover:text-white/40 transition-colors">
+      {/* Ordinary-looking footer strip — the password-login link lives here
+          as one more piece of routine small print rather than the only
+          thing below the card, which was too eye-catching and tempted
+          people to click it out of curiosity. */}
+      <footer className="border-t border-white/10 py-4 px-4">
+        <p className="text-center text-[11px] text-white/25">
+          © {new Date().getFullYear()} WashFold Platform · Support ·{" "}
+          <a
+            href={showPassword ? "/admin/login" : "/admin/login?wfo=1"}
+            className="hover:text-white/45 transition-colors"
+          >
             wfo
           </a>
-        </div>
-      </div>
+        </p>
+      </footer>
     </main>
   )
 }
