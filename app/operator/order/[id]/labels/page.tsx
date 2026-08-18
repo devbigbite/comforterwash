@@ -87,29 +87,16 @@ export default async function OperatorLabelsPage({
   const customerName = (booking.customer_name as string | null) ?? ""
   const orderIdentifier = customerName ? `Loyalty ${visitNumber} · ${customerName}` : `Loyalty ${visitNumber}`
 
-  // Floor vs Storage must be decided before receipts print — otherwise the
-  // storage-marker instruction below would silently be wrong or missing.
-  if (booking.hold_at_facility === null || booking.hold_at_facility === undefined) {
-    return (
-      <PinGate role="operator">
-        <OperatorOrderGate assignedOperatorId={booking.assigned_operator_id ?? null}>
-          <div className="min-h-screen bg-[#f7f8fb] flex items-center justify-center px-4">
-            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-8 text-center max-w-sm">
-              <p className="text-3xl mb-3">📍📦</p>
-              <p className="text-[#0D2240] font-extrabold text-lg">Floor vs. Storage not decided yet</p>
-              <p className="text-gray-500 text-base mt-1">
-                Go back to the order and choose Keep at Facility or Send to Storage before printing bag receipts.
-              </p>
-              <a href={`/operator/order/${id}`}
-                className="inline-block mt-5 bg-[#0D2240] text-white font-bold text-base px-6 py-3 rounded-xl">
-                ← Back to order
-              </a>
-            </div>
-          </div>
-        </OperatorOrderGate>
-      </PinGate>
-    )
-  }
+  // Floor vs Storage (hold_at_facility) is decided later in processing, not
+  // at print time — printing was intentionally moved to the START of the
+  // process (see app/operator/station/page.tsx), so it's routinely still
+  // null/undecided here. That's expected, not an error: goingToStorage below
+  // simply evaluates false until the decision is made, so the storage-marker
+  // line just doesn't print yet. If the order is later sent to storage, the
+  // Print Station's reprint tab covers adding that flag to a fresh copy.
+  // (Previously this hard-blocked printing until the decision was made —
+  // that matched the old end-of-process flow but broke printing at the
+  // start of the new one.)
 
   const { data: bags } = await supabase
     .from("order_bags")
