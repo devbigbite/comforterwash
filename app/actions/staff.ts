@@ -21,6 +21,8 @@ export interface TimePunch {
   notes: string | null
   schedule_flag: "unscheduled" | "early_in" | "late_in" | "early_out" | "late_out" | null
   flag_minutes: number | null
+  /** Driver mileage for this shift. Null on non-driver punches. */
+  miles: number | null
 }
 
 export type ScheduleFlag = "unscheduled" | "early_in" | "late_in" | "early_out" | "late_out"
@@ -47,6 +49,7 @@ export interface ActiveWorker {
   name: string
   roles: string[]
   hourly_wage_cents: number
+  driver_per_mile_cents: number
 }
 
 
@@ -57,7 +60,7 @@ export async function getActiveWorkers(): Promise<ActiveWorker[]> {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("workers")
-    .select("id, name, roles, hourly_wage_cents")
+    .select("id, name, roles, hourly_wage_cents, driver_per_mile_cents")
     .eq("location_id", locationId)
     .eq("status", "active")
     .order("name")
@@ -476,6 +479,18 @@ export async function deleteShift(shiftId: string) {
 }
 
 // ── Admin: edit a punch (manual correction) ──────────────────────────────────
+// Miles is optional and only meaningful for drivers. An empty field stores
+// NULL (no mileage recorded) rather than 0, so "driver logged zero miles" and
+// "nobody entered mileage" stay distinguishable in the timesheet.
+function parseMiles(raw: FormDataEntryValue | null): number | null {
+  if (typeof raw !== "string") return null
+  const cleaned = raw.trim()
+  if (!cleaned) return null
+  const n = Number(cleaned)
+  if (!Number.isFinite(n) || n < 0) return null
+  return Math.round(n * 10) / 10
+}
+
 export async function updatePunch(formData: FormData) {
   await requireAdmin()
 
@@ -484,6 +499,7 @@ export async function updatePunch(formData: FormData) {
   const clockedInAt    = formData.get("clockedInAt")    as string
   const clockedOutAt   = (formData.get("clockedOutAt")  as string) || null
   const breakMinutes   = parseInt(formData.get("breakMinutes") as string || "0", 10)
+  const miles          = parseMiles(formData.get("miles"))
 
   if (!punchId || !clockedInAt) return { error: "Missing fields" }
 
@@ -493,6 +509,7 @@ export async function updatePunch(formData: FormData) {
       clocked_in_at:  clockedInAt,
       clocked_out_at: clockedOutAt || null,
       break_minutes:  isNaN(breakMinutes) ? 0 : breakMinutes,
+      miles,
     })
     .eq("id", punchId)
     .eq("location_id", locationId)
@@ -523,6 +540,7 @@ export async function createPunch(formData: FormData) {
   const clockedInAt  = formData.get("clockedInAt")  as string
   const clockedOutAt = (formData.get("clockedOutAt") as string) || null
   const breakMinutes  = parseInt(formData.get("breakMinutes") as string || "0", 10)
+  const miles         = parseMiles(formData.get("miles"))
 
   if (!workerName || !role || !clockedInAt) return { error: "Missing required fields" }
 
@@ -535,6 +553,7 @@ export async function createPunch(formData: FormData) {
       clocked_in_at:  clockedInAt,
       clocked_out_at: clockedOutAt,
       break_minutes:  isNaN(breakMinutes) ? 0 : breakMinutes,
+      miles,
     })
 
   revalidatePath("/admin/schedule")

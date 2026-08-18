@@ -136,7 +136,7 @@ function AdminScheduleInner() {
   const [tsWorkers, setTsWorkers] = useState<ActiveWorker[]>([])
   const [tsLoading, setTsLoading] = useState(false)
   const [editPunchId, setEditPunchId] = useState<string | null>(null)
-  const [editForm, setEditForm]   = useState({ clockedInAt: "", clockedOutAt: "", breakMinutes: "0" })
+  const [editForm, setEditForm]   = useState({ clockedInAt: "", clockedOutAt: "", breakMinutes: "0", miles: "" })
   const [deletePunchId, setDeletePunchId] = useState<string | null>(null)
   const [deletingPunch, setDeletingPunch] = useState(false)
   // Time Sheet is grouped by worker (one collapsible section per person) so an
@@ -149,7 +149,7 @@ function AdminScheduleInner() {
   const [showAddPunch, setShowAddPunch]   = useState(false)
   const [addPunchForm, setAddPunchForm]   = useState({
     workerName: "", role: "", date: new Date().toISOString().split("T")[0],
-    startTime: "09:00", endTime: "", breakMinutes: "0",
+    startTime: "09:00", endTime: "", breakMinutes: "0", miles: "",
   })
   const [addPunchSaving, setAddPunchSaving] = useState(false)
   const [addPunchError,  setAddPunchError]  = useState<string | null>(null)
@@ -240,6 +240,9 @@ function AdminScheduleInner() {
     fd.append("clockedInAt",    editForm.clockedInAt)
     fd.append("clockedOutAt",   editForm.clockedOutAt)
     fd.append("breakMinutes",   editForm.breakMinutes)
+    // Only drivers earn mileage; sending "" for anyone else clears the column
+    // rather than leaving a stale number behind after a role correction.
+    fd.append("miles",          punch.role === "driver" ? editForm.miles : "")
     await updatePunch(fd)
     setEditPunchId(null)
     loadTimeSheet()
@@ -266,11 +269,12 @@ function AdminScheduleInner() {
     fd.set("clockedInAt",  localInputToISO(`${addPunchForm.date}T${addPunchForm.startTime}`))
     fd.set("clockedOutAt", addPunchForm.endTime ? localInputToISO(`${addPunchForm.date}T${addPunchForm.endTime}`) : "")
     fd.set("breakMinutes", addPunchForm.breakMinutes)
+    fd.set("miles",        addPunchForm.role === "driver" ? addPunchForm.miles : "")
     const result = await createPunch(fd)
     setAddPunchSaving(false)
     if (result?.error) { setAddPunchError(result.error); return }
     setShowAddPunch(false)
-    setAddPunchForm({ workerName: "", role: "", date: new Date().toISOString().split("T")[0], startTime: "09:00", endTime: "", breakMinutes: "0" })
+    setAddPunchForm({ workerName: "", role: "", date: new Date().toISOString().split("T")[0], startTime: "09:00", endTime: "", breakMinutes: "0", miles: "" })
     loadTimeSheet()
   }
 
@@ -278,6 +282,16 @@ function AdminScheduleInner() {
   const weekDates = DAYS.map((_, i) => addDays(weekStart, i))
 
   const shiftsOn = (date: string) => shifts.filter(s => s.shift_date === date)
+
+  // ── Pay rate lookups: worker name → cents ──────────────────────────────────
+  // Punches key off worker_name (staff_time_punches has no worker_id), so the
+  // rates are looked up the same way.
+  const wageMap: Record<string, number>     = {}
+  const mileRateMap: Record<string, number> = {}
+  tsWorkers.forEach(w => {
+    wageMap[w.name]     = w.hourly_wage_cents ?? 0
+    mileRateMap[w.name] = w.driver_per_mile_cents ?? 0
+  })
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -789,15 +803,48 @@ function AdminScheduleInner() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Break (minutes)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={addPunchForm.breakMinutes}
-                    onChange={e => setAddPunchForm(f => ({ ...f, breakMinutes: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
-                  />
+                <div className={addPunchForm.role === "driver" ? "grid grid-cols-2 gap-3" : ""}>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Break (minutes)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={addPunchForm.breakMinutes}
+                      onChange={e => setAddPunchForm(f => ({ ...f, breakMinutes: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                    />
+                  </div>
+                  {/* Mileage applies to drivers only, and prices out from the
+                      per-mile rate on the worker's own profile. */}
+                  {addPunchForm.role === "driver" && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Miles driven</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        placeholder="0.0"
+                        value={addPunchForm.miles}
+                        onChange={e => setAddPunchForm(f => ({ ...f, miles: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                      />
+                      {addPunchForm.workerName && (
+                        (mileRateMap[addPunchForm.workerName] ?? 0) === 0 ? (
+                          <p className="text-[10px] text-yellow-600 font-semibold mt-1">
+                            No per-mile rate on this worker&apos;s profile — miles are recorded but pay $0.
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-gray-400 mt-1">
+                            {(parseFloat(addPunchForm.miles || "0") || 0).toFixed(1)} mi × $
+                            {((mileRateMap[addPunchForm.workerName] ?? 0) / 100).toFixed(2)}/mi ={" "}
+                            <span className="font-bold text-green-600">
+                              ${(((parseFloat(addPunchForm.miles || "0") || 0) * (mileRateMap[addPunchForm.workerName] ?? 0)) / 100).toFixed(2)}
+                            </span>
+                          </p>
+                        )
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {addPunchError && <p className="text-red-500 text-sm font-semibold">{addPunchError}</p>}
@@ -827,23 +874,33 @@ function AdminScheduleInner() {
 
       {/* ── TIME SHEET ──────────────────────────────────────────────────────── */}
       {tab === "timesheet" && (() => {
-        // Build wage lookup: worker name → hourly_wage_cents
-        const wageMap: Record<string, number> = {}
-        tsWorkers.forEach(w => { wageMap[w.name] = w.hourly_wage_cents ?? 0 })
-
-        // Per-worker totals: mins worked + pay cents
-        const totals: Record<string, { mins: number; payCents: number; wageCents: number }> = {}
+        // Per-worker totals: minutes worked, hourly pay, and driver mileage pay.
+        // Mileage is additive — a driver earns their hourly wage for the shift
+        // *plus* their per-mile rate for the miles logged on it.
+        const totals: Record<string, {
+          mins: number; payCents: number; wageCents: number
+          miles: number; mileCents: number
+        }> = {}
         punches.forEach(p => {
           if (!p.clocked_out_at) return
           const mins = Math.max(0, minutesBetween(p.clocked_in_at, p.clocked_out_at) - (p.break_minutes ?? 0))
           const wage = wageMap[p.worker_name] ?? 0
           const pay  = Math.round((mins / 60) * wage)
-          if (!totals[p.worker_name]) totals[p.worker_name] = { mins: 0, payCents: 0, wageCents: wage }
-          totals[p.worker_name].mins     += mins
-          totals[p.worker_name].payCents += pay
+          // Miles only pay out on driver punches, at that worker's mile rate.
+          const miles     = p.role === "driver" ? (Number(p.miles) || 0) : 0
+          const mileCents = Math.round(miles * (mileRateMap[p.worker_name] ?? 0))
+          if (!totals[p.worker_name]) {
+            totals[p.worker_name] = { mins: 0, payCents: 0, wageCents: wage, miles: 0, mileCents: 0 }
+          }
+          totals[p.worker_name].mins      += mins
+          totals[p.worker_name].payCents  += pay + mileCents
+          totals[p.worker_name].miles     += miles
+          totals[p.worker_name].mileCents += mileCents
         })
         const grandPayCents = Object.values(totals).reduce((s, t) => s + t.payCents, 0)
-        const hasWages      = Object.values(totals).some(t => t.wageCents > 0)
+        const hasWages      = Object.values(totals).some(t => t.wageCents > 0 || t.mileCents > 0)
+        const grandMiles    = Object.values(totals).reduce((s, t) => s + t.miles, 0)
+        const grandMileCents = Object.values(totals).reduce((s, t) => s + t.mileCents, 0)
 
         return (
         <div>
@@ -893,6 +950,11 @@ function AdminScheduleInner() {
                 <p className="text-gray-400 text-xs">
                   {formatDuration(Object.values(totals).reduce((s, t) => s + t.mins, 0))} total
                 </p>
+                {grandMileCents > 0 && (
+                  <p className="text-blue-500 text-xs font-semibold">
+                    incl. ${(grandMileCents / 100).toFixed(2)} mileage · {grandMiles.toFixed(1)} mi
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -905,10 +967,15 @@ function AdminScheduleInner() {
                   <p className="font-bold text-[#0D2240] text-sm truncate">{name}</p>
                   <p className="text-2xl font-extrabold text-[#0D2240] mt-1">{formatDuration(t.mins)}</p>
                   <p className="text-gray-400 text-xs mt-0.5">{(t.mins / 60).toFixed(1)}h</p>
-                  {t.wageCents > 0 ? (
+                  {t.wageCents > 0 || t.mileCents > 0 ? (
                     <div className="mt-2 pt-2 border-t border-gray-100">
                       <p className="text-green-600 font-extrabold text-base">${(t.payCents / 100).toFixed(2)}</p>
                       <p className="text-gray-300 text-[10px]">${(t.wageCents / 100).toFixed(2)}/hr</p>
+                      {t.mileCents > 0 && (
+                        <p className="text-blue-500 text-[10px] font-semibold">
+                          + ${(t.mileCents / 100).toFixed(2)} · {t.miles.toFixed(1)} mi
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <p className="text-gray-300 text-[10px] mt-2">No wage set</p>
@@ -968,7 +1035,8 @@ function AdminScheduleInner() {
                   if (workerPunches.length === 0) return null
                   const t = totals[workerName]
                   const collapsed = collapsedWorkers.has(workerName)
-                  const wageCents = wageMap[workerName] ?? 0
+                  const wageCents     = wageMap[workerName] ?? 0
+                  const mileRateCents = mileRateMap[workerName] ?? 0
 
                   return (
                     <div key={workerName} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
@@ -984,7 +1052,12 @@ function AdminScheduleInner() {
                         </div>
                         <div className="flex items-center gap-4">
                           <span className="font-bold text-[#0D2240] text-sm tabular-nums">{formatDuration(t?.mins ?? 0)}</span>
-                          {wageCents > 0 ? (
+                          {(t?.miles ?? 0) > 0 && (
+                            <span className="text-blue-500 text-xs font-semibold tabular-nums">
+                              🚗 {(t?.miles ?? 0).toFixed(1)} mi
+                            </span>
+                          )}
+                          {wageCents > 0 || (t?.mileCents ?? 0) > 0 ? (
                             <span className="font-bold text-green-600 text-sm tabular-nums">${((t?.payCents ?? 0) / 100).toFixed(2)}</span>
                           ) : (
                             <span className="text-gray-300 text-xs">No rate</span>
@@ -1001,9 +1074,16 @@ function AdminScheduleInner() {
                             const mins = punch.clocked_out_at
                               ? Math.max(0, minutesBetween(punch.clocked_in_at, punch.clocked_out_at) - (punch.break_minutes ?? 0))
                               : null
-                            const payCents = mins !== null && wageCents > 0
+                            const hourCents = mins !== null && wageCents > 0
                               ? Math.round((mins / 60) * wageCents)
                               : null
+                            const punchMiles = punch.role === "driver" ? (Number(punch.miles) || 0) : 0
+                            const mileCents  = Math.round(punchMiles * mileRateCents)
+                            // null means "nothing to pay yet" (still clocked in,
+                            // or no rates configured) — not "$0.00".
+                            const payCents = hourCents === null && mileCents === 0
+                              ? null
+                              : (hourCents ?? 0) + mileCents
 
                             if (isDeleting) return (
                               <div key={punch.id} className="flex items-center justify-between gap-4 px-4 py-3 bg-red-50">
@@ -1026,7 +1106,7 @@ function AdminScheduleInner() {
 
                             if (isEditing) return (
                               <div key={punch.id} className="px-4 py-3 bg-blue-50">
-                                <div className="grid grid-cols-3 gap-2 items-end">
+                                <div className={`grid gap-2 items-end ${punch.role === "driver" ? "grid-cols-4" : "grid-cols-3"}`}>
                                   <div>
                                     <label className="text-xs text-gray-400 font-bold">Clock In</label>
                                     <input type="datetime-local" value={toLocalInputValue(editForm.clockedInAt)}
@@ -1045,7 +1125,23 @@ function AdminScheduleInner() {
                                       onChange={e => setEditForm(f => ({ ...f, breakMinutes: e.target.value }))}
                                       className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
                                   </div>
+                                  {punch.role === "driver" && (
+                                    <div>
+                                      <label className="text-xs text-gray-400 font-bold">Miles</label>
+                                      <input type="number" min="0" step="0.1" placeholder="0.0" value={editForm.miles}
+                                        onChange={e => setEditForm(f => ({ ...f, miles: e.target.value }))}
+                                        className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
+                                    </div>
+                                  )}
                                 </div>
+                                {punch.role === "driver" && mileRateCents > 0 && (
+                                  <p className="text-[10px] text-gray-400 mt-1.5">
+                                    {(parseFloat(editForm.miles || "0") || 0).toFixed(1)} mi × ${(mileRateCents / 100).toFixed(2)}/mi ={" "}
+                                    <span className="font-bold text-green-600">
+                                      ${(((parseFloat(editForm.miles || "0") || 0) * mileRateCents) / 100).toFixed(2)}
+                                    </span> mileage, on top of hourly
+                                  </p>
+                                )}
                                 <div className="flex gap-2 mt-2">
                                   <button onClick={() => handleSaveEdit(punch)}
                                     className="bg-[#0D2240] text-white text-xs font-bold px-3 py-1.5 rounded-lg">Save</button>
@@ -1098,6 +1194,11 @@ function AdminScheduleInner() {
                                 {punch.break_minutes > 0 && (
                                   <span className="text-gray-300 text-xs shrink-0">−{punch.break_minutes}m break</span>
                                 )}
+                                {punchMiles > 0 && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 shrink-0">
+                                    🚗 {punchMiles.toFixed(1)} mi{mileCents > 0 ? ` · $${(mileCents / 100).toFixed(2)}` : ""}
+                                  </span>
+                                )}
                                 <div className="ml-auto flex gap-3 shrink-0">
                                   <button
                                     onClick={() => {
@@ -1106,6 +1207,7 @@ function AdminScheduleInner() {
                                         clockedInAt:  punch.clocked_in_at,
                                         clockedOutAt: punch.clocked_out_at ?? "",
                                         breakMinutes: String(punch.break_minutes ?? 0),
+                                        miles:        punch.miles != null ? String(punch.miles) : "",
                                       })
                                     }}
                                     className="text-gray-300 hover:text-gray-500 text-xs font-bold transition-colors"
@@ -1207,15 +1309,48 @@ function AdminScheduleInner() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Break (minutes)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={addPunchForm.breakMinutes}
-                    onChange={e => setAddPunchForm(f => ({ ...f, breakMinutes: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
-                  />
+                <div className={addPunchForm.role === "driver" ? "grid grid-cols-2 gap-3" : ""}>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Break (minutes)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={addPunchForm.breakMinutes}
+                      onChange={e => setAddPunchForm(f => ({ ...f, breakMinutes: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                    />
+                  </div>
+                  {/* Mileage applies to drivers only, and prices out from the
+                      per-mile rate on the worker's own profile. */}
+                  {addPunchForm.role === "driver" && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Miles driven</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        placeholder="0.0"
+                        value={addPunchForm.miles}
+                        onChange={e => setAddPunchForm(f => ({ ...f, miles: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                      />
+                      {addPunchForm.workerName && (
+                        (mileRateMap[addPunchForm.workerName] ?? 0) === 0 ? (
+                          <p className="text-[10px] text-yellow-600 font-semibold mt-1">
+                            No per-mile rate on this worker&apos;s profile — miles are recorded but pay $0.
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-gray-400 mt-1">
+                            {(parseFloat(addPunchForm.miles || "0") || 0).toFixed(1)} mi × $
+                            {((mileRateMap[addPunchForm.workerName] ?? 0) / 100).toFixed(2)}/mi ={" "}
+                            <span className="font-bold text-green-600">
+                              ${(((parseFloat(addPunchForm.miles || "0") || 0) * (mileRateMap[addPunchForm.workerName] ?? 0)) / 100).toFixed(2)}
+                            </span>
+                          </p>
+                        )
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {addPunchError && <p className="text-red-500 text-sm font-semibold">{addPunchError}</p>}
