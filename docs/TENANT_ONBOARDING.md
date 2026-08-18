@@ -105,6 +105,15 @@ Getting this backwards is a real failure mode: `middleware.ts` falls back to
 **WashFold Orlando** for an unrecognized custom domain, so their visitors land
 on Orlando's live site rather than an error page.
 
+**Tell the tenant upfront: their custom domain only covers the customer-facing
+site.** `/admin` and `/super-admin` always redirect to `comforterwash.com`
+regardless of which domain — subdomain or their own — they were on, because
+login sessions can't be shared across separate root domains. This is
+intentional (see `middleware.ts`, `CANONICAL_ADMIN_HOST`), not a bug, but a
+tenant who isn't told in advance will reasonably assume something's broken
+when their own domain "kicks them out" to ours during login. Mention it in
+the same conversation where you set up their domain, not after they notice.
+
 ### 4.2 Sending domain
 
 Until a tenant verifies their own domain, all their customer email goes out from
