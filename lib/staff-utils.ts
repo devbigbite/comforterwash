@@ -13,3 +13,13 @@ export function formatDuration(minutes: number): string {
   if (m === 0) return `${h}h`
   return `${h}h ${m}m`
 }
+
+/**
+ * Same duration as a decimal hours figure, which is what payroll actually
+ * multiplies by an hourly rate: 20h 32m → "20.53". Two decimal places, since
+ * one (20.5) loses up to 3 minutes per line and the error compounds across a
+ * timesheet.
+ */
+export function decimalHours(minutes: number): string {
+  return (minutes / 60).toFixed(2)
+}

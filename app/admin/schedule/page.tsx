@@ -14,7 +14,7 @@ import {
   createPunch,
   deletePunch,
   } from "@/app/actions/staff"
-import { minutesBetween, formatDuration } from "@/lib/staff-utils"
+import { minutesBetween, formatDuration, decimalHours } from "@/lib/staff-utils"
 import type { TimePunch, ScheduledShift, ActiveWorker } from "@/app/actions/staff"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -949,6 +949,8 @@ function AdminScheduleInner() {
                 <p className="text-gray-400 text-xs">{Object.keys(totals).length} workers</p>
                 <p className="text-gray-400 text-xs">
                   {formatDuration(Object.values(totals).reduce((s, t) => s + t.mins, 0))} total
+                  {" · "}
+                  {decimalHours(Object.values(totals).reduce((s, t) => s + t.mins, 0))} hrs
                 </p>
                 {grandMileCents > 0 && (
                   <p className="text-blue-500 text-xs font-semibold">
@@ -966,7 +968,7 @@ function AdminScheduleInner() {
                 <div key={name} className="bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm">
                   <p className="font-bold text-[#0D2240] text-sm truncate">{name}</p>
                   <p className="text-2xl font-extrabold text-[#0D2240] mt-1">{formatDuration(t.mins)}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">{(t.mins / 60).toFixed(1)}h</p>
+                  <p className="text-gray-400 text-xs mt-0.5">{decimalHours(t.mins)} hrs</p>
                   {t.wageCents > 0 || t.mileCents > 0 ? (
                     <div className="mt-2 pt-2 border-t border-gray-100">
                       <p className="text-green-600 font-extrabold text-base">${(t.payCents / 100).toFixed(2)}</p>
@@ -1051,7 +1053,12 @@ function AdminScheduleInner() {
                           <span className="text-gray-300 text-xs">{workerPunches.length} punch{workerPunches.length === 1 ? "" : "es"}</span>
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className="font-bold text-[#0D2240] text-sm tabular-nums">{formatDuration(t?.mins ?? 0)}</span>
+                          <span className="font-bold text-[#0D2240] text-sm tabular-nums">
+                            {formatDuration(t?.mins ?? 0)}
+                            {/* Decimal hours is what payroll multiplies by the
+                                rate, so show it next to the h/m reading. */}
+                            <span className="text-gray-400 font-semibold ml-1.5">({decimalHours(t?.mins ?? 0)})</span>
+                          </span>
                           {(t?.miles ?? 0) > 0 && (
                             <span className="text-blue-500 text-xs font-semibold tabular-nums">
                               🚗 {(t?.miles ?? 0).toFixed(1)} mi
@@ -1174,8 +1181,11 @@ function AdminScheduleInner() {
                                     ? <span className="text-gray-700">{fmtTime(punch.clocked_out_at)}</span>
                                     : <span className="text-green-500 font-bold text-xs">Active ●</span>}
                                 </div>
-                                <div className="w-16 shrink-0 font-bold text-[#0D2240] tabular-nums">
+                                <div className="w-16 shrink-0 font-bold text-[#0D2240] tabular-nums leading-tight">
                                   {mins !== null ? formatDuration(mins) : "—"}
+                                  {mins !== null && (
+                                    <span className="block text-[10px] font-semibold text-gray-400">{decimalHours(mins)}</span>
+                                  )}
                                 </div>
                                 <div className="w-20 shrink-0 tabular-nums">
                                   {payCents !== null ? (
