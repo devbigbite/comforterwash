@@ -39,6 +39,48 @@ export async function getConnectStatusForLocation(locationId: string): Promise<C
   }
 }
 
+// ── Direct charges ───────────────────────────────────────────────────────────
+// Tenant-customer payments are created ON the tenant's connected account (a
+// "direct charge") rather than on the platform with transfer_data (a
+// "destination charge"). Stripe recommends direct charges for SaaS platforms,
+// where the customer believes they are buying from the tenant, and the
+// practical differences all matter here:
+//
+//   - the tenant is the merchant of record, so THEIR name is on the customer's
+//     card statement instead of ours
+//   - Stripe's processing fees and dispute fees are billed to the tenant's
+//     account (these accounts are created with type: "express", which Stripe
+//     treats as fee payer "application_express") instead of to us
+//   - refunds and chargebacks hit the tenant's balance, not the platform's
+//
+// Under the old destination-charge model the platform absorbed every one of
+// those, which meant a busy tenant cost more in Stripe fees than their monthly
+// subscription brought in.
+//
+// Returns null for a tenant with no active connected account — those charges
+// keep running on the shared platform account exactly as before (WashFold
+// Orlando and the demo tenant, both grandfathered via stripe_connect_required
+// = false).
+export async function directChargeAccountFor(locationId: string): Promise<string | null> {
+  try {
+    const { status, accountId } = await getConnectStatusForLocation(locationId)
+    return status === "active" && accountId ? accountId : null
+  } catch {
+    return null
+  }
+}
+
+// Stripe request options for a direct charge. Returns undefined when there's no
+// connected account, which the SDK treats as an ordinary platform-account call.
+//
+// EVERY Stripe object involved in one payment must be created and read with the
+// same options — a Customer, PaymentMethod, PaymentIntent or Checkout Session
+// that lives on a connected account is invisible to a platform-account call
+// ("No such customer"), and vice versa.
+export function acctOpts(accountId: string | null | undefined): { stripeAccount: string } | undefined {
+  return accountId ? { stripeAccount: accountId } : undefined
+}
+
 // ── "Going live" gate ────────────────────────────────────────────────────────
 // New tenants (stripe_connect_required = true, the default) must finish their
 // own Stripe onboarding before their site can process a real customer charge —

@@ -1,14 +1,29 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js"
 import { loadStripe } from "@stripe/stripe-js"
-import { startCheckoutSession, handleSuccessfulPayment, checkCheckoutAllowed } from "@/app/actions/stripe"
+import { startCheckoutSession, handleSuccessfulPayment, getCheckoutContext } from "@/app/actions/stripe"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle2 } from "lucide-react"
 import { useLang } from "@/components/lang-provider"
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+
+// One Stripe.js instance per connected account (plus one for the platform).
+// loadStripe is cached per key+options by Stripe, but memoising here keeps the
+// EmbeddedCheckoutProvider from being handed a new promise on every render.
+const stripePromises = new Map<string, ReturnType<typeof loadStripe>>()
+function stripeFor(stripeAccountId: string | null) {
+  const key = stripeAccountId ?? "__platform__"
+  if (!stripePromises.has(key)) {
+    stripePromises.set(
+      key,
+      loadStripe(PUBLISHABLE_KEY, stripeAccountId ? { stripeAccount: stripeAccountId } : undefined),
+    )
+  }
+  return stripePromises.get(key)!
+}
 
 interface CheckoutProps {
   amountCents: number
@@ -23,6 +38,9 @@ export default function Checkout({ amountCents, label, metadata, manualCapture =
   const [error, setError] = useState<string | null>(null)
   const [checkingAllowed, setCheckingAllowed] = useState(true)
   const [allowed, setAllowed] = useState(true)
+  // The tenant's connected account, when they take payments directly. null
+  // means this tenant still charges through the shared platform account.
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null)
   const sessionIdRef = useRef<string | null>(null)
   const { translations: tr } = useLang()
   const t = tr.checkout
@@ -31,9 +49,19 @@ export default function Checkout({ amountCents, label, metadata, manualCapture =
   // finished their own Stripe Connect onboarding yet (see lib/stripe-connect.ts).
   useEffect(() => {
     let cancelled = false
-    checkCheckoutAllowed().then(ok => { if (!cancelled) { setAllowed(ok); setCheckingAllowed(false) } })
+    getCheckoutContext().then(ctx => {
+      if (cancelled) return
+      setAllowed(ctx.allowed)
+      setStripeAccountId(ctx.stripeAccountId)
+      setCheckingAllowed(false)
+    })
     return () => { cancelled = true }
   }, [])
+
+  // Must match the account the Checkout Session was created on — see
+  // getCheckoutContext. Only resolved after the effect above runs, which is
+  // why nothing mounts while checkingAllowed is true.
+  const stripePromise = useMemo(() => stripeFor(stripeAccountId), [stripeAccountId])
 
   const fetchClientSecret = useCallback(async () => {
     const result = await startCheckoutSession(

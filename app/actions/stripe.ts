@@ -6,14 +6,16 @@ import { createBooking } from "./bookings"
 import { createSubscription } from "./subscriptions"
 import { sendBookingConfirmationEmail, sendAdminNewOrderEmail } from "@/lib/email"
 import { getLocationId } from "@/lib/location"
-import { getConnectStatusForLocation, isCheckoutBlockedByConnectRequirement } from "@/lib/stripe-connect"
+import { getConnectStatusForLocation, isCheckoutBlockedByConnectRequirement, directChargeAccountFor, acctOpts } from "@/lib/stripe-connect"
 import { recordCheckoutAttempt, markCheckoutAttemptSucceeded, claimCheckoutAttempt } from "./checkout-attempts"
 import { createGiftCardFromPurchase, redeemGiftCard } from "./gift-cards"
 
-// Only route money to the tenant's own bank account once they've actually
-// finished Stripe onboarding (status === "active"). Anything else — not
-// connected, or mid-setup — falls back to the shared platform account exactly
-// as it always has, so nothing breaks for tenants who haven't connected yet.
+// LEGACY destination-charge routing. The consumer booking flow now uses
+// direct charges instead (see directChargeAccountFor in lib/stripe-connect.ts).
+// This remains only for the flows whose Stripe Customer and saved card still
+// live on the PLATFORM account — commercial accounts today — where a direct
+// charge would fail with "No such customer". Migrating those is phase 2; until
+// then they keep working exactly as they always have.
 async function connectDestinationFor(locationId: string): Promise<string | undefined> {
   try {
     const { status, accountId } = await getConnectStatusForLocation(locationId)
@@ -44,7 +46,10 @@ export async function startCheckoutSession(
     }
   }
 
-  const destination = await connectDestinationFor(locationId)
+  // Direct charge: the session, its PaymentIntent, and the card saved from it
+  // all live on the tenant's own connected account. null for a tenant still on
+  // the shared platform account.
+  const acct = await directChargeAccountFor(locationId)
 
   const session = await stripe.checkout.sessions.create({
     ui_mode: "embedded",
@@ -63,10 +68,13 @@ export async function startCheckoutSession(
     payment_intent_data: {
       ...(manualCapture ? { capture_method: "manual" } : {}),
       setup_future_usage: "off_session",
-      ...(destination ? { transfer_data: { destination } } : {}),
     },
-    metadata: metadata ?? {},
-  })
+    // locationId is stamped into metadata so the booking can be attributed to
+    // the right tenant when this session is completed from a webhook, where
+    // there is no request hostname for getLocationId() to resolve from — that
+    // path used to silently fall back to Orlando for every tenant.
+    metadata: { ...(metadata ?? {}), locationId },
+  }, acctOpts(acct))
 
   // Record this attempt the moment the customer reaches checkout — before
   // they've necessarily paid. Without this, a declined card or an abandoned
@@ -92,6 +100,23 @@ export async function checkCheckoutAllowed(): Promise<boolean> {
   return !(await isCheckoutBlockedByConnectRequirement(locationId))
 }
 
+// Everything the embedded checkout component needs BEFORE it mounts.
+//
+// stripeAccountId matters: a Checkout Session created on a connected account
+// (a direct charge) can only be rendered by a Stripe.js instance initialised
+// with that same account — loadStripe(pk, { stripeAccount }). Mounting the
+// default platform-scoped instance against a connected-account client secret
+// fails outright, so the component has to know the account before it renders,
+// not when it fetches the client secret.
+export async function getCheckoutContext(): Promise<{ allowed: boolean; stripeAccountId: string | null }> {
+  const locationId = await getLocationId()
+  const [blocked, stripeAccountId] = await Promise.all([
+    isCheckoutBlockedByConnectRequirement(locationId),
+    directChargeAccountFor(locationId),
+  ])
+  return { allowed: !blocked, stripeAccountId }
+}
+
 // ── Capture actual payment after weight is confirmed ──────────────────────────
 // If actual amount exceeds the pre-auth ceiling, the overage is charged
 // immediately to the saved payment method as a second PaymentIntent.
@@ -114,10 +139,17 @@ export async function capturePayment(bookingId: string) {
   const captureAmt   = Math.min(finalCents, preAuth)
   const overageCents = Math.max(0, finalCents - preAuth)
 
+  // The PaymentIntent lives wherever the checkout session created it — on the
+  // tenant's connected account for a direct charge, on the platform otherwise.
+  // Every call below has to use the same scope or Stripe returns "No such
+  // payment_intent".
+  const acct = booking.location_id ? await directChargeAccountFor(booking.location_id) : null
+  const opts = acctOpts(acct)
+
   // Capture the pre-authorized amount (or the full amount if within ceiling)
   await stripe.paymentIntents.capture(booking.stripe_payment_intent_id, {
     amount_to_capture: captureAmt,
-  })
+  }, opts)
 
   await supabase
     .from("bookings")
@@ -161,7 +193,8 @@ export async function capturePayment(bookingId: string) {
     if (!pmId) {
       const originalPI = await stripe.paymentIntents.retrieve(
         booking.stripe_payment_intent_id,
-        { expand: ["payment_method"] }
+        { expand: ["payment_method"] },
+        opts
       )
       pmId = typeof originalPI.payment_method === "string"
         ? originalPI.payment_method
@@ -178,7 +211,7 @@ export async function capturePayment(bookingId: string) {
           name:           bkMeta?.customer_name ?? undefined,
           email:          bkMeta?.customer_email ?? undefined,
           payment_method: pmId,
-        })
+        }, opts)
         customerId = cust.id
         await supabase.from("bookings").update({
           stripe_customer_id:       customerId,
@@ -193,10 +226,6 @@ export async function capturePayment(bookingId: string) {
     }
 
     try {
-      const overageDestination = booking.location_id
-        ? await connectDestinationFor(booking.location_id)
-        : undefined
-
       const overagePI = await stripe.paymentIntents.create({
         amount:         overageCents,
         currency:       "usd",
@@ -206,8 +235,7 @@ export async function capturePayment(bookingId: string) {
         off_session:    true,
         description:    `Weight overage charge — booking ${bookingId}`,
         metadata:       { bookingId, type: "weight_overage" },
-        ...(overageDestination ? { transfer_data: { destination: overageDestination } } : {}),
-      })
+      }, opts)
 
       await supabase.from("bookings").update({
         overage_cents:             overageCents,
@@ -261,6 +289,11 @@ export async function chargeCommercialAccountOrder(bookingId: string): Promise<{
   }
 
   try {
+    // Still a destination charge, deliberately: a commercial account's Stripe
+    // Customer and saved card are created on the PLATFORM account in
+    // app/actions/commercial-accounts.ts, and a direct charge on the tenant's
+    // account cannot see them. Moving commercial billing to direct charges
+    // means migrating that card-on-file flow too — phase 2.
     const destination = booking.location_id ? await connectDestinationFor(booking.location_id) : undefined
 
     const pi = await stripe.paymentIntents.create({
@@ -323,7 +356,10 @@ export async function chargeSubscriptionOrder(bookingId: string): Promise<{ succ
   }
 
   try {
-    const destination = booking.location_id ? await connectDestinationFor(booking.location_id) : undefined
+    // Direct charge — the subscriber's Customer and saved card were created on
+    // this same connected account when their first order checked out (see
+    // createSubscription in app/actions/subscriptions.ts).
+    const acct = booking.location_id ? await directChargeAccountFor(booking.location_id) : null
 
     const pi = await stripe.paymentIntents.create({
       amount: finalCents,
@@ -334,8 +370,7 @@ export async function chargeSubscriptionOrder(bookingId: string): Promise<{ succ
       off_session: true,
       description: `Recurring subscription order charge — ${sub.customer_name} — booking ${bookingId}`,
       metadata: { bookingId, subscriptionId: sub.id, type: "subscription_pay_at_service" },
-      ...(destination ? { transfer_data: { destination } } : {}),
-    })
+    }, acctOpts(acct))
 
     await supabase.from("bookings").update({
       stripe_payment_intent_id: pi.id,
@@ -355,11 +390,22 @@ export async function chargeSubscriptionOrder(bookingId: string): Promise<{ succ
 
 // ── Save payment method after checkout completes ──────────────────────────────
 // Called inside handleSuccessfulPayment to persist the card for future charges.
-async function saveBookingPaymentMethod(bookingId: string, paymentIntentId: string, customerName: string, customerEmail?: string) {
+async function saveBookingPaymentMethod(
+  bookingId: string,
+  paymentIntentId: string,
+  customerName: string,
+  customerEmail?: string,
+  stripeAccountId?: string | null,
+) {
   try {
+    // The Customer must be created on the same account as the PaymentIntent,
+    // or the saved card can never be charged again — a platform Customer is
+    // simply not visible to a direct charge on the tenant's account.
+    const opts = acctOpts(stripeAccountId)
+
     const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
       expand: ["payment_method"],
-    })
+    }, opts)
     const pmId = typeof pi.payment_method === "string" ? pi.payment_method : pi.payment_method?.id
     if (!pmId) return
 
@@ -368,8 +414,8 @@ async function saveBookingPaymentMethod(bookingId: string, paymentIntentId: stri
       name:           customerName,
       email:          customerEmail ?? undefined,
       payment_method: pmId,
-    })
-    await stripe.paymentMethods.attach(pmId, { customer: customer.id }).catch(() => {/* already attached */})
+    }, opts)
+    await stripe.paymentMethods.attach(pmId, { customer: customer.id }, opts).catch(() => {/* already attached */})
 
     const supabase = createAdminClient()
     await supabase.from("bookings").update({
@@ -382,8 +428,14 @@ async function saveBookingPaymentMethod(bookingId: string, paymentIntentId: stri
 }
 
 // ── Handle completed Stripe checkout ─────────────────────────────────────────
-export async function handleSuccessfulPayment(sessionId: string) {
+export async function handleSuccessfulPayment(sessionId: string, stripeAccountId?: string | null) {
   try {
+    // Which Stripe account owns this session. The Connect webhook passes
+    // event.account explicitly; the client-side onComplete path resolves it
+    // from the tenant whose site the customer is on. Everything read or
+    // created below has to use the same scope.
+    const acct = stripeAccountId ?? await directChargeAccountFor(await getLocationId())
+    const opts = acctOpts(acct)
     // Idempotency guard — this is triggered by Stripe Embedded Checkout's
     // client-side onComplete callback (see components/checkout.tsx), which
     // has no built-in dedup: a re-render, flaky network retry, or a customer
@@ -441,7 +493,7 @@ export async function handleSuccessfulPayment(sessionId: string) {
     // Fix: expand the actual PaymentIntent and check ITS status —
     // "requires_capture" is what a successful manual-capture authorization
     // looks like; "succeeded" covers normal auto-capture payments.
-    const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ["payment_intent"] })
+    const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ["payment_intent"] }, opts)
     const pi = typeof session.payment_intent === "object" ? session.payment_intent : null
     const isManual = pi?.capture_method === "manual"
     const paymentConfirmed =
@@ -481,6 +533,10 @@ export async function handleSuccessfulPayment(sessionId: string) {
       const paymentIntent = pi?.id ?? (session.payment_intent as string)
 
       const booking = await createBooking({
+        // Stamped into metadata at session creation. Without it this falls back
+        // to getLocationId(), which in a webhook has no hostname to resolve
+        // from and silently returns Orlando — mis-filing another tenant's order.
+        locationId:      meta.locationId || undefined,
         customerName:    meta.customerName,
         customerEmail:   meta.customerEmail,
         customerPhone:   meta.customerPhone,
@@ -512,7 +568,7 @@ export async function handleSuccessfulPayment(sessionId: string) {
 
       // ── Save payment method for future overage charges ──────────────────────
       if (booking?.id) {
-        saveBookingPaymentMethod(booking.id, paymentIntent, meta.customerName ?? "", meta.customerEmail).catch(
+        saveBookingPaymentMethod(booking.id, paymentIntent, meta.customerName ?? "", meta.customerEmail, acct).catch(
           err => console.error("[stripe] saveBookingPaymentMethod failed:", err)
         )
         markCheckoutAttemptSucceeded(sessionId, booking.id).catch(
@@ -549,6 +605,8 @@ export async function handleSuccessfulPayment(sessionId: string) {
           stripePaymentIntentId: paymentIntent,
           firstPickupDateStr:    meta.pickupDate,
           firstDeliveryDateStr:  meta.deliveryDate,
+          stripeAccountId:       acct,
+          locationId:            meta.locationId || undefined,
         }).catch(err => console.error("[stripe] createSubscription failed:", err))
       }
 

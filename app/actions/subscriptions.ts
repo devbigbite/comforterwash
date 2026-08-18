@@ -61,14 +61,25 @@ export async function createSubscription(params: {
   stripePaymentIntentId: string
   firstPickupDateStr:    string   // ISO string of first pickup date
   firstDeliveryDateStr:  string   // ISO string of first delivery date
+  /** Connected account the first order was charged on, for direct charges. */
+  stripeAccountId?:      string | null
+  /** Explicit tenant, for webhook contexts where getLocationId() can't resolve. */
+  locationId?:           string
 }): Promise<{ ok: boolean; error?: string }> {
   try {
-    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+    const supabase   = createAdminClient()
+    const locationId = params.locationId ?? (await getLocationId())
+
+    // The PaymentIntent, the Customer we create from it, and the card we
+    // attach must all live on the same Stripe account — the tenant's connected
+    // account for a direct charge, the platform otherwise. Charging this saved
+    // card later (chargeSubscriptionOrder) uses the same scope.
+    const opts = params.stripeAccountId ? { stripeAccount: params.stripeAccountId } : undefined
 
     // ── 1. Retrieve PaymentIntent to get payment method ──────────────────────
     const pi = await stripe.paymentIntents.retrieve(params.stripePaymentIntentId, {
       expand: ["payment_method"],
-    })
+    }, opts)
     const pmId = typeof pi.payment_method === "string"
       ? pi.payment_method
       : pi.payment_method?.id
@@ -82,14 +93,14 @@ export async function createSubscription(params: {
         address: params.customerAddress,
         frequency: params.frequency,
       },
-    })
+    }, opts)
 
     // ── 3. Attach payment method to customer ─────────────────────────────────
     if (pmId) {
-      await stripe.paymentMethods.attach(pmId, { customer: customer.id })
+      await stripe.paymentMethods.attach(pmId, { customer: customer.id }, opts)
       await stripe.customers.update(customer.id, {
         invoice_settings: { default_payment_method: pmId },
-      })
+      }, opts)
     }
 
     // ── 4. Calculate next pickup date ────────────────────────────────────────

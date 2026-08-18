@@ -137,6 +137,34 @@ phone Shipday shows to drivers.
 
 ---
 
+## 5b. One-time platform setup: the Connect webhook
+
+Tenant-customer payments are **direct charges** created on the tenant's own
+connected account, so Stripe fires their events against that account rather
+than the platform. Those events need their own endpoint:
+
+1. Stripe Dashboard → Developers → Webhooks → **Add endpoint**
+2. URL: `https://comforterwash.com/api/stripe/connect-webhook`
+3. Listen to: **Events on connected accounts** (not "Events on your account")
+4. Select: `checkout.session.completed`, `checkout.session.expired`,
+   `payment_intent.payment_failed`
+5. Copy the signing secret into Vercel as **`STRIPE_CONNECT_WEBHOOK_SECRET`**
+
+Without this, the platform still works — the booking is created client-side the
+moment Stripe reports success — but the safety net for a customer whose browser
+dies mid-payment is gone, and expired/failed checkouts stop being recorded for
+connected tenants.
+
+The existing `/api/stripe/webhook` endpoint stays exactly as it is: it handles
+the platform's own money (SaaS subscriptions, self-signup) and must remain on
+"Events on your account".
+
+**Still on the platform account (phase 2):** commercial-account billing, monthly
+plan subscriptions, and misc fees. For a connected tenant those charges route
+through the platform as destination charges, which means we pay the Stripe fee
+on them. Migrating them means moving each flow's saved card onto the connected
+account first.
+
 ## 6. Known platform-wide gaps
 
 Things that are not per-tenant yet. Say them out loud during onboarding rather
