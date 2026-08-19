@@ -76,7 +76,7 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
 
   const { data: reqRow } = await supabase
     .from("platform_demo_requests")
-    .select("id, name, email, business, demo_location_id")
+    .select("id, name, email, business, demo_location_id, preferred_language")
     .eq("id", requestId)
     .maybeSingle()
 
@@ -100,6 +100,7 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
         email: reqRow.email,
         business: reqRow.business,
         demoUrl,
+        language: reqRow.preferred_language,
       })
       if (emailResult.error) return { error: emailResult.error }
       await supabase
@@ -152,6 +153,7 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
     email: reqRow.email,
     business: reqRow.business,
     demoUrl,
+    language: reqRow.preferred_language,
   })
   await supabase
     .from("platform_demo_requests")

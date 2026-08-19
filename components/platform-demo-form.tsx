@@ -66,6 +66,7 @@ export function PlatformDemoForm() {
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-8 flex flex-col gap-4">
+      <input type="hidden" name="preferred_language" value={locale} />
       <div>
         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">{s.name} <span className="text-[#E8726A]">*</span></label>
         <input name="name" required placeholder="Jane Smith"

@@ -19,6 +19,7 @@ export async function requestPlatformDemo(formData: FormData) {
   const phone   = (formData.get("phone")   as string ?? "").trim()
   const business = (formData.get("business") as string ?? "").trim()
   const message = (formData.get("message") as string ?? "").trim()
+  const preferred_language = (formData.get("preferred_language") as string ?? "en").trim() === "es" ? "es" : "en"
 
   if (!name || !email) {
     return { error: "Name and email are required." }
@@ -31,7 +32,7 @@ export async function requestPlatformDemo(formData: FormData) {
     const supabase = createAdminClient()
     const { data: inserted } = await supabase
       .from("platform_demo_requests")
-      .insert({ name, email, phone: phone || null, business: business || null, message: message || null })
+      .insert({ name, email, phone: phone || null, business: business || null, message: message || null, preferred_language })
       .select("id")
       .single()
 
