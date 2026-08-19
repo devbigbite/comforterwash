@@ -424,22 +424,30 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
             the only in-app way to reach a customer directly if bags aren't
             out / no one answers the door. Uses a plain tel: link, which
             dials through the driver's own phone — no extra service needed. */}
-        <div className="bg-[#E8726A] rounded-2xl p-4 flex items-center gap-3">
-          <span className="text-2xl">📍</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-white/70 text-sm font-bold uppercase tracking-wide">Customer Address</p>
-            <p className="text-white font-extrabold text-lg leading-tight">{booking.customer_address}</p>
+        <div className="bg-[#E8726A] rounded-2xl p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">📍</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-white/70 text-sm font-bold uppercase tracking-wide">Customer Address</p>
+              <p className="text-white font-extrabold text-lg leading-tight">{booking.customer_address}</p>
+            </div>
           </div>
-          <div className="shrink-0 flex gap-2">
+          <div className="flex gap-2">
             {booking.customer_phone && (
               <a href={`tel:${booking.customer_phone}`}
-                className="bg-white/20 hover:bg-white/30 text-white text-sm font-bold px-3 py-2 rounded-xl transition-colors">
+                className="flex-1 text-center bg-white/20 hover:bg-white/30 text-white text-sm font-bold px-3 py-2 rounded-xl transition-colors">
                 📞 Call
+              </a>
+            )}
+            {booking.customer_phone && (
+              <a href={`sms:${booking.customer_phone}`}
+                className="flex-1 text-center bg-white/20 hover:bg-white/30 text-white text-sm font-bold px-3 py-2 rounded-xl transition-colors">
+                💬 Text
               </a>
             )}
             <a href={`https://maps.google.com/?q=${encodeURIComponent(booking.customer_address)}`}
               target="_blank" rel="noreferrer"
-              className="bg-white/20 hover:bg-white/30 text-white text-sm font-bold px-3 py-2 rounded-xl transition-colors">
+              className="flex-1 text-center bg-white/20 hover:bg-white/30 text-white text-sm font-bold px-3 py-2 rounded-xl transition-colors">
               Maps →
             </a>
           </div>
