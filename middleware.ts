@@ -150,11 +150,18 @@ export async function middleware(request: NextRequest) {
   // tenant we're in — admin_location_id (set above, or by the magic-link
   // callback / super-admin "Enter Admin") is the real source of truth here.
   const adminLocationOverride = request.cookies.get("admin_location_id")?.value
-  const effectiveAdminLocationId = adminLocationOverride || locationId
+  // Deliberately falls back to hostResolvedLocationId, NOT locationId — locationId
+  // folds in the public demo_location_id override (set by /demo for the
+  // marketing site), which must never leak into /admin. Without this, a
+  // visitor who'd previously clicked into the public demo would find their
+  // own /admin/login (and /admin) silently resolving to the WashFoldDemo
+  // tenant instead of their real one, purely because of a stray cookie set
+  // on an unrelated page.
+  const effectiveAdminLocationId = adminLocationOverride || hostResolvedLocationId
 
   if (pathname.startsWith("/admin/login")) {
     return NextResponse.next({
-      request: { headers: new Headers({ ...Object.fromEntries(request.headers), "x-location-id": effectiveAdminLocationId }) },
+      request: { headers: new Headers({ ...Object.fromEntries(request.headers), "x-location-id": effectiveAdminLocationId, "x-pathname": pathname }) },
     })
   }
   if (pathname.startsWith("/admin")) {
@@ -164,7 +171,7 @@ export async function middleware(request: NextRequest) {
     }
     // Forward location header into admin too
     const res = NextResponse.next({
-      request: { headers: new Headers({ ...Object.fromEntries(request.headers), "x-location-id": effectiveAdminLocationId }) },
+      request: { headers: new Headers({ ...Object.fromEntries(request.headers), "x-location-id": effectiveAdminLocationId, "x-pathname": pathname }) },
     })
     return res
   }

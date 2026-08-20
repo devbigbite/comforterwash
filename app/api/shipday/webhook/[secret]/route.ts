@@ -178,42 +178,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sec
   }
 
   if (leg === "delivery" && DELIVERY_COMPLETE_EVENTS.has(eventType)) {
-    const podUrl = extractPodUrl(body)
-    if (podUrl) {
-      // Only pull it in if we don't already have one from our own driver app
-      // (e.g. a driver who took the photo in our app first, then also
-      // completed the order in Shipday) — first photo wins, never overwrite.
-      const { data: existingPhoto } = await supabase
-        .from("order_events")
-        .select("id")
-        .eq("booking_id", booking.id)
-        .eq("event_type", "photo_customer_delivery")
-        .limit(1)
-        .maybeSingle()
-      if (!existingPhoto) {
-        await supabase.from("order_events").insert({
-          booking_id: booking.id,
-          event_type: "photo_customer_delivery",
-          photo_url: podUrl,
-          notes: "Photo at customer — bags delivered (via Shipday)",
-          created_by: "shipday",
-        })
-      }
-    }
-    if (booking.status !== "delivered") {
-      try {
-        await updateBookingStatus(booking.id, "delivered")
-        console.log(`[shipday-webhook] Booking ${booking.short_code ?? booking.id} auto-marked delivered from Shipday`)
-      } catch (err) {
-        console.error(`[shipday-webhook] Failed to mark ${booking.id} delivered:`, err)
-        await supabase.from("order_events").insert({
-          booking_id: booking.id,
-          event_type: "shipday_webhook",
-          notes: `⚠ Shipday reported delivery complete but auto-marking delivered failed: ${String(err)}`,
-          created_by: "shipday",
-        })
-      }
-    }
+    // Auto-marking "delivered" from this event is deliberately DISABLED as of
+    // the switch back to completing delivery entirely in our own driver app
+    // (Shipday route-reordering removed the reason for the split-app
+    // workflow this webhook branch was built for — see order-client.tsx's
+    // DELIVERY PHASE comment). Shipday is admin-only now, for route
+    // ordering; no driver should ever be tapping "complete" there, so this
+    // branch auto-closing an order from a Shipday event would only ever
+    // fire on a stray/unexpected event and silently skip the in-app delivery
+    // photo our own flow now always requires. The raw event is still logged
+    // to the timeline above (order_events "shipday_webhook") for visibility,
+    // it's only the auto-status-change and photo pull-in that's off.
+    console.log(`[shipday-webhook] Delivery-complete event for ${booking.short_code ?? booking.id} — logged only, not auto-marking delivered (delivery now completes in-app)`)
   } else if (leg === "pickup" && PICKUP_COMPLETE_EVENTS.has(eventType)) {
     // Log-only by design — see file header. Bag count/color/weight still
     // require the driver's own app.

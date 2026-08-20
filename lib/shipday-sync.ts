@@ -66,99 +66,109 @@ export interface ShipdaySyncResult {
 // Shipday's live order status. Bounded to the last 5 days so this stays
 // cheap on every run and never goes trawling through old history.
 export async function pollShipdayDeliveries(): Promise<ShipdaySyncResult> {
-  const supabase = createAdminClient()
-  const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-
-  const { data: stuck, error } = await supabase
-    .from("bookings")
-    .select("id, short_code, status, location_id, shipday_delivery_order_id, updated_at")
-    .eq("status", "out_for_delivery")
-    .not("shipday_delivery_order_id", "is", null)
-    .gte("updated_at", fiveDaysAgo)
-
-  if (error) {
-    console.error("[shipday-sync] DB error fetching stuck bookings:", error)
-    return { checked: 0, reconciled: 0, errors: [error.message] }
-  }
-  if (!stuck || stuck.length === 0) {
-    return { checked: 0, reconciled: 0, errors: [] }
-  }
-
-  const configCache = new Map<string, Awaited<ReturnType<typeof getShipdayConfigForLocation>>>()
-  async function configFor(locationId: string) {
-    if (!configCache.has(locationId)) {
-      configCache.set(locationId, await getShipdayConfigForLocation(locationId))
-    }
-    return configCache.get(locationId)!
-  }
-
-  let reconciled = 0
-  const errors: string[] = []
-
-  for (const booking of stuck) {
-    if (!booking.location_id) continue
-    const config = await configFor(booking.location_id)
-    if (!config.apiKey) continue // tenant never set up Shipday — nothing to poll
-
-    // Same orderNumber convention createShipdayOrder used at creation time —
-    // see lib/shipday.ts's `${baseCode}D` for the delivery leg.
-    const baseCode = booking.short_code ?? booking.id.slice(0, 6).toUpperCase()
-    const orderNumber = `${baseCode}D`
-
-    const order = await fetchShipdayOrder(orderNumber, config.apiKey)
-    if (!order) continue
-
-    // Capture the route position even for a booking that isn't delivered
-    // yet — this poll already has the order details in hand, and the
-    // delivery-completion check below returns early for most rows on any
-    // given run, so gating this behind it would mean a booking's sequence
-    // number only ever gets backfilled here on the one run where it happens
-    // to already be delivered (i.e. almost never useful in practice).
-    if (order.order_sequence_number != null) {
-      await supabase.from("bookings")
-        .update({ shipday_delivery_sequence: order.order_sequence_number })
-        .eq("id", booking.id)
-    }
-
-    const state = order.orderStatus?.orderState
-    if (!state || !DELIVERED_STATES.has(state)) continue
-
-    try {
-      const podUrl = order.proofOfDelivery?.imageUrls?.[0]
-      if (podUrl) {
-        const { data: existingPhoto } = await supabase
-          .from("order_events")
-          .select("id")
-          .eq("booking_id", booking.id)
-          .eq("event_type", "photo_customer_delivery")
-          .limit(1)
-          .maybeSingle()
-        if (!existingPhoto) {
-          await supabase.from("order_events").insert({
-            booking_id: booking.id,
-            event_type: "photo_customer_delivery",
-            photo_url: podUrl,
-            notes: "Photo at customer — bags delivered (via Shipday, reconciled by poll)",
-            created_by: "shipday_sync",
-          })
-        }
-      }
-
-      await supabase.from("order_events").insert({
-        booking_id: booking.id,
-        event_type: "shipday_webhook",
-        notes: `Shipday delivery event: ${state} (reconciled by poll — webhook never arrived)`,
-        created_by: "shipday_sync",
-      })
-
-      await updateBookingStatus(booking.id, "delivered")
-      reconciled++
-      console.log(`[shipday-sync] Booking ${booking.short_code ?? booking.id} reconciled to delivered via poll`)
-    } catch (err) {
-      errors.push(`${booking.id}: ${String(err)}`)
-      console.error(`[shipday-sync] Failed to reconcile ${booking.id}:`, err)
-    }
-  }
-
-  return { checked: stuck.length, reconciled, errors }
+  // DISABLED as of the switch back to completing delivery entirely in our
+  // own driver app (Shipday route-reordering removed the reason for the
+  // split-app workflow this poll existed as a safety net for — see
+  // app/api/shipday/webhook/[secret]/route.ts's matching change and
+  // order-client.tsx's DELIVERY PHASE comment). Shipday is admin-only now,
+  // for route ordering; nothing should ever be reconciled to "delivered"
+  // from Shipday's own status, since that would skip the in-app delivery
+  // photo our own flow now always requires. Left in place (rather than
+  // deleted) in case a future need for a Shipday-side safety net returns —
+  // this is also what was silently spamming the "bookings.updated_at does
+  // not exist" DB error in production, so this early-return doubles as the
+  // fix for that.
+  return { checked: 0, reconciled: 0, errors: [] }
 }
+
+/* ── Original implementation, kept for reference / easy revert ──────────────
+const supabase = createAdminClient()
+const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+
+const { data: stuck, error } = await supabase
+  .from("bookings")
+  .select("id, short_code, status, location_id, shipday_delivery_order_id, updated_at")
+  .eq("status", "out_for_delivery")
+  .not("shipday_delivery_order_id", "is", null)
+  .gte("updated_at", fiveDaysAgo)
+
+if (error) {
+  console.error("[shipday-sync] DB error fetching stuck bookings:", error)
+  return { checked: 0, reconciled: 0, errors: [error.message] }
+}
+if (!stuck || stuck.length === 0) {
+  return { checked: 0, reconciled: 0, errors: [] }
+}
+
+const configCache = new Map<string, Awaited<ReturnType<typeof getShipdayConfigForLocation>>>()
+async function configFor(locationId: string) {
+  if (!configCache.has(locationId)) {
+    configCache.set(locationId, await getShipdayConfigForLocation(locationId))
+  }
+  return configCache.get(locationId)!
+}
+
+let reconciled = 0
+const errors: string[] = []
+
+for (const booking of stuck) {
+  if (!booking.location_id) continue
+  const config = await configFor(booking.location_id)
+  if (!config.apiKey) continue // tenant never set up Shipday — nothing to poll
+
+  // Same orderNumber convention createShipdayOrder used at creation time —
+  // see lib/shipday.ts's `${baseCode}D` for the delivery leg.
+  const baseCode = booking.short_code ?? booking.id.slice(0, 6).toUpperCase()
+  const orderNumber = `${baseCode}D`
+
+  const order = await fetchShipdayOrder(orderNumber, config.apiKey)
+  if (!order) continue
+
+  if (order.order_sequence_number != null) {
+    await supabase.from("bookings")
+      .update({ shipday_delivery_sequence: order.order_sequence_number })
+      .eq("id", booking.id)
+  }
+
+  const state = order.orderStatus?.orderState
+  if (!state || !DELIVERED_STATES.has(state)) continue
+
+  try {
+    const podUrl = order.proofOfDelivery?.imageUrls?.[0]
+    if (podUrl) {
+      const { data: existingPhoto } = await supabase
+        .from("order_events")
+        .select("id")
+        .eq("booking_id", booking.id)
+        .eq("event_type", "photo_customer_delivery")
+        .limit(1)
+        .maybeSingle()
+      if (!existingPhoto) {
+        await supabase.from("order_events").insert({
+          booking_id: booking.id,
+          event_type: "photo_customer_delivery",
+          photo_url: podUrl,
+          notes: "Photo at customer — bags delivered (via Shipday, reconciled by poll)",
+          created_by: "shipday_sync",
+        })
+      }
+    }
+
+    await supabase.from("order_events").insert({
+      booking_id: booking.id,
+      event_type: "shipday_webhook",
+      notes: `Shipday delivery event: ${state} (reconciled by poll — webhook never arrived)`,
+      created_by: "shipday_sync",
+    })
+
+    await updateBookingStatus(booking.id, "delivered")
+    reconciled++
+    console.log(`[shipday-sync] Booking ${booking.short_code ?? booking.id} reconciled to delivered via poll`)
+  } catch (err) {
+    errors.push(`${booking.id}: ${String(err)}`)
+    console.error(`[shipday-sync] Failed to reconcile ${booking.id}:`, err)
+  }
+}
+
+return { checked: stuck.length, reconciled, errors }
+─────────────────────────────────────────────────────────────────────────── */
