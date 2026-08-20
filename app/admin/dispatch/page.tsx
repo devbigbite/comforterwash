@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { format, parseISO } from "date-fns"
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { reschedulePickup, rescheduleDelivery, assignPickupDriver, assignDeliveryDriver, cancelShipdayOrders } from "@/app/actions/shipday"
 import { SeedDispatchButton } from "@/components/admin/SeedDispatchButton"
 import { DispatchBoard } from "@/components/admin/DispatchBoard"
@@ -12,7 +13,7 @@ import { getTransportRuns } from "@/app/actions/transport-runs"
 import type { TransportRun } from "@/app/actions/transport-runs"
 import { setManualRouteOrder } from "@/app/actions/driver-queue"
 import { getLocationId } from "@/lib/location"
-import { requireAdmin } from "@/lib/auth-guard"
+import { requireAdmin, isAdminForCurrentLocation } from "@/lib/auth-guard"
 import { syncPhaseFromStatus } from "@/lib/order-status-sync"
 
 // ─── Server Actions ───────────────────────────────────────────────────────────
@@ -238,7 +239,10 @@ export default async function DispatchPage({
 }: {
   searchParams: Promise<{ tab?: string }>
 }) {
-  await requireAdmin()
+  // requireAdmin() throws instead of returning for a logged-out/unauthorized
+  // visitor — check first and redirect gracefully instead of crashing the
+  // page (same pattern as the other admin pages fixed in fix-admin-crash.patch).
+  if (!(await isAdminForCurrentLocation())) redirect("/admin/login")
   const { tab: tabParam } = await searchParams
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
   const activeTab = tabParam === "operators" ? "operators" : tabParam === "transfers" ? "transfers" : tabParam === "aerial" ? "aerial" : "drivers"

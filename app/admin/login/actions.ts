@@ -29,7 +29,7 @@ export async function loginAction(formData: FormData) {
   // Check lockout
   const prev = failedAttempts.get(ip)
   if (prev && prev.resetAt > now && prev.count >= MAX_ATTEMPTS) {
-    redirect("/admin/login?error=locked")
+    redirect("/admin/login?error=locked&wfo=1")
   }
 
   const password = formData.get("password") as string
@@ -40,7 +40,7 @@ export async function loginAction(formData: FormData) {
     entry.count++
     if (entry.count === 1) entry.resetAt = now + LOCKOUT_MS // start window on first failure
     failedAttempts.set(ip, entry)
-    redirect("/admin/login?error=1")
+    redirect("/admin/login?error=1&wfo=1")
   }
 
   // Success — clear any recorded failures
