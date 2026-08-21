@@ -160,9 +160,17 @@ export async function middleware(request: NextRequest) {
   const effectiveAdminLocationId = adminLocationOverride || hostResolvedLocationId
 
   if (pathname.startsWith("/admin/login")) {
-    return NextResponse.next({
+    const res = NextResponse.next({
       request: { headers: new Headers({ ...Object.fromEntries(request.headers), "x-location-id": effectiveAdminLocationId, "x-pathname": pathname }) },
     })
+    // A stray public demo_location_id cookie (from clicking /demo or a
+    // tenant's public demo link) must never make the /admin demo banner
+    // show up on a real tenant's dashboard — it already can't affect which
+    // tenant's data loads (see effectiveAdminLocationId above), but the
+    // cookie itself was still sitting in the browser for layout.tsx's
+    // isDemo check to pick up. Clear it the moment /admin is reached.
+    res.cookies.delete("demo_location_id")
+    return res
   }
   if (pathname.startsWith("/admin")) {
     const authCookie = request.cookies.get("admin_auth")
@@ -173,6 +181,8 @@ export async function middleware(request: NextRequest) {
     const res = NextResponse.next({
       request: { headers: new Headers({ ...Object.fromEntries(request.headers), "x-location-id": effectiveAdminLocationId, "x-pathname": pathname }) },
     })
+    // See note above — same stray-cookie fix.
+    res.cookies.delete("demo_location_id")
     return res
   }
 
