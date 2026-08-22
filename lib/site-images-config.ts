@@ -8,21 +8,9 @@ export interface SiteImageSlot {
 export const SITE_IMAGE_SLOTS: SiteImageSlot[] = [
   {
     key: "slide_1",
-    label: "Banner — Slide 1",
-    description: "Background for the first hero slide (full-width text)",
-    fallback: "/hero-banner.jpg",
-  },
-  {
-    key: "slide_2",
-    label: "Banner — Slide 2 (Steps)",
-    description: "Panoramic photo for the Order / Pick Up / Deliver slide",
-    fallback: "/hero-banner.jpg",
-  },
-  {
-    key: "slide_3",
-    label: "Banner — Slide 3",
-    description: "Background for the third hero slide (full-width text)",
-    fallback: "/hero-banner.jpg",
+    label: "Hero Banner",
+    description: "Single background photo shown across the full-width homepage hero",
+    fallback: "/hero-day.jpg",
   },
   {
     key: "why_us",
@@ -61,7 +49,7 @@ export interface SiteImages {
 }
 
 export const DEFAULT_IMAGES: SiteImages = {
-  slide_1: "/hero-banner.jpg",
+  slide_1: "/hero-day.jpg",
   slide_2: "/hero-banner.jpg",
   slide_3: "/hero-banner.jpg",
   why_us: "/img-why-us.jpg",

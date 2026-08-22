@@ -1,235 +1,100 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
 import Image from "next/image"
 import type { TranslationKeys } from "@/lib/translations/en"
 import { DEFAULT_TEXT, type SiteText } from "@/lib/site-text-config"
 
 type HeroTr = TranslationKeys["hero"]
 
-const SLIDE_COUNT = 3
-
-interface CarouselImages {
-  slide1: string
-  slide2: string
-  slide3: string
-}
-
-const DEFAULT_CAROUSEL_IMAGES: CarouselImages = {
-  slide1: "/hero-banner.jpg",
-  slide2: "/hero-banner.jpg",
-  slide3: "/hero-banner.jpg",
-}
+const DEFAULT_IMAGE = "/hero-day.jpg"
+// Matches the shipped hero-day.jpg's native proportions — locking the
+// container to this ratio means object-cover never has to crop the image
+// (cover only crops when the box's aspect differs from the source's).
+const IMAGE_ASPECT_RATIO = "1482 / 522"
 
 export default function HeroCarousel({
   tr,
-  images,
+  image,
   text = DEFAULT_TEXT,
   lang = "en",
   businessName = "WashFold Orlando",
 }: {
   tr?: HeroTr
-  images?: CarouselImages | undefined
+  image?: string
   text?: SiteText
   lang?: "en" | "es"
   businessName?: string
 }) {
-  const [active, setActive] = useState(0)
-  const [transitioning, setTransitioning] = useState(false)
-
-  const goTo = useCallback(
-    (index: number) => {
-      if (transitioning || index === active) return
-      setTransitioning(true)
-      setTimeout(() => {
-        setActive(index)
-        setTransitioning(false)
-      }, 350)
-    },
-    [active, transitioning]
-  )
-
-  const next = useCallback(() => {
-    goTo((active + 1) % SLIDE_COUNT)
-  }, [active, goTo])
-
-  useEffect(() => {
-    const timer = setInterval(next, 5500)
-    return () => clearInterval(timer)
-  }, [next])
-
-  // Per-slide image lookup — undefined until images load from DB
-  const slideImages = images
-    ? [images.slide1, images.slide2, images.slide3]
-    : [undefined, undefined, undefined]
-
   const es = lang === "es"
 
-  const slides = [
-    {
-      id: 0,
-      type: "full" as const,
-      headline: (es ? text.slide_1_headline_es : text.slide_1_headline) || tr?.slide1Headline || DEFAULT_TEXT.slide_1_headline,
-      subline:  (es ? text.slide_1_subline_es  : text.slide_1_subline)  || tr?.slide1Sub     || DEFAULT_TEXT.slide_1_subline,
-      cta:      (es ? text.slide_1_cta_es      : text.slide_1_cta)      || tr?.slide1Cta     || DEFAULT_TEXT.slide_1_cta,
-      overlay: "",
-      objectPos: "object-center",
-    },
-    {
-      id: 1,
-      type: "steps" as const,
-      panels: [
-        { step: "1", label: (es ? text.slide_2_p1_label_es : text.slide_2_p1_label) || DEFAULT_TEXT.slide_2_p1_label, desc: (es ? text.slide_2_p1_desc_es : text.slide_2_p1_desc) || DEFAULT_TEXT.slide_2_p1_desc, accentColor: "#a78bfa" },
-        { step: "2", label: (es ? text.slide_2_p2_label_es : text.slide_2_p2_label) || DEFAULT_TEXT.slide_2_p2_label, desc: (es ? text.slide_2_p2_desc_es : text.slide_2_p2_desc) || DEFAULT_TEXT.slide_2_p2_desc, accentColor: "#38bdf8" },
-        { step: "3", label: (es ? text.slide_2_p3_label_es : text.slide_2_p3_label) || DEFAULT_TEXT.slide_2_p3_label, desc: (es ? text.slide_2_p3_desc_es : text.slide_2_p3_desc) || DEFAULT_TEXT.slide_2_p3_desc, accentColor: "#38bdf8" },
-      ],
-    },
-    {
-      id: 2,
-      type: "full" as const,
-      headline: (es ? text.slide_3_headline_es : text.slide_3_headline) || tr?.slide3Headline || DEFAULT_TEXT.slide_3_headline,
-      subline:  (es ? text.slide_3_subline_es  : text.slide_3_subline)  || tr?.slide3Sub     || DEFAULT_TEXT.slide_3_subline,
-      cta:      (es ? text.slide_3_cta_es      : text.slide_3_cta)      || tr?.slide3Cta     || DEFAULT_TEXT.slide_3_cta,
-      overlay: "",
-      objectPos: "object-top",
-    },
+  const headline = (es ? text.slide_1_headline_es : text.slide_1_headline) || tr?.slide1Headline || DEFAULT_TEXT.slide_1_headline
+  const subline = (es ? text.slide_1_subline_es : text.slide_1_subline) || tr?.slide1Sub || DEFAULT_TEXT.slide_1_subline
+  const cta = (es ? text.slide_1_cta_es : text.slide_1_cta) || tr?.slide1Cta || DEFAULT_TEXT.slide_1_cta
+
+  const steps = [
+    { n: "1", label: (es ? text.slide_2_p1_label_es : text.slide_2_p1_label) || DEFAULT_TEXT.slide_2_p1_label, accent: "#a78bfa" },
+    { n: "2", label: (es ? text.slide_2_p2_label_es : text.slide_2_p2_label) || DEFAULT_TEXT.slide_2_p2_label, accent: "#38bdf8" },
+    { n: "3", label: (es ? text.slide_2_p3_label_es : text.slide_2_p3_label) || DEFAULT_TEXT.slide_2_p3_label, accent: "#34d399" },
+    { n: "4", label: (es ? text.slide_2_p4_label_es : text.slide_2_p4_label) || DEFAULT_TEXT.slide_2_p4_label, accent: "#f59e0b" },
   ]
 
-  const slide = slides[active]
-  const currentImage = slideImages[active]
-  const isExternal = !!currentImage && currentImage.startsWith("http")
+  const src = image || DEFAULT_IMAGE
+  const isExternal = src.startsWith("http")
 
   return (
-    <section className="relative w-full overflow-hidden bg-[var(--brand-primary)] -mb-px" style={{ minHeight: "clamp(380px, 70vw, 580px)" }}>
-      {/* Background image — per slide */}
-      <div className={"absolute inset-x-0 top-0 transition-opacity duration-700 " + (slide.type === "full" ? "bottom-16" : "bottom-0")} style={{ opacity: transitioning ? 0 : 1 }}>
-        {slide.type === "full" && currentImage && (
-          <Image
-            src={currentImage}
-            alt={businessName}
-            fill
-            className={`object-cover ${slide.objectPos}`}
-            priority
-            unoptimized={isExternal}
-          />
-        )}
-      </div>
+    <section className="relative w-full overflow-hidden bg-[var(--brand-primary)] -mb-px">
+      {/* Single static hero image — container locked to the image's own aspect
+          ratio so the full photo always shows, edge to edge, with no cropping. */}
+      <div className="relative w-full" style={{ aspectRatio: IMAGE_ASPECT_RATIO }}>
+        <Image
+          src={src}
+          alt={businessName}
+          fill
+          className="object-cover object-center"
+          priority
+          unoptimized={isExternal}
+        />
 
-      {/* Slide content */}
-      <div className="relative z-10 w-full h-full transition-opacity duration-700" style={{ minHeight: "clamp(340px, 65vw, 560px)", opacity: transitioning ? 0 : 1 }}>
+        {/* Scrim — dark top for headline, dark bottom for the step strip */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/15 to-black/75 pointer-events-none" />
 
-        {/* Full-width text slide */}
-        {slide.type === "full" && (
-          <div className="absolute inset-0 flex items-center">
-            {/* Subtle left-side scrim — keeps text legible without flooding the photo */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent pointer-events-none" />
-            <div className="relative mx-auto max-w-7xl px-5 sm:px-8 w-full">
-              <p className="text-[var(--brand-accent)] font-bold text-xs uppercase tracking-[0.25em] mb-2 sm:mb-3">{businessName}</p>
-              <h1 className="text-white font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight max-w-2xl mb-3 sm:mb-4" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.65)" }}>
-                {slide.headline}
-              </h1>
-              <p className="text-white/90 text-sm sm:text-base md:text-lg max-w-xl mb-5 sm:mb-8" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}>{slide.subline}</p>
-              <a href="#services" className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-6 sm:px-8 py-3 sm:py-3.5 rounded-full uppercase tracking-wide transition-colors shadow-lg">
-                {slide.cta}
-              </a>
-            </div>
+        {/* Headline + subline + CTA */}
+        <div className="absolute inset-x-0 top-0 px-3 sm:px-8 pt-3 sm:pt-8">
+          <div className="mx-auto max-w-7xl">
+            <p className="text-[var(--brand-accent)] font-bold text-[9px] sm:text-xs uppercase tracking-[0.2em] sm:tracking-[0.25em] mb-1 sm:mb-2">{businessName}</p>
+            <h1 className="text-white font-extrabold text-lg sm:text-3xl md:text-4xl lg:text-5xl leading-tight max-w-2xl mb-1 sm:mb-3" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.65)" }}>
+              {headline}
+            </h1>
+            <p className="text-white/90 text-[11px] sm:text-base md:text-lg max-w-xl mb-2 sm:mb-4 line-clamp-2 sm:line-clamp-none" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}>{subline}</p>
+            <a href="#services" className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-[11px] sm:text-sm px-4 sm:px-7 py-2 sm:py-3 rounded-full uppercase tracking-wide transition-colors shadow-lg">
+              {cta}
+            </a>
           </div>
-        )}
+        </div>
 
-        {/* 3-panel steps slide — panoramic image spans all 3 panels */}
-        {slide.type === "steps" && (
-          <div className="absolute inset-0">
-            {currentImage && (
-              <Image
-                src={currentImage}
-                alt="How it works"
-                fill
-                className="object-cover object-top"
-                unoptimized={isExternal}
-              />
-            )}
-            {/* Gradient: dark at bottom for text legibility */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--brand-primary)]/90" />
-
-            {/* Mobile: centered label above + 3 step badges row */}
-            <div className="absolute inset-x-0 bottom-0 pb-12 px-4 flex flex-col items-center gap-4 sm:hidden">
-              <p className="text-white font-extrabold text-xl uppercase tracking-widest drop-shadow text-center">
-                How It Works
-              </p>
-              <div className="flex items-stretch gap-2 w-full max-w-sm">
-                {slide.panels.map((panel, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-xl px-2 py-3 border border-white/10">
-                    <span
-                      className="flex items-center justify-center w-8 h-8 rounded-full text-sm font-extrabold border-2 shrink-0"
-                      style={{ borderColor: panel.accentColor, color: panel.accentColor }}
-                    >
-                      {panel.step}
-                    </span>
-                    <span className="text-white font-extrabold text-[11px] uppercase tracking-wide text-center leading-tight">
-                      {panel.label}
-                    </span>
-                    <p className="text-white/70 text-[10px] leading-snug text-center">{panel.desc}</p>
-                  </div>
-                ))}
-              </div>
+        {/* 4-step strip along the bottom of the image */}
+        <div className="absolute inset-x-0 bottom-0 grid grid-cols-4">
+          {steps.map((step, i) => (
+            <div key={i} className="relative flex flex-col items-center justify-end p-1.5 sm:p-4 text-center">
+              <span
+                className="flex items-center justify-center w-5 h-5 sm:w-8 sm:h-8 rounded-full text-[9px] sm:text-sm font-extrabold border sm:border-2 shrink-0 bg-black/30 backdrop-blur-sm mb-1 sm:mb-1.5"
+                style={{ borderColor: step.accent, color: step.accent }}
+              >
+                {step.n}
+              </span>
+              <span className="text-white font-extrabold text-[8px] sm:text-xs uppercase tracking-wide leading-tight" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.7)" }}>
+                {step.label}
+              </span>
+              {i < 3 && (
+                <div
+                  className="hidden sm:block absolute top-0 right-0 bottom-0 w-px opacity-40"
+                  style={{ background: `linear-gradient(to bottom, transparent, ${step.accent}, transparent)` }}
+                />
+              )}
             </div>
-
-            {/* Desktop: full-height 3-column panels */}
-            <div className="absolute inset-0 hidden sm:grid grid-cols-3">
-              {slide.panels.map((panel, i) => (
-                <div key={i} className="relative flex flex-col justify-end p-5 md:p-7">
-                  <div className="flex items-center gap-3 mb-1.5">
-                    <span
-                      className="flex items-center justify-center w-9 h-9 rounded-full text-base font-extrabold border-2 shrink-0"
-                      style={{ borderColor: panel.accentColor, color: panel.accentColor }}
-                    >
-                      {panel.step}
-                    </span>
-                    <span className="text-white font-extrabold text-base md:text-lg uppercase tracking-wide drop-shadow leading-tight">
-                      {panel.label}
-                    </span>
-                  </div>
-                  <p className="text-white/80 text-sm leading-snug ml-12">{panel.desc}</p>
-
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          ))}
+        </div>
       </div>
-
-      {/* Bottom-edge fade + solid strip guarantee */}
-      <div className={"absolute inset-x-0 bottom-0 bg-gradient-to-b from-transparent to-[var(--brand-primary)] pointer-events-none z-10 " + (slide.type === "steps" ? "h-16" : "h-32")} />
-      <div className="absolute inset-x-0 bottom-0 h-2 bg-[var(--brand-primary)] pointer-events-none z-20" />
-
-      {/* Dots */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2.5 z-20">
-        {slides.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => goTo(i)}
-            aria-label={`Slide ${i + 1}`}
-            className="transition-all duration-300 rounded-full"
-            style={{ width: i === active ? "24px" : "8px", height: "8px", background: i === active ? "var(--brand-accent)" : "rgba(255,255,255,0.5)" }}
-          />
-        ))}
-      </div>
-
-      {/* Arrows */}
-      <button
-        onClick={() => goTo((active - 1 + SLIDE_COUNT) % SLIDE_COUNT)}
-        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
-        aria-label="Previous"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
-      </button>
-      <button
-        onClick={() => goTo((active + 1) % SLIDE_COUNT)}
-        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
-        aria-label="Next"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
-      </button>
     </section>
   )
 }

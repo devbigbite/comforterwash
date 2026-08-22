@@ -49,7 +49,7 @@ export default function Home() {
       <div className="bg-[var(--brand-primary)]">
       <HeroCarousel
         tr={tr.hero}
-        images={images ? { slide1: images.slide_1, slide2: images.slide_2, slide3: images.slide_3 } : undefined}
+        image={images?.slide_1}
         text={siteText}
         lang={locale}
         businessName={businessName}

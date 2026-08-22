@@ -20,6 +20,8 @@ export interface SiteText {
   slide_2_p2_desc: string
   slide_2_p3_label: string
   slide_2_p3_desc: string
+  slide_2_p4_label: string
+  slide_2_p4_desc: string
   // Slide 2 — step panels — ES
   slide_2_p1_label_es: string
   slide_2_p1_desc_es: string
@@ -27,6 +29,8 @@ export interface SiteText {
   slide_2_p2_desc_es: string
   slide_2_p3_label_es: string
   slide_2_p3_desc_es: string
+  slide_2_p4_label_es: string
+  slide_2_p4_desc_es: string
   // Slide 3 — EN
   slide_3_headline: string
   slide_3_subline: string
@@ -89,18 +93,22 @@ export const DEFAULT_TEXT: SiteText = {
   slide_1_subline_es:  "",
   slide_1_cta_es:      "",
 
-  slide_2_p1_label: "ORDER",
+  slide_2_p1_label: "YOU ORDER",
   slide_2_p1_desc:  "Schedule your pickup in seconds",
   slide_2_p2_label: "WE PICK UP",
   slide_2_p2_desc:  "We pick up your laundry right from your door",
-  slide_2_p3_label: "WE DELIVER",
-  slide_2_p3_desc:  "Fresh, clean & folded delivered to you",
+  slide_2_p3_label: "WE WASH & FOLD",
+  slide_2_p3_desc:  "Cleaned, dried, and neatly folded",
+  slide_2_p4_label: "WE DELIVER",
+  slide_2_p4_desc:  "Fresh, clean & folded delivered to you",
   slide_2_p1_label_es: "",
   slide_2_p1_desc_es:  "",
   slide_2_p2_label_es: "",
   slide_2_p2_desc_es:  "",
   slide_2_p3_label_es: "",
   slide_2_p3_desc_es:  "",
+  slide_2_p4_label_es: "",
+  slide_2_p4_desc_es:  "",
 
   slide_3_headline: "We Come to You. You Enjoy Life.",
   slide_3_subline:  "Professional wash & fold starting at $2.69/lb · Comforters from $35",
