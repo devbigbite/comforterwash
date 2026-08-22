@@ -49,7 +49,7 @@ const en = {
   },
   why: {
     heading: "Why Choose Us?",
-    subheading: "Unmatched Quality and Service in Every Load",
+    subheading: "Quality and Service in Every Load",
     body1: "We understand the demands of your busy family life. We're dedicated to providing top-notch laundry services that cater to your unique needs — serving your neighborhood with professional wash & fold and comforter washing, all designed with your convenience in mind.",
     body2: "Giving you more time for what truly matters.",
     photoTag: "Pick Up & Delivery",

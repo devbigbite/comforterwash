@@ -61,9 +61,17 @@ export default function Home() {
       {(() => {
         const offerText = (locale === "es" ? siteText.offer_strip_text_es : siteText.offer_strip_text) || siteText.offer_strip_text
         if (!offerText) return null
+        const offerCode = siteText.offer_strip_code
         return (
           <div className="bg-[var(--brand-accent)] px-4 py-2.5 text-center">
-            <p className="text-white font-extrabold text-xs sm:text-sm uppercase tracking-wide">{offerText}</p>
+            <p className="text-white font-extrabold text-xs sm:text-sm uppercase tracking-wide">
+              {offerText}
+              {offerCode && (
+                <>
+                  {" "}· {locale === "es" ? "Código" : "Code"}: <span className="underline">{offerCode}</span>
+                </>
+              )}
+            </p>
           </div>
         )
       })()}
@@ -367,8 +375,8 @@ export default function Home() {
                 name:  (locale === "es" ? siteText.t3_name_es  : siteText.t3_name)  || tr.testimonials.r3Name,
                 label: (locale === "es" ? siteText.t3_label_es : siteText.t3_label) || tr.testimonials.r3Label,
               },
-            ].map((r) => (
-              <div key={r.name} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            ].map((r, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(5)].map((_, i) => (
                     <svg key={i} className="w-4 h-4 text-amber-400 fill-current" viewBox="0 0 20 20">
@@ -376,9 +384,7 @@ export default function Home() {
                     </svg>
                   ))}
                 </div>
-                <p className="text-[var(--brand-primary)]/70 text-sm leading-relaxed mb-4 italic">&ldquo;{r.quote}&rdquo;</p>
-                <p className="text-[var(--brand-primary)] font-bold text-sm">{r.name}</p>
-                <p className="text-[var(--brand-accent)] text-xs">{r.label}</p>
+                <p className="text-[var(--brand-primary)]/70 text-sm leading-relaxed italic">&ldquo;{r.quote}&rdquo;</p>
               </div>
             ))}
           </div>

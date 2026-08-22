@@ -366,27 +366,6 @@ export function SiteImagesEditor({
         )
       })}
 
-      {/* ── Offer Strip (text-only, no image) ── */}
-      <div className="rounded-2xl border-2 border-[#0D2240]/10 bg-white shadow-sm overflow-hidden">
-        <div className="p-5 space-y-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="font-extrabold text-[#0D2240] text-sm">Offer Strip</p>
-              <p className="text-xs text-gray-400 mt-0.5">The thin promo bar shown right below the homepage hero. Leave blank to hide it entirely.</p>
-            </div>
-            <LangTabs value={langTab} onChange={setLangTab} />
-          </div>
-          {langTab === "en" ? (
-            <TextField label="Offer text" value={text.offer_strip_text} defaultValue={DEFAULT_TEXT.offer_strip_text} placeholder="$20 OFF Your First Order" onSave={v => saveText("offer_strip_text", v)} />
-          ) : (
-            <>
-              <p className="text-[10px] text-gray-400 italic">Leave blank to use the English text automatically.</p>
-              <TextField label="Texto de oferta (ES)" value={text.offer_strip_text_es} defaultValue="" placeholder="$20 DE DESCUENTO en tu primera orden" onSave={v => saveText("offer_strip_text_es", v)} />
-            </>
-          )}
-        </div>
-      </div>
-
       {/* ── Monthly Plans CTA (text-only, no image) ── */}
       <div className="rounded-2xl border-2 border-[#0D2240]/10 bg-white shadow-sm overflow-hidden">
         <div className="p-5 space-y-4">

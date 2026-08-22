@@ -60,6 +60,7 @@ export interface SiteText {
   // Offer strip (below hero) — EN + ES
   offer_strip_text: string
   offer_strip_text_es: string
+  offer_strip_code: string
   // Monthly Plans CTA — EN
   plans_heading: string
   plans_body: string
@@ -138,6 +139,7 @@ export const DEFAULT_TEXT: SiteText = {
 
   offer_strip_text: "$20 OFF Your First Order",
   offer_strip_text_es: "",
+  offer_strip_code: "",
 
   plans_heading: "Monthly Laundry Plans",
   plans_body:    "Subscribe and save. Flat monthly fee with included pounds, auto-billed overage, and priority scheduling — no thinking required.",

@@ -2,8 +2,9 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { createPromoCode, togglePromoCode, deletePromoCode } from "@/app/actions/promos"
-import { getComforterPromo, setComforterPromo, getLandingOffers } from "@/app/actions/settings"
+import { getComforterPromo, setComforterPromo, getLandingOffers, getSiteText } from "@/app/actions/settings"
 import { LandingOffersEditor } from "@/components/admin/landing-offers-editor"
+import { OfferStripEditor } from "@/components/admin/offer-strip-editor"
 
 function fmt(promo: { discount_type: string; discount_value: number }) {
   return promo.discount_type === "percent"
@@ -14,10 +15,11 @@ function fmt(promo: { discount_type: string; discount_value: number }) {
 export default async function PromotionsPage() {
   await requireAdmin()
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
-  const [{ data: promos = [] }, promoActive, offers] = await Promise.all([
+  const [{ data: promos = [] }, promoActive, offers, siteText] = await Promise.all([
     supabase.from("promo_codes").select("*").eq("location_id", locationId).order("created_at", { ascending: false }),
     getComforterPromo(),
     getLandingOffers(),
+    getSiteText(),
   ])
 
   const active = (promos ?? []).filter((p: { active: boolean }) => p.active)
@@ -30,6 +32,20 @@ export default async function PromotionsPage() {
         <h1 className="text-2xl font-extrabold text-[#0D2240]">Promotions</h1>
         <p className="text-sm text-gray-400 mt-1">Manage all promotions, offers, and promo codes in one place.</p>
       </div>
+
+      {/* ── Section 0: Homepage Offer Strip ── */}
+      <section>
+        <div className="mb-4">
+          <h2 className="text-base font-extrabold text-[#0D2240] uppercase tracking-wide">Homepage Offer Strip</h2>
+          <p className="text-sm text-gray-400 mt-0.5">The thin promo bar shown right below the homepage hero — link it to a real promo code below so it actually works at checkout.</p>
+        </div>
+        <OfferStripEditor
+          initialText={siteText.offer_strip_text}
+          initialTextEs={siteText.offer_strip_text_es}
+          initialCode={siteText.offer_strip_code}
+          promoCodes={active}
+        />
+      </section>
 
       {/* ── Section 1: Landing Page Offers ── */}
       <section>
