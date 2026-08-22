@@ -84,7 +84,7 @@ export default function Home() {
           </h2>
           <p className="text-center text-gray-400 text-sm mb-10">{tr.steps.subheading}</p>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
             {[
               {
                 icon: (
@@ -111,12 +111,23 @@ export default function Home() {
               {
                 icon: (
                   <svg className="w-10 h-10 text-[var(--brand-primary)]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m-9 7l1.5-3h11L21 21M6 3h12l1 8a7 7 0 11-14 0l1-8z" />
                   </svg>
                 ),
                 title: tr.steps.step3Title,
                 desc: tr.steps.step3Desc,
                 cta: tr.steps.step3Cta,
+                href: "/pricing",
+              },
+              {
+                icon: (
+                  <svg className="w-10 h-10 text-[var(--brand-primary)]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ),
+                title: tr.steps.step4Title,
+                desc: tr.steps.step4Desc,
+                cta: tr.steps.step4Cta,
                 href: "/book/wash-fold",
               },
             ].map((s) => (
