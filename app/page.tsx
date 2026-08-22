@@ -68,52 +68,6 @@ export default function Home() {
         )
       })()}
 
-      {/* ── Why Choose Us ──────────────────────────────────────────────── */}
-      <section className="bg-white px-4 py-16">
-        <div className="mx-auto max-w-4xl text-center">
-          <h2 className="text-3xl font-extrabold text-[var(--brand-primary)] uppercase tracking-wide mb-3">
-            {(locale === "es" ? siteText.why_heading_es : siteText.why_heading) || tr.why.heading}
-          </h2>
-          <p className="text-[var(--brand-accent)] font-bold text-sm uppercase tracking-[0.2em] mb-5">
-            {(locale === "es" ? siteText.why_subheading_es : siteText.why_subheading) || tr.why.subheading}
-          </p>
-          <p className="text-[var(--brand-primary)]/60 text-base leading-relaxed max-w-2xl mx-auto mb-5">
-            {(locale === "es" ? siteText.why_body1_es : siteText.why_body1) || tr.why.body1}
-          </p>
-          <p className="text-[var(--brand-primary)]/60 text-base leading-relaxed max-w-2xl mx-auto">
-            {(locale === "es" ? siteText.why_body2_es : siteText.why_body2) || tr.why.body2}
-          </p>
-        </div>
-
-        {/* Van / lifestyle photo */}
-        <div className="mx-auto max-w-4xl mt-10 rounded-3xl overflow-hidden shadow-lg relative h-48 sm:h-72 md:h-80">
-          <Image
-            src={images?.why_us ?? "/img-why-us.jpg"}
-            alt={`${businessName} pickup and delivery`}
-            fill
-            className="object-cover"
-            unoptimized={!!(images?.why_us?.startsWith("http"))}
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-primary)]/60 via-transparent to-transparent" />
-          <div className="absolute inset-0 flex items-center px-5 sm:px-10">
-            <div className="max-w-sm">
-              <p className="text-white/80 text-xs font-bold uppercase tracking-[0.2em] mb-2">
-                {(locale === "es" ? siteText.why_photo_tag_es : siteText.why_photo_tag) || tr.why.photoTag}
-              </p>
-              <h3 className="text-white font-extrabold text-xl sm:text-3xl leading-tight mb-3 sm:mb-4">
-                {((locale === "es" ? siteText.why_photo_headline_es : siteText.why_photo_headline) || tr.why.photoHeadline)
-                  .split("\n").map((line: string, i: number) => (
-                    <span key={i}>{line}{i === 0 && <br />}</span>
-                  ))}
-              </h3>
-              <a href="/book/wash-fold" className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-3 rounded-full transition-colors uppercase tracking-wide">
-                {(locale === "es" ? siteText.why_photo_cta_es : siteText.why_photo_cta) || tr.why.photoCta}
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── 3 Simple Steps ─────────────────────────────────────────────── */}
       <section id="how" className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
@@ -180,6 +134,53 @@ export default function Home() {
           </a>
         </div>
       </section>
+
+      {/* ── Why Choose Us ──────────────────────────────────────────────── */}
+      <section className="bg-white px-4 py-16">
+        <div className="mx-auto max-w-4xl text-center">
+          <h2 className="text-3xl font-extrabold text-[var(--brand-primary)] uppercase tracking-wide mb-3">
+            {(locale === "es" ? siteText.why_heading_es : siteText.why_heading) || tr.why.heading}
+          </h2>
+          <p className="text-[var(--brand-accent)] font-bold text-sm uppercase tracking-[0.2em] mb-5">
+            {(locale === "es" ? siteText.why_subheading_es : siteText.why_subheading) || tr.why.subheading}
+          </p>
+          <p className="text-[var(--brand-primary)]/60 text-base leading-relaxed max-w-2xl mx-auto mb-5">
+            {(locale === "es" ? siteText.why_body1_es : siteText.why_body1) || tr.why.body1}
+          </p>
+          <p className="text-[var(--brand-primary)]/60 text-base leading-relaxed max-w-2xl mx-auto">
+            {(locale === "es" ? siteText.why_body2_es : siteText.why_body2) || tr.why.body2}
+          </p>
+        </div>
+
+        {/* Van / lifestyle photo */}
+        <div className="mx-auto max-w-4xl mt-10 rounded-3xl overflow-hidden shadow-lg relative h-48 sm:h-72 md:h-80">
+          <Image
+            src={images?.why_us ?? "/img-why-us.jpg"}
+            alt={`${businessName} pickup and delivery`}
+            fill
+            className="object-cover"
+            unoptimized={!!(images?.why_us?.startsWith("http"))}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-primary)]/60 via-transparent to-transparent" />
+          <div className="absolute inset-0 flex items-center px-5 sm:px-10">
+            <div className="max-w-sm">
+              <p className="text-white/80 text-xs font-bold uppercase tracking-[0.2em] mb-2">
+                {(locale === "es" ? siteText.why_photo_tag_es : siteText.why_photo_tag) || tr.why.photoTag}
+              </p>
+              <h3 className="text-white font-extrabold text-xl sm:text-3xl leading-tight mb-3 sm:mb-4">
+                {((locale === "es" ? siteText.why_photo_headline_es : siteText.why_photo_headline) || tr.why.photoHeadline)
+                  .split("\n").map((line: string, i: number) => (
+                    <span key={i}>{line}{i === 0 && <br />}</span>
+                  ))}
+              </h3>
+              <a href="/book/wash-fold" className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-3 rounded-full transition-colors uppercase tracking-wide">
+                {(locale === "es" ? siteText.why_photo_cta_es : siteText.why_photo_cta) || tr.why.photoCta}
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
 
       {/* ── Special Offers ─────────────────────────────────────────────── */}
       <section className="bg-[#f7f8fb] px-4 py-16">
