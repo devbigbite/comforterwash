@@ -45,7 +45,7 @@ export interface Location {
 // NOT WashFold-specific, so a new tenant never silently inherits WashFold
 // Orlando's name/phone/email if something's misconfigured.
 export const DEFAULT_BRANDING = {
-  business_name: "WashFoldClean",
+  business_name: "WashFold Orlando",
   tagline: null as string | null,
   logo_url: null as string | null,
   primary_color: "#0D2240",

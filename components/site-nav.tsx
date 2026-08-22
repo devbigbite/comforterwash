@@ -41,7 +41,7 @@ const EXCLUDED_PREFIXES = [
   "/platform",
 ]
 
-export function SiteNav({ businessName = "WashFoldClean", logoUrl }: { businessName?: string; logoUrl?: string | null }) {
+export function SiteNav({ businessName = "WashFold Orlando", logoUrl }: { businessName?: string; logoUrl?: string | null }) {
   const pathname = usePathname()
   const { translations: tr, locale } = useLang()
 

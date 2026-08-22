@@ -13,8 +13,8 @@ export const dynamic = "force-dynamic"
 export async function generateMetadata() {
   const branding = await getBranding()
   return {
-    title: `Book Wash & Fold — ${branding.business_name || "WashFoldClean"}`,
-    description: "Clothes washed, dried, and folded with free pickup & delivery. $2.40/lb, $20 minimum.",
+    title: `Book Wash & Fold — ${branding.business_name || "WashFold Orlando"}`,
+    description: "Clothes washed, dried, and folded with free pickup & delivery. $2.69/lb, 18 lb minimum.",
   }
 }
 

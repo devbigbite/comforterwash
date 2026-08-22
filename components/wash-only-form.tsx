@@ -28,7 +28,7 @@ import { getActiveRoutes } from "@/app/actions/routes"
 import { useLang } from "@/components/lang-provider"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
 
-let PRICE_PER_LB = 199  // $1.99 in cents — overwritten on mount
+let PRICE_PER_LB = 219  // $2.19 in cents — overwritten on mount
 let MIN_POUNDS = 18
 const LBS_PER_BAG = 15
 // ── Comforter add-on ─────────────────────────────────────────────────────────

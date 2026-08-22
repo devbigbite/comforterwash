@@ -82,9 +82,9 @@ export interface SiteText {
 }
 
 export const DEFAULT_TEXT: SiteText = {
-  slide_1_headline: "Laundry Service That Feels Like Family",
-  slide_1_subline:  "Free pickup & delivery · Wash, fold & comforter cleaning",
-  slide_1_cta:      "Schedule a Pickup",
+  slide_1_headline: "Your Laundry. Done.",
+  slide_1_subline:  "We pick it up at your door and bring it back clean, folded & ready to put away. Free Pickup & Delivery · From $2.69/lb",
+  slide_1_cta:      "Schedule My Pickup",
   slide_1_headline_es: "",
   slide_1_subline_es:  "",
   slide_1_cta_es:      "",
@@ -103,7 +103,7 @@ export const DEFAULT_TEXT: SiteText = {
   slide_2_p3_desc_es:  "",
 
   slide_3_headline: "We Come to You. You Enjoy Life.",
-  slide_3_subline:  "Professional wash & fold starting at $2.40/lb · Comforters from $35",
+  slide_3_subline:  "Professional wash & fold starting at $2.69/lb · Comforters from $35",
   slide_3_cta:      "See Pricing",
   slide_3_headline_es: "",
   slide_3_subline_es:  "",

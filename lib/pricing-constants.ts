@@ -28,4 +28,4 @@ export const FALLBACK_MIN_LBS = 18
 // when it does it silently undercharges (this is what happened on order
 // 714600: price_per_lb_cents was null, so this fallback billed $2.50/lb
 // instead of the real $2.55/lb rate).
-export const DEFAULT_RATE_CENTS: Record<string, number> = { wash_fold: 255, wash_only: 199, comforter_wash: 0 }
+export const DEFAULT_RATE_CENTS: Record<string, number> = { wash_fold: 269, wash_only: 219, comforter_wash: 0 }
