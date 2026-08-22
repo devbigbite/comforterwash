@@ -65,7 +65,6 @@ export default function HeroCarousel({
         {/* Headline + subline + CTA */}
         <div className="absolute inset-x-0 top-0 px-3 sm:px-8 pt-3 sm:pt-8">
           <div className="mx-auto max-w-7xl">
-            <p className="text-[var(--brand-accent)] font-bold text-[9px] sm:text-xs uppercase tracking-[0.2em] sm:tracking-[0.25em] mb-1 sm:mb-2">{businessName}</p>
             <h1 className="text-white font-extrabold text-lg sm:text-3xl md:text-4xl lg:text-5xl leading-tight max-w-2xl mb-1 sm:mb-3" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.65)" }}>
               {headline}
             </h1>
