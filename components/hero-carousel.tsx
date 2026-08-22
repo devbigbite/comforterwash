@@ -31,11 +31,12 @@ export default function HeroCarousel({
   const subline = (es ? text.slide_1_subline_es : text.slide_1_subline) || tr?.slide1Sub || DEFAULT_TEXT.slide_1_subline
   const cta = (es ? text.slide_1_cta_es : text.slide_1_cta) || tr?.slide1Cta || DEFAULT_TEXT.slide_1_cta
 
+  const STEP_ACCENT = "#f59e0b"
   const steps = [
-    { n: "1", label: (es ? text.slide_2_p1_label_es : text.slide_2_p1_label) || DEFAULT_TEXT.slide_2_p1_label, accent: "#a78bfa" },
-    { n: "2", label: (es ? text.slide_2_p2_label_es : text.slide_2_p2_label) || DEFAULT_TEXT.slide_2_p2_label, accent: "#38bdf8" },
-    { n: "3", label: (es ? text.slide_2_p3_label_es : text.slide_2_p3_label) || DEFAULT_TEXT.slide_2_p3_label, accent: "#34d399" },
-    { n: "4", label: (es ? text.slide_2_p4_label_es : text.slide_2_p4_label) || DEFAULT_TEXT.slide_2_p4_label, accent: "#f59e0b" },
+    { n: "1", label: (es ? text.slide_2_p1_label_es : text.slide_2_p1_label) || DEFAULT_TEXT.slide_2_p1_label, accent: STEP_ACCENT },
+    { n: "2", label: (es ? text.slide_2_p2_label_es : text.slide_2_p2_label) || DEFAULT_TEXT.slide_2_p2_label, accent: STEP_ACCENT },
+    { n: "3", label: (es ? text.slide_2_p3_label_es : text.slide_2_p3_label) || DEFAULT_TEXT.slide_2_p3_label, accent: STEP_ACCENT },
+    { n: "4", label: (es ? text.slide_2_p4_label_es : text.slide_2_p4_label) || DEFAULT_TEXT.slide_2_p4_label, accent: STEP_ACCENT },
   ]
 
   const src = image || DEFAULT_IMAGE

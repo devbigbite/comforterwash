@@ -22,7 +22,7 @@ const en = {
   },
   hero: {
     slide1Headline: "Your Laundry. Done.",
-    slide1Sub: "We pick it up at your door and bring it back clean, folded & ready to put away. Free Pickup & Delivery · From $2.69/lb",
+    slide1Sub: "We pick it up at your door and bring it back clean, folded & ready to put away. Free Pickup & Delivery",
     slide1Cta: "Schedule My Pickup",
     slide2Order: "ORDER",
     slide2OrderDesc: "Schedule your pickup in seconds",

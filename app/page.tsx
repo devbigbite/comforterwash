@@ -57,6 +57,17 @@ export default function Home() {
 
       </div>{/* end navy wrapper */}
 
+      {/* ── Offer strip — thin promo bar right under the hero ───────────── */}
+      {(() => {
+        const offerText = (locale === "es" ? siteText.offer_strip_text_es : siteText.offer_strip_text) || siteText.offer_strip_text
+        if (!offerText) return null
+        return (
+          <div className="bg-[var(--brand-accent)] px-4 py-2.5 text-center">
+            <p className="text-white font-extrabold text-xs sm:text-sm uppercase tracking-wide">{offerText}</p>
+          </div>
+        )
+      })()}
+
       {/* ── Why Choose Us ──────────────────────────────────────────────── */}
       <section className="bg-white px-4 py-16">
         <div className="mx-auto max-w-4xl text-center">

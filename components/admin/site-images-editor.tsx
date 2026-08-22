@@ -271,7 +271,7 @@ export function SiteImagesEditor({
                   {langTab === "en" ? (
                     <>
                       <TextField label="Headline" value={text.slide_1_headline} defaultValue={DEFAULT_TEXT.slide_1_headline} placeholder="Your Laundry. Done." onSave={v => saveText("slide_1_headline", v)} />
-                      <TextField label="Subline" value={text.slide_1_subline} defaultValue={DEFAULT_TEXT.slide_1_subline} placeholder="We pick it up at your door and bring it back clean, folded & ready to put away. Free Pickup & Delivery · From $2.69/lb" onSave={v => saveText("slide_1_subline", v)} multiline />
+                      <TextField label="Subline" value={text.slide_1_subline} defaultValue={DEFAULT_TEXT.slide_1_subline} placeholder="We pick it up at your door and bring it back clean, folded & ready to put away. Free Pickup & Delivery" onSave={v => saveText("slide_1_subline", v)} multiline />
                       <TextField label="Button text" value={text.slide_1_cta} defaultValue={DEFAULT_TEXT.slide_1_cta} placeholder="Schedule My Pickup" onSave={v => saveText("slide_1_cta", v)} />
                     </>
                   ) : (
@@ -365,6 +365,27 @@ export function SiteImagesEditor({
           </div>
         )
       })}
+
+      {/* ── Offer Strip (text-only, no image) ── */}
+      <div className="rounded-2xl border-2 border-[#0D2240]/10 bg-white shadow-sm overflow-hidden">
+        <div className="p-5 space-y-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="font-extrabold text-[#0D2240] text-sm">Offer Strip</p>
+              <p className="text-xs text-gray-400 mt-0.5">The thin promo bar shown right below the homepage hero. Leave blank to hide it entirely.</p>
+            </div>
+            <LangTabs value={langTab} onChange={setLangTab} />
+          </div>
+          {langTab === "en" ? (
+            <TextField label="Offer text" value={text.offer_strip_text} defaultValue={DEFAULT_TEXT.offer_strip_text} placeholder="$20 OFF Your First Order" onSave={v => saveText("offer_strip_text", v)} />
+          ) : (
+            <>
+              <p className="text-[10px] text-gray-400 italic">Leave blank to use the English text automatically.</p>
+              <TextField label="Texto de oferta (ES)" value={text.offer_strip_text_es} defaultValue="" placeholder="$20 DE DESCUENTO en tu primera orden" onSave={v => saveText("offer_strip_text_es", v)} />
+            </>
+          )}
+        </div>
+      </div>
 
       {/* ── Monthly Plans CTA (text-only, no image) ── */}
       <div className="rounded-2xl border-2 border-[#0D2240]/10 bg-white shadow-sm overflow-hidden">

@@ -57,6 +57,9 @@ export interface SiteText {
   why_photo_tag_es: string
   why_photo_headline_es: string
   why_photo_cta_es: string
+  // Offer strip (below hero) — EN + ES
+  offer_strip_text: string
+  offer_strip_text_es: string
   // Monthly Plans CTA — EN
   plans_heading: string
   plans_body: string
@@ -87,7 +90,7 @@ export interface SiteText {
 
 export const DEFAULT_TEXT: SiteText = {
   slide_1_headline: "Your Laundry. Done.",
-  slide_1_subline:  "We pick it up at your door and bring it back clean, folded & ready to put away. Free Pickup & Delivery · From $2.69/lb",
+  slide_1_subline:  "We pick it up at your door and bring it back clean, folded & ready to put away. Free Pickup & Delivery",
   slide_1_cta:      "Schedule My Pickup",
   slide_1_headline_es: "",
   slide_1_subline_es:  "",
@@ -132,6 +135,9 @@ export const DEFAULT_TEXT: SiteText = {
   why_photo_tag_es:      "",
   why_photo_headline_es: "",
   why_photo_cta_es:      "",
+
+  offer_strip_text: "$20 OFF Your First Order",
+  offer_strip_text_es: "",
 
   plans_heading: "Monthly Laundry Plans",
   plans_body:    "Subscribe and save. Flat monthly fee with included pounds, auto-billed overage, and priority scheduling — no thinking required.",
