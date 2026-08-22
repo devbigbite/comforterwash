@@ -30,11 +30,10 @@ import { dayAbbr, monthAbbr, weekdayFull, formatShortDate } from "@/lib/i18n-dat
 import type { Locale } from "@/lib/i18n"
 
 // ─── constants ───────────────────────────────────────────────────────────────
-// Per-bag weight estimate used to pre-fill pounds from bag count — kept at 15,
-// not the 20 lb order minimum, since a typical bag actually weighs ~15 lbs in
-// practice (the 20 lb figure is only the minimum charge threshold, not a
-// per-bag weight assumption). Matches wash-only-form.tsx.
-const LBS_PER_BAG = 15
+// Per-bag weight estimate used to pre-fill pounds from bag count — kept at 18,
+// matching the 18 lb order minimum, since a typical bag actually weighs ~18 lbs
+// in practice. Matches wash-only-form.tsx.
+const LBS_PER_BAG = 18
 
 // Dynamic — overwritten on mount from Supabase
 let MIN_POUNDS = 18

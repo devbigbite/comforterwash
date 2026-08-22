@@ -30,7 +30,7 @@ import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 let PRICE_PER_LB = 219  // $2.19 in cents — overwritten on mount
 let MIN_POUNDS = 18
-const LBS_PER_BAG = 15
+const LBS_PER_BAG = 18
 // ── Comforter add-on ─────────────────────────────────────────────────────────
 type CSize = "twin" | "full" | "queen" | "king"
 let COMFORTER_CENTS: Record<CSize, number> = { twin: 2900, full: 3300, queen: 3800, king: 4300 }

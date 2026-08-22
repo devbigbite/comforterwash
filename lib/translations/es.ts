@@ -283,7 +283,7 @@ const es = {
     biweekly:      "Bisemanal",
     save10:        "Ahorra 10%",
     howManyBags:   "Pesaremos tu ropa antes de procesarla. ¿Cuántas bolsas debemos recoger?",
-    bagWeightNote: "Una bolsa estándar tiene unas 15 lb. El cobro final se ajusta al peso real.",
+    bagWeightNote: "Una bolsa estándar tiene unas 18 lb. El cobro final se ajusta al peso real.",
     // booking tier selector
     howToBook:             "¿Cómo quieres agendar?",
     howToBookSub:          "Dos formas de obtener ropa limpia — elige la que mejor se adapte a tu rutina.",

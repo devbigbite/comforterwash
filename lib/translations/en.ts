@@ -283,7 +283,7 @@ const en = {
     biweekly:      "Biweekly",
     save10:        "Save 10%",
     howManyBags:   "We'll weigh your laundry before processing. How many bags should we pick up this time?",
-    bagWeightNote: "One standard bag holds about 15 lbs. Final charge is adjusted to actual weight.",
+    bagWeightNote: "One standard bag holds about 18 lbs. Final charge is adjusted to actual weight.",
     // booking tier selector
     howToBook:             "How would you like to book?",
     howToBookSub:          "Two ways to get clean laundry — pick what fits your routine.",
