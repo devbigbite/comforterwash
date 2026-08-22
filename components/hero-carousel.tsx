@@ -43,9 +43,12 @@ export default function HeroCarousel({
 
   return (
     <section className="relative w-full overflow-hidden bg-[var(--brand-primary)] -mb-px">
-      {/* Single static hero image — container locked to the image's own aspect
-          ratio so the full photo always shows, edge to edge, with no cropping. */}
-      <div className="relative w-full" style={{ aspectRatio: IMAGE_ASPECT_RATIO }}>
+      {/* Single static hero image — locked to the image's own aspect ratio so
+          the full photo shows with no cropping on phone/tablet widths. A max
+          height keeps the banner from getting unreasonably tall on very wide
+          desktop screens; only there does object-cover trim a sliver off the
+          left/right edges to hold that height. */}
+      <div className="relative w-full max-h-[480px]" style={{ aspectRatio: IMAGE_ASPECT_RATIO }}>
         <Image
           src={src}
           alt={businessName}
@@ -66,7 +69,7 @@ export default function HeroCarousel({
               {headline}
             </h1>
             <p className="text-white/90 text-[11px] sm:text-base md:text-lg max-w-xl mb-2 sm:mb-4 line-clamp-2 sm:line-clamp-none" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}>{subline}</p>
-            <a href="#services" className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-[11px] sm:text-sm px-4 sm:px-7 py-2 sm:py-3 rounded-full uppercase tracking-wide transition-colors shadow-lg">
+            <a href="/book/wash-fold" className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-[11px] sm:text-sm px-4 sm:px-7 py-2 sm:py-3 rounded-full uppercase tracking-wide transition-colors shadow-lg">
               {cta}
             </a>
           </div>

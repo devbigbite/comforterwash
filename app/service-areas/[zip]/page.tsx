@@ -94,7 +94,7 @@ export default async function ServiceAreaDetailPage({
           {intro}
         </p>
         <Link
-          href={lp("/#services")}
+          href={lp("/book/wash-fold")}
           className="inline-block mt-7 bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide transition-colors shadow-lg"
         >
           {tr.ctaButton}
@@ -140,7 +140,7 @@ export default async function ServiceAreaDetailPage({
           <p className="text-white font-extrabold text-xl mb-2">{tr.ctaHeading}</p>
           <p className="text-white/60 text-sm mb-5">{tr.ctaSub}</p>
           <Link
-            href={lp("/#services")}
+            href={lp("/book/wash-fold")}
             className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-8 py-3 rounded-full uppercase tracking-wide transition-colors"
           >
             {tr.ctaButton}

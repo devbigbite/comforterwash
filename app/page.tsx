@@ -55,74 +55,6 @@ export default function Home() {
         businessName={businessName}
       />
 
-      {/* ── Our Services — immediately after hero ──────────────────────── */}
-      <section id="services" className="px-4 py-14">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-2xl font-extrabold text-white uppercase tracking-wide text-center mb-2">{tr.services.heading}</h2>
-          <div className="w-16 h-0.5 bg-[var(--brand-accent)] mx-auto mb-8" />
-          {(() => {
-            const activeServices = [
-              {
-                key: "comforter_wash" as keyof ServicesConfig,
-                href: "/book/comforter-wash",
-                icon: "🛏️",
-                title: tr.services.comforterTitle,
-                desc: tr.services.comforterDesc,
-                price: `${tr.pricing.comforterFrom} ${tr.pricing.comforterPrice}`,
-                unit: tr.services.perComforter,
-              },
-              {
-                key: "wash_fold" as keyof ServicesConfig,
-                href: "/book/wash-fold",
-                icon: "👕",
-                title: tr.services.washFoldTitle,
-                desc: tr.services.washFoldDesc,
-                price: `$${(livePricing.washFoldOneTimeCents / 100).toFixed(2)}`,
-                unit: `per lb · ${livePricing.washFoldMinLbs} lb min`,
-              },
-              {
-                key: "wash_only" as keyof ServicesConfig,
-                href: "/book/wash-only",
-                icon: "🧺",
-                title: tr.services.washOnlyTitle,
-                desc: tr.services.washOnlyDesc,
-                price: `$${(livePricing.washOnlyCents / 100).toFixed(2)}`,
-                unit: tr.services.washOnlyUnit,
-              },
-            ].filter(svc => services !== null && services[svc.key])
-            const gridClass =
-              activeServices.length === 1
-                ? "grid grid-cols-1 gap-4 max-w-sm mx-auto"
-                : activeServices.length === 2
-                ? "grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-2xl mx-auto"
-                : "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
-            return (
-          <div className={gridClass}>
-            {activeServices.map((svc) => (
-              <a
-                key={svc.title}
-                href={svc.href}
-                className="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[var(--brand-accent)] rounded-2xl p-4 sm:p-6 flex gap-3 sm:gap-5 items-start transition-all"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-3xl shrink-0">{svc.icon}</div>
-                <div className="flex-1">
-                  <h3 className="font-extrabold text-white uppercase tracking-wide text-sm mb-1">{svc.title}</h3>
-                  <p className="text-white/50 text-xs leading-relaxed mb-3">{svc.desc}</p>
-                  <div className="mb-3">
-                    <span className="text-[var(--brand-accent)] font-extrabold text-xl">{svc.price}</span>
-                    <span className="text-white/40 text-xs ml-1">{svc.unit}</span>
-                  </div>
-                  <span className="inline-block bg-[var(--brand-accent)] group-hover:bg-[#d45f57] text-white font-bold text-xs px-4 py-2 rounded-full uppercase tracking-wide transition-colors">
-                    {tr.services.details}
-                  </span>
-                </div>
-              </a>
-            ))}
-          </div>
-            )
-          })()}
-        </div>
-      </section>
       </div>{/* end navy wrapper */}
 
       {/* ── Why Choose Us ──────────────────────────────────────────────── */}
@@ -163,7 +95,7 @@ export default function Home() {
                     <span key={i}>{line}{i === 0 && <br />}</span>
                   ))}
               </h3>
-              <a href="#services" className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-3 rounded-full transition-colors uppercase tracking-wide">
+              <a href="/book/wash-fold" className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-3 rounded-full transition-colors uppercase tracking-wide">
                 {(locale === "es" ? siteText.why_photo_cta_es : siteText.why_photo_cta) || tr.why.photoCta}
               </a>
             </div>
@@ -190,7 +122,7 @@ export default function Home() {
                 title: tr.steps.step1Title,
                 desc: tr.steps.step1Desc,
                 cta: tr.steps.step1Cta,
-                href: "#services",
+                href: "/book/wash-fold",
               },
               {
                 icon: (
@@ -212,7 +144,7 @@ export default function Home() {
                 title: tr.steps.step3Title,
                 desc: tr.steps.step3Desc,
                 cta: tr.steps.step3Cta,
-                href: "#services",
+                href: "/book/wash-fold",
               },
             ].map((s) => (
               <div key={s.title} className="bg-white border border-gray-200 rounded-2xl p-8 flex flex-col items-center text-center gap-4 hover:border-[var(--brand-accent)] hover:shadow-md transition-all">
@@ -230,7 +162,7 @@ export default function Home() {
 
           {/* Full-width CTA */}
           <a
-            href="#services"
+            href="/book/wash-fold"
             className="block w-full border-2 border-[var(--brand-accent)] text-[var(--brand-accent)] hover:bg-[var(--brand-accent)] hover:text-white font-extrabold text-base uppercase tracking-widest text-center py-5 rounded-2xl transition-all"
           >
             {tr.steps.cta}

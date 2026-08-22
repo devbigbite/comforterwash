@@ -52,7 +52,7 @@ export default async function ServiceAreasPage({
         <p className="text-white/70 text-base md:text-lg max-w-xl mx-auto">
           {tr.subtitle}
         </p>
-        <a href={lang === "es" ? "/#services?lang=es" : "/#services"}
+        <a href={lang === "es" ? "/book/wash-fold?lang=es" : "/book/wash-fold"}
           className="inline-block mt-6 bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide transition-colors shadow-lg">
           {tr.scheduleBtn}
         </a>

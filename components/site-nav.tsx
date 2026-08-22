@@ -62,7 +62,7 @@ export function SiteNav({ businessName = "WashFold Orlando", logoUrl }: { busine
   const lp = (path: string) => locale === "es" ? `${path}?lang=es` : path
 
   const navLinks = [
-    { label: tr.nav.pickupDelivery, href: href("#services") },
+    { label: tr.nav.pickupDelivery, href: lp("/book/wash-fold") },
     { label: tr.nav.howItWorks,     href: href("#how") },
     { label: tr.nav.pricing,        href: href("#pricing") },
     { label: tr.nav.serviceAreas,   href: lp("/service-areas") },
@@ -114,7 +114,7 @@ export function SiteNav({ businessName = "WashFold Orlando", logoUrl }: { busine
           <div className="flex-1" />
 
           <a
-            href={href("#services")}
+            href={lp("/book/wash-fold")}
             className="shrink-0 bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-2.5 rounded-full transition-colors uppercase tracking-wide shadow-sm"
           >
             {tr.common.schedulePickup}
