@@ -106,7 +106,7 @@ export default function Home() {
                 title: tr.steps.step2Title,
                 desc: tr.steps.step2Desc,
                 cta: tr.steps.step2Cta,
-                href: "#how",
+                href: "/book/wash-fold",
               },
               {
                 icon: (
@@ -117,7 +117,7 @@ export default function Home() {
                 title: tr.steps.step3Title,
                 desc: tr.steps.step3Desc,
                 cta: tr.steps.step3Cta,
-                href: "/pricing",
+                href: "/book/wash-fold",
               },
               {
                 icon: (
@@ -131,16 +131,13 @@ export default function Home() {
                 href: "/book/wash-fold",
               },
             ].map((s) => (
-              <div key={s.title} className="bg-white border border-gray-200 rounded-2xl p-8 flex flex-col items-center text-center gap-4 hover:border-[var(--brand-accent)] hover:shadow-md transition-all">
+              <a key={s.title} href={s.href} className="bg-white border border-gray-200 rounded-2xl p-8 flex flex-col items-center text-center gap-4 hover:border-[var(--brand-accent)] hover:shadow-md transition-all">
                 <div className="w-16 h-16 rounded-full border-2 border-[var(--brand-primary)]/20 flex items-center justify-center">
                   {s.icon}
                 </div>
                 <h3 className="font-extrabold text-[var(--brand-primary)] text-base uppercase tracking-wide">{s.title}</h3>
                 <p className="text-gray-400 text-sm leading-relaxed flex-1">{s.desc}</p>
-                <a href={s.href} className="text-[var(--brand-primary)] font-bold text-xs uppercase tracking-wide hover:text-[var(--brand-accent)] transition-colors">
-                  {s.cta}
-                </a>
-              </div>
+              </a>
             ))}
           </div>
 
