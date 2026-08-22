@@ -290,38 +290,69 @@ export default function Home() {
         <div className="mx-auto max-w-3xl">
           <h2 className="text-3xl font-extrabold text-[var(--brand-primary)] uppercase tracking-wide text-center mb-2">{tr.pricing.heading}</h2>
           <div className="w-16 h-0.5 bg-[var(--brand-accent)] mx-auto mb-10" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="border-2 border-gray-100 hover:border-[var(--brand-accent)] rounded-3xl p-8 text-center transition-colors">
-              <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🛏️</div>
-              <h3 className="font-extrabold text-[var(--brand-primary)] uppercase tracking-wide text-base mb-1">{tr.pricing.comforterTitle}</h3>
-              <p className="text-gray-400 text-sm mb-4">{tr.pricing.comforterDesc}</p>
-              <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1"><span className="text-base font-bold mr-1">{tr.pricing.comforterFrom}</span>{tr.pricing.comforterPrice}</p>
-              <p className="text-gray-400 text-xs mb-6">{tr.pricing.comforterUnit}</p>
-              <Link href="/book/comforter-wash" className="block bg-[var(--brand-primary)] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
-                {tr.pricing.cta}
-              </Link>
-            </div>
-            <div className="border-2 border-gray-100 hover:border-[var(--brand-accent)] rounded-3xl p-8 text-center transition-colors">
-              <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">👕</div>
-              <h3 className="font-extrabold text-[var(--brand-primary)] uppercase tracking-wide text-base mb-1">{tr.pricing.washFoldTitle}</h3>
-              <p className="text-gray-400 text-sm mb-4">{livePricing.washFoldMinLbs} lb minimum</p>
-              <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1">${(livePricing.washFoldOneTimeCents / 100).toFixed(2)}<span className="text-2xl">/lb</span></p>
-              <p className="text-gray-400 text-xs mb-6">${(livePricing.washFoldSubCents / 100).toFixed(2)}/lb with weekly/biweekly subscription</p>
-              <Link href="/book/wash-fold" className="block bg-[var(--brand-primary)] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
-                {tr.pricing.cta}
-              </Link>
-            </div>
-            <div className="border-2 border-gray-100 hover:border-[var(--brand-accent)] rounded-3xl p-8 text-center transition-colors">
-              <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">🧺</div>
-              <h3 className="font-extrabold text-[var(--brand-primary)] uppercase tracking-wide text-base mb-1">{tr.pricing.washOnlyTitle}</h3>
-              <p className="text-gray-400 text-sm mb-4">{livePricing.washOnlyMinLbs} lb minimum</p>
-              <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1">${(livePricing.washOnlyCents / 100).toFixed(2)}<span className="text-2xl">/lb</span></p>
-              <p className="text-gray-400 text-xs mb-6">{tr.pricing.washOnlyPerLb}</p>
-              <Link href="/book/wash-only" className="block bg-[var(--brand-primary)] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
-                {tr.pricing.cta}
-              </Link>
-            </div>
+          {(() => {
+            const pricingCards = [
+              {
+                key: "comforter_wash" as keyof ServicesConfig,
+                href: "/book/comforter-wash",
+                icon: "🛏️",
+                title: tr.pricing.comforterTitle,
+                content: (
+                  <>
+                    <p className="text-gray-400 text-sm mb-4">{tr.pricing.comforterDesc}</p>
+                    <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1"><span className="text-base font-bold mr-1">{tr.pricing.comforterFrom}</span>{tr.pricing.comforterPrice}</p>
+                    <p className="text-gray-400 text-xs mb-6">{tr.pricing.comforterUnit}</p>
+                  </>
+                ),
+              },
+              {
+                key: "wash_fold" as keyof ServicesConfig,
+                href: "/book/wash-fold",
+                icon: "👕",
+                title: tr.pricing.washFoldTitle,
+                content: (
+                  <>
+                    <p className="text-gray-400 text-sm mb-4">{livePricing.washFoldMinLbs} lb minimum</p>
+                    <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1">${(livePricing.washFoldOneTimeCents / 100).toFixed(2)}<span className="text-2xl">/lb</span></p>
+                    <p className="text-gray-400 text-xs mb-6">${(livePricing.washFoldSubCents / 100).toFixed(2)}/lb with weekly/biweekly subscription</p>
+                  </>
+                ),
+              },
+              {
+                key: "wash_only" as keyof ServicesConfig,
+                href: "/book/wash-only",
+                icon: "🧺",
+                title: tr.pricing.washOnlyTitle,
+                content: (
+                  <>
+                    <p className="text-gray-400 text-sm mb-4">{livePricing.washOnlyMinLbs} lb minimum</p>
+                    <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1">${(livePricing.washOnlyCents / 100).toFixed(2)}<span className="text-2xl">/lb</span></p>
+                    <p className="text-gray-400 text-xs mb-6">{tr.pricing.washOnlyPerLb}</p>
+                  </>
+                ),
+              },
+            ].filter(card => services !== null && services[card.key])
+            const gridClass =
+              pricingCards.length === 1
+                ? "grid grid-cols-1 gap-4 max-w-sm mx-auto"
+                : pricingCards.length === 2
+                ? "grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-2xl mx-auto"
+                : "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            return (
+          <div className={gridClass}>
+            {pricingCards.map(card => (
+              <div key={card.key} className="border-2 border-gray-100 hover:border-[var(--brand-accent)] rounded-3xl p-8 text-center transition-colors">
+                <div className="w-16 h-16 rounded-2xl bg-[#fdf6f3] flex items-center justify-center text-3xl mx-auto mb-4">{card.icon}</div>
+                <h3 className="font-extrabold text-[var(--brand-primary)] uppercase tracking-wide text-base mb-1">{card.title}</h3>
+                {card.content}
+                <Link href={card.href} className="block bg-[var(--brand-primary)] hover:bg-[#1a3a5c] text-white font-bold text-sm px-5 py-3 rounded-full transition-colors uppercase tracking-wide">
+                  {tr.pricing.cta}
+                </Link>
+              </div>
+            ))}
           </div>
+            )
+          })()}
         </div>
       </section>
 

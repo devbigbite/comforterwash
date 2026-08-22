@@ -341,8 +341,7 @@ export default function PricingPage() {
   const [savingFee, setSavingFee] = useState(false)
   const [savedFee, setSavedFee] = useState(false)
   const [svcs, setSvcs] = useState<ServicesConfig>({ comforter_wash: true, wash_fold: true, wash_only: true })
-  const [savingSvcs, setSavingSvcs] = useState(false)
-  const [savedSvcs, setSavedSvcs] = useState(false)
+  const [savingSvcKey, setSavingSvcKey] = useState<keyof ServicesConfig | null>(null)
   const [monthlyPlanEnabled, setMonthlyPlanEnabledState] = useState(true)
   const [tipsEnabled, setTipsEnabledState] = useState(true)
   const [savingTipsToggle, setSavingTipsToggle] = useState(false)
@@ -371,12 +370,12 @@ export default function PricingPage() {
     getFreePickupDeliveryLineEnabled().then(setFreePickupDeliveryLineEnabledState)
   }
 
-  async function handleSaveSvcs() {
-    setSavingSvcs(true)
-    await setServicesConfig(svcs)
-    setSavingSvcs(false)
-    setSavedSvcs(true)
-    setTimeout(() => setSavedSvcs(false), 3000)
+  async function handleToggleSvc(key: keyof ServicesConfig) {
+    setSavingSvcKey(key)
+    const next = { ...svcs, [key]: !svcs[key] }
+    setSvcs(next)
+    await setServicesConfig(next)
+    setSavingSvcKey(null)
   }
 
   async function handleSaveFee() {
@@ -435,18 +434,9 @@ export default function PricingPage() {
 
         {/* ── Active Services ─────────────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-sm font-extrabold text-[#0D2240] uppercase tracking-wide">Active Services</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Toggle which services appear on the homepage and accept bookings.</p>
-            </div>
-            <button
-              onClick={handleSaveSvcs}
-              disabled={savingSvcs}
-              className="shrink-0 bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors"
-            >
-              {savingSvcs ? "Saving…" : savedSvcs ? "Saved ✓" : "Save"}
-            </button>
+          <div className="mb-5">
+            <h2 className="text-sm font-extrabold text-[#0D2240] uppercase tracking-wide">Active Services</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Toggle which services appear on the homepage and accept bookings. Changes save instantly.</p>
           </div>
           <div className="space-y-3">
             {([
@@ -463,8 +453,10 @@ export default function PricingPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setSvcs(s => ({ ...s, [key]: !s[key] }))}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${svcs[key] ? "bg-[#0D2240]" : "bg-gray-200"}`}
+                  type="button"
+                  disabled={savingSvcKey === key}
+                  onClick={() => handleToggleSvc(key)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${svcs[key] ? "bg-[#0D2240]" : "bg-gray-200"}`}
                   role="switch"
                   aria-checked={svcs[key]}
                 >
