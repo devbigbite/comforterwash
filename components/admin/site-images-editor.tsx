@@ -319,16 +319,16 @@ export function SiteImagesEditor({
                   </div>
                   {langTab === "en" ? (
                     <>
-                      <TextField label="Headline" value={text.slide_1_headline} defaultValue={DEFAULT_TEXT.slide_1_headline} placeholder="Laundry Service That Feels Like Family" onSave={v => saveText("slide_1_headline", v)} />
-                      <TextField label="Subline" value={text.slide_1_subline} defaultValue={DEFAULT_TEXT.slide_1_subline} placeholder="Free pickup & delivery · Orlando FL" onSave={v => saveText("slide_1_subline", v)} multiline />
-                      <TextField label="Button text" value={text.slide_1_cta} defaultValue={DEFAULT_TEXT.slide_1_cta} placeholder="Schedule a Pickup" onSave={v => saveText("slide_1_cta", v)} />
+                      <TextField label="Headline" value={text.slide_1_headline} defaultValue={DEFAULT_TEXT.slide_1_headline} placeholder="Your Laundry. Done." onSave={v => saveText("slide_1_headline", v)} />
+                      <TextField label="Subline" value={text.slide_1_subline} defaultValue={DEFAULT_TEXT.slide_1_subline} placeholder="We pick it up at your door and bring it back clean, folded & ready to put away. Free Pickup & Delivery · From $2.69/lb" onSave={v => saveText("slide_1_subline", v)} multiline />
+                      <TextField label="Button text" value={text.slide_1_cta} defaultValue={DEFAULT_TEXT.slide_1_cta} placeholder="Schedule My Pickup" onSave={v => saveText("slide_1_cta", v)} />
                     </>
                   ) : (
                     <>
                       <p className="text-[10px] text-gray-400 italic">Leave blank to use Spanish translation automatically.</p>
-                      <TextField label="Titular (ES)" value={text.slide_1_headline_es} defaultValue="" placeholder="Servicio de lavandería que se siente como familia" onSave={v => saveText("slide_1_headline_es", v)} />
-                      <TextField label="Subtítulo (ES)" value={text.slide_1_subline_es} defaultValue="" placeholder="Recogida y entrega gratis · Orlando FL" onSave={v => saveText("slide_1_subline_es", v)} multiline />
-                      <TextField label="Botón (ES)" value={text.slide_1_cta_es} defaultValue="" placeholder="Programar Recogido" onSave={v => saveText("slide_1_cta_es", v)} />
+                      <TextField label="Titular (ES)" value={text.slide_1_headline_es} defaultValue="" placeholder="Tu Ropa. Lista." onSave={v => saveText("slide_1_headline_es", v)} />
+                      <TextField label="Subtítulo (ES)" value={text.slide_1_subline_es} defaultValue="" placeholder="La recogemos en tu puerta y te la devolvemos limpia, doblada y lista para guardar. Recogida y Entrega Gratis · Desde $2.69/lb" onSave={v => saveText("slide_1_subline_es", v)} multiline />
+                      <TextField label="Botón (ES)" value={text.slide_1_cta_es} defaultValue="" placeholder="Programar Recogida" onSave={v => saveText("slide_1_cta_es", v)} />
                     </>
                   )}
                 </div>
