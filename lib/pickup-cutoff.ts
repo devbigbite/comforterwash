@@ -1,13 +1,13 @@
 /**
  * Pickup date cutoff logic for WashFold Orlando.
  * Timezone: America/New_York (Eastern)
- * Rule: orders placed before 3 PM ET can choose tomorrow.
- *       orders placed at or after 3 PM ET must choose the day after tomorrow
+ * Rule: orders placed before 7 PM ET can choose tomorrow.
+ *       orders placed at or after 7 PM ET must choose the day after tomorrow
  *       (or the next applicable service day).
  */
 
 const TZ = "America/New_York"
-const CUTOFF_HOUR = 15  // 3 PM
+const CUTOFF_HOUR = 19  // 7 PM
 
 /**
  * Returns today's date string (YYYY-MM-DD) in Eastern time.
@@ -19,7 +19,7 @@ export function todayET(): string {
 }
 
 /**
- * True if the current Eastern time is at or past the 3 PM cutoff.
+ * True if the current Eastern time is at or past the 7 PM cutoff.
  */
 export function isPastCutoff(): boolean {
   const eastern = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }))
@@ -28,8 +28,8 @@ export function isPastCutoff(): boolean {
 
 /**
  * Returns the earliest Date object a customer may select for pickup.
- * - Before 3 PM ET: tomorrow (local midnight)
- * - At/after 3 PM ET: the day after tomorrow (local midnight)
+ * - Before 7 PM ET: tomorrow (local midnight)
+ * - At/after 7 PM ET: the day after tomorrow (local midnight)
  */
 export function minPickupDate(): Date {
   const eastern = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }))
