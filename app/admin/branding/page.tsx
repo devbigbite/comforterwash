@@ -11,10 +11,20 @@ import {
   type BrandingSettings, type DispatchSettings, type EmailDomainStatus,
 } from "@/app/actions/branding"
 import { getFulfillmentMode, setFulfillmentMode, type FulfillmentMode } from "@/app/actions/walkin"
+import {
+  getOperatorLandingProfile, setLandingPageTemplate, setOperatorLandingStyle, setOperatorProfile, uploadOperatorPhoto,
+  type LandingPageTemplate, type OperatorLandingStyle, type OperatorProfile,
+} from "@/app/actions/branding"
 import { getMyConnectStatus, startMyConnectOnboarding, refreshMyConnectStatus, type ConnectStatus } from "@/app/actions/stripe-connect"
 
 const FIELD_CLS = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#0D2240]/20 bg-white"
 const LABEL_CLS = "block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5"
+
+const STYLE_OPTIONS: { value: OperatorLandingStyle; label: string; desc: string; swatchClass: string }[] = [
+  { value: "classic", label: "Classic", desc: "Clean white card, soft shadow.", swatchClass: "bg-white text-gray-400 border-b border-gray-100" },
+  { value: "bold", label: "Bold", desc: "Dark, glam hero photo.", swatchClass: "bg-[#1a1a24] text-[#E8726A]" },
+  { value: "scrapbook", label: "Scrapbook", desc: "Warm, personal collage look.", swatchClass: "bg-[#f5ecdd] text-[#c17a4f]" },
+]
 
 export default function BrandingPage() {
   const [settings, setSettings] = useState<BrandingSettings | null>(null)
@@ -185,6 +195,8 @@ export default function BrandingPage() {
 
       <StripeConnectSection />
       <OperatingModeSection />
+
+      <LandingPageSection />
       <LaunchDateSection />
       <FulfillmentSection />
       {isAdvanced && <EmailDomainSection />}
@@ -897,6 +909,178 @@ function FulfillmentSection() {
           </button>
         ))}
       </div>
+      {saved && <p className="text-green-600 text-sm font-semibold mt-3">✓ Saved</p>}
+    </div>
+  )
+}
+
+// ── Landing page style — Corporate (default) vs Personal/Operator ──────────
+// Which public homepage this tenant shows: the standard marketing-style page,
+// or a simpler personal page built around a photo, a short bio, and direct
+// booking buttons — meant for solo/home-based operators (see "How You Work"
+// above). Selecting "Personal" reveals fields to fill in the photo/name/bio.
+function LandingPageSection() {
+  const [profile, setProfile] = useState<OperatorProfile | null>(null)
+  const [name, setName] = useState("")
+  const [bio, setBio] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    getOperatorLandingProfile().then(p => {
+      setProfile(p)
+      setName(p.operator_name ?? "")
+      setBio(p.operator_bio ?? "")
+    })
+  }, [])
+
+  async function saveTemplate(next: LandingPageTemplate) {
+    if (!profile) return
+    setSaving(true)
+    setProfile({ ...profile, landing_page_template: next })
+    await setLandingPageTemplate(next)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function saveStyle(next: OperatorLandingStyle) {
+    if (!profile) return
+    setSaving(true)
+    setProfile({ ...profile, operator_landing_style: next })
+    await setOperatorLandingStyle(next)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function saveProfile() {
+    setSaving(true)
+    await setOperatorProfile({ operator_name: name.trim() || null, operator_bio: bio.trim() || null })
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !profile) return
+    setUploading(true)
+    const fd = new FormData()
+    fd.set("file", file)
+    const result = await uploadOperatorPhoto(fd)
+    setUploading(false)
+    if (result.url) {
+      setProfile({ ...profile, operator_photo_url: result.url })
+    }
+  }
+
+  if (!profile) return null
+
+  const OPTIONS: { value: LandingPageTemplate; label: string; desc: string }[] = [
+    { value: "corporate", label: "Corporate", desc: "Standard marketing homepage — offers, service steps, pricing." },
+    { value: "operator", label: "Personal", desc: "A simple page built around your photo, your story, and booking buttons." },
+  ]
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xl">🏡</span>
+        <h2 className="font-extrabold text-[#0D2240] text-base">Landing Page Style</h2>
+      </div>
+      <p className="text-xs text-gray-400 mb-5">Which homepage customers see when they visit your site.</p>
+      <div className="grid sm:grid-cols-2 gap-3 mb-4">
+        {OPTIONS.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            disabled={saving}
+            onClick={() => saveTemplate(opt.value)}
+            className={`text-left rounded-xl border-2 p-4 transition-all disabled:opacity-50 ${
+              profile.landing_page_template === opt.value ? "border-[#E8726A] bg-[#fdf6f3]" : "border-gray-100 hover:border-gray-200"
+            }`}
+          >
+            <p className="font-bold text-[#0D2240] text-sm">{opt.label}</p>
+            <p className="text-xs text-gray-400 mt-1">{opt.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      {profile.landing_page_template === "operator" && (
+        <div className="border-t border-gray-100 pt-5 space-y-5">
+          <div>
+            <label className={LABEL_CLS}>Page Style</label>
+            <div className="grid grid-cols-3 gap-3">
+              {STYLE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={saving}
+                  onClick={() => saveStyle(opt.value)}
+                  className={`text-left rounded-xl border-2 overflow-hidden transition-all disabled:opacity-50 ${
+                    profile.operator_landing_style === opt.value ? "border-[#E8726A]" : "border-gray-100 hover:border-gray-200"
+                  }`}
+                >
+                  <div className={`h-14 w-full flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wide ${opt.swatchClass}`}>
+                    {opt.label}
+                  </div>
+                  <p className="text-[11px] text-gray-400 px-2 py-1.5">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className={LABEL_CLS}>Your Photo</label>
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center text-2xl text-gray-300">
+                {profile.operator_photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profile.operator_photo_url} alt="" className="h-full w-full object-cover" />
+                ) : "🙂"}
+              </div>
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => photoInputRef.current?.click()}
+                className="bg-white border border-gray-200 hover:border-gray-300 text-[#0D2240] font-bold text-xs px-4 py-2.5 rounded-xl transition-colors disabled:opacity-60"
+              >
+                {uploading ? "Uploading…" : "Upload Photo"}
+              </button>
+              <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+            </div>
+          </div>
+
+          <div>
+            <label className={LABEL_CLS}>Your Name</label>
+            <input
+              type="text" value={name} onChange={e => setName(e.target.value)}
+              placeholder="e.g. Maria Gonzalez"
+              className={FIELD_CLS}
+            />
+          </div>
+
+          <div>
+            <label className={LABEL_CLS}>Your Story</label>
+            <textarea
+              value={bio} onChange={e => setBio(e.target.value)}
+              rows={4}
+              placeholder="A short, personal story about who you are and why you started this business."
+              className={`${FIELD_CLS} resize-none`}
+            />
+          </div>
+
+          <button
+            type="button" disabled={saving} onClick={saveProfile}
+            className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-colors disabled:opacity-60 uppercase tracking-wide"
+          >
+            Save Profile
+          </button>
+        </div>
+      )}
+
       {saved && <p className="text-green-600 text-sm font-semibold mt-3">✓ Saved</p>}
     </div>
   )

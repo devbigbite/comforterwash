@@ -412,3 +412,107 @@ export async function uploadBrandLogo(formData: FormData): Promise<{ url?: strin
 
   return { url: publicUrl }
 }
+
+// ── Landing page template + operator profile ──────────────────────────────────
+// A solo/home-based tenant (operating_mode "home") often finds the default
+// "corporate" homepage — service cards, carousel, trust badges — a mismatch
+// for a one-person business. This lets them switch their public homepage to
+// a personal template instead: a portrait photo, their own name, a short
+// story, and the same booking CTAs, with the pricing/ZIP/services sections
+// below unchanged. See components/landing-operator.tsx and app/page.tsx
+// (which picks between the two templates) and the "Landing Page Style"
+// section on /admin/branding.
+export type LandingPageTemplate = "corporate" | "operator"
+
+// Visual style used when landing_page_template is "operator" -- a tenant
+// picks one of these on /admin/branding. "classic" is the original clean
+// card layout; "bold" and "scrapbook" are alternate looks with the same
+// content (photo, name, bio, booking CTAs) styled differently. See
+// components/landing-operator.tsx for the actual per-style JSX.
+export type OperatorLandingStyle = "classic" | "bold" | "scrapbook"
+
+export interface OperatorProfile {
+  landing_page_template: LandingPageTemplate
+  operator_landing_style: OperatorLandingStyle
+  operator_name: string | null
+  operator_photo_url: string | null
+  operator_bio: string | null
+}
+
+export async function getOperatorLandingProfile(): Promise<OperatorProfile> {
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data } = await supabase
+    .from("locations")
+    .select("landing_page_template, operator_landing_style, operator_name, operator_photo_url, operator_bio")
+    .eq("id", locationId)
+    .single()
+
+  return {
+    landing_page_template: (data?.landing_page_template as LandingPageTemplate) ?? "corporate",
+    operator_landing_style: (data?.operator_landing_style as OperatorLandingStyle) ?? "classic",
+    operator_name: data?.operator_name ?? null,
+    operator_photo_url: data?.operator_photo_url ?? null,
+    operator_bio: data?.operator_bio ?? null,
+  }
+}
+
+export async function setOperatorLandingStyle(style: OperatorLandingStyle): Promise<{ error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("locations").update({ operator_landing_style: style }).eq("id", locationId)
+  revalidatePath("/admin/branding")
+  revalidatePath("/", "layout")
+  return {}
+}
+
+export async function setLandingPageTemplate(template: LandingPageTemplate): Promise<{ error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("locations").update({ landing_page_template: template }).eq("id", locationId)
+  revalidatePath("/admin/branding")
+  revalidatePath("/", "layout")
+  return {}
+}
+
+export async function setOperatorProfile(profile: {
+  operator_name: string | null
+  operator_bio: string | null
+}): Promise<{ error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  await supabase.from("locations").update({
+    operator_name: profile.operator_name?.trim() || null,
+    operator_bio: profile.operator_bio?.trim() || null,
+  }).eq("id", locationId)
+  revalidatePath("/admin/branding")
+  revalidatePath("/", "layout")
+  return {}
+}
+
+// Same pattern as uploadBrandLogo above — same bucket, its own path prefix
+// so a tenant's logo and operator portrait never collide.
+export async function uploadOperatorPhoto(formData: FormData): Promise<{ url?: string; error?: string }> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const file = formData.get("file") as File
+  if (!file || file.size === 0) return { error: "No file provided" }
+
+  const ext = file.name.split(".").pop() ?? "png"
+  const path = `operator-photos/${locationId}.${ext}`
+  const arrayBuffer = await file.arrayBuffer()
+
+  const { error: uploadError } = await supabase.storage
+    .from("site-images")
+    .upload(path, arrayBuffer, { contentType: file.type, upsert: true })
+
+  if (uploadError) return { error: uploadError.message }
+
+  const { data: urlData } = supabase.storage.from("site-images").getPublicUrl(path)
+  const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
+
+  await supabase.from("locations").update({ operator_photo_url: publicUrl }).eq("id", locationId)
+  revalidatePath("/admin/branding")
+  revalidatePath("/", "layout")
+
+  return { url: publicUrl }
+}

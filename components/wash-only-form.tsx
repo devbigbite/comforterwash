@@ -50,10 +50,11 @@ function bagsToEstLbs(bags: number) {
   return Math.max(bags * LBS_PER_BAG, MIN_POUNDS)
 }
 
-function DateStrip({ selected, onSelect, isAvailable, locale }: {
+function DateStrip({ selected, onSelect, isAvailable, tomorrow, locale }: {
   selected: Date | undefined
   onSelect: (d: Date) => void
   isAvailable: (d: Date) => boolean
+  tomorrow: string
   locale: Locale
 }) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -62,6 +63,10 @@ function DateStrip({ selected, onSelect, isAvailable, locale }: {
   })
   const isSameDay = (a: Date, b: Date) =>
     a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
+  const dayHint = (d: Date) => {
+    const diff = Math.round((d.getTime() - today.getTime()) / 86400000)
+    return diff === 1 ? tomorrow : ""
+  }
 
   return (
     <div className="overflow-x-auto pb-1 -mx-1">
@@ -69,6 +74,7 @@ function DateStrip({ selected, onSelect, isAvailable, locale }: {
         {dates.map((d, i) => {
           const avail = isAvailable(d)
           const sel = !!selected && isSameDay(d, selected)
+          const hint = dayHint(d)
           return (
             <button key={i} type="button" disabled={!avail} onClick={() => onSelect(d)}
               className={cn(
@@ -80,6 +86,7 @@ function DateStrip({ selected, onSelect, isAvailable, locale }: {
               <span className={cn("text-[10px] font-bold uppercase tracking-wider", sel ? "text-white/80" : avail ? "text-gray-400" : "text-gray-300")}>{dayAbbr(locale, d.getDay())}</span>
               <span className={cn("text-xl font-extrabold leading-tight my-0.5", sel ? "text-white" : avail ? "text-[var(--brand-primary)]" : "text-gray-300")}>{d.getDate()}</span>
               <span className={cn("text-[10px] font-bold uppercase", sel ? "text-white/70" : avail ? "text-gray-400" : "text-gray-300")}>{monthAbbr(locale, d.getMonth())}</span>
+              {hint && <span className={cn("text-[9px] mt-0.5 font-medium", sel ? "text-white/60" : "text-[var(--brand-accent)]")}>{hint}</span>}
             </button>
           )
         })}
@@ -542,7 +549,7 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
                   <span className="w-5 h-5 rounded-full bg-[var(--brand-accent)] text-white text-[10px] font-bold flex items-center justify-center">1</span>
                   <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tb.pickupDateTitle}</h4>
                 </div>
-                <DateStrip selected={formData.pickupDate} onSelect={(d) => setFormData(p => ({ ...p, pickupDate: d, deliveryDate: getEarliestRouteDelivery(d, activeRoutes) }))} isAvailable={isPickupAvailable} locale={locale} />
+                <DateStrip selected={formData.pickupDate} onSelect={(d) => setFormData(p => ({ ...p, pickupDate: d, deliveryDate: getEarliestRouteDelivery(d, activeRoutes) }))} isAvailable={isPickupAvailable} tomorrow={tf.tomorrow} locale={locale} />
                 {formData.pickupDate && <TimeSlotPicker value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} label={tf.availableTimeSlots} windows={getTimeWindowsForDate(formData.pickupDate, activeRoutes, "pickup")} />}
               </div>
               {formData.pickupDate && formData.pickupTimeWindow && (
@@ -552,7 +559,7 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
                     <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tb.deliveryDateTitle}</h4>
                     <span className="text-xs text-gray-400">— {tb.deliveryGapNote}</span>
                   </div>
-                  <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} locale={locale} />
+                  <DateStrip selected={formData.deliveryDate} onSelect={(d) => setFormData(p => ({ ...p, deliveryDate: d }))} isAvailable={isDeliveryAvailable} tomorrow={tf.tomorrow} locale={locale} />
                   {formData.deliveryDate && <TimeSlotPicker value={formData.deliveryTimeWindow} onChange={(v) => setFormData(p => ({ ...p, deliveryTimeWindow: v }))} label={tf.availableTimeSlots} windows={getTimeWindowsForDate(formData.deliveryDate, activeRoutes, "delivery")} />}
                 </div>
               )}
