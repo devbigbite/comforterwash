@@ -13,12 +13,23 @@ export interface PricingConfig {
   // Wash Only
   washOnlyCents:        number   // default 199
   washOnlyMinLbs:       number   // default 18
-  // Comforter
-  comforterTwinCents:   number   // default 2900
-  comforterFullCents:   number   // default 3300
-  comforterQueenCents:  number   // default 3800
+  // Comforter — customer-facing prices. These are the "real" prices shown
+  // struck-through on the promo page; comforterPromoCents is what's charged
+  // while the flat-rate promo (see getComforterPromo) is active.
+  comforterTwinCents:   number   // default 3500
+  comforterFullCents:   number   // default 3700
+  comforterQueenCents:  number   // default 3900
   comforterKingCents:   number   // default 4300
   comforterPromoCents:  number   // default 3300
+  // Comforter — what the processing facility is paid per comforter
+  // (app/actions/bookings.ts / facility-routing.ts, via
+  // lib/facility-comforter-cost.ts). Independent of the customer prices
+  // above — changing one does not change the other.
+  comforterFacilityTwinCents:  number   // default 1300
+  comforterFacilityFullCents:  number   // default 1360
+  comforterFacilityQueenCents: number   // default 1440
+  comforterFacilityKingCents:  number   // default 1590
+  comforterFacilityPromoCents: number   // default 1300
 }
 
 const DEFAULTS: PricingConfig = {
@@ -27,11 +38,16 @@ const DEFAULTS: PricingConfig = {
   washFoldMinLbs:       18,
   washOnlyCents:        219,
   washOnlyMinLbs:       18,
-  comforterTwinCents:   2900,
-  comforterFullCents:   3300,
-  comforterQueenCents:  3800,
+  comforterTwinCents:   3500,
+  comforterFullCents:   3700,
+  comforterQueenCents:  3900,
   comforterKingCents:   4300,
   comforterPromoCents:  3300,
+  comforterFacilityTwinCents:  1300,
+  comforterFacilityFullCents:  1360,
+  comforterFacilityQueenCents: 1440,
+  comforterFacilityKingCents:  1590,
+  comforterFacilityPromoCents: 1300,
 }
 
 const KEY_MAP: Record<keyof PricingConfig, string> = {
@@ -45,6 +61,11 @@ const KEY_MAP: Record<keyof PricingConfig, string> = {
   comforterQueenCents:  "comforter_queen_cents",
   comforterKingCents:   "comforter_king_cents",
   comforterPromoCents:  "comforter_promo_cents",
+  comforterFacilityTwinCents:  "facility_comforter_twin_cents",
+  comforterFacilityFullCents:  "facility_comforter_full_cents",
+  comforterFacilityQueenCents: "facility_comforter_queen_cents",
+  comforterFacilityKingCents:  "facility_comforter_king_cents",
+  comforterFacilityPromoCents: "facility_comforter_promo_cents",
 }
 
 export async function getPricingConfig(): Promise<PricingConfig> {

@@ -1,8 +1,5 @@
-import { WashOnlyForm } from "@/components/wash-only-form"
+import { ServiceSwitcher } from "@/components/service-switcher"
 import { LangToggle } from "@/components/lang-toggle"
-import { BookingPageTitle } from "@/components/booking-page-title"
-import { WashOnlyPageSubtitle } from "@/components/wash-only-page-subtitle"
-import { WashOnlyInfoBox } from "@/components/wash-only-info-box"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServicesConfig } from "@/app/actions/settings"
@@ -43,19 +40,7 @@ export default async function WashOnlyPage() {
         </div>
       </header>
 
-      <div className="bg-[#0D2240] py-8 text-center">
-        <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 mb-3">
-          <span className="text-2xl">🧺</span>
-          <span className="text-white font-bold text-sm">Wash Only</span>
-        </div>
-        <h1 className="text-3xl font-extrabold text-white mb-1"><BookingPageTitle /></h1>
-        <WashOnlyPageSubtitle priceCents={pricing.washOnlyCents} minLbs={pricing.washOnlyMinLbs} />
-      </div>
-
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <WashOnlyInfoBox />
-        <WashOnlyForm initialPricing={pricing} />
-      </div>
+      <ServiceSwitcher defaultService="wash_only" services={services} pricing={pricing} />
     </main>
   )
 }

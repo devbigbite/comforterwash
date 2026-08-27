@@ -652,6 +652,42 @@ export default function PricingPage() {
                 <Link href="/admin/settings" className="text-[#E8726A] hover:underline font-semibold">Promotions</Link>.
               </p>
             </div>
+            <div className="border-t border-gray-100 pt-5 mt-5">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Facility Payout (per comforter)</p>
+              <p className="text-xs text-gray-400 mb-3">
+                What the processing facility is paid — independent of the customer prices above. Comforter orders skip
+                weigh-in, so this is what gets accrued to the facility&apos;s balance at booking time.
+              </p>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                {(["Twin", "Full", "Queen", "King"] as const).map(size => {
+                  const key = `comforterFacility${size}Cents` as keyof PricingConfig
+                  return (
+                    <div key={key}>
+                      <label className={labelCls}>{size}</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                        <PriceInput key={key} className={inputCls + " pl-7"}
+                          cents={config[key] as number}
+                          onChange={c => setFieldCents(key, c ?? 0)} />
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Currently {cents(config[key] as number)}</p>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="max-w-[200px]">
+                <label className={labelCls}>Promo flat payout</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                  <PriceInput className={inputCls + " pl-7"}
+                    cents={config.comforterFacilityPromoCents}
+                    onChange={c => setFieldCents("comforterFacilityPromoCents", c ?? 0)} />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Paid any size while the flat-rate promo is active · currently {cents(config.comforterFacilityPromoCents)}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* ── Save pricing ────────────────────────────── */}

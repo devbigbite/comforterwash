@@ -8,6 +8,9 @@ import { createShipdayOrder } from "@/lib/shipday"
 import { format } from "date-fns"
 import { todayET } from "@/lib/date-et"
 import { recordPromoRedemption } from "@/app/actions/promos"
+import { getComforterPromo } from "@/app/actions/settings"
+import { getPricingConfig } from "@/app/actions/pricing"
+import { computeComforterFacilityCostCents } from "@/lib/facility-comforter-cost"
 
 export interface BookingData {
   customerName: string
@@ -97,6 +100,27 @@ export async function createBooking(data: BookingData) {
   const colorKey   = await pickColorKey(supabase, pickupDateStr)
   const defaultFacilityId = await resolveSoleFacilityId(supabase, locationId)
 
+  // Comforter orders are flat-rate and skip weigh-in entirely, so the
+  // facility accrual has to be written here instead — see
+  // lib/facility-comforter-cost.ts for why.
+  const serviceType = data.serviceType ?? "comforter_wash"
+  let comforterFacilityCostCents: number | null = null
+  if (defaultFacilityId && serviceType === "comforter_wash") {
+    const [promoActive, pricing] = await Promise.all([getComforterPromo(), getPricingConfig()])
+    comforterFacilityCostCents = computeComforterFacilityCostCents(
+      data.comforterSizes ?? null,
+      data.numComforters,
+      promoActive,
+      {
+        twinCents:  pricing.comforterFacilityTwinCents,
+        fullCents:  pricing.comforterFacilityFullCents,
+        queenCents: pricing.comforterFacilityQueenCents,
+        kingCents:  pricing.comforterFacilityKingCents,
+        promoCents: pricing.comforterFacilityPromoCents,
+      },
+    )
+  }
+
   // Attach user_id if the customer is logged in
   let userId: string | null = null
   try {
@@ -143,6 +167,7 @@ export async function createBooking(data: BookingData) {
       customer_instructions: data.specialInstructions?.trim() || null,
       color_key: colorKey,
       assigned_facility_id: defaultFacilityId,
+      facility_cost_cents: comforterFacilityCostCents,
     })
     .select()
     .single()

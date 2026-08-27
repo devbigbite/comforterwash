@@ -82,7 +82,7 @@ export function OrderRow({
           {b.delivery_date ?? "—"}
         </td>
         <td className="px-4 py-3 font-semibold text-[#0D2240] whitespace-nowrap">
-          ${((b.customer_final_cents ?? 0) / 100).toFixed(2)}
+          ${(((b.customer_final_cents ?? b.total_amount) ?? 0) / 100).toFixed(2)}
         </td>
         <td className="px-4 py-3 whitespace-nowrap">
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${STATUS_BADGE[b.status] ?? "bg-gray-100 text-gray-500"}`}>

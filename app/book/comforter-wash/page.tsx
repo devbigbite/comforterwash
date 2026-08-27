@@ -1,9 +1,9 @@
-import { BookingForm } from "@/components/booking-form"
+import { ServiceSwitcher } from "@/components/service-switcher"
 import { LangToggle } from "@/components/lang-toggle"
-import { BookingPageTitle } from "@/components/booking-page-title"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServicesConfig } from "@/app/actions/settings"
+import { getPricingConfig } from "@/app/actions/pricing"
 import { getBranding } from "@/lib/location"
 
 export async function generateMetadata() {
@@ -15,7 +15,7 @@ export async function generateMetadata() {
 }
 
 export default async function ComforterWashPage() {
-  const services = await getServicesConfig()
+  const [services, pricing] = await Promise.all([getServicesConfig(), getPricingConfig()])
   if (!services.comforter_wash) redirect("/")
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
@@ -39,18 +39,7 @@ export default async function ComforterWashPage() {
         </div>
       </header>
 
-      {/* Service badge */}
-      <div className="bg-[#0D2240] py-8 text-center">
-        <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 mb-3">
-          <span className="text-2xl">🛏️</span>
-          <span className="text-white font-bold text-sm">Comforter Wash</span>
-        </div>
-        <h1 className="text-3xl font-extrabold text-white mb-1"><BookingPageTitle /></h1>
-      </div>
-
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <BookingForm />
-      </div>
+      <ServiceSwitcher defaultService="comforter_wash" services={services} pricing={pricing} />
     </main>
   )
 }

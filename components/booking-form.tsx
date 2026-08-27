@@ -142,7 +142,7 @@ export function BookingForm() {
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
   const [activeRoutes, setActiveRoutes] = useState<Route[]>([])
 
-  const [quantities, setQuantities] = useState<Quantities>({ twin: 0, full: 0, queen: 1, king: 0 })
+  const [quantities, setQuantities] = useState<Quantities>({ twin: 0, full: 0, queen: 0, king: 0 })
 
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "",
