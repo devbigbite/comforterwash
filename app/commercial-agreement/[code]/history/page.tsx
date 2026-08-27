@@ -207,6 +207,15 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${badge.style}`}>
                       {badge.label}
                     </span>
+                    {(o.payment_status === "captured" || o.payment_status === "paid") && (
+                      <Link
+                        href={`/commercial-agreement/${code}/receipt/${o.id}`}
+                        onClick={e => e.stopPropagation()}
+                        className="text-[11px] font-bold text-[#E8726A] hover:underline shrink-0"
+                      >
+                        🧾 Receipt
+                      </Link>
+                    )}
                   </summary>
 
                   <div className="mt-3 pt-3 border-t border-gray-100">

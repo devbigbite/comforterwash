@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { getAuthenticatedProfile, createOptionalAccount } from "@/app/actions/customer-auth"
 import { CheckCircle2 } from "lucide-react"
@@ -105,7 +105,7 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
   )
 }
 
-export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfig }) {
+export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: PricingConfig; topSlot?: ReactNode }) {
   const { translations: tr, locale } = useLang()
   const tf = tr.form
   const tw = tr.washFoldForm
@@ -490,6 +490,7 @@ export function WashOnlyForm({ initialPricing }: { initialPricing?: PricingConfi
               <h3 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">{tw.howManyBags}</h3>
               <p className="text-sm text-gray-400">{tw.bagWeightNote}</p>
             </div>
+            {topSlot}
 
             <div className="space-y-4">
               <div className="flex items-center justify-center gap-6 py-1">

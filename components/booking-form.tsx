@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { getAuthenticatedProfile, createOptionalAccount } from "@/app/actions/customer-auth"
 import { CheckCircle2 } from "lucide-react"
@@ -120,7 +120,7 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
-export function BookingForm() {
+export function BookingForm({ topSlot }: { topSlot?: ReactNode } = {}) {
   const { translations: tr, locale } = useLang()
   const tf = tr.form
   // Detergent/extra/accessory names & descriptions are admin-entered per option
@@ -594,6 +594,7 @@ export function BookingForm() {
               <h3 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">{tb.selectSize}</h3>
               <p className="text-sm text-gray-400">{tb.selectSizeNote}</p>
             </div>
+            {topSlot}
 
             {/* Per-size tiles with individual counters */}
             <div className="grid grid-cols-2 gap-3">

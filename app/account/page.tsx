@@ -496,7 +496,13 @@ export default async function AccountPage() {
                     <p className="text-xs text-gray-400 mt-0.5">
                       {format(new Date(booking.created_at), "MMM d, yyyy")} ·{" "}
                       {booking.service_type === "wash_fold" ? "Wash & Fold" : "Comforter Wash"} ·{" "}
-                      ${(booking.total_amount / 100).toFixed(2)}
+                      {/* total_amount is only set for pre-priced (flat-rate/estimated)
+                          orders — weigh-in-priced orders (e.g. commercial per-lb
+                          accounts) leave it at 0 and carry the real charge in
+                          customer_final_cents instead. Falling back to it here is
+                          what fixed order 714600 showing $0.00 for a customer who
+                          was actually charged $45.90. */}
+                      ${(((booking.customer_final_cents ?? booking.total_amount) ?? 0) / 100).toFixed(2)}
                     </p>
                   </div>
                   {booking.status !== "delivered" && booking.status !== "cancelled" && (
@@ -505,6 +511,14 @@ export default async function AccountPage() {
                       className="shrink-0 text-xs text-[#E8726A] hover:text-[#d45f57] transition-colors font-bold"
                     >
                       Track →
+                    </Link>
+                  )}
+                  {(booking.payment_status === "captured" || booking.payment_status === "paid") && (
+                    <Link
+                      href={`/account/receipt/${booking.id}`}
+                      className="shrink-0 text-xs text-[#0D2240] hover:underline font-bold"
+                    >
+                      🧾 Receipt
                     </Link>
                   )}
                 </div>

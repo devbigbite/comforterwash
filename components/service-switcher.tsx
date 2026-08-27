@@ -19,12 +19,12 @@ const SERVICE_META: Record<ServiceKey, { label: string; icon: string }> = {
   wash_only:      { label: "Wash Only",      icon: "🧺" },
 }
 
-// Shared shell for all three booking flows. Renders a horizontal row of
-// service buttons up top; picking one swaps the hero badge/subtitle and the
-// booking form below it, without a page navigation. Each of the three
-// /book/* routes still exists (for bookmarks/links/SEO) and renders this
-// with its own `defaultService`, so a customer landing on any one of them
-// can switch to either of the other two in place.
+// Shared shell for all three booking flows. Picking a service in the
+// picker (rendered inside the active form's step 1) swaps the hero
+// badge/subtitle and the form below it, without a page navigation. Each of
+// the three /book/* routes still exists (for bookmarks/links/SEO) and
+// renders this with its own `defaultService`, so a customer landing on any
+// one of them can switch to either of the other two in place.
 export function ServiceSwitcher({
   defaultService,
   services,
@@ -37,9 +37,37 @@ export function ServiceSwitcher({
   const [service, setService] = useState<ServiceKey>(defaultService)
   const available = (Object.keys(SERVICE_META) as ServiceKey[]).filter(k => services[k])
 
+  // Light-card styled service picker — rendered inline inside the active
+  // form's step 1, not as a nav-like row in the dark hero. Tab-like
+  // affordance (raised/bordered when selected) makes it read as "this is
+  // the choice you're making", matching the ONE-TIME/RECURRING and
+  // bag-count controls right below it.
+  const picker = (
+    <div
+      className="grid gap-2"
+      style={{ gridTemplateColumns: `repeat(${available.length}, minmax(0, 1fr))` }}
+    >
+      {available.map(key => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => setService(key)}
+          className={`flex flex-col items-center justify-center gap-1 rounded-2xl border-2 px-3 py-3 text-xs sm:text-sm font-bold uppercase tracking-wide transition-all duration-200 ${
+            service === key
+              ? "border-[var(--brand-accent)] bg-[#fdf6f3] text-[var(--brand-primary)]"
+              : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+          }`}
+        >
+          <span className="text-xl">{SERVICE_META[key].icon}</span>
+          {SERVICE_META[key].label}
+        </button>
+      ))}
+    </div>
+  )
+
   return (
     <>
-      {/* Dark hero band: badge, title, subtitle, service picker */}
+      {/* Dark hero band: badge, title, subtitle */}
       <div className="bg-[#0D2240] py-8 text-center">
         <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 mb-3">
           <span className="text-2xl">{SERVICE_META[service].icon}</span>
@@ -60,39 +88,23 @@ export function ServiceSwitcher({
           <p className="text-white/60 text-sm">Any size, one flat price · Fully water washed</p>
         )}
 
-        {/* Service picker */}
-        <div
-          className="mx-auto max-w-2xl mt-6 px-4 grid gap-2"
-          style={{ gridTemplateColumns: `repeat(${available.length}, minmax(0, 1fr))` }}
-        >
-          {available.map(key => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setService(key)}
-              className={`flex flex-col items-center justify-center gap-1 rounded-2xl border px-3 py-3 text-xs sm:text-sm font-bold uppercase tracking-wide transition-colors ${
-                service === key
-                  ? "border-[#E8726A] bg-white text-[#0D2240]"
-                  : "border-white/20 bg-white/5 text-white/60 hover:bg-white/10"
-              }`}
-            >
-              <span className="text-xl">{SERVICE_META[key].icon}</span>
-              {SERVICE_META[key].label}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Light body: form for the selected service */}
+      {/* Light body: form for the selected service. The service picker is
+          passed in as `topSlot` and rendered by each form right after its
+          own step-1 heading (e.g. "How would you like to book?") — sitting
+          in the dark hero read as page navigation rather than a selection
+          step, so it moved down into the card where the actual choice
+          happens. */}
       <div className="mx-auto max-w-2xl px-4 py-10">
-        {service === "wash_fold" && <WashFoldForm initialPricing={pricing} />}
+        {service === "wash_fold" && <WashFoldForm initialPricing={pricing} topSlot={picker} />}
         {service === "wash_only" && (
           <>
             <WashOnlyInfoBox />
-            <WashOnlyForm initialPricing={pricing} />
+            <WashOnlyForm initialPricing={pricing} topSlot={picker} />
           </>
         )}
-        {service === "comforter_wash" && <BookingForm />}
+        {service === "comforter_wash" && <BookingForm topSlot={picker} />}
       </div>
     </>
   )

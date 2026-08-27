@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { getAuthenticatedProfile, createOptionalAccount } from "@/app/actions/customer-auth"
 import { CheckCircle2 } from "lucide-react"
@@ -213,7 +213,7 @@ function WeekdayPicker({
 }
 
 // ─── main component ───────────────────────────────────────────────────────────
-export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfig }) {
+export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: PricingConfig; topSlot?: ReactNode }) {
   const { translations: tr, locale } = useLang()
   const tf = tr.form
   const tw = tr.washFoldForm
@@ -703,6 +703,7 @@ export function WashFoldForm({ initialPricing }: { initialPricing?: PricingConfi
             <div className="space-y-3">
               <h3 className="text-xl font-extrabold text-[var(--brand-primary)]">{tw.howToBook}</h3>
               <p className="text-sm text-gray-400 -mt-1">{tw.howToBookSub}</p>
+              {topSlot}
 
               <div className="space-y-2">
                 {/* ── Option 1: One-Time ── */}
