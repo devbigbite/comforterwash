@@ -84,6 +84,16 @@ export function CorporateLanding() {
       {/* ── 3 Simple Steps ─────────────────────────────────────────────── */}
       <section id="how" className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
+          {/* CTA -- moved out of the hero image and placed here, centered,
+              directly above the "Clean Laundry in N Simple Steps" heading. */}
+          <div className="flex justify-center mb-6">
+            <a
+              href="/book/wash-fold"
+              className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-7 py-3 rounded-full uppercase tracking-wide transition-colors shadow-lg"
+            >
+              {(locale === "es" ? siteText.slide_1_cta_es : siteText.slide_1_cta) || tr.hero.slide1Cta || DEFAULT_TEXT.slide_1_cta}
+            </a>
+          </div>
           <h2 className="text-3xl font-extrabold text-[var(--brand-primary)] uppercase tracking-wide text-center mb-2">
             {tr.steps.heading}
           </h2>
