@@ -179,6 +179,64 @@ export async function inviteLocationAdmin(
 // a tenant says the email never arrived and needs in today. Copy/paste it
 // into a text message, WhatsApp, whatever reaches them fastest. The link is
 // still a real Supabase magic-link token: single use, expires like any other.
+// Sets (or creates) a direct email+password login for a tenant admin --
+// no email delivery, no token, no link to click. This replaces the magic-
+// link flow, which turned out to be unreliable: one-time tokens got
+// silently consumed by automated link scanners before a human ever clicked,
+// and depended on the tenant's outbound email actually landing in an inbox.
+// A password set here works the moment it's set, verified in this same
+// session by testing sign-in immediately.
+export async function setLocationAdminPassword(
+  locationId: string,
+  email: string,
+  password: string,
+): Promise<{ error?: string; success?: boolean }> {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+  const cleanEmail = email.trim().toLowerCase()
+  if (!cleanEmail || !cleanEmail.includes("@")) return { error: "Enter a valid email address." }
+  if (!password || password.length < 8) return { error: "Password must be at least 8 characters." }
+
+  const { data: userList } = await supabase.auth.admin.listUsers()
+  const existing = userList?.users.find(u => u.email?.toLowerCase() === cleanEmail)
+
+  let userId = existing?.id
+  if (userId) {
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
+      password,
+      email_confirm: true,
+    })
+    if (error) return { error: error.message }
+  } else {
+    const { data: created, error } = await supabase.auth.admin.createUser({
+      email: cleanEmail,
+      password,
+      email_confirm: true,
+    })
+    if (error || !created?.user) return { error: error?.message || "Failed to create account." }
+    userId = created.user.id
+  }
+
+  // Make sure this user is actually a member of this tenant -- otherwise a
+  // correct password still won't get them past the location_users check in
+  // the sign-in action below.
+  const { data: membership } = await supabase
+    .from("location_users")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("location_id", locationId)
+    .maybeSingle()
+
+  if (!membership) {
+    const { error } = await supabase
+      .from("location_users")
+      .insert({ location_id: locationId, user_id: userId, role: "admin" })
+    if (error) return { error: error.message }
+  }
+
+  return { success: true }
+}
+
 export async function getLocationAdminSignInLink(
   locationId: string,
   email: string,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
-import { getAllLocations, updateLocation, inviteLocationAdmin, getLocationAdminSignInLink, getLocationAdmins, removeLocationAdmin, deleteLocation, enterTenantAdmin, type DeleteLocationResult } from "@/app/actions/super-admin"
+import { getAllLocations, updateLocation, inviteLocationAdmin, setLocationAdminPassword, getLocationAdmins, removeLocationAdmin, deleteLocation, enterTenantAdmin, type DeleteLocationResult } from "@/app/actions/super-admin"
 import { setLocationPlanPrice, createBillingCheckoutLink, cancelLocationBilling, sendBillingCheckoutEmail } from "@/app/actions/platform-billing"
 
 // Mirrors middleware.ts's PLATFORM_DOMAIN — used here just to build the
@@ -60,8 +60,10 @@ export default function SuperAdminPage() {
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviting, setInviting] = useState(false)
   const [inviteMsg, setInviteMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
-  const [linkFor, setLinkFor] = useState<string | null>(null)
-  const [linkResult, setLinkResult] = useState<{ type: "ok" | "err"; text: string } | null>(null)
+  const [pwFor, setPwFor] = useState<string | null>(null)
+  const [pwValue, setPwValue] = useState("")
+  const [pwResult, setPwResult] = useState<{ type: "ok" | "err"; text: string } | null>(null)
+  const [pwSaving, setPwSaving] = useState(false)
 
   // Row actions collapsed into a single dropdown (was 6 separate text links
   // that pushed the table wider than the viewport and forced horizontal
@@ -187,16 +189,26 @@ export default function SuperAdminPage() {
     setAdmins(data)
   }
 
-  // Bypasses email entirely -- generates the same one-time sign-in link but
-  // hands it back for the super admin to copy/paste and send however
-  // actually reaches the tenant (text, WhatsApp, read over the phone).
-  async function handleGetLink(email: string) {
+  // Sets a direct email+password login -- no email delivery, no token, no
+  // link to click. Replaces the old magic-link "Get link" flow, which
+  // depended on outbound email and turned out to be silently breakable by
+  // automated link scanners consuming the one-time token before a human
+  // ever clicked it.
+  function openSetPassword(email: string) {
+    setPwFor(email)
+    setPwValue("")
+    setPwResult(null)
+  }
+
+  async function handleSetPassword(email: string) {
     if (!adminsForId) return
-    setLinkFor(email)
-    setLinkResult(null)
-    const result = await getLocationAdminSignInLink(adminsForId, email)
-    if (result.error) { setLinkResult({ type: "err", text: result.error }); return }
-    setLinkResult({ type: "ok", text: result.link ?? "" })
+    if (pwValue.length < 8) { setPwResult({ type: "err", text: "Password must be at least 8 characters." }); return }
+    setPwSaving(true)
+    setPwResult(null)
+    const result = await setLocationAdminPassword(adminsForId, email, pwValue)
+    setPwSaving(false)
+    if (result.error) { setPwResult({ type: "err", text: result.error }); return }
+    setPwResult({ type: "ok", text: "Password set. Give this to the admin along with their email -- they can sign in right away at /admin/login." })
   }
 
   async function load() {
@@ -476,8 +488,8 @@ export default function SuperAdminPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         {!a.is_super_admin && (
-                          <button onClick={() => handleGetLink(a.email)} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
-                            Get link
+                          <button onClick={() => openSetPassword(a.email)} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                            Set password
                           </button>
                         )}
                         {!a.is_super_admin && (
@@ -488,31 +500,34 @@ export default function SuperAdminPage() {
                       </div>
                     </div>
 
-                    {linkFor === a.email && (
+                    {pwFor === a.email && (
                       <div className="mt-2 pt-2 border-t border-slate-200">
-                        {linkResult === null ? (
-                          <p className="text-xs text-slate-400">Generating…</p>
-                        ) : linkResult.type === "err" ? (
-                          <p className="text-xs text-red-500 font-medium">{linkResult.text}</p>
+                        {pwResult?.type === "ok" ? (
+                          <p className="text-xs text-green-600 font-medium">{pwResult.text}</p>
                         ) : (
                           <>
                             <p className="text-xs text-slate-500 mb-1.5">
-                              Doesn't depend on email at all — copy this and send it however actually reaches them (text, WhatsApp, read it over the phone). One-time use, expires like any sign-in link.
+                              No email step, no link to click -- set a password here and they can sign in with it immediately at /admin/login.
                             </p>
                             <div className="flex gap-2">
                               <input
-                                readOnly
-                                value={linkResult.text}
-                                onClick={e => (e.target as HTMLInputElement).select()}
+                                type="text"
+                                value={pwValue}
+                                onChange={e => setPwValue(e.target.value)}
+                                placeholder="New password (min 8 characters)"
                                 className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-700 bg-white"
                               />
                               <button
-                                onClick={() => navigator.clipboard.writeText(linkResult.text)}
-                                className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                                onClick={() => handleSetPassword(a.email)}
+                                disabled={pwSaving}
+                                className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                               >
-                                Copy
+                                {pwSaving ? "Saving…" : "Save"}
                               </button>
                             </div>
+                            {pwResult?.type === "err" && (
+                              <p className="text-xs text-red-500 font-medium mt-1.5">{pwResult.text}</p>
+                            )}
                           </>
                         )}
                       </div>

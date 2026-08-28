@@ -3,6 +3,7 @@
 import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { createClient } from "@/lib/supabase/server"
 import { getLocationId, ORLANDO_LOCATION_ID } from "@/lib/location"
 import { isAdminForCurrentLocation } from "@/lib/auth-guard"
 
@@ -79,6 +80,68 @@ export async function loginAction(formData: FormData) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 7, // 7 days — match admin_auth
+      path: "/",
+    })
+  }
+
+  redirect("/admin")
+}
+
+// ── Real per-tenant login: email + password ──────────────────────────────
+// Replaces the magic-link flow. That depended on outbound email actually
+// landing, and on nothing else fetching the link before a human clicked it
+// -- link-preview scanners and "safe links" proxies do exactly that, and
+// silently burned at least one tenant admin's one-time token before they
+// ever saw it. A password works the instant it's set and needs no email
+// round-trip at all.
+export async function signInWithPassword(formData: FormData): Promise<{ error?: string }> {
+  const email = (formData.get("email") as string)?.trim().toLowerCase()
+  const password = formData.get("password") as string
+  if (!email || !password) return { error: "Enter your email and password." }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error || !data.user) {
+    return { error: "Incorrect email or password." }
+  }
+
+  const locationId = await getLocationId()
+  const admin = createAdminClient()
+  const { data: membership } = await admin
+    .from("location_users")
+    .select("id, is_super_admin")
+    .eq("user_id", data.user.id)
+    .or(`location_id.eq.${locationId},is_super_admin.eq.true`)
+    .limit(1)
+    .maybeSingle()
+
+  if (!membership) {
+    await supabase.auth.signOut()
+    return { error: "This account isn't an admin for this location." }
+  }
+
+  const cookieStore = await cookies()
+  cookieStore.set("admin_auth", "authenticated", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  })
+  cookieStore.set("admin_location_id", locationId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+  })
+
+  if (membership.is_super_admin) {
+    cookieStore.set("super_admin_auth", "authenticated", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
       path: "/",
     })
   }

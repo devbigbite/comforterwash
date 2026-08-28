@@ -1,15 +1,15 @@
 import { loginAction } from "./actions"
-import { MagicLinkForm } from "./magic-link-form"
+import { PasswordLoginForm } from "./password-login-form"
 
 export default function LoginPage({ searchParams }: { searchParams: { error?: string; wfo?: string } }) {
   const hasError  = searchParams?.error === "1"
   const isLocked  = searchParams?.error === "locked"
-  // Legacy password login is Orlando-only (see actions.ts) and irrelevant to
-  // every other tenant — showing it by default just confuses new admins who
-  // have no password and don't need one. Hidden unless ?wfo=1, reached via
-  // the discreet "wfo" link in the footer that only Orlando staff know to
-  // look for.
-  const showPassword = searchParams?.wfo === "1"
+  // Legacy shared password login is Orlando-only (see actions.ts) and
+  // irrelevant to every other tenant — hidden unless ?wfo=1, reached via the
+  // discreet "wfo" link in the footer that only Orlando staff know to look
+  // for. Every tenant admin now signs in with their own email + password
+  // above (set by a super admin from /super-admin, no email step involved).
+  const showLegacyPassword = searchParams?.wfo === "1"
 
   return (
     <main className="min-h-screen bg-[#0f2057] flex flex-col">
@@ -30,11 +30,11 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <h1 className="text-2xl font-extrabold text-[#1e3a8a] mb-1">Sign in</h1>
-          <p className="text-gray-400 text-sm mb-6">Get a one-time sign-in link sent to your email</p>
+          <p className="text-gray-400 text-sm mb-6">Enter your email and password</p>
 
-          <MagicLinkForm />
+          <PasswordLoginForm />
 
-          {showPassword && (
+          {showLegacyPassword && (
             <>
               <div className="flex items-center gap-3 my-6">
                 <div className="h-px bg-gray-100 flex-1" />
@@ -46,15 +46,14 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
 
               <form action={loginAction} className="space-y-4">
                 <div>
-                  <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  <label htmlFor="legacy-password" className="block text-sm font-semibold text-gray-700 mb-1.5">
                     Password
                   </label>
                   <input
-                    id="password"
+                    id="legacy-password"
                     name="password"
                     type="password"
                     required
-                    autoFocus
                     disabled={isLocked}
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/30 focus:border-[#1e3a8a] text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="Enter password"
@@ -84,7 +83,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
       </div>
       </div>
 
-      {/* Ordinary-looking footer strip — the password-login link lives here
+      {/* Ordinary-looking footer strip — the legacy-password link lives here
           as one more piece of routine small print rather than the only
           thing below the card, which was too eye-catching and tempted
           people to click it out of curiosity. */}
@@ -92,7 +91,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
         <p className="text-center text-[11px] text-white/25">
           © {new Date().getFullYear()} WashFold Platform · Support ·{" "}
           <a
-            href={showPassword ? "/admin/login" : "/admin/login?wfo=1"}
+            href={showLegacyPassword ? "/admin/login" : "/admin/login?wfo=1"}
             className="hover:text-white/45 transition-colors"
           >
             wfo
