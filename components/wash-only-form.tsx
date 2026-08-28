@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
 import { GiftCardField } from "@/components/gift-card-field"
 import { getExcludedDates } from "@/app/actions/holidays"
-import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
+import { getPricingConfig, type PricingConfig, getWashOnlyBagConfig, type WashOnlyBagConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { effectivePriceForOrder, unitSuffix } from "@/lib/service-option-utils"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
@@ -166,6 +166,16 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
   }
   const [priceCents, setPriceCents] = useState(PRICE_PER_LB)
   const [minLbs, setMinLbs] = useState(MIN_POUNDS)
+
+  // ── Wash Only "per_bag"/"both" pricing (mirrors wash-fold-form.tsx) ──
+  const [bagConfig, setBagConfig] = useState<WashOnlyBagConfig>({ mode: "per_lb", bagSizes: [] })
+  const [bagQtys, setBagQtys] = useState<Record<string, number>>({})
+  const [bothModeChoice, setBothModeChoice] = useState<"per_lb" | "per_bag">("per_lb")
+  const isBagMode = bagConfig.bagSizes.length > 0 && (
+    bagConfig.mode === "per_bag" || (bagConfig.mode === "both" && bothModeChoice === "per_bag")
+  )
+  const totalBagQty = Object.values(bagQtys).reduce((a, b) => a + b, 0)
+  const bagSubtotalCents = bagConfig.bagSizes.reduce((sum, b) => sum + (bagQtys[b.id] ?? 0) * b.priceCents, 0)
   const [detergentOptions, setDetergentOptions] = useState<ServiceOption[]>([])
   const [extraOptions, setExtraOptions] = useState<ServiceOption[]>([])
   const [comforterAddon, setComforterAddon] = useState(false)
@@ -262,6 +272,17 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
       if (cfg.comforterTwinCents) { COMFORTER_CENTS = { twin: cfg.comforterTwinCents, full: cfg.comforterFullCents ?? 3300, queen: cfg.comforterQueenCents ?? 3800, king: cfg.comforterKingCents ?? 4300 }; setComforterSizesList(buildComforterSizes()) }
       if (cfg.comforterPromoCents) { COMFORTER_PROMO_CENTS = cfg.comforterPromoCents; setComforterPromoCents(cfg.comforterPromoCents) }
     })
+    getWashOnlyBagConfig().then(cfg => {
+      // Only ever show sizes the tenant currently has enabled -- a size they
+      // configured but unchecked in admin should not appear here even though
+      // it's still stored (so they can re-enable it later without re-entering
+      // its price).
+      const activeCfg = { ...cfg, bagSizes: cfg.bagSizes.filter(b => b.enabled) }
+      setBagConfig(activeCfg)
+      if ((activeCfg.mode === "per_bag" || activeCfg.mode === "both") && activeCfg.bagSizes.length > 0) {
+        setBagQtys({ [activeCfg.bagSizes[0].id]: 1 })
+      }
+    })
     Promise.all([getServiceOptions("detergent"), getServiceOptions("extra")]).then(([dets, exts]) => {
       setDetergentOptions(dets)
       setExtraOptions(exts)
@@ -301,7 +322,7 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
   const selectedExtrasList = extraOptions.filter(e => formData.selectedExtras[e.id])
   const qty = { pounds: formData.pounds, items: formData.numBags, loads: formData.numBags }
   const extrasCents = (selectedDetergent ? effectivePriceForOrder(selectedDetergent, qty) : 0) + selectedExtrasList.reduce((s, e) => s + effectivePriceForOrder(e, qty), 0)
-  const baseCents = Math.max(formData.pounds * priceCents, minLbs * priceCents)
+  const baseCents = isBagMode ? bagSubtotalCents : Math.max(formData.pounds * priceCents, minLbs * priceCents)
   const comforterTotalCount = comforterAddon ? Object.values(comforterQtys).reduce((a, b) => a + b, 0) : 0
   const comforterSubtotalCents = comforterAddon
     ? comforterPromo
@@ -317,7 +338,11 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
   const totalBeforeGiftCardCents = afterDiscountCents + deliveryFeeCents + tipCents
   const giftCardDiscountCents = giftCard ? Math.min(giftCard.discountCents, Math.max(0, totalBeforeGiftCardCents - 50)) : 0
   const totalCents         = totalBeforeGiftCardCents - giftCardDiscountCents
-  const preAuthCentsRaw    = Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * 1.25)) + comforterSubtotalCents + tipCents
+  // Bag pricing is a flat, already-locked-in price -- no weight-uncertainty
+  // cushion needed (mirrors wash-fold-form.tsx's isBagMode handling).
+  const preAuthCentsRaw    = isBagMode
+    ? Math.ceil((laundrySubtotalCents - discountCents + deliveryFeeCents)) + comforterSubtotalCents + tipCents
+    : Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * 1.25)) + comforterSubtotalCents + tipCents
   const preAuthCents       = Math.max(50, preAuthCentsRaw - giftCardDiscountCents)
   const totalDisplay       = (totalCents / 100).toFixed(2)
 
@@ -386,7 +411,7 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
           </div>
           <Checkout
             amountCents={preAuthCents}
-            label={`Wash Only — ~${formData.pounds} lbs`}
+            label={isBagMode ? `Wash Only — ${totalBagQty} bag(s)` : `Wash Only — ~${formData.pounds} lbs`}
             manualCapture={true}
             onSuccess={() => {
               if (emailCheckState !== "verified") setShowAccountPrompt(true)
@@ -410,8 +435,11 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
               serviceType: "wash_only",
               subscriptionFrequency: "one_time",
               pricePerLbCents: String(priceCents),
-              pounds: String(formData.pounds),
-              numBags: String(formData.numBags),
+              pounds: String(isBagMode ? totalBagQty * LBS_PER_BAG : formData.pounds),
+              numBags: String(isBagMode ? Math.max(1, totalBagQty) : formData.numBags),
+              washOnlyBagSelection: isBagMode
+                ? JSON.stringify(bagConfig.bagSizes.filter(b => (bagQtys[b.id] ?? 0) > 0).map(b => ({ id: b.id, qty: bagQtys[b.id] })))
+                : "",
               numComforters: String(comforterTotalCount),
               comforterSizes: comforterAddon && comforterTotalCount > 0
                 ? comforterSizesList.filter(s => comforterQtys[s.id as CSize] > 0)
@@ -499,6 +527,30 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
             </div>
             {topSlot}
 
+            {/* When the tenant offers both pricing modes, let the customer choose up front */}
+            {bagConfig.mode === "both" && bagConfig.bagSizes.length > 0 && (
+              <div className="space-y-2.5">
+                <h4 className="text-base font-extrabold text-[var(--brand-primary)] mb-1">How would you like to pay?</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <button type="button"
+                    onClick={() => setBothModeChoice("per_lb")}
+                    className={cn("text-left p-4 rounded-2xl border-2 transition-colors",
+                      bothModeChoice === "per_lb" ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300")}>
+                    <p className="font-extrabold text-sm text-[var(--brand-primary)]">Pay by the pound</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{priceLabel}</p>
+                  </button>
+                  <button type="button"
+                    onClick={() => setBothModeChoice("per_bag")}
+                    className={cn("text-left p-4 rounded-2xl border-2 transition-colors",
+                      bothModeChoice === "per_bag" ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300")}>
+                    <p className="font-extrabold text-sm text-[var(--brand-primary)]">Pay by the bag</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Flat price per bag size</p>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!isBagMode ? (<>
             <div className="space-y-4">
               <div className="flex items-center justify-center gap-6 py-1">
                 <button type="button"
@@ -528,17 +580,51 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
                 ))}
               </div>
             </div>
+            </>) : (<>
+            <div className="space-y-2.5">
+              {bagConfig.bagSizes.map(bag => {
+                const qty = bagQtys[bag.id] ?? 0
+                return (
+                  <div key={bag.id}
+                    className={cn("flex items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 transition-all",
+                      qty > 0 ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white")}>
+                    <div className="min-w-0">
+                      <p className="font-extrabold text-sm text-[var(--brand-primary)]">{bag.label}</p>
+                      <p className="text-xs text-gray-400">${(bag.priceCents / 100).toFixed(2)} {tf.bag}</p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button type="button"
+                        onClick={() => setBagQtys(p => ({ ...p, [bag.id]: Math.max(0, (p[bag.id] ?? 0) - 1) }))}
+                        disabled={qty <= 0}
+                        className="w-9 h-9 rounded-full border-2 border-[var(--brand-primary)] text-[var(--brand-primary)] font-bold text-lg flex items-center justify-center disabled:opacity-25 hover:bg-[var(--brand-primary)] hover:text-white transition-colors">
+                        −
+                      </button>
+                      <span className="text-xl font-extrabold text-[var(--brand-primary)] tabular-nums min-w-[1.5rem] text-center">{qty}</span>
+                      <button type="button"
+                        onClick={() => setBagQtys(p => ({ ...p, [bag.id]: (p[bag.id] ?? 0) + 1 }))}
+                        className="w-9 h-9 rounded-full border-2 border-[var(--brand-primary)] text-[var(--brand-primary)] font-bold text-lg flex items-center justify-center hover:bg-[var(--brand-primary)] hover:text-white transition-colors">
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+              {totalBagQty === 0 && (
+                <p className="text-xs text-amber-600 font-semibold text-center pt-1">Select at least one bag to continue.</p>
+              )}
+            </div>
+            </>)}
 
             <div className="bg-[#fdf6f5] rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{tw.estimatedWeight}</p>
-                  <p className="text-sm font-bold text-[var(--brand-primary)]">~{formData.pounds} lbs</p>
+                  <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{isBagMode ? "Bags Selected" : tw.estimatedWeight}</p>
+                  <p className="text-sm font-bold text-[var(--brand-primary)]">{isBagMode ? `${totalBagQty} ${totalBagQty === 1 ? tf.bag : tf.bags}` : `~${formData.pounds} lbs`}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{tf.preAuthEst}</p>
                   <p className="text-2xl font-extrabold text-[var(--brand-accent)]">${totalDisplay}</p>
-                  <p className="text-xs text-gray-400">at {priceLabel}</p>
+                  {!isBagMode && <p className="text-xs text-gray-400">at {priceLabel}</p>}
                 </div>
               </div>
             </div>
@@ -877,9 +963,13 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
             <div className="rounded-2xl bg-[#fdf6f5] p-5 space-y-2.5 text-sm">
               {[
                 { label: tf.labelService, value: "Wash Only (no folding)" },
-                { label: tf.labelRate, value: priceLabel },
-                { label: tf.labelEstWeight, value: `~${formData.pounds} lbs` },
-                { label: tf.labelBags, value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
+                ...(isBagMode
+                  ? [{ label: tf.labelBags, value: bagConfig.bagSizes.filter(b => (bagQtys[b.id] ?? 0) > 0).map(b => `${bagQtys[b.id]}x ${b.label}`).join(", ") }]
+                  : [
+                      { label: tf.labelRate, value: priceLabel },
+                      { label: tf.labelEstWeight, value: `~${formData.pounds} lbs` },
+                      { label: tf.labelBags, value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
+                    ]),
                 { label: tw.detergentLabel, value: selectedDetergent?.name ?? "" },
                 ...(selectedExtrasList.length > 0 ? [{ label: tf.labelExtras ?? "Extras", value: selectedExtrasList.map(e => e.name).join(", ") }] : []),
                 ...(comforterTotalCount > 0 ? [{

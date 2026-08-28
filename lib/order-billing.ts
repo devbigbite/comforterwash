@@ -42,6 +42,10 @@ export interface OrderBillingInput {
   // this — not weightLbs x price_per_lb_cents — is what the customer owes;
   // facility cost below is still weight-based, unaffected.
   wash_fold_bag_selection?: string | null
+  // Wash Only "per_bag"/"both" mode (see app/actions/pricing.ts) -- mirrors
+  // wash_fold_bag_selection above but for Wash Only's own separate bag-size
+  // list. Never conflated with the Wash & Fold field.
+  wash_only_bag_selection?: string | null
 }
 
 export interface OrderBilling {
@@ -79,9 +83,10 @@ export async function calculateOrderBilling(
   let basis: string
 
   let bagSelection: { id: string; label: string; priceCents: number; qty: number }[] | null = null
-  if (!commercial && booking.wash_fold_bag_selection) {
+  const rawBagSelection = booking.wash_fold_bag_selection || booking.wash_only_bag_selection
+  if (!commercial && rawBagSelection) {
     try {
-      const parsed = JSON.parse(booking.wash_fold_bag_selection)
+      const parsed = JSON.parse(rawBagSelection)
       if (Array.isArray(parsed) && parsed.length > 0) bagSelection = parsed
     } catch {
       // malformed JSON — fall through to the normal per-lb calc below

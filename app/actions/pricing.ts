@@ -120,7 +120,7 @@ export async function setPricingConfig(config: PricingConfig): Promise<void> {
 // `enabled` flag -- a tenant can define more sizes than they currently offer
 // and just uncheck the ones that aren't active without losing the pricing
 // they set up for them.
-export type WashFoldPricingMode = "per_lb" | "per_bag"
+export type WashFoldPricingMode = "per_lb" | "per_bag" | "both"
 // NOTE: kept as a literal (not an exported const) because this file has
 // "use server" -- Next.js only allows async function exports from such
 // files, so a plain exported constant fails the build. Mirror this value
@@ -198,4 +198,78 @@ export async function setWashFoldBagConfig(config: WashFoldBagConfig): Promise<v
   )
   revalidatePath("/admin/pricing")
   revalidatePath("/book/wash-fold")
+}
+
+// ── Wash Only — By-the-Bag pricing (mirrors Wash & Fold above) ────────────────
+// Same three-mode toggle ("per_lb" | "per_bag" | "both"), kept as a fully
+// separate settings-key + bag-size list from Wash & Fold's so the two
+// services' bag data never gets conflated.
+export type WashOnlyPricingMode = "per_lb" | "per_bag" | "both"
+
+export interface WashOnlyBagConfig {
+  mode: WashOnlyPricingMode
+  bagSizes: BagSize[]
+}
+
+const DEFAULT_WASH_ONLY_BAG_SIZES: BagSize[] = [
+  { id: "small",  label: "Small Bag",  priceCents: 2000, enabled: true },
+  { id: "medium", label: "Medium Bag", priceCents: 3000, enabled: true },
+  { id: "large",  label: "Large Bag",  priceCents: 4000, enabled: true },
+]
+
+const WASH_ONLY_MODE_KEY = "wash_only_pricing_mode"
+const WASH_ONLY_BAG_SIZES_KEY = "wash_only_bag_sizes"
+
+export async function getWashOnlyBagConfig(): Promise<WashOnlyBagConfig> {
+  try {
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+    const { data } = await supabase
+      .from("settings")
+      .select("key, value")
+      .eq("location_id", locationId)
+      .in("key", [WASH_ONLY_MODE_KEY, WASH_ONLY_BAG_SIZES_KEY])
+
+    const map: Record<string, string> = {}
+    for (const row of data ?? []) map[row.key] = row.value
+
+    const rawMode = map[WASH_ONLY_MODE_KEY]
+    const mode: WashOnlyPricingMode =
+      rawMode === "per_bag" || rawMode === "both" ? rawMode : "per_lb"
+    let bagSizes = DEFAULT_WASH_ONLY_BAG_SIZES
+    if (map[WASH_ONLY_BAG_SIZES_KEY]) {
+      try {
+        const parsed = JSON.parse(map[WASH_ONLY_BAG_SIZES_KEY])
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Backfill `enabled: true` for rows saved before that field existed.
+          bagSizes = parsed.map((b: Partial<BagSize>) => ({
+            id: b.id ?? `bag_${Math.random().toString(36).slice(2)}`,
+            label: b.label ?? "",
+            priceCents: b.priceCents ?? 0,
+            enabled: b.enabled ?? true,
+          }))
+        }
+      } catch {
+        // fall back to defaults on malformed JSON
+      }
+    }
+    return { mode, bagSizes }
+  } catch {
+    return { mode: "per_lb", bagSizes: DEFAULT_WASH_ONLY_BAG_SIZES }
+  }
+}
+
+export async function setWashOnlyBagConfig(config: WashOnlyBagConfig): Promise<void> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  // Cap bag sizes so the booking form's picker doesn't grow unbounded.
+  const bagSizes = config.bagSizes.slice(0, MAX_BAG_SIZES)
+  await supabase.from("settings").upsert(
+    [
+      { key: WASH_ONLY_MODE_KEY, value: config.mode, location_id: locationId, updated_at: new Date().toISOString() },
+      { key: WASH_ONLY_BAG_SIZES_KEY, value: JSON.stringify(bagSizes), location_id: locationId, updated_at: new Date().toISOString() },
+    ],
+    { onConflict: "location_id,key" }
+  )
+  revalidatePath("/admin/pricing")
+  revalidatePath("/book/wash-only")
 }

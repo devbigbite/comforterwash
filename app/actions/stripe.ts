@@ -552,6 +552,7 @@ export async function handleSuccessfulPayment(sessionId: string, stripeAccountId
         pounds:          meta.pounds ? parseFloat(meta.pounds) : undefined,
         numBags:         meta.numBags ? parseInt(meta.numBags) : undefined,
         bagSelection:    meta.bagSelection ? JSON.parse(meta.bagSelection) : undefined,
+        washOnlyBagSelection: meta.washOnlyBagSelection ? JSON.parse(meta.washOnlyBagSelection) : undefined,
         preAuthCents,
         isManualCapture: isManual,
         subscriptionFrequency: frequency,

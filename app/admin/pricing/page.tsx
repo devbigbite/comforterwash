@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { getPricingConfig, setPricingConfig, type PricingConfig, getWashFoldBagConfig, setWashFoldBagConfig, type WashFoldBagConfig, type WashFoldPricingMode, type BagSize } from "@/app/actions/pricing"
+import { getPricingConfig, setPricingConfig, type PricingConfig, getWashFoldBagConfig, setWashFoldBagConfig, type WashFoldBagConfig, type WashFoldPricingMode, type BagSize, getWashOnlyBagConfig, setWashOnlyBagConfig, type WashOnlyBagConfig, type WashOnlyPricingMode } from "@/app/actions/pricing"
 
 // Mirrors the literal in app/actions/pricing.ts (kept local there since a
 // "use server" file can only export async functions).
@@ -355,9 +355,12 @@ export default function PricingPage() {
   const [bagConfig, setBagConfig] = useState<WashFoldBagConfig | null>(null)
   const [savingBagConfig, setSavingBagConfig] = useState(false)
   const [savedBagConfig, setSavedBagConfig] = useState(false)
+  const [washOnlyBagConfig, setWashOnlyBagConfigState] = useState<WashOnlyBagConfig | null>(null)
+  const [savingWashOnlyBagConfig, setSavingWashOnlyBagConfig] = useState(false)
+  const [savedWashOnlyBagConfig, setSavedWashOnlyBagConfig] = useState(false)
 
   async function loadAll() {
-    const [cfg, dets, exts, accs, fee, svcsCfg, planEnabled, bagCfg] = await Promise.all([
+    const [cfg, dets, exts, accs, fee, svcsCfg, planEnabled, bagCfg, woBagCfg] = await Promise.all([
       getPricingConfig(),
       getAllServiceOptions("detergent"),
       getAllServiceOptions("extra"),
@@ -366,6 +369,7 @@ export default function PricingPage() {
       getServicesConfig(),
       getMonthlyPlanEnabled(),
       getWashFoldBagConfig(),
+      getWashOnlyBagConfig(),
     ])
     setConfig(cfg)
     setDetergents(dets)
@@ -375,6 +379,7 @@ export default function PricingPage() {
     setSvcs(svcsCfg)
     setMonthlyPlanEnabledState(planEnabled)
     setBagConfig(bagCfg)
+    setWashOnlyBagConfigState(woBagCfg)
     getTipsEnabled().then(setTipsEnabledState)
     getFreePickupDeliveryLineEnabled().then(setFreePickupDeliveryLineEnabledState)
   }
@@ -405,6 +410,34 @@ export default function PricingPage() {
   function removeBagSize(id: string) {
     if (!bagConfig) return
     setBagConfig({ ...bagConfig, bagSizes: bagConfig.bagSizes.filter(b => b.id !== id) })
+  }
+
+  async function handleSaveWashOnlyBagConfig() {
+    if (!washOnlyBagConfig) return
+    setSavingWashOnlyBagConfig(true)
+    await setWashOnlyBagConfig(washOnlyBagConfig)
+    setSavingWashOnlyBagConfig(false)
+    setSavedWashOnlyBagConfig(true)
+    setTimeout(() => setSavedWashOnlyBagConfig(false), 3000)
+  }
+
+  function addWashOnlyBagSize() {
+    if (!washOnlyBagConfig || washOnlyBagConfig.bagSizes.length >= MAX_BAG_SIZES) return
+    const nextBag: BagSize = { id: `bag_${Date.now()}`, label: "", priceCents: 0, enabled: true }
+    setWashOnlyBagConfigState({ ...washOnlyBagConfig, bagSizes: [...washOnlyBagConfig.bagSizes, nextBag] })
+  }
+
+  function updateWashOnlyBagSize(id: string, patch: Partial<BagSize>) {
+    if (!washOnlyBagConfig) return
+    setWashOnlyBagConfigState({
+      ...washOnlyBagConfig,
+      bagSizes: washOnlyBagConfig.bagSizes.map(b => (b.id === id ? { ...b, ...patch } : b)),
+    })
+  }
+
+  function removeWashOnlyBagSize(id: string) {
+    if (!washOnlyBagConfig) return
+    setWashOnlyBagConfigState({ ...washOnlyBagConfig, bagSizes: washOnlyBagConfig.bagSizes.filter(b => b.id !== id) })
   }
 
   async function handleToggleSvc(key: keyof ServicesConfig) {
@@ -592,46 +625,19 @@ export default function PricingPage() {
               <span className="text-xl">👕</span>
               <h2 className="font-extrabold text-[#0D2240] text-base">Wash &amp; Fold</h2>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>One-time rate ($/lb)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                  <PriceInput className={inputCls + " pl-7"}
-                    cents={config.washFoldOneTimeCents}
-                    onChange={c => setFieldCents("washFoldOneTimeCents", c ?? 0)} />
-                </div>
-                <p className="text-xs text-gray-400 mt-1">Currently {cents(config.washFoldOneTimeCents)}/lb</p>
-              </div>
-              <div>
-                <label className={labelCls}>Subscription rate ($/lb)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                  <PriceInput className={inputCls + " pl-7"}
-                    cents={config.washFoldSubCents}
-                    onChange={c => setFieldCents("washFoldSubCents", c ?? 0)} />
-                </div>
-                <p className="text-xs text-gray-400 mt-1">Weekly &amp; biweekly · currently {cents(config.washFoldSubCents)}/lb</p>
-              </div>
-              <div>
-                <label className={labelCls}>Minimum (lbs)</label>
-                <input type="number" min="1" className={inputCls}
-                  value={config.washFoldMinLbs}
-                  onChange={e => setInt("washFoldMinLbs", e.target.value)} />
-              </div>
-            </div>
 
-            {/* ── Pricing mode: by the pound (above) vs. by the bag ──── */}
+            {/* ── Pricing mode: by the pound, by the bag, or both ──── */}
             {bagConfig && (
-              <div className="border-t border-gray-100 pt-5 mt-5">
+              <div className="mb-5">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">How to Charge</p>
                 <p className="text-xs text-gray-400 mb-3">
-                  Choose whether Wash &amp; Fold is priced by weight (above) or as a flat price per bag size.
+                  Choose whether Wash &amp; Fold is priced by weight, as a flat price per bag size, or let customers pick either at booking time.
                 </p>
-                <div className="flex gap-3 mb-4">
+                <div className="flex gap-3">
                   {([
-                    { value: "per_lb" as WashFoldPricingMode, label: "By the Pound", hint: "Uses the $/lb rates above" },
+                    { value: "per_lb" as WashFoldPricingMode, label: "By the Pound", hint: "Uses the $/lb rates below" },
                     { value: "per_bag" as WashFoldPricingMode, label: "By the Bag", hint: "Flat price per bag size" },
+                    { value: "both" as WashFoldPricingMode, label: "Both", hint: "Customer chooses at booking" },
                   ]).map(opt => (
                     <button
                       key={opt.value}
@@ -648,70 +654,105 @@ export default function PricingPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
 
-                {bagConfig.mode === "per_bag" && (
-                  <div className="bg-[#f7f8fb] rounded-xl border border-gray-100 p-4 space-y-3">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bag Sizes (up to {MAX_BAG_SIZES})</p>
-                    <p className="text-[10px] text-gray-400 -mt-2">
-                      Check a size to make it active for customers. Unchecked sizes stay saved but hidden.
-                    </p>
-                    {bagConfig.bagSizes.map(bag => (
-                      <div key={bag.id} className="flex items-center gap-3">
-                        <label className="flex items-center shrink-0" title={bag.enabled ? "Active for customers" : "Hidden from customers"}>
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 accent-[#0D2240]"
-                            checked={bag.enabled}
-                            onChange={e => updateBagSize(bag.id, { enabled: e.target.checked })}
-                          />
-                        </label>
+            {(!bagConfig || bagConfig.mode === "per_lb" || bagConfig.mode === "both") && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>One-time rate ($/lb)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                    <PriceInput className={inputCls + " pl-7"}
+                      cents={config.washFoldOneTimeCents}
+                      onChange={c => setFieldCents("washFoldOneTimeCents", c ?? 0)} />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Currently {cents(config.washFoldOneTimeCents)}/lb</p>
+                </div>
+                <div>
+                  <label className={labelCls}>Subscription rate ($/lb)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                    <PriceInput className={inputCls + " pl-7"}
+                      cents={config.washFoldSubCents}
+                      onChange={c => setFieldCents("washFoldSubCents", c ?? 0)} />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Weekly &amp; biweekly · currently {cents(config.washFoldSubCents)}/lb</p>
+                </div>
+                <div>
+                  <label className={labelCls}>Minimum (lbs)</label>
+                  <input type="number" min="1" className={inputCls}
+                    value={config.washFoldMinLbs}
+                    onChange={e => setInt("washFoldMinLbs", e.target.value)} />
+                </div>
+              </div>
+            )}
+
+            {bagConfig && (bagConfig.mode === "per_bag" || bagConfig.mode === "both") && (
+              <div className={(!bagConfig || bagConfig.mode === "per_lb" || bagConfig.mode === "both") ? "border-t border-gray-100 pt-5 mt-5" : ""}>
+                <div className="bg-[#f7f8fb] rounded-xl border border-gray-100 p-4 space-y-3">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bag Sizes (up to {MAX_BAG_SIZES})</p>
+                  <p className="text-[10px] text-gray-400 -mt-2">
+                    Check a size to make it active for customers. Unchecked sizes stay saved but hidden.
+                  </p>
+                  {bagConfig.bagSizes.map(bag => (
+                    <div key={bag.id} className="flex items-center gap-3">
+                      <label className="flex items-center shrink-0" title={bag.enabled ? "Active for customers" : "Hidden from customers"}>
                         <input
-                          className={inputCls}
-                          placeholder="e.g. Small Bag"
-                          value={bag.label}
-                          onChange={e => updateBagSize(bag.id, { label: e.target.value })}
+                          type="checkbox"
+                          className="w-4 h-4 accent-[#0D2240]"
+                          checked={bag.enabled}
+                          onChange={e => updateBagSize(bag.id, { enabled: e.target.checked })}
                         />
-                        <div className="relative shrink-0 w-32">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                          <PriceInput
-                            key={bag.id}
-                            className={inputCls + " pl-7"}
-                            cents={bag.priceCents}
-                            onChange={c => updateBagSize(bag.id, { priceCents: c ?? 0 })}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeBagSize(bag.id)}
-                          className="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors shrink-0"
-                        >
-                          Remove
-                        </button>
+                      </label>
+                      <input
+                        className={inputCls}
+                        placeholder="e.g. Small Bag"
+                        value={bag.label}
+                        onChange={e => updateBagSize(bag.id, { label: e.target.value })}
+                      />
+                      <div className="relative shrink-0 w-32">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                        <PriceInput
+                          key={bag.id}
+                          className={inputCls + " pl-7"}
+                          cents={bag.priceCents}
+                          onChange={c => updateBagSize(bag.id, { priceCents: c ?? 0 })}
+                        />
                       </div>
-                    ))}
-                    {bagConfig.bagSizes.length < MAX_BAG_SIZES && (
                       <button
                         type="button"
-                        onClick={addBagSize}
-                        className="text-xs font-bold text-[#E8726A] hover:text-[#d45f57] border border-[#E8726A]/30 hover:border-[#E8726A] px-3 py-1.5 rounded-lg transition-colors"
+                        onClick={() => removeBagSize(bag.id)}
+                        className="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors shrink-0"
                       >
-                        + Add Bag Size
+                        Remove
                       </button>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-4 mt-4">
-                  <button
-                    type="button"
-                    onClick={handleSaveBagConfig}
-                    disabled={savingBagConfig}
-                    className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-60"
-                  >
-                    {savingBagConfig ? "Saving…" : "Save Bag Pricing"}
-                  </button>
-                  {savedBagConfig && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
+                    </div>
+                  ))}
+                  {bagConfig.bagSizes.length < MAX_BAG_SIZES && (
+                    <button
+                      type="button"
+                      onClick={addBagSize}
+                      className="text-xs font-bold text-[#E8726A] hover:text-[#d45f57] border border-[#E8726A]/30 hover:border-[#E8726A] px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      + Add Bag Size
+                    </button>
+                  )}
                 </div>
+              </div>
+            )}
+
+            {bagConfig && (
+              <div className="flex items-center gap-4 mt-4">
+                <button
+                  type="button"
+                  onClick={handleSaveBagConfig}
+                  disabled={savingBagConfig}
+                  className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-60"
+                >
+                  {savingBagConfig ? "Saving…" : "Save Bag Pricing"}
+                </button>
+                {savedBagConfig && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
               </div>
             )}
           </div>
@@ -722,24 +763,126 @@ export default function PricingPage() {
               <span className="text-xl">🧺</span>
               <h2 className="font-extrabold text-[#0D2240] text-base">Wash Only</h2>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Rate ($/lb)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                  <PriceInput className={inputCls + " pl-7"}
-                    cents={config.washOnlyCents}
-                    onChange={c => setFieldCents("washOnlyCents", c ?? 0)} />
+
+            {/* ── Pricing mode: by the pound, by the bag, or both ──── */}
+            {washOnlyBagConfig && (
+              <div className="mb-5">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">How to Charge</p>
+                <p className="text-xs text-gray-400 mb-3">
+                  Choose whether Wash Only is priced by weight, as a flat price per bag size, or let customers pick either at booking time.
+                </p>
+                <div className="flex gap-3">
+                  {([
+                    { value: "per_lb" as WashOnlyPricingMode, label: "By the Pound", hint: "Uses the $/lb rate below" },
+                    { value: "per_bag" as WashOnlyPricingMode, label: "By the Bag", hint: "Flat price per bag size" },
+                    { value: "both" as WashOnlyPricingMode, label: "Both", hint: "Customer chooses at booking" },
+                  ]).map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setWashOnlyBagConfigState({ ...washOnlyBagConfig, mode: opt.value })}
+                      className={`flex-1 text-left p-3 rounded-xl border-2 transition-colors ${
+                        washOnlyBagConfig.mode === opt.value
+                          ? "border-[#0D2240] bg-[#f0f4f9]"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <p className="font-bold text-sm text-[#0D2240]">{opt.label}</p>
+                      <p className="text-xs text-gray-400">{opt.hint}</p>
+                    </button>
+                  ))}
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Currently {cents(config.washOnlyCents)}/lb</p>
               </div>
-              <div>
-                <label className={labelCls}>Minimum (lbs)</label>
-                <input type="number" min="1" className={inputCls}
-                  value={config.washOnlyMinLbs}
-                  onChange={e => setInt("washOnlyMinLbs", e.target.value)} />
+            )}
+
+            {(!washOnlyBagConfig || washOnlyBagConfig.mode === "per_lb" || washOnlyBagConfig.mode === "both") && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Rate ($/lb)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                    <PriceInput className={inputCls + " pl-7"}
+                      cents={config.washOnlyCents}
+                      onChange={c => setFieldCents("washOnlyCents", c ?? 0)} />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Currently {cents(config.washOnlyCents)}/lb</p>
+                </div>
+                <div>
+                  <label className={labelCls}>Minimum (lbs)</label>
+                  <input type="number" min="1" className={inputCls}
+                    value={config.washOnlyMinLbs}
+                    onChange={e => setInt("washOnlyMinLbs", e.target.value)} />
+                </div>
               </div>
-            </div>
+            )}
+
+            {washOnlyBagConfig && (washOnlyBagConfig.mode === "per_bag" || washOnlyBagConfig.mode === "both") && (
+              <div className={(!washOnlyBagConfig || washOnlyBagConfig.mode === "per_lb" || washOnlyBagConfig.mode === "both") ? "border-t border-gray-100 pt-5 mt-5" : ""}>
+                <div className="bg-[#f7f8fb] rounded-xl border border-gray-100 p-4 space-y-3">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bag Sizes (up to {MAX_BAG_SIZES})</p>
+                  <p className="text-[10px] text-gray-400 -mt-2">
+                    Check a size to make it active for customers. Unchecked sizes stay saved but hidden.
+                  </p>
+                  {washOnlyBagConfig.bagSizes.map(bag => (
+                    <div key={bag.id} className="flex items-center gap-3">
+                      <label className="flex items-center shrink-0" title={bag.enabled ? "Active for customers" : "Hidden from customers"}>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-[#0D2240]"
+                          checked={bag.enabled}
+                          onChange={e => updateWashOnlyBagSize(bag.id, { enabled: e.target.checked })}
+                        />
+                      </label>
+                      <input
+                        className={inputCls}
+                        placeholder="e.g. Small Bag"
+                        value={bag.label}
+                        onChange={e => updateWashOnlyBagSize(bag.id, { label: e.target.value })}
+                      />
+                      <div className="relative shrink-0 w-32">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                        <PriceInput
+                          key={bag.id}
+                          className={inputCls + " pl-7"}
+                          cents={bag.priceCents}
+                          onChange={c => updateWashOnlyBagSize(bag.id, { priceCents: c ?? 0 })}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeWashOnlyBagSize(bag.id)}
+                        className="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors shrink-0"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  {washOnlyBagConfig.bagSizes.length < MAX_BAG_SIZES && (
+                    <button
+                      type="button"
+                      onClick={addWashOnlyBagSize}
+                      className="text-xs font-bold text-[#E8726A] hover:text-[#d45f57] border border-[#E8726A]/30 hover:border-[#E8726A] px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      + Add Bag Size
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {washOnlyBagConfig && (
+              <div className="flex items-center gap-4 mt-4">
+                <button
+                  type="button"
+                  onClick={handleSaveWashOnlyBagConfig}
+                  disabled={savingWashOnlyBagConfig}
+                  className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-60"
+                >
+                  {savingWashOnlyBagConfig ? "Saving…" : "Save Wash Only Bag Pricing"}
+                </button>
+                {savedWashOnlyBagConfig && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
+              </div>
+            )}
           </div>
 
           {/* ── Comforter ───────────────────────────────── */}

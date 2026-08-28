@@ -9,7 +9,7 @@ import { format } from "date-fns"
 import { todayET } from "@/lib/date-et"
 import { recordPromoRedemption } from "@/app/actions/promos"
 import { getComforterPromo } from "@/app/actions/settings"
-import { getPricingConfig, getWashFoldBagConfig } from "@/app/actions/pricing"
+import { getPricingConfig, getWashFoldBagConfig, getWashOnlyBagConfig } from "@/app/actions/pricing"
 import { computeComforterFacilityCostCents } from "@/lib/facility-comforter-cost"
 
 export interface BookingData {
@@ -43,6 +43,7 @@ export interface BookingData {
   specialInstructions?: string  // customer-supplied note at booking time — surfaced to the operator, distinct from the internal status-timeline `notes` column
   commercialAccountId?: string  // links this booking to a commercial_accounts row — pay-at-weigh-in via saved card, no consumer pre-auth
   bagSelection?: { id: string; qty: number }[]  // wash_fold "per_bag" mode only — customer-picked bag size ids + quantities. Server re-resolves each id's current priceCents/label from getWashFoldBagConfig() at booking time (see createBooking); never trusts a price the client sends.
+  washOnlyBagSelection?: { id: string; qty: number }[]  // wash_only "per_bag"/"both" mode — mirrors bagSelection above but for Wash Only's own separate bag-size list. Server re-resolves each id's current priceCents/label from getWashOnlyBagConfig() at booking time (see createBooking); never trusts a price the client sends.
   paymentStatusOverride?: string // e.g. "pending_weight" for commercial orders where nothing is charged until weigh-in
   locationId?: string  // explicit tenant override — REQUIRED from cron/background contexts (recurring-engine), where there's no request hostname for getLocationId() to resolve from. Without it every cron-created booking would silently land on the Orlando fallback.
 }
@@ -115,7 +116,12 @@ export async function createBooking(data: BookingData) {
   let washFoldBagSelection: { id: string; label: string; priceCents: number; qty: number }[] | null = null
   if (serviceType === "wash_fold" && data.bagSelection?.length) {
     const bagConfig = await getWashFoldBagConfig()
-    if (bagConfig.mode === "per_bag") {
+    // "both" tenants let the customer choose per_lb vs per_bag at booking
+    // time -- the client's mode CHOICE is trusted (data.bagSelection being
+    // present is what signals they chose bag pricing), but prices are always
+    // re-resolved server-side from bagConfig.bagSizes just below, never from
+    // anything the client sent.
+    if (bagConfig.mode === "per_bag" || bagConfig.mode === "both") {
       washFoldBagSelection = data.bagSelection
         .map(sel => {
           const bag = bagConfig.bagSizes.find(b => b.id === sel.id && b.enabled)
@@ -125,6 +131,23 @@ export async function createBooking(data: BookingData) {
         })
         .filter((v): v is { id: string; label: string; priceCents: number; qty: number } => v !== null)
       if (washFoldBagSelection.length === 0) washFoldBagSelection = null
+    }
+  }
+
+  // ── Wash Only "per_bag"/"both" pricing — server-side lock-in (mirrors Wash & Fold above) ──
+  let washOnlyBagSelection: { id: string; label: string; priceCents: number; qty: number }[] | null = null
+  if (serviceType === "wash_only" && data.washOnlyBagSelection?.length) {
+    const woBagConfig = await getWashOnlyBagConfig()
+    if (woBagConfig.mode === "per_bag" || woBagConfig.mode === "both") {
+      washOnlyBagSelection = data.washOnlyBagSelection
+        .map(sel => {
+          const bag = woBagConfig.bagSizes.find(b => b.id === sel.id && b.enabled)
+          const qty = Math.max(0, Math.floor(Number(sel.qty) || 0))
+          if (!bag || qty <= 0) return null
+          return { id: bag.id, label: bag.label, priceCents: bag.priceCents, qty }
+        })
+        .filter((v): v is { id: string; label: string; priceCents: number; qty: number } => v !== null)
+      if (washOnlyBagSelection.length === 0) washOnlyBagSelection = null
     }
   }
 
@@ -193,6 +216,7 @@ export async function createBooking(data: BookingData) {
       assigned_facility_id: defaultFacilityId,
       facility_cost_cents: comforterFacilityCostCents,
       wash_fold_bag_selection: washFoldBagSelection ? JSON.stringify(washFoldBagSelection) : null,
+      wash_only_bag_selection: washOnlyBagSelection ? JSON.stringify(washOnlyBagSelection) : null,
     })
     .select()
     .single()

@@ -257,7 +257,13 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
   // (who never configure per_bag) see zero change to the existing lbs UI.
   const [bagConfig, setBagConfig] = useState<WashFoldBagConfig>({ mode: "per_lb", bagSizes: [] })
   const [bagQtys, setBagQtys] = useState<Record<string, number>>({})
-  const isBagMode = bagConfig.mode === "per_bag" && bagConfig.bagSizes.length > 0
+  // When the tenant's mode is "both", the customer picks per-pound or
+  // per-bag up front; this only matters in that mode (defaults to per_lb,
+  // the safest choice since most tenants never configure bag pricing at all).
+  const [bothModeChoice, setBothModeChoice] = useState<"per_lb" | "per_bag">("per_lb")
+  const isBagMode = bagConfig.bagSizes.length > 0 && (
+    bagConfig.mode === "per_bag" || (bagConfig.mode === "both" && bothModeChoice === "per_bag")
+  )
   const totalBagQty = Object.values(bagQtys).reduce((a, b) => a + b, 0)
   const bagSubtotalCents = bagConfig.bagSizes.reduce((sum, b) => sum + (bagQtys[b.id] ?? 0) * b.priceCents, 0)
 
@@ -397,7 +403,7 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
       // its price).
       const activeCfg = { ...cfg, bagSizes: cfg.bagSizes.filter(b => b.enabled) }
       setBagConfig(activeCfg)
-      if (activeCfg.mode === "per_bag" && activeCfg.bagSizes.length > 0) {
+      if ((activeCfg.mode === "per_bag" || activeCfg.mode === "both") && activeCfg.bagSizes.length > 0) {
         setBagQtys({ [activeCfg.bagSizes[0].id]: 1 })
       }
     })
@@ -900,6 +906,29 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
 
             {/* ── Booking form: shown for paygo (one-time) OR subscribe weekly/biweekly ── */}
             {(serviceMode === "paygo" || (serviceMode === "subscription" && subscribeType !== "monthly")) && (<>
+
+            {/* When the tenant offers both pricing modes, let the customer choose up front */}
+            {bagConfig.mode === "both" && bagConfig.bagSizes.length > 0 && (
+              <div className="space-y-2.5">
+                <h3 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">How would you like to pay?</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <button type="button"
+                    onClick={() => setBothModeChoice("per_lb")}
+                    className={cn("text-left p-4 rounded-2xl border-2 transition-colors",
+                      bothModeChoice === "per_lb" ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300")}>
+                    <p className="font-extrabold text-sm text-[var(--brand-primary)]">Pay by the pound</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{priceLabel}</p>
+                  </button>
+                  <button type="button"
+                    onClick={() => setBothModeChoice("per_bag")}
+                    className={cn("text-left p-4 rounded-2xl border-2 transition-colors",
+                      bothModeChoice === "per_bag" ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300")}>
+                    <p className="font-extrabold text-sm text-[var(--brand-primary)]">Pay by the bag</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Flat price per bag size</p>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Bag counter (per_lb tenants) OR bag-size picker (per_bag tenants) */}
             {!isBagMode ? (<>
