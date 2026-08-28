@@ -118,7 +118,7 @@ export async function createBooking(data: BookingData) {
     if (bagConfig.mode === "per_bag") {
       washFoldBagSelection = data.bagSelection
         .map(sel => {
-          const bag = bagConfig.bagSizes.find(b => b.id === sel.id)
+          const bag = bagConfig.bagSizes.find(b => b.id === sel.id && b.enabled)
           const qty = Math.max(0, Math.floor(Number(sel.qty) || 0))
           if (!bag || qty <= 0) return null
           return { id: bag.id, label: bag.label, priceCents: bag.priceCents, qty }

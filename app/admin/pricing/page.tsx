@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { getPricingConfig, setPricingConfig, type PricingConfig, getWashFoldBagConfig, setWashFoldBagConfig, type WashFoldBagConfig, type WashFoldPricingMode, type BagSize } from "@/app/actions/pricing"
+import { getPricingConfig, setPricingConfig, type PricingConfig, getWashFoldBagConfig, setWashFoldBagConfig, type WashFoldBagConfig, type WashFoldPricingMode, type BagSize, MAX_BAG_SIZES } from "@/app/actions/pricing"
 import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, type ServiceOption } from "@/app/actions/service-options"
 import { isSaleActive } from "@/lib/service-option-utils"
 import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getTipsEnabled, setTipsEnabled, getFreePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
@@ -385,8 +385,8 @@ export default function PricingPage() {
   }
 
   function addBagSize() {
-    if (!bagConfig || bagConfig.bagSizes.length >= 3) return
-    const nextBag: BagSize = { id: `bag_${Date.now()}`, label: "", priceCents: 0 }
+    if (!bagConfig || bagConfig.bagSizes.length >= MAX_BAG_SIZES) return
+    const nextBag: BagSize = { id: `bag_${Date.now()}`, label: "", priceCents: 0, enabled: true }
     setBagConfig({ ...bagConfig, bagSizes: [...bagConfig.bagSizes, nextBag] })
   }
 
@@ -647,9 +647,20 @@ export default function PricingPage() {
 
                 {bagConfig.mode === "per_bag" && (
                   <div className="bg-[#f7f8fb] rounded-xl border border-gray-100 p-4 space-y-3">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bag Sizes (up to 3)</p>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bag Sizes (up to {MAX_BAG_SIZES})</p>
+                    <p className="text-[10px] text-gray-400 -mt-2">
+                      Check a size to make it active for customers. Unchecked sizes stay saved but hidden.
+                    </p>
                     {bagConfig.bagSizes.map(bag => (
                       <div key={bag.id} className="flex items-center gap-3">
+                        <label className="flex items-center shrink-0" title={bag.enabled ? "Active for customers" : "Hidden from customers"}>
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 accent-[#0D2240]"
+                            checked={bag.enabled}
+                            onChange={e => updateBagSize(bag.id, { enabled: e.target.checked })}
+                          />
+                        </label>
                         <input
                           className={inputCls}
                           placeholder="e.g. Small Bag"
@@ -674,7 +685,7 @@ export default function PricingPage() {
                         </button>
                       </div>
                     ))}
-                    {bagConfig.bagSizes.length < 3 && (
+                    {bagConfig.bagSizes.length < MAX_BAG_SIZES && (
                       <button
                         type="button"
                         onClick={addBagSize}

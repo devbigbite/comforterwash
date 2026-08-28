@@ -391,9 +391,14 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
       setComforterSizesList(buildComforterSizes())
     })
     getWashFoldBagConfig().then(cfg => {
-      setBagConfig(cfg)
-      if (cfg.mode === "per_bag" && cfg.bagSizes.length > 0) {
-        setBagQtys({ [cfg.bagSizes[0].id]: 1 })
+      // Only ever show sizes the tenant currently has enabled -- a size they
+      // configured but unchecked in admin should not appear here even though
+      // it's still stored (so they can re-enable it later without re-entering
+      // its price).
+      const activeCfg = { ...cfg, bagSizes: cfg.bagSizes.filter(b => b.enabled) }
+      setBagConfig(activeCfg)
+      if (activeCfg.mode === "per_bag" && activeCfg.bagSizes.length > 0) {
+        setBagQtys({ [activeCfg.bagSizes[0].id]: 1 })
       }
     })
     Promise.all([getServiceOptions("detergent"), getServiceOptions("extra"), getServiceOptions("accessory")]).then(([dets, exts, accs]) => {
