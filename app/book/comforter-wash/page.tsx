@@ -3,7 +3,7 @@ import { LangToggle } from "@/components/lang-toggle"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServicesConfig } from "@/app/actions/settings"
-import { getPricingConfig } from "@/app/actions/pricing"
+import { getPricingConfig, getWashFoldBagConfig } from "@/app/actions/pricing"
 import { getBranding } from "@/lib/location"
 
 export async function generateMetadata() {
@@ -15,7 +15,7 @@ export async function generateMetadata() {
 }
 
 export default async function ComforterWashPage() {
-  const [services, pricing] = await Promise.all([getServicesConfig(), getPricingConfig()])
+  const [services, pricing, washFoldBagConfig] = await Promise.all([getServicesConfig(), getPricingConfig(), getWashFoldBagConfig()])
   if (!services.comforter_wash) redirect("/")
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
@@ -39,7 +39,7 @@ export default async function ComforterWashPage() {
         </div>
       </header>
 
-      <ServiceSwitcher defaultService="comforter_wash" services={services} pricing={pricing} />
+      <ServiceSwitcher defaultService="comforter_wash" services={services} pricing={pricing} washFoldBagConfig={washFoldBagConfig} />
     </main>
   )
 }

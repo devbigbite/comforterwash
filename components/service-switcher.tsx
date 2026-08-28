@@ -8,7 +8,7 @@ import { BookingForm } from "@/components/booking-form"
 import { BookingPageTitle } from "@/components/booking-page-title"
 import { WashFoldPageSubtitle } from "@/components/wash-fold-page-subtitle"
 import { WashOnlyPageSubtitle } from "@/components/wash-only-page-subtitle"
-import type { PricingConfig } from "@/app/actions/pricing"
+import type { PricingConfig, WashFoldBagConfig } from "@/app/actions/pricing"
 import type { ServicesConfig } from "@/app/actions/settings"
 
 export type ServiceKey = "wash_fold" | "comforter_wash" | "wash_only"
@@ -29,10 +29,12 @@ export function ServiceSwitcher({
   defaultService,
   services,
   pricing,
+  washFoldBagConfig,
 }: {
   defaultService: ServiceKey
   services: ServicesConfig
   pricing: PricingConfig
+  washFoldBagConfig?: WashFoldBagConfig
 }) {
   const [service, setService] = useState<ServiceKey>(defaultService)
   const available = (Object.keys(SERVICE_META) as ServiceKey[]).filter(k => services[k])
@@ -79,6 +81,8 @@ export function ServiceSwitcher({
             oneTimeCents={pricing.washFoldOneTimeCents}
             subCents={pricing.washFoldSubCents}
             minLbs={pricing.washFoldMinLbs}
+            bagMode={washFoldBagConfig?.mode}
+            bagSizes={washFoldBagConfig?.bagSizes}
           />
         )}
         {service === "wash_only" && (

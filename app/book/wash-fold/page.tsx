@@ -3,7 +3,7 @@ import { LangToggle } from "@/components/lang-toggle"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServicesConfig } from "@/app/actions/settings"
-import { getPricingConfig } from "@/app/actions/pricing"
+import { getPricingConfig, getWashFoldBagConfig } from "@/app/actions/pricing"
 import { getBranding } from "@/lib/location"
 
 export const dynamic = "force-dynamic"
@@ -17,7 +17,7 @@ export async function generateMetadata() {
 }
 
 export default async function WashFoldPage() {
-  const [services, pricing] = await Promise.all([getServicesConfig(), getPricingConfig()])
+  const [services, pricing, washFoldBagConfig] = await Promise.all([getServicesConfig(), getPricingConfig(), getWashFoldBagConfig()])
   if (!services.wash_fold) redirect("/")
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
@@ -41,7 +41,7 @@ export default async function WashFoldPage() {
         </div>
       </header>
 
-      <ServiceSwitcher defaultService="wash_fold" services={services} pricing={pricing} />
+      <ServiceSwitcher defaultService="wash_fold" services={services} pricing={pricing} washFoldBagConfig={washFoldBagConfig} />
     </main>
   )
 }

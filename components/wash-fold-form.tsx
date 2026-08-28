@@ -785,9 +785,11 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
                       </p>
                     )}
                   </div>
-                  <span className={cn("font-extrabold shrink-0 ml-4", serviceMode === "paygo" ? "text-[var(--brand-accent)] text-lg" : "text-gray-400 text-sm")}>
-                    {freqPricing.one_time.label}
-                  </span>
+                  {!isBagMode && (
+                    <span className={cn("font-extrabold shrink-0 ml-4", serviceMode === "paygo" ? "text-[var(--brand-accent)] text-lg" : "text-gray-400 text-sm")}>
+                      {freqPricing.one_time.label}
+                    </span>
+                  )}
                 </button>
 
                 {/* ── Option 2: Subscribe by weight (weekly / biweekly) ── */}
@@ -822,9 +824,11 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
                       </div>
                     )}
                   </div>
-                  <span className={cn("font-extrabold shrink-0 ml-4", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[var(--brand-accent)] text-lg" : "text-gray-400 text-sm")}>
-                    {freqPricing.weekly.label}
-                  </span>
+                  {!isBagMode && (
+                    <span className={cn("font-extrabold shrink-0 ml-4", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[var(--brand-accent)] text-lg" : "text-gray-400 text-sm")}>
+                      {freqPricing.weekly.label}
+                    </span>
+                  )}
                 </button>
 
                 {/* Weekly / Biweekly toggle — shown when subscribe-by-weight is active */}
