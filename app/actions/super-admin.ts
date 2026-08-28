@@ -271,6 +271,16 @@ export async function getLocationAdminSignInLink(
 // calling our server). Never export this directly; every caller needs its own
 // trust boundary — requireSuperAdmin() above for the manual invite flow,
 // Stripe's webhook signature verification for the self-signup flow.
+// Generates a random, human-typeable password -- avoids visually
+// ambiguous characters (0/O, 1/l/I) since this often gets read off a phone
+// screen or retyped by hand.
+function generateTempPassword(): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
+  let out = ""
+  for (let i = 0; i < 12; i++) out += chars[Math.floor(Math.random() * chars.length)]
+  return out
+}
+
 async function _inviteLocationAdminCore(
   locationId: string,
   email: string,
@@ -279,13 +289,20 @@ async function _inviteLocationAdminCore(
   const cleanEmail = email.trim().toLowerCase()
   if (!cleanEmail || !cleanEmail.includes("@")) return { error: "Enter a valid email address." }
 
-  // Find or create the auth user
+  // Find or create the auth user. A brand-new admin gets a random password
+  // set at creation time; an admin who already exists (e.g. re-invited to a
+  // second tenant) keeps whatever password they already have -- we only
+  // reset it here on first creation, never silently overwrite an existing
+  // login.
   const { data: userList } = await supabase.auth.admin.listUsers()
   let userId = userList?.users.find(u => u.email?.toLowerCase() === cleanEmail)?.id
+  let tempPassword: string | null = null
 
   if (!userId) {
+    tempPassword = generateTempPassword()
     const { data: created, error: createError } = await supabase.auth.admin.createUser({
       email: cleanEmail,
+      password: tempPassword,
       email_confirm: true,
     })
     if (createError || !created?.user) {
@@ -303,25 +320,17 @@ async function _inviteLocationAdminCore(
     )
   if (linkError) return { error: linkError.message }
 
-  // Send them a magic sign-in link
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://comforterwash.com"
-  const { data: linkData, error: linkGenError } = await supabase.auth.admin.generateLink({
-    type: "magiclink",
-    email: cleanEmail,
-    options: { redirectTo: `${siteUrl}/admin/auth/callback?location_id=${locationId}` },
-  })
-  if (linkGenError) return { error: linkGenError.message }
-
-  // Build our own link from hashed_token rather than sending the raw
-  // action_link — that delivers tokens as a URL hash fragment, which
-  // never reaches the server and silently fails to sign anyone in.
-  const tokenHash = (linkData as { properties?: { hashed_token?: string } } | null)?.properties?.hashed_token
-  const magicLink = tokenHash
-    ? `${siteUrl}/admin/auth/callback?token_hash=${tokenHash}&type=magiclink&location_id=${locationId}`
-    : undefined
-  if (magicLink) {
-    const { sendAdminMagicLinkEmail } = await import("@/lib/email")
-    await sendAdminMagicLinkEmail(cleanEmail, magicLink, locationId)
+  // Email them their login directly instead of a one-time magic-link token.
+  // A magic link's token can be silently consumed by an automated email
+  // security scanner / link-preview fetch before the person ever opens the
+  // email -- confirmed root cause of a real tenant admin (Perfect Spin)
+  // never being able to sign in despite a valid invite. A password has
+  // nothing for a scanner to burn. Only sent when we actually generated a
+  // fresh password above -- an already-existing admin keeps their current
+  // password and isn't re-emailed one they don't have.
+  if (tempPassword) {
+    const { sendAdminCredentialsEmail } = await import("@/lib/email")
+    await sendAdminCredentialsEmail(cleanEmail, tempPassword, locationId)
   }
 
   revalidatePath("/super-admin")

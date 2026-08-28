@@ -310,6 +310,39 @@ export async function sendAdminMagicLinkEmail(toEmail: string, magicLink: string
   return safeSend({ from: await fromAdmin(locationId), to: [toEmail], subject, html })
 }
 
+// Replaces the one-time magic link above for new-admin provisioning. A
+// magic link's token can be silently consumed by an automated email
+// security scanner / link-preview fetch before the person ever opens the
+// email -- confirmed root cause of a real tenant admin (Perfect Spin) never
+// being able to sign in despite a real, valid invite. A plain password has
+// nothing for a scanner to burn -- the only remaining dependency is the
+// email actually arriving, not surviving a click race on top of that.
+export async function sendAdminCredentialsEmail(toEmail: string, password: string, locationId?: string) {
+  const branding = await getEmailBranding(locationId)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://comforterwash.com"
+  const loginUrl = `${siteUrl}/admin/login`
+  const subject = `Your ${branding.businessName} admin login`
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:${branding.primaryColor};margin-bottom:12px">Your admin login is ready</h2>
+      <p style="color:#444;font-size:14px;line-height:1.6;margin-bottom:20px">
+        Sign in to your ${branding.businessName} admin dashboard with the details below. You can change this password any time after signing in, under Settings.
+      </p>
+      <div style="background:#f7f8fb;border-radius:10px;padding:16px 20px;margin-bottom:24px">
+        <p style="color:#444;font-size:13px;margin:0 0 8px"><strong>Email:</strong> ${toEmail}</p>
+        <p style="color:#444;font-size:13px;margin:0;font-family:monospace"><strong>Password:</strong> ${password}</p>
+      </div>
+      <a href="${loginUrl}" style="display:inline-block;background:${branding.accentColor};color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:14px">
+        Sign In →
+      </a>
+      <p style="color:#999;font-size:12px;margin-top:28px">
+        Didn't request this? You can safely ignore this email.
+      </p>
+    </div>
+  `
+  return safeSend({ from: await fromAdmin(locationId), to: [toEmail], subject, html })
+}
+
 // ─────────────────────────────────────────────────────────────────
 // 9. Facility: Orders Arrived  (sent when driver completes to_facility run)
 // ─────────────────────────────────────────────────────────────────
