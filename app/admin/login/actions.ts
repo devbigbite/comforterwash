@@ -105,20 +105,32 @@ export async function signInWithPassword(formData: FormData): Promise<{ error?: 
     return { error: "Incorrect email or password." }
   }
 
-  const locationId = await getLocationId()
+  // Deliberately NOT derived from the request's hostname. This form can be
+  // reached after a subdomain -> canonical-host redirect (see middleware.ts
+  // "-1. Pin /admin..."), and a cookie set while responding from
+  // perfect-spin.washfoldclean.com never reaches comforterwash.com -- two
+  // different root domains don't share cookies. Host-based resolution here
+  // silently fell back to Orlando and rejected every other tenant's admin
+  // ("This account isn't an admin for this location") even with a correct
+  // password. Instead, look up which tenant(s) this now-authenticated user
+  // actually belongs to directly -- no host, no cookie, no redirect needed.
   const admin = createAdminClient()
-  const { data: membership } = await admin
+  const { data: memberships } = await admin
     .from("location_users")
-    .select("id, is_super_admin")
+    .select("location_id, is_super_admin")
     .eq("user_id", data.user.id)
-    .or(`location_id.eq.${locationId},is_super_admin.eq.true`)
-    .limit(1)
-    .maybeSingle()
 
-  if (!membership) {
+  if (!memberships?.length) {
     await supabase.auth.signOut()
-    return { error: "This account isn't an admin for this location." }
+    return { error: "This account isn't an admin for any location." }
   }
+
+  const isSuperAdmin = memberships.some(m => m.is_super_admin)
+  // Prefer an ordinary tenant membership (what a tenant admin actually wants
+  // to land on); a pure super admin with no tenant of their own falls back
+  // to whichever location their row is attached to.
+  const membership = memberships.find(m => !m.is_super_admin) ?? memberships[0]
+  const locationId = membership.location_id
 
   const cookieStore = await cookies()
   cookieStore.set("admin_auth", "authenticated", {
@@ -136,7 +148,7 @@ export async function signInWithPassword(formData: FormData): Promise<{ error?: 
     path: "/",
   })
 
-  if (membership.is_super_admin) {
+  if (isSuperAdmin) {
     cookieStore.set("super_admin_auth", "authenticated", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
