@@ -12,7 +12,7 @@ export default function StartPage() {
         <div className="text-center mb-8">
           <h1 className="text-2xl font-extrabold text-[#0D2240]">Start Your Own Laundry Pickup & Delivery Business</h1>
           <p className="text-sm text-gray-500 mt-2">
-            Booking site, dispatch board, driver app, and billing — live in minutes, under your own name.
+            Booking site, dispatch board, and driver app — live in minutes, under your own name.
           </p>
         </div>
 
