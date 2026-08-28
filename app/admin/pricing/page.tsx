@@ -750,7 +750,7 @@ export default function PricingPage() {
                   disabled={savingBagConfig}
                   className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-60"
                 >
-                  {savingBagConfig ? "Saving…" : "Save Bag Pricing"}
+                  {savingBagConfig ? "Saving…" : "Save Pricing"}
                 </button>
                 {savedBagConfig && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
               </div>
@@ -878,7 +878,7 @@ export default function PricingPage() {
                   disabled={savingWashOnlyBagConfig}
                   className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-60"
                 >
-                  {savingWashOnlyBagConfig ? "Saving…" : "Save Wash Only Bag Pricing"}
+                  {savingWashOnlyBagConfig ? "Saving…" : "Save Pricing"}
                 </button>
                 {savedWashOnlyBagConfig && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
               </div>
