@@ -38,7 +38,8 @@ export async function sendPlatformDemoGuideEmail(params: {
       subject: `${firstName}, here's your WashFoldClean demo \u{1F680}`,
       intro: `Thanks for requesting a demo of WashFoldClean${params.business ? ` for <strong>${params.business}</strong>` : ""} —
         we're excited to show you around. Here's everything you need to explore it yourself, right now, plus a
-        PDF guide attached to this email covering the same steps in more depth.`,
+        PDF guide attached to this email covering the same steps in more depth. Your demo site and admin login
+        below stay active for the next <strong>7 days</strong> — plenty of time to explore before deciding.`,
       about: `A little about us: we're laundry pickup &amp; delivery operators ourselves — not a software company guessing at what
         this business needs. We built WashFoldClean to run our own operation, and unlike most tools in this space, it's
         designed first for small operators who don't own a laundromat: working out of your own home, or partnering with a
@@ -79,7 +80,8 @@ export async function sendPlatformDemoGuideEmail(params: {
       subject: `${firstName}, aquí tienes tu demo de WashFoldClean \u{1F680}`,
       intro: `Gracias por solicitar una demo de WashFoldClean${params.business ? ` para <strong>${params.business}</strong>` : ""} —
         estamos emocionados de mostrártela. Aquí tienes todo lo que necesitas para explorarla tú mismo(a), ahora mismo, además de una
-        guía en PDF adjunta a este correo con los mismos pasos explicados con más detalle.`,
+        guía en PDF adjunta a este correo con los mismos pasos explicados con más detalle. Tu sitio de demo y tu acceso de
+        administrador siguen activos durante los próximos <strong>7 días</strong> — tiempo de sobra para explorar antes de decidir.`,
       about: `Un poco sobre nosotros: somos operadores de recogida y entrega de lavandería nosotros mismos — no una empresa de software adivinando lo que
         este negocio necesita. Construimos WashFoldClean para manejar nuestra propia operación, y a diferencia de la mayoría de herramientas en este espacio, está
         diseñada primero para operadores pequeños que no son dueños de una lavandería: trabajando desde tu propia casa, o asociándote con

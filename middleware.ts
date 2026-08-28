@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
-import { resolveLocationFromHost, ORLANDO_LOCATION_ID, WASHFOLD_DEMO_LOCATION_ID } from "@/lib/location"
+import { resolveLocationFromHost, ORLANDO_LOCATION_ID, WASHFOLD_DEMO_LOCATION_ID, isDemoExpired } from "@/lib/location"
+import { createClient as createEdgeAdminClient } from "@supabase/supabase-js"
 
 // ── Platform domain (set in env or fallback) ─────────────────────────────────
 // e.g. "washfoldclean.com" → subdomains like perfect-spin.washfoldclean.com
@@ -9,8 +10,29 @@ import { resolveLocationFromHost, ORLANDO_LOCATION_ID, WASHFOLD_DEMO_LOCATION_ID
 const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfoldclean.com"
 
 // ── Simple in-memory location cache (avoids a DB hit on every request) ───────
-const locationCache = new Map<string, { id: string; expiresAt: number }>()
+// Carries demoExpired alongside the id so the 7-day demo self-expiry check
+// (see lib/location.ts's isDemoExpired) doesn't need its own DB round trip.
+const locationCache = new Map<string, { id: string; demoExpired: boolean; expiresAt: number }>()
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+// A second small cache keyed by location id, for the /admin path -- there the
+// tenant is known via the admin_location_id cookie (not the hostname), so it
+// needs its own lookup rather than reusing the host-keyed cache above.
+const demoStatusByIdCache = new Map<string, { demoExpired: boolean; expiresAt: number }>()
+
+async function isDemoExpiredForLocationId(locationId: string): Promise<boolean> {
+  const cached = demoStatusByIdCache.get(locationId)
+  if (cached && cached.expiresAt > Date.now()) return cached.demoExpired
+
+  const supabase = createEdgeAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  const { data } = await supabase.from("locations").select("plan, created_at").eq("id", locationId).maybeSingle()
+  const demoExpired = isDemoExpired(data?.plan, data?.created_at)
+  demoStatusByIdCache.set(locationId, { demoExpired, expiresAt: Date.now() + CACHE_TTL_MS })
+  return demoExpired
+}
 
 // ── Rate limiting for /partner/ routes ──────────────────────────────────────
 const rateLimitStore = new Map<string, { count: number; windowStart: number }>()
@@ -37,40 +59,42 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
-async function getLocationIdForHost(hostname: string): Promise<string> {
+async function getLocationIdForHost(hostname: string): Promise<{ id: string; demoExpired: boolean }> {
   const host = hostname.split(":")[0] // strip port for local dev
 
   // Local development: always use Orlando
   if (host === "localhost" || host === "127.0.0.1") {
-    return ORLANDO_LOCATION_ID
+    return { id: ORLANDO_LOCATION_ID, demoExpired: false }
   }
 
   // Check cache
   const cached = locationCache.get(host)
   if (cached && cached.expiresAt > Date.now()) {
-    return cached.id
+    return { id: cached.id, demoExpired: cached.demoExpired }
   }
 
   // Resolve from DB
   const location = await resolveLocationFromHost(host, PLATFORM_DOMAIN)
 
   let id: string
+  let demoExpired = false
   if (location) {
     id = location.id
+    demoExpired = isDemoExpired(location.plan, location.created_at)
   } else {
     // No matching tenant. A *subdomain* of the platform domain that doesn't
     // match any real slug (e.g. a stale/mistyped or made-up demo link) falls
     // back to the internal WashFoldDemo sandbox — never to Orlando's real,
     // paying-customer site. The bare platform domain / an unmatched custom
     // domain still falls back to Orlando, same as before.
-    const isUnmatchedSubdomain = new RegExp(`^[a-z0-9-]+\\.${PLATFORM_DOMAIN.replace(".", "\\.")}$`).test(host)
+    const isUnmatchedSubdomain = new RegExp(`^[a-z0-9-]+\.${PLATFORM_DOMAIN.replace(".", "\.")}$`).test(host)
     id = isUnmatchedSubdomain ? WASHFOLD_DEMO_LOCATION_ID : ORLANDO_LOCATION_ID
   }
 
   // Cache the result
-  locationCache.set(host, { id, expiresAt: Date.now() + CACHE_TTL_MS })
+  locationCache.set(host, { id, demoExpired, expiresAt: Date.now() + CACHE_TTL_MS })
 
-  return id
+  return { id, demoExpired }
 }
 
 // Both domains point at this same deployment, but browser cookies can't be
@@ -102,7 +126,7 @@ export async function middleware(request: NextRequest) {
     url.port = ""
     const res = NextResponse.redirect(url, 308)
     if (pathname.startsWith("/admin")) {
-      const tenantLocationId = await getLocationIdForHost(rawHost)
+      const { id: tenantLocationId } = await getLocationIdForHost(rawHost)
       res.cookies.set("admin_location_id", tenantLocationId, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -136,7 +160,7 @@ export async function middleware(request: NextRequest) {
 
   // ── 1. Resolve location from hostname ────────────────────────────────────
   const hostname = request.headers.get("host") ?? "localhost"
-  const hostResolvedLocationId = await getLocationIdForHost(hostname)
+  const { id: hostResolvedLocationId, demoExpired: hostDemoExpired } = await getLocationIdForHost(hostname)
 
   // Public-facing demo override — set by /demo (see app/demo/route.ts) so a
   // prospect exploring the sandbox sees the isolated WashFoldDemo tenant
@@ -144,6 +168,18 @@ export async function middleware(request: NextRequest) {
   // Never applies to /admin or /super-admin (those use admin_location_id).
   const demoLocationOverride = request.cookies.get("demo_location_id")?.value
   const locationId = demoLocationOverride || hostResolvedLocationId
+
+  // ── 1b. Demo tenants self-expire after DEMO_TRIAL_DAYS ────────────────────
+  // A prospect's demo (locations.plan === "demo", from the /platform
+  // demo-request flow) is a time-boxed evaluation only -- see
+  // lib/location.ts's isDemoExpired(). Once expired, every public page on
+  // that tenant's subdomain/custom domain redirects to /demo-expired instead
+  // of rendering, prompting them to /start for real (paid, no-trial)
+  // access. Doesn't apply when a demo_location_id override is active (the
+  // marketing site's own /demo sandbox is never itself expirable this way).
+  if (hostDemoExpired && !demoLocationOverride && pathname !== "/demo-expired" && !pathname.startsWith("/api")) {
+    return NextResponse.redirect(new URL("/demo-expired", request.url))
+  }
 
   // ── 2. Admin auth (cookie-based) ─────────────────────────────────────────
   // Under the canonical admin host, the hostname no longer tells us which
@@ -158,6 +194,19 @@ export async function middleware(request: NextRequest) {
   // tenant instead of their real one, purely because of a stray cookie set
   // on an unrelated page.
   const effectiveAdminLocationId = adminLocationOverride || hostResolvedLocationId
+
+  // A demo tenant's admin dashboard is blocked the same way its public site
+  // is (see 1b above) once the 7-day demo window has passed -- an expired
+  // demo shouldn't stay usable just because someone still has an admin
+  // session for it. Checked once here since both /admin/login and /admin
+  // share it.
+  if (
+    (pathname.startsWith("/admin/login") || pathname.startsWith("/admin")) &&
+    pathname !== "/demo-expired" &&
+    (await isDemoExpiredForLocationId(effectiveAdminLocationId))
+  ) {
+    return NextResponse.redirect(new URL("/demo-expired", request.url))
+  }
 
   if (pathname.startsWith("/admin/login")) {
     const res = NextResponse.next({

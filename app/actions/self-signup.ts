@@ -68,11 +68,11 @@ export async function startSelfSignup(formData: FormData): Promise<{ url?: strin
       line_items: [
         {
           // One-time setup fee — Stripe charges non-recurring line items
-          // immediately at checkout, even when the subscription line item
-          // below has a trial attached.
+          // immediately at checkout, no trial involved. This fee covers
+          // setup AND the tenant's first month of service.
           price_data: {
             currency: "usd",
-            product_data: { name: `${SELF_SIGNUP_PLAN.name} — Setup Fee` },
+            product_data: { name: `${SELF_SIGNUP_PLAN.name} — Setup Fee (covers first month)` },
             unit_amount: SELF_SIGNUP_PLAN.setupFeeCents,
           },
           quantity: 1,
@@ -87,8 +87,11 @@ export async function startSelfSignup(formData: FormData): Promise<{ url?: strin
           quantity: 1,
         },
       ],
+      // NOT a customer-facing free trial -- payment is captured in full at
+      // checkout above. This only delays the subscription's first recurring
+      // invoice by one month, since the setup fee already paid for it.
       subscription_data: {
-        trial_period_days: SELF_SIGNUP_PLAN.trialDays,
+        trial_period_days: SELF_SIGNUP_PLAN.firstMonthCoveredDays,
         metadata: { type: "platform_self_signup" },
       },
       metadata: {
