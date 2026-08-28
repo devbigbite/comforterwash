@@ -551,6 +551,7 @@ export async function handleSuccessfulPayment(sessionId: string, stripeAccountId
         serviceType:     (meta.serviceType as "comforter_wash" | "wash_fold" | "wash_only") ?? "comforter_wash",
         pounds:          meta.pounds ? parseFloat(meta.pounds) : undefined,
         numBags:         meta.numBags ? parseInt(meta.numBags) : undefined,
+        bagSelection:    meta.bagSelection ? JSON.parse(meta.bagSelection) : undefined,
         preAuthCents,
         isManualCapture: isManual,
         subscriptionFrequency: frequency,

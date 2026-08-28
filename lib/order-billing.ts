@@ -36,6 +36,12 @@ export interface OrderBillingInput {
   price_per_lb_cents: number | null
   commercial_account_id: string | null
   assigned_facility_id: string | null
+  // Wash & Fold "per_bag" mode only (see app/actions/pricing.ts). JSON string
+  // of {id,label,priceCents,qty}[], resolved and locked in server-side at
+  // booking creation (app/actions/bookings.ts createBooking). When present,
+  // this — not weightLbs x price_per_lb_cents — is what the customer owes;
+  // facility cost below is still weight-based, unaffected.
+  wash_fold_bag_selection?: string | null
 }
 
 export interface OrderBilling {
@@ -72,7 +78,23 @@ export async function calculateOrderBilling(
   let customerFinalCents: number
   let basis: string
 
-  if (commercial) {
+  let bagSelection: { id: string; label: string; priceCents: number; qty: number }[] | null = null
+  if (!commercial && booking.wash_fold_bag_selection) {
+    try {
+      const parsed = JSON.parse(booking.wash_fold_bag_selection)
+      if (Array.isArray(parsed) && parsed.length > 0) bagSelection = parsed
+    } catch {
+      // malformed JSON — fall through to the normal per-lb calc below
+    }
+  }
+
+  if (bagSelection) {
+    // Flat by-the-bag pricing, locked in at booking time — no weight
+    // minimum applies (a bag is a bag regardless of what it weighs).
+    customerFinalCents = bagSelection.reduce((sum, b) => sum + b.priceCents * b.qty, 0)
+    const bagsDesc = bagSelection.map(b => `${b.qty}x ${b.label}`).join(", ")
+    basis = `by-the-bag flat rate (${bagsDesc})`
+  } else if (commercial) {
     const rateAmount = Number(commercial.rate_amount_cents ?? 0)
     const minimumCents = Number(commercial.minimum_amount_cents ?? 0)
     const rawCents =

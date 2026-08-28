@@ -315,7 +315,7 @@ async function recalcBillingAction(formData: FormData) {
 
   const { data: bk } = await supabase
     .from("bookings")
-    .select("actual_weight_lbs, service_type, price_per_lb_cents, commercial_account_id, assigned_facility_id, customer_final_cents, facility_cost_cents, payment_status")
+    .select("actual_weight_lbs, service_type, price_per_lb_cents, commercial_account_id, assigned_facility_id, customer_final_cents, facility_cost_cents, payment_status, wash_fold_bag_selection")
     .eq("id", bookingId)
     .single()
 
@@ -334,6 +334,7 @@ async function recalcBillingAction(formData: FormData) {
       price_per_lb_cents:    bk.price_per_lb_cents ?? null,
       commercial_account_id: bk.commercial_account_id ?? null,
       assigned_facility_id:  bk.assigned_facility_id ?? null,
+      wash_fold_bag_selection: bk.wash_fold_bag_selection ?? null,
     }, weightLbs)
 
     const { error } = await supabase.from("bookings").update({

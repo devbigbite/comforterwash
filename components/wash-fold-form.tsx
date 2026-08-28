@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { PromoCodeField } from "@/components/promo-code-field"
 import { GiftCardField } from "@/components/gift-card-field"
 import { getExcludedDates } from "@/app/actions/holidays"
-import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
+import { getPricingConfig, type PricingConfig, getWashFoldBagConfig, type WashFoldBagConfig } from "@/app/actions/pricing"
 import { getMonthlyPlanEnabled, getComforterPromo, getFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
@@ -252,6 +252,15 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
   const [freqPricing, setFreqPricing] = useState(buildFreqPricing())
   const [minLbs, setMinLbs] = useState(MIN_POUNDS)
 
+  // ── Wash & Fold "per_bag" pricing (per-tenant, opt-in — see app/actions/pricing.ts) ──
+  // Defaults to per_lb until the location's config loads, so most tenants
+  // (who never configure per_bag) see zero change to the existing lbs UI.
+  const [bagConfig, setBagConfig] = useState<WashFoldBagConfig>({ mode: "per_lb", bagSizes: [] })
+  const [bagQtys, setBagQtys] = useState<Record<string, number>>({})
+  const isBagMode = bagConfig.mode === "per_bag" && bagConfig.bagSizes.length > 0
+  const totalBagQty = Object.values(bagQtys).reduce((a, b) => a + b, 0)
+  const bagSubtotalCents = bagConfig.bagSizes.reduce((sum, b) => sum + (bagQtys[b.id] ?? 0) * b.priceCents, 0)
+
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [serviceMode, setServiceMode] = useState<"paygo" | "subscription">("paygo")
   const [subscribeType, setSubscribeType] = useState<"weekly" | "biweekly" | "monthly">("weekly")
@@ -381,6 +390,12 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
       setMinLbs(cfg.washFoldMinLbs)
       setComforterSizesList(buildComforterSizes())
     })
+    getWashFoldBagConfig().then(cfg => {
+      setBagConfig(cfg)
+      if (cfg.mode === "per_bag" && cfg.bagSizes.length > 0) {
+        setBagQtys({ [cfg.bagSizes[0].id]: 1 })
+      }
+    })
     Promise.all([getServiceOptions("detergent"), getServiceOptions("extra"), getServiceOptions("accessory")]).then(([dets, exts, accs]) => {
       setDetergentOptions(dets)
       setExtraOptions(exts)
@@ -406,7 +421,9 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
   const extrasCents         = (selectedDetergent ? effectivePriceForOrder(selectedDetergent, qty) : 0) + selectedExtrasList.reduce((s, e) => s + effectivePriceForOrder(e, qty), 0)
 
   const pricePerLbCents = freqPricing[formData.frequency as keyof typeof freqPricing].cents
-  const baseCents       = Math.max(formData.pounds * pricePerLbCents, minLbs * pricePerLbCents)
+  // Bag mode is a flat total for whatever sizes/quantities the customer
+  // picked — no per-lb rate, no lb minimum (a bag is a bag).
+  const baseCents       = isBagMode ? bagSubtotalCents : Math.max(formData.pounds * pricePerLbCents, minLbs * pricePerLbCents)
   const comforterTotalCount = comforterAddon ? Object.values(comforterQtys).reduce((a, b) => a + b, 0) : 0
   const comforterSubtotalCents = comforterAddon
     ? comforterPromo
@@ -424,7 +441,10 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
   // rest of an order but never zero it out entirely.
   const giftCardDiscountCents = giftCard ? Math.min(giftCard.discountCents, Math.max(0, totalBeforeGiftCardCents - 50)) : 0
   const totalCents       = totalBeforeGiftCardCents - giftCardDiscountCents
-  const preAuthCentsRaw  = Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * 1.25)) + comforterSubtotalCents + tipCents
+  // Bag-mode pricing is a flat, known-in-advance total — no weight
+  // uncertainty to buffer for, unlike per-lb where the scale reading can
+  // come in over the estimate. Only the per-lb path gets the 1.25x cushion.
+  const preAuthCentsRaw  = Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * (isBagMode ? 1 : 1.25))) + comforterSubtotalCents + tipCents
   const preAuthCents     = Math.max(50, preAuthCentsRaw - giftCardDiscountCents)
   const totalDisplay     = (totalCents / 100).toFixed(2)
   const priceLabel      = freqPricing[formData.frequency as keyof typeof freqPricing].label
@@ -548,8 +568,11 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
     serviceType:     "wash_fold",
     subscriptionFrequency: formData.frequency,
     pricePerLbCents: String(pricePerLbCents),
-    pounds:          String(formData.pounds),
-    numBags:         String(formData.numBags),
+    pounds:          String(isBagMode ? totalBagQty * LBS_PER_BAG : formData.pounds),
+    numBags:         String(isBagMode ? Math.max(1, totalBagQty) : formData.numBags),
+    bagSelection:    isBagMode
+      ? JSON.stringify(bagConfig.bagSizes.filter(b => (bagQtys[b.id] ?? 0) > 0).map(b => ({ id: b.id, qty: bagQtys[b.id] })))
+      : "",
     numComforters:   String(comforterTotalCount),
     comforterSizes:  comforterAddon && comforterTotalCount > 0
       ? comforterSizesList.filter(s => comforterQtys[s.id as CSize] > 0)
@@ -623,6 +646,7 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
               <p className="text-xs font-semibold text-green-700">✓ {tf.promo} {promo.code} applied</p>
             )}
             <div className="text-xs text-gray-500 leading-relaxed border-t border-[var(--brand-primary)]/10 pt-2.5 space-y-1">
+              {!isBagMode ? (<>
               <p>
                 Estimated charge: <strong className="text-[var(--brand-primary)]">${totalDisplay}</strong> ({formData.numBags} {formData.numBags > 1 ? tf.bags : tf.bag} · {minLbs} lb minimum · {priceLabel}).
                 You&apos;re only charged this amount, based on the actual weight once it&apos;s picked up and weighed — nothing is charged today.
@@ -630,11 +654,17 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
               <p>
                 Stripe will show a temporary hold of <strong className="text-[var(--brand-primary)]">${(preAuthCents / 100).toFixed(2)}</strong> below to confirm your card — that&apos;s just a safety buffer in case your order weighs more than expected, not the actual charge.
               </p>
+              </>) : (
+              <p>
+                Total charge: <strong className="text-[var(--brand-primary)]">${totalDisplay}</strong> ({totalBagQty} {totalBagQty === 1 ? tf.bag : tf.bags}, flat rate).
+                Nothing is charged today — Stripe will show a temporary hold below to confirm your card, then this exact amount is charged once your order is picked up.
+              </p>
+              )}
             </div>
           </div>
           <Checkout
             amountCents={preAuthCents}
-            label={`Wash & Fold — ~${formData.pounds} lbs`}
+            label={isBagMode ? `Wash & Fold — ${totalBagQty} bag${totalBagQty === 1 ? "" : "s"}` : `Wash & Fold — ~${formData.pounds} lbs`}
             manualCapture={true}
             onSuccess={() => {
               if (!isRecurring && emailCheckState !== "verified") setShowAccountPrompt(true)
@@ -866,7 +896,8 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
             {/* ── Booking form: shown for paygo (one-time) OR subscribe weekly/biweekly ── */}
             {(serviceMode === "paygo" || (serviceMode === "subscription" && subscribeType !== "monthly")) && (<>
 
-            {/* Bag counter */}
+            {/* Bag counter (per_lb tenants) OR bag-size picker (per_bag tenants) */}
+            {!isBagMode ? (<>
             <div>
               <h3 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">{tw.howManyBags}</h3>
               <p className="text-sm text-gray-400">{tw.bagWeightNote}</p>
@@ -902,27 +933,82 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
               </div>
               <p className="text-xs text-gray-400 leading-relaxed text-center pt-1">{tw.bagPhotoNote}</p>
             </div>
+            </>) : (<>
+            <div>
+              <h3 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">{tw.howManyBags}</h3>
+              <p className="text-sm text-gray-400">Pick a bag size and how many you have.</p>
+            </div>
+
+            <div className="space-y-2.5">
+              {bagConfig.bagSizes.map(bag => {
+                const qty = bagQtys[bag.id] ?? 0
+                return (
+                  <div key={bag.id}
+                    className={cn("flex items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 transition-all",
+                      qty > 0 ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white")}>
+                    <div className="min-w-0">
+                      <p className="font-extrabold text-sm text-[var(--brand-primary)]">{bag.label}</p>
+                      <p className="text-xs text-gray-400">${(bag.priceCents / 100).toFixed(2)} {tf.bag}</p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button type="button"
+                        onClick={() => setBagQtys(p => ({ ...p, [bag.id]: Math.max(0, (p[bag.id] ?? 0) - 1) }))}
+                        disabled={qty <= 0}
+                        className="w-9 h-9 rounded-full border-2 border-[var(--brand-primary)] text-[var(--brand-primary)] font-bold text-lg flex items-center justify-center disabled:opacity-25 hover:bg-[var(--brand-primary)] hover:text-white transition-colors">
+                        −
+                      </button>
+                      <span className="text-xl font-extrabold text-[var(--brand-primary)] tabular-nums min-w-[1.5rem] text-center">{qty}</span>
+                      <button type="button"
+                        onClick={() => setBagQtys(p => ({ ...p, [bag.id]: (p[bag.id] ?? 0) + 1 }))}
+                        className="w-9 h-9 rounded-full border-2 border-[var(--brand-primary)] text-[var(--brand-primary)] font-bold text-lg flex items-center justify-center hover:bg-[var(--brand-primary)] hover:text-white transition-colors">
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+              {totalBagQty === 0 && (
+                <p className="text-xs text-amber-600 font-semibold text-center pt-1">Select at least one bag to continue.</p>
+              )}
+            </div>
+            </>)}
 
             {/* Estimate card */}
             <div className="bg-[#fdf6f5] rounded-xl p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{tw.estimatedWeight}</p>
-                  <p className="text-sm font-bold text-[var(--brand-primary)]">({formData.numBags} {formData.numBags > 1 ? tf.bags : tf.bag} × ~{LBS_PER_BAG} lbs)</p>
+                  <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{isBagMode ? "Bags Selected" : tw.estimatedWeight}</p>
+                  <p className="text-sm font-bold text-[var(--brand-primary)]">
+                    {isBagMode
+                      ? `${totalBagQty} ${totalBagQty === 1 ? tf.bag : tf.bags}`
+                      : `(${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag} × ~${LBS_PER_BAG} lbs)`}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{tw.preAuth}</p>
-                  <p className="text-2xl font-extrabold text-[var(--brand-accent)]">${(preAuthCents / 100).toFixed(2)}</p>
+                  <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{isBagMode ? "Estimated Total" : tw.preAuth}</p>
+                  <p className="text-2xl font-extrabold text-[var(--brand-accent)]">${(isBagMode ? baseCents / 100 : preAuthCents / 100).toFixed(2)}</p>
                 </div>
               </div>
-              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                <svg className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                <p className="text-xs text-amber-700 leading-relaxed">
-                  <span className="font-bold">{tw.estimateNote}</span> {tw.chargedAt.replace("{priceLabel}", priceLabel).replace("18 lb", `${minLbs} lb`)}
-                </p>
-              </div>
+              {!isBagMode && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <svg className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    <span className="font-bold">{tw.estimateNote}</span> {tw.chargedAt.replace("{priceLabel}", priceLabel).replace("18 lb", `${minLbs} lb`)}
+                  </p>
+                </div>
+              )}
+              {isBagMode && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <svg className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    <span className="font-bold">Flat rate by the bag.</span> This is your final price for the bags selected above — nothing changes based on weight.
+                  </p>
+                </div>
+              )}
               {freePickupDeliveryLineEnabled && (
                 <p className="text-xs font-semibold text-green-600 pt-1">{tw.freePickupDelivery}</p>
               )}
@@ -1464,9 +1550,13 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
               {[
                 { label: tf.labelService,    value: tw.washFoldLabel },
                 { label: tf.labelFrequency,  value: formData.frequency === "one_time" ? tw.oneTimeLabel : formData.frequency === "weekly" ? tw.weeklyLabel : tw.biweeklyLabel },
-                { label: tf.labelRate,       value: priceLabel },
-                { label: tf.labelEstWeight,  value: `~${formData.pounds} lbs` },
-                { label: tf.labelBags,       value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
+                ...(isBagMode
+                  ? [{ label: tf.labelBags, value: bagConfig.bagSizes.filter(b => (bagQtys[b.id] ?? 0) > 0).map(b => `${bagQtys[b.id]}x ${b.label}`).join(", ") }]
+                  : [
+                      { label: tf.labelRate,      value: priceLabel },
+                      { label: tf.labelEstWeight, value: `~${formData.pounds} lbs` },
+                      { label: tf.labelBags,      value: `${formData.numBags} ${formData.numBags > 1 ? tf.bags : tf.bag}` },
+                    ]),
                 { label: tw.detergentLabel,  value: selectedDetergent?.name ?? "" },
                 { label: tf.labelAddOns,     value: addOnsSummary === tw.standardNone ? tw.none : addOnsSummary },
                 ...(comforterTotalCount > 0 ? [{

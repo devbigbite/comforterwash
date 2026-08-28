@@ -9,7 +9,7 @@ import { format } from "date-fns"
 import { todayET } from "@/lib/date-et"
 import { recordPromoRedemption } from "@/app/actions/promos"
 import { getComforterPromo } from "@/app/actions/settings"
-import { getPricingConfig } from "@/app/actions/pricing"
+import { getPricingConfig, getWashFoldBagConfig } from "@/app/actions/pricing"
 import { computeComforterFacilityCostCents } from "@/lib/facility-comforter-cost"
 
 export interface BookingData {
@@ -42,6 +42,7 @@ export interface BookingData {
   comforterSizes?: string   // e.g. "Queen:1,King:2"
   specialInstructions?: string  // customer-supplied note at booking time — surfaced to the operator, distinct from the internal status-timeline `notes` column
   commercialAccountId?: string  // links this booking to a commercial_accounts row — pay-at-weigh-in via saved card, no consumer pre-auth
+  bagSelection?: { id: string; qty: number }[]  // wash_fold "per_bag" mode only — customer-picked bag size ids + quantities. Server re-resolves each id's current priceCents/label from getWashFoldBagConfig() at booking time (see createBooking); never trusts a price the client sends.
   paymentStatusOverride?: string // e.g. "pending_weight" for commercial orders where nothing is charged until weigh-in
   locationId?: string  // explicit tenant override — REQUIRED from cron/background contexts (recurring-engine), where there's no request hostname for getLocationId() to resolve from. Without it every cron-created booking would silently land on the Orlando fallback.
 }
@@ -104,6 +105,29 @@ export async function createBooking(data: BookingData) {
   // facility accrual has to be written here instead — see
   // lib/facility-comforter-cost.ts for why.
   const serviceType = data.serviceType ?? "comforter_wash"
+
+  // ── Wash & Fold "per_bag" pricing — server-side lock-in ────────────────────
+  // Only the bag size IDs + quantities the client picked are trusted; the
+  // price for each is always re-looked-up here from the location's current
+  // getWashFoldBagConfig(), never from anything the client sent. This becomes
+  // the order's locked-in price (mirrors price_per_lb_cents below) and is what
+  // lib/order-billing.ts sums at weigh-in instead of pounds x rate.
+  let washFoldBagSelection: { id: string; label: string; priceCents: number; qty: number }[] | null = null
+  if (serviceType === "wash_fold" && data.bagSelection?.length) {
+    const bagConfig = await getWashFoldBagConfig()
+    if (bagConfig.mode === "per_bag") {
+      washFoldBagSelection = data.bagSelection
+        .map(sel => {
+          const bag = bagConfig.bagSizes.find(b => b.id === sel.id)
+          const qty = Math.max(0, Math.floor(Number(sel.qty) || 0))
+          if (!bag || qty <= 0) return null
+          return { id: bag.id, label: bag.label, priceCents: bag.priceCents, qty }
+        })
+        .filter((v): v is { id: string; label: string; priceCents: number; qty: number } => v !== null)
+      if (washFoldBagSelection.length === 0) washFoldBagSelection = null
+    }
+  }
+
   let comforterFacilityCostCents: number | null = null
   if (defaultFacilityId && serviceType === "comforter_wash") {
     const [promoActive, pricing] = await Promise.all([getComforterPromo(), getPricingConfig()])
@@ -168,6 +192,7 @@ export async function createBooking(data: BookingData) {
       color_key: colorKey,
       assigned_facility_id: defaultFacilityId,
       facility_cost_cents: comforterFacilityCostCents,
+      wash_fold_bag_selection: washFoldBagSelection ? JSON.stringify(washFoldBagSelection) : null,
     })
     .select()
     .single()
