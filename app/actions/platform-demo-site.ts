@@ -142,18 +142,25 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
 
   const demoUrl = `https://${slug}.${PLATFORM_DOMAIN}`
 
-  // Give them their own admin login (magic link, no password) — mirrors the
-  // real tenant onboarding path in inviteLocationAdmin(), just without the
-  // super-admin gate since there's no admin session at this point.
-  await grantDemoAdminAccess(location.id, reqRow.email)
+  // Give them their own admin login — mirrors the real tenant onboarding
+  // path in inviteLocationAdmin(), just without the super-admin gate since
+  // there's no admin session at this point. Returns the generated password
+  // so it can go out in the SAME email as the demo link below, rather than
+  // a separate send -- two independent sends were two independent chances
+  // for one to silently fail, which is exactly how a real prospect got the
+  // demo-site email but never got an admin login at all.
+  const adminPassword = await grantDemoAdminAccess(location.id, reqRow.email)
 
-  // Send the "here's your demo" email pointing at their real subdomain.
+  // Send the "here's your demo" email pointing at their real subdomain,
+  // with the admin login included directly.
   await sendPlatformDemoGuideEmail({
     name: reqRow.name,
     email: reqRow.email,
     business: reqRow.business,
     demoUrl,
     language: reqRow.preferred_language,
+    adminEmail: adminPassword ? reqRow.email : undefined,
+    adminPassword: adminPassword ?? undefined,
   })
   await supabase
     .from("platform_demo_requests")
@@ -190,10 +197,14 @@ function generateTempPassword(): string {
 // exactly the one a real prospect hit and never got a working admin login
 // from. Now emails a real password the same way the other two paths do --
 // nothing for a scanner or link-preview fetch to consume.
-async function grantDemoAdminAccess(locationId: string, email: string): Promise<void> {
+// Returns the newly generated password (so the caller can fold it into the
+// single combined email), or null if this admin already had an account --
+// an existing account keeps its existing password rather than being reset
+// and re-sent one it didn't ask for.
+async function grantDemoAdminAccess(locationId: string, email: string): Promise<string | null> {
   const supabase = createAdminClient()
   const cleanEmail = email.trim().toLowerCase()
-  if (!cleanEmail || !cleanEmail.includes("@")) return
+  if (!cleanEmail || !cleanEmail.includes("@")) return null
 
   const { data: userList } = await supabase.auth.admin.listUsers()
   let userId = userList?.users.find(u => u.email?.toLowerCase() === cleanEmail)?.id
@@ -208,7 +219,7 @@ async function grantDemoAdminAccess(locationId: string, email: string): Promise<
     })
     if (createError || !created?.user) {
       console.error("[platform-demo-site] createUser failed:", createError)
-      return
+      return null
     }
     userId = created.user.id
   }
@@ -220,10 +231,7 @@ async function grantDemoAdminAccess(locationId: string, email: string): Promise<
       { onConflict: "location_id,user_id" }
     )
 
-  if (tempPassword) {
-    const { sendAdminCredentialsEmail } = await import("@/lib/email")
-    await sendAdminCredentialsEmail(cleanEmail, tempPassword, locationId)
-  }
+  return tempPassword
 }
 
 // Manual trigger from /super-admin/demo-requests, for requests submitted

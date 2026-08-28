@@ -19,8 +19,17 @@ export async function sendPlatformDemoGuideEmail(params: {
   business?: string | null
   demoUrl: string
   language?: "en" | "es"
+  // Included only on first send (see createDemoTenantForRequest) -- a
+  // resend for an already-provisioned request has no new password to show
+  // and shouldn't imply one was just reset. When present, renders directly
+  // in THIS email instead of a separate one: two independent sends were two
+  // independent chances for one to silently fail, which is exactly how a
+  // real prospect got the demo-site email but never the admin login email.
+  adminEmail?: string
+  adminPassword?: string
 }) {
   const lang = params.language === "es" ? "es" : "en"
+  const siteUrlForAdminLogin = process.env.NEXT_PUBLIC_SITE_URL || "https://www.comforterwash.com"
   const firstName = params.name.trim().split(" ")[0] || params.name
   const demoUrl = params.demoUrl
 
@@ -42,7 +51,9 @@ export async function sendPlatformDemoGuideEmail(params: {
         `This is a real, live mini-site set up just for you at <strong>${demoUrl}</strong> — pre-loaded with sample services and pricing so you can see exactly how it would look and work.`,
         `Browse it like a customer would: check out "Pick Up &amp; Delivery," "How It Works," "Pricing," and "FAQ" in the top menu.`,
         `Try the actual booking flow — pick dates, add-ons, and see pricing update live. Feel free to stop before entering real payment details; nothing here processes real charges yet.`,
-        `Look out for a second email with a link straight into your site's admin dashboard — that's where you can change your logo, colors, pricing, and text yourself, no code needed.`,
+        params.adminPassword
+          ? `Your admin dashboard login is below — that's where you can change your logo, colors, pricing, and text yourself, no code needed.`
+          : `Your site's admin dashboard is where you can change your logo, colors, pricing, and text yourself, no code needed.`,
         `Want the full feature list and pricing to sign up for real? Visit <a href="${PLATFORM_URL}" style="color:#E8726A">${PLATFORM_URL}</a>.`,
       ],
       whyTitle: "Why laundry businesses choose WashFoldClean:",
@@ -59,6 +70,10 @@ export async function sendPlatformDemoGuideEmail(params: {
       closing: "Have questions after browsing, or want a live walkthrough instead? Just reply to this email — happy to jump on a call.",
       sign: "— The WashFoldClean Team",
       hi: `Hi ${firstName},`,
+      adminLabel: "Your Admin Login",
+      adminEmailLabel: "Email",
+      adminPasswordLabel: "Password",
+      adminLoginLink: "Sign in to your dashboard",
     },
     es: {
       subject: `${firstName}, aquí tienes tu demo de WashFoldClean \u{1F680}`,
@@ -77,7 +92,9 @@ export async function sendPlatformDemoGuideEmail(params: {
         `Este es un mini-sitio real y en vivo creado solo para ti en <strong>${demoUrl}</strong> — precargado con servicios y precios de muestra para que veas exactamente cómo se vería y funcionaría.`,
         `Explóralo como lo haría un cliente: revisa "Recogida y Entrega," "Cómo Funciona," "Precios," y "Preguntas Frecuentes" en el menú superior.`,
         `Prueba el flujo real de reservación — elige fechas, complementos, y mira cómo se actualiza el precio en vivo. Puedes detenerte antes de ingresar datos de pago reales; nada aquí procesa cobros reales todavía.`,
-        `Espera un segundo correo con un enlace directo al panel de administración de tu sitio — ahí es donde puedes cambiar tu logo, colores, precios y textos tú mismo(a), sin necesidad de código.`,
+        params.adminPassword
+          ? `El acceso a tu panel de administración está más abajo — ahí es donde puedes cambiar tu logo, colores, precios y textos tú mismo(a), sin necesidad de código.`
+          : `El panel de administración de tu sitio es donde puedes cambiar tu logo, colores, precios y textos tú mismo(a), sin necesidad de código.`,
         `¿Quieres la lista completa de funciones y precios para registrarte de verdad? Visita <a href="${PLATFORM_URL}" style="color:#E8726A">${PLATFORM_URL}</a>.`,
       ],
       whyTitle: "Por qué los negocios de lavandería eligen WashFoldClean:",
@@ -94,6 +111,10 @@ export async function sendPlatformDemoGuideEmail(params: {
       closing: "¿Tienes preguntas después de explorar, o prefieres un recorrido en vivo? Solo responde a este correo — con gusto agendamos una llamada.",
       sign: "— El Equipo de WashFoldClean",
       hi: `Hola ${firstName},`,
+      adminLabel: "Tu Acceso de Administrador",
+      adminEmailLabel: "Correo",
+      adminPasswordLabel: "Contraseña",
+      adminLoginLink: "Inicia sesión en tu panel",
     },
   }
   const t = T[lang]
@@ -112,6 +133,15 @@ export async function sendPlatformDemoGuideEmail(params: {
         </a>
         <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:14px 0 0">${demoUrl}</p>
       </div>
+
+      ${params.adminPassword ? `
+      <div style="background:#f7f8fb;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin:0 0 24px">
+        <p style="color:#0D2240;font-size:13px;font-weight:700;margin:0 0 10px">${t.adminLabel}</p>
+        <p style="color:#444;font-size:13px;margin:0 0 4px"><strong>${t.adminEmailLabel}:</strong> ${params.adminEmail}</p>
+        <p style="color:#444;font-size:13px;margin:0 0 12px;font-family:monospace"><strong>${t.adminPasswordLabel}:</strong> ${params.adminPassword}</p>
+        <a href="${siteUrlForAdminLogin}/admin/login" style="color:#E8726A;font-size:13px;font-weight:700;text-decoration:none">${t.adminLoginLink} →</a>
+      </div>
+      ` : ""}
 
       <p style="font-size:15px;font-weight:700;color:#0D2240;margin-bottom:8px">${t.guideTitle}</p>
       <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px">
