@@ -73,7 +73,7 @@ export async function getLocation(overrideLocationId?: string): Promise<Location
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("locations")
-    .select("id, slug, name, custom_domain, status, plan, business_name, tagline, logo_url, primary_color, accent_color, support_phone, support_email, address, fb_pixel_id")
+    .select("id, slug, name, custom_domain, status, plan, business_name, tagline, logo_url, primary_color, accent_color, support_phone, support_email, address, fb_pixel_id, landing_page_template")
     .eq("id", locationId)
     .single()
   if (!data) return null
@@ -101,6 +101,7 @@ export async function getBranding(overrideLocationId?: string) {
     support_email: loc.support_email,
     address:       loc.address,
     fb_pixel_id:   loc.fb_pixel_id,
+    landing_page_template: (loc as { landing_page_template?: string }).landing_page_template ?? "corporate",
   }
 }
 

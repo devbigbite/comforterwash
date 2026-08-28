@@ -100,7 +100,7 @@ export default async function RootLayout({
               </a>
             </div>
           )}
-          <SiteNav businessName={branding.business_name ?? undefined} logoUrl={branding.logo_url} />
+          <SiteNav businessName={branding.business_name ?? undefined} logoUrl={branding.logo_url} landingTemplate={branding.landing_page_template} />
           {children}
         </LangProvider>
         <Analytics />

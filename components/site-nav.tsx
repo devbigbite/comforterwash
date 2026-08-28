@@ -41,11 +41,16 @@ const EXCLUDED_PREFIXES = [
   "/platform",
 ]
 
-export function SiteNav({ businessName = "WashFold Orlando", logoUrl }: { businessName?: string; logoUrl?: string | null }) {
+export function SiteNav({ businessName = "WashFold Orlando", logoUrl, landingTemplate }: { businessName?: string; logoUrl?: string | null; landingTemplate?: string }) {
   const pathname = usePathname()
   const { translations: tr, locale } = useLang()
 
   if (EXCLUDED_PREFIXES.some(prefix => pathname.startsWith(prefix))) return null
+  // The operator (personal/solo-operator) homepage template renders its own
+  // minimal logo bar and is meant to feel like a simple personal page, not
+  // a corporate site with a full marketing nav on top of it -- so skip the
+  // full nav there. Every other page (booking, receipts, etc.) is unaffected.
+  if (pathname === "/" && landingTemplate === "operator") return null
 
   // Split "WashFold Orlando" -> "WashFold" / "Orlando" so the existing
   // two-line lockup style (bold word + small-caps subtitle) still renders

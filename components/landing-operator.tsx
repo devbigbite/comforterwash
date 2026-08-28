@@ -11,7 +11,8 @@ import { getBrandingSettings, getOperatorLandingProfile, type OperatorProfile } 
 // (locations.operator_landing_style: classic / bold / scrapbook) -- same
 // content (photo, name, bio, booking CTAs), different look. See
 // app/page.tsx for the dispatcher that picks between the corporate and
-// operator templates in the first place.
+// operator templates in the first place, and components/site-nav.tsx for
+// why the standard corporate nav skips itself on this template's homepage.
 export function OperatorLanding() {
   const [profile, setProfile] = useState<OperatorProfile | null>(null)
   const [services, setServices] = useState<ServicesConfig | null>(null)
@@ -58,17 +59,75 @@ function enabledServices(services: ServicesConfig | null) {
   return SERVICE_LINKS.filter(s => !services || services[s.key])
 }
 
-// ── Classic — real photo hero banner (split layout: photo left, warm
-// greeting + bio + CTAs right on desktop, stacked on mobile) so it reads
-// like a small local business's homepage, not a bare profile card. ──────
+// Before the tenant writes their own story on /admin/branding, the page
+// still needs something believable in that space rather than dead white
+// (or worse, no card at all) -- this is generic-enough copy that's true
+// for any solo operator, swapped out the moment they save a real bio.
+function displayBio(profile: OperatorProfile, businessName: string) {
+  if (profile.operator_bio) return profile.operator_bio
+  const name = profile.operator_name || businessName || "I"
+  return `Every order goes through my own hands from pickup to delivery — no facility, no outsourcing. Just careful, honest work, done by ${profile.operator_name ? name : "me"} personally.`
+}
+
+function firstName(name: string | null) {
+  return name ? name.trim().split(" ")[0] : null
+}
+
+function CTAs({ services, className, btnClass }: { services: ServicesConfig | null; className?: string; btnClass: string }) {
+  return (
+    <div className={`flex flex-col gap-3 ${className ?? ""}`}>
+      {enabledServices(services).map(s => (
+        <a
+          key={s.key}
+          href={s.href}
+          className={`flex items-center justify-center gap-2 rounded-2xl font-bold py-4 px-6 text-sm transition ${btnClass}`}
+        >
+          <span className="text-lg">{s.icon}</span>
+          Schedule {s.label}
+        </a>
+      ))}
+    </div>
+  )
+}
+
+function ContactLine({ supportPhone, supportEmail, className, linkClass }: { supportPhone: string | null; supportEmail: string | null; className?: string; linkClass: string }) {
+  if (!supportPhone && !supportEmail) return null
+  return (
+    <p className={`text-xs ${className ?? ""}`}>
+      Questions? {supportPhone ? <a href={`tel:${supportPhone}`} className={linkClass}>{supportPhone}</a> : null}
+      {supportPhone && supportEmail ? " · " : ""}
+      {supportEmail ? <a href={`mailto:${supportEmail}`} className={linkClass}>{supportEmail}</a> : null}
+    </p>
+  )
+}
+
+// Small decorative accents (dots, a soft blob) so each background reads as
+// designed rather than a flat, empty fill -- pure CSS/SVG, no assets.
+function Dots({ className }: { className: string }) {
+  return (
+    <svg className={className} width="120" height="120" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+      {Array.from({ length: 5 }).map((_, row) =>
+        Array.from({ length: 5 }).map((_, col) => (
+          <circle key={`${row}-${col}`} cx={12 + col * 24} cy={12 + row * 24} r="2.5" fill="currentColor" />
+        ))
+      )}
+    </svg>
+  )
+}
+
+// ── Classic — split hero: photo beside the greeting, warm accent blob and
+// a bio that's never empty, tight single card so there's no dead space. ──
 function ClassicStyle({ profile, services, businessName, logoUrl, supportPhone, supportEmail }: OperatorStyleProps) {
   return (
-    <main className="min-h-screen bg-[#f7f8fb] font-sans">
-      <div className="flex justify-center pt-6 pb-2">
+    <main className="min-h-screen bg-[#f7f8fb] font-sans relative overflow-hidden">
+      <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-[var(--brand-accent)]/10 blur-2xl" />
+      <div className="absolute top-40 -left-16 h-56 w-56 rounded-full bg-[var(--brand-primary)]/5 blur-2xl" />
+
+      <div className="flex justify-center pt-6 pb-2 relative">
         <Logo size={40} src={logoUrl} />
       </div>
 
-      <div className="mx-auto max-w-4xl px-4 pb-16 sm:pb-24 pt-4">
+      <div className="mx-auto max-w-4xl px-4 pb-16 sm:pb-24 pt-4 relative">
         <div className="grid sm:grid-cols-2 gap-0 rounded-3xl overflow-hidden bg-white shadow-sm border border-gray-100">
           <div className="relative h-64 sm:h-auto bg-gray-100">
             {profile.operator_photo_url ? (
@@ -79,7 +138,8 @@ function ClassicStyle({ profile, services, businessName, logoUrl, supportPhone, 
             )}
           </div>
 
-          <div className="p-8 sm:p-10 flex flex-col justify-center">
+          <div className="p-8 sm:p-10 flex flex-col justify-center relative">
+            <Dots className="absolute top-4 right-4 text-[var(--brand-accent)]/20" />
             <p className="text-xs font-bold text-[var(--brand-accent)] uppercase tracking-widest mb-2">
               {businessName || "Your neighborhood laundry service"}
             </p>
@@ -87,15 +147,13 @@ function ClassicStyle({ profile, services, businessName, logoUrl, supportPhone, 
               {profile.operator_name ? `Hi, I'm ${profile.operator_name} 👋` : "Welcome"}
             </h1>
 
-            {profile.operator_bio && (
-              <p className="text-gray-500 text-sm sm:text-base leading-relaxed mt-4 whitespace-pre-line">
-                {profile.operator_bio}
-              </p>
-            )}
+            <p className="text-gray-500 text-sm sm:text-base leading-relaxed mt-4">
+              {displayBio(profile, businessName)}
+            </p>
 
-            <CTAs services={services} className="mt-8 sm:mx-0 mx-auto" btnClass="bg-[var(--brand-primary)] text-white hover:opacity-90" />
+            <CTAs services={services} className="mt-8" btnClass="bg-[var(--brand-primary)] text-white hover:opacity-90" />
 
-            <ContactLine supportPhone={supportPhone} supportEmail={supportEmail} className="text-gray-400 mt-6 sm:text-left text-center" linkClass="underline" />
+            <ContactLine supportPhone={supportPhone} supportEmail={supportEmail} className="text-gray-400 mt-6" linkClass="underline" />
           </div>
         </div>
       </div>
@@ -103,10 +161,8 @@ function ClassicStyle({ profile, services, businessName, logoUrl, supportPhone, 
   )
 }
 
-// ── Bold — full-bleed photo hero with a warm dark gradient overlay,
-// greeting + tagline written right over the operator's own photo, like a
-// real local-business homepage hero rather than a generic dark corporate
-// band with a small floating avatar. ────────────────────────────────────
+// ── Bold — full-bleed photo hero, warm overlay, then a tight card that
+// carries the bio + CTAs together instead of a big empty block. ─────────
 function BoldStyle({ profile, services, businessName, logoUrl, supportPhone, supportEmail }: OperatorStyleProps) {
   return (
     <main className="min-h-screen bg-[#f7f8fb] font-sans">
@@ -131,14 +187,12 @@ function BoldStyle({ profile, services, businessName, logoUrl, supportPhone, sup
       </div>
 
       <div className="mx-auto max-w-xl px-4 -mt-8 relative">
-        <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-          {profile.operator_bio && (
-            <p className="text-gray-500 text-sm sm:text-base leading-relaxed max-w-lg mx-auto whitespace-pre-line">
-              {profile.operator_bio}
-            </p>
-          )}
-          <CTAs services={services} className="mt-8" btnClass="bg-[#1a1a24] text-white hover:opacity-90" />
-          <ContactLine supportPhone={supportPhone} supportEmail={supportEmail} className="text-gray-400 mt-8" linkClass="underline" />
+        <div className="bg-white rounded-3xl shadow-lg p-8">
+          <p className="text-gray-500 text-sm sm:text-base leading-relaxed text-center">
+            {displayBio(profile, businessName)}
+          </p>
+          <CTAs services={services} className="mt-8 max-w-sm mx-auto" btnClass="bg-[#1a1a24] text-white hover:opacity-90" />
+          <ContactLine supportPhone={supportPhone} supportEmail={supportEmail} className="text-gray-400 mt-8 text-center" linkClass="underline" />
         </div>
       </div>
       <div className="h-16" />
@@ -146,15 +200,20 @@ function BoldStyle({ profile, services, businessName, logoUrl, supportPhone, sup
   )
 }
 
-// ── Scrapbook — warm collage hero: a large tilted photo alongside a
-// handwritten-feel greeting, like a real "meet the owner" homepage
-// section rather than a small centered avatar. ──────────────────────────
+// ── Scrapbook — tilted photo beside a handwritten-feel greeting, warm
+// paper texture and decorative accents so the card never reads empty
+// even before a bio/name is filled in. ───────────────────────────────────
 function ScrapbookStyle({ profile, services, businessName, logoUrl, supportPhone, supportEmail }: OperatorStyleProps) {
+  const first = firstName(profile.operator_name)
   return (
-    <main className="min-h-screen bg-[#faf3e8] font-sans">
-      <div className="flex justify-center pt-6 pb-2"><Logo size={40} src={logoUrl} /></div>
+    <main className="min-h-screen bg-[#faf3e8] font-sans relative overflow-hidden">
+      <div className="absolute top-10 right-8 h-40 w-40 rounded-full bg-[#c17a4f]/10 blur-2xl" />
+      <div className="absolute bottom-10 left-0 h-56 w-56 rounded-full bg-[#c17a4f]/10 blur-2xl" />
+      <Dots className="absolute top-24 left-6 text-[#c17a4f]/20 hidden sm:block" />
 
-      <div className="mx-auto max-w-4xl px-4 pb-16 sm:pb-24 pt-6">
+      <div className="flex justify-center pt-6 pb-2 relative"><Logo size={40} src={logoUrl} /></div>
+
+      <div className="mx-auto max-w-3xl px-4 pb-16 sm:pb-24 pt-6 relative">
         <div className="grid sm:grid-cols-[220px_1fr] gap-8 sm:gap-10 items-center mb-8">
           <div className="mx-auto sm:mx-0 h-52 w-44 rounded-2xl overflow-hidden rotate-[-3deg] border-4 border-white shadow-md bg-[#efe3cd]">
             {profile.operator_photo_url ? (
@@ -166,55 +225,25 @@ function ScrapbookStyle({ profile, services, businessName, logoUrl, supportPhone
           </div>
           <div className="text-center sm:text-left">
             <p className="text-[#c17a4f] font-bold text-xs uppercase tracking-[0.2em] mb-2">Meet the Owner</p>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#6b4a2b]">
-              {profile.operator_name ? `Hi, I'm ${profile.operator_name}` : businessName || "Welcome"}
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-[#6b4a2b]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+              {first ? `Hi, I'm ${first}` : businessName || "Welcome"}
             </h1>
-            {businessName && profile.operator_name && (
-              <p className="text-sm font-semibold text-[#c17a4f] uppercase tracking-wide mt-1">{businessName}</p>
+            {businessName && (
+              <p className="text-sm font-semibold text-[#c17a4f] uppercase tracking-wide mt-2">{businessName}</p>
             )}
           </div>
         </div>
 
-        <div className="bg-[#f5ecdd] border border-[#e8d9bd] rounded-[2rem] shadow-sm p-8 sm:p-12 text-center">
-          {profile.operator_bio && (
-            <p className="text-[#7a6a52] text-sm sm:text-base leading-relaxed max-w-lg mx-auto whitespace-pre-line">
-              {profile.operator_bio}
-            </p>
-          )}
+        <div className="bg-[#f5ecdd] border border-[#e8d9bd] rounded-[2rem] shadow-sm p-8 sm:p-10 relative overflow-hidden">
+          <p className="text-[#7a6a52] text-sm sm:text-base leading-relaxed text-center max-w-lg mx-auto">
+            {displayBio(profile, businessName)}
+          </p>
 
-          <CTAs services={services} className="mt-10" btnClass="bg-[#c17a4f] text-white hover:opacity-90" />
+          <CTAs services={services} className="mt-8 max-w-sm mx-auto" btnClass="bg-[#c17a4f] text-white hover:opacity-90 shadow-sm" />
 
-          <ContactLine supportPhone={supportPhone} supportEmail={supportEmail} className="text-[#a3927a] mt-8" linkClass="underline" />
+          <ContactLine supportPhone={supportPhone} supportEmail={supportEmail} className="text-[#a3927a] mt-8 text-center" linkClass="underline" />
         </div>
       </div>
     </main>
-  )
-}
-
-function CTAs({ services, className, btnClass }: { services: ServicesConfig | null; className?: string; btnClass: string }) {
-  return (
-    <div className={`grid gap-3 sm:grid-cols-1 max-w-sm mx-auto ${className ?? ""}`}>
-      {enabledServices(services).map(s => (
-        <a
-          key={s.key}
-          href={s.href}
-          className={`flex items-center justify-center gap-2 rounded-2xl font-bold py-4 px-6 text-sm transition ${btnClass}`}
-        >
-          <span className="text-lg">{s.icon}</span>
-          Schedule {s.label}
-        </a>
-      ))}
-    </div>
-  )
-}
-
-function ContactLine({ supportPhone, supportEmail, className, linkClass }: { supportPhone: string | null; supportEmail: string | null; className?: string; linkClass: string }) {
-  if (!supportPhone && !supportEmail) return null
-  return (
-    <p className={`text-xs ${className ?? ""}`}>
-      Questions? {supportPhone ? <a href={`tel:${supportPhone}`} className={linkClass}>{supportPhone}</a> : null}
-      {supportPhone && supportEmail ? " · " : ""}
-      {supportEmail ? <a href={`mailto:${supportEmail}`} className={linkClass}>{supportEmail}</a> : null}
-    </p>
   )
 }
