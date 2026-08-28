@@ -709,7 +709,6 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
             {/* ── Tier selector ── */}
             <div className="space-y-3">
               <h3 className="text-xl font-extrabold text-[var(--brand-primary)]">{tw.howToBook}</h3>
-              <p className="text-sm text-gray-400 -mt-1">{tw.howToBookSub}</p>
               {topSlot}
 
               <div className="space-y-2">

@@ -289,7 +289,6 @@ const es = {
     bagWeightNote: "Una bolsa estándar tiene unas 18 lb. El cobro final se ajusta al peso real.",
     // booking tier selector
     howToBook:             "¿Cómo quieres agendar?",
-    howToBookSub:          "Dos formas de obtener ropa limpia — elige la que mejor se adapte a tu rutina.",
     tierOneTimeLabel:      "Una vez",
     tierPayAsYouGo:        "¡Agenda a tu gusto — según nos necesites!",
     tierNoCommitment:      "",
