@@ -251,6 +251,9 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
   }
   const [freqPricing, setFreqPricing] = useState(buildFreqPricing())
   const [minLbs, setMinLbs] = useState(MIN_POUNDS)
+  // Tenant-configurable subscription commitment (Admin > Pricing > Wash & Fold).
+  // 0 means no minimum -- cancel anytime, nothing shown as a commitment.
+  const [subMinPickups, setSubMinPickups] = useState(3)
 
   // ── Wash & Fold "per_bag" pricing (per-tenant, opt-in — see app/actions/pricing.ts) ──
   // Defaults to per_lb until the location's config loads, so most tenants
@@ -394,6 +397,7 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
       COMFORTER_CENTS = { twin: cfg.comforterTwinCents, full: cfg.comforterFullCents, queen: cfg.comforterQueenCents, king: cfg.comforterKingCents }
       setFreqPricing(buildFreqPricing())
       setMinLbs(cfg.washFoldMinLbs)
+      setSubMinPickups(cfg.washFoldSubMinPickups)
       setComforterSizesList(buildComforterSizes())
     })
     getWashFoldBagConfig().then(cfg => {
@@ -809,8 +813,12 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
                     </div>
                     {serviceMode === "subscription" && subscribeType !== "monthly" && (
                       <div className="mt-1.5 space-y-1">
-                        <p className="text-[11px] text-gray-400 leading-snug">{tw.tierLockIn}</p>
-                        <p className="text-[11px] text-amber-600 font-semibold leading-snug">{tw.tierMinPickups}</p>
+                        <p className="text-[11px] text-gray-400 leading-snug">
+                          {bagConfig.mode === "per_bag" ? tw.tierLockInBag : bagConfig.mode === "both" ? tw.tierLockInBoth : tw.tierLockIn}
+                        </p>
+                        <p className="text-[11px] text-amber-600 font-semibold leading-snug">
+                          {subMinPickups > 0 ? tw.tierMinPickups.replace("{n}", String(subMinPickups)) : tw.tierNoMinPickups}
+                        </p>
                       </div>
                     )}
                   </div>

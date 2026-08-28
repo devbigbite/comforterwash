@@ -688,6 +688,18 @@ export default function PricingPage() {
               </div>
             )}
 
+            <div>
+              <label className={labelCls}>Subscription minimum pickups</label>
+              <input type="number" min="0" className={inputCls}
+                value={config.washFoldSubMinPickups}
+                onChange={e => setInt("washFoldSubMinPickups", e.target.value)} />
+              <p className="text-xs text-gray-400 mt-1">
+                {config.washFoldSubMinPickups > 0
+                  ? `Customers see "Minimum ${config.washFoldSubMinPickups} pickups, then cancel anytime." Set to 0 for no minimum.`
+                  : 'No minimum -- customers see "Cancel anytime, no minimum."'}
+              </p>
+            </div>
+
             {bagConfig && (bagConfig.mode === "per_bag" || bagConfig.mode === "both") && (
               <div className={(!bagConfig || bagConfig.mode === "per_lb" || bagConfig.mode === "both") ? "border-t border-gray-100 pt-5 mt-5" : ""}>
                 <div className="bg-[#f7f8fb] rounded-xl border border-gray-100 p-4 space-y-3">

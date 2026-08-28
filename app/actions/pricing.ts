@@ -10,6 +10,10 @@ export interface PricingConfig {
   washFoldOneTimeCents: number   // default 240
   washFoldSubCents:     number   // default 215
   washFoldMinLbs:       number   // default 18
+  // Minimum number of recurring pickups a Wash & Fold subscriber must
+  // complete before they can cancel. 0 means no minimum -- cancel anytime.
+  // Purely informational copy on the booking form; not enforced elsewhere.
+  washFoldSubMinPickups: number  // default 3
   // Wash Only
   washOnlyCents:        number   // default 199
   washOnlyMinLbs:       number   // default 18
@@ -36,6 +40,7 @@ const DEFAULTS: PricingConfig = {
   washFoldOneTimeCents: 255,
   washFoldSubCents:     245,
   washFoldMinLbs:       18,
+  washFoldSubMinPickups: 3,
   washOnlyCents:        219,
   washOnlyMinLbs:       18,
   comforterTwinCents:   3500,
@@ -54,6 +59,7 @@ const KEY_MAP: Record<keyof PricingConfig, string> = {
   washFoldOneTimeCents: "wash_fold_one_time_cents",
   washFoldSubCents:     "wash_fold_sub_cents",
   washFoldMinLbs:       "wash_fold_min_lbs",
+  washFoldSubMinPickups: "wash_fold_sub_min_pickups",
   washOnlyCents:        "wash_only_cents",
   washOnlyMinLbs:       "wash_only_min_lbs",
   comforterTwinCents:   "comforter_twin_cents",
