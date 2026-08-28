@@ -63,6 +63,11 @@ export default function SuperAdminPage() {
   const [linkFor, setLinkFor] = useState<string | null>(null)
   const [linkResult, setLinkResult] = useState<{ type: "ok" | "err"; text: string } | null>(null)
 
+  // Row actions collapsed into a single dropdown (was 6 separate text links
+  // that pushed the table wider than the viewport and forced horizontal
+  // scroll to reach them).
+  const [menuForId, setMenuForId] = useState<string | null>(null)
+
   // Billing modal
   const [billingForId, setBillingForId] = useState<string | null>(null)
   const [billPlanName, setBillPlanName] = useState("")
@@ -260,19 +265,19 @@ export default function SuperAdminPage() {
         </Link>
       </div>
 
-      {/* Table */}
+      {/* Table -- Name/Slug/Domain collapsed into one "Tenant" column and the
+          6 row actions collapsed into a single "..." dropdown, so the whole
+          table fits without horizontal scroll instead of running off-screen. */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left">
-              <th className="px-4 py-3 font-semibold text-slate-600">Name</th>
-              <th className="px-4 py-3 font-semibold text-slate-600">Slug</th>
-              <th className="px-4 py-3 font-semibold text-slate-600">Domain</th>
-              <th className="px-4 py-3 font-semibold text-slate-600">Plan</th>
-              <th className="px-4 py-3 font-semibold text-slate-600">Status</th>
-              <th className="px-4 py-3 font-semibold text-slate-600">Billing</th>
-              <th className="px-4 py-3 font-semibold text-slate-600">Added</th>
-              <th className="px-4 py-3"></th>
+              <th className="px-4 py-3 font-semibold text-slate-600 w-[26%]">Tenant</th>
+              <th className="px-4 py-3 font-semibold text-slate-600 w-[14%]">Plan</th>
+              <th className="px-4 py-3 font-semibold text-slate-600 w-[12%]">Status</th>
+              <th className="px-4 py-3 font-semibold text-slate-600 w-[18%]">Billing</th>
+              <th className="px-4 py-3 font-semibold text-slate-600 w-[10%]">Added</th>
+              <th className="px-4 py-3 w-[8%]"></th>
             </tr>
           </thead>
           <tbody>
@@ -281,20 +286,18 @@ export default function SuperAdminPage() {
                 {editId === loc.id ? (
                   <>
                     {/* Edit row */}
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 space-y-1">
                       <input
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         className="w-full border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                       />
-                    </td>
-                    <td className="px-4 py-2 text-slate-400 text-xs font-mono">{loc.slug}</td>
-                    <td className="px-4 py-2">
+                      <p className="text-slate-400 text-xs font-mono truncate">{loc.slug}</p>
                       <input
                         value={editDomain}
                         onChange={(e) => setEditDomain(e.target.value)}
                         placeholder="custom-domain.com"
-                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
                       />
                     </td>
                     <td className="px-4 py-2">
@@ -340,10 +343,14 @@ export default function SuperAdminPage() {
                 ) : (
                   <>
                     {/* View row */}
-                    <td className="px-4 py-3 font-medium text-slate-900">{loc.name}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{loc.slug}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{loc.custom_domain ?? <span className="text-slate-300">—</span>}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{loc.plan ?? <span className="text-slate-300">—</span>}</td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-slate-900 truncate" title={loc.name}>{loc.name}</p>
+                      <p className="font-mono text-xs text-slate-400 truncate" title={loc.slug}>{loc.slug}</p>
+                      {loc.custom_domain && (
+                        <p className="text-xs text-slate-400 truncate" title={loc.custom_domain}>{loc.custom_domain}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-xs truncate" title={loc.plan ?? undefined}>{loc.plan ?? <span className="text-slate-300">—</span>}</td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => toggleStatus(loc)}
@@ -365,49 +372,63 @@ export default function SuperAdminPage() {
                     <td className="px-4 py-3 text-slate-400 text-xs">
                       {new Date(loc.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <a
-                          href={`https://${loc.custom_domain || `${loc.slug}.${PLATFORM_DOMAIN}`}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
-                        >
-                          View Site ↗
-                        </a>
-                        <form action={enterTenantAdmin.bind(null, loc.id)} className="inline">
-                          <button
-                            type="submit"
-                            className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
-                          >
-                            Enter Admin →
-                          </button>
-                        </form>
-                        <button
-                          onClick={() => startEdit(loc)}
-                          className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => openAdmins(loc.id)}
-                          className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
-                        >
-                          Admins
-                        </button>
-                        <button
-                          onClick={() => openBilling(loc)}
-                          className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
-                        >
-                          Billing
-                        </button>
-                        <button
-                          onClick={() => { setDeleteForId(loc.id); setDeleteResult(null) }}
-                          className="text-xs font-medium text-slate-400 hover:text-red-600 transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                    <td className="px-4 py-3 text-right relative">
+                      <button
+                        onClick={() => setMenuForId(menuForId === loc.id ? null : loc.id)}
+                        className="text-slate-400 hover:text-slate-700 px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+                        title="Actions"
+                      >
+                        •••
+                      </button>
+                      {menuForId === loc.id && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setMenuForId(null)} />
+                          <div className="absolute right-4 top-full mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg py-1 w-44 text-left">
+                            <a
+                              href={`https://${loc.custom_domain || `${loc.slug}.${PLATFORM_DOMAIN}`}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setMenuForId(null)}
+                              className="block px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              View Site ↗
+                            </a>
+                            <form action={enterTenantAdmin.bind(null, loc.id)}>
+                              <button
+                                type="submit"
+                                className="block w-full text-left px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                              >
+                                Enter Admin →
+                              </button>
+                            </form>
+                            <button
+                              onClick={() => { startEdit(loc); setMenuForId(null) }}
+                              className="block w-full text-left px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => { openAdmins(loc.id); setMenuForId(null) }}
+                              className="block w-full text-left px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              Admins
+                            </button>
+                            <button
+                              onClick={() => { openBilling(loc); setMenuForId(null) }}
+                              className="block w-full text-left px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              Billing
+                            </button>
+                            <div className="border-t border-slate-100 my-1" />
+                            <button
+                              onClick={() => { setDeleteForId(loc.id); setDeleteResult(null); setMenuForId(null) }}
+                              className="block w-full text-left px-3 py-2 text-xs font-medium text-red-500 hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </td>
                   </>
                 )}
@@ -415,7 +436,7 @@ export default function SuperAdminPage() {
             ))}
             {locations.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-slate-400 text-sm">
+                <td colSpan={6} className="px-4 py-12 text-center text-slate-400 text-sm">
                   No locations yet. <Link href="/super-admin/locations/new" className="text-indigo-600 hover:underline">Create the first one.</Link>
                 </td>
               </tr>
