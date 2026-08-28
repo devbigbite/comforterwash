@@ -28,8 +28,8 @@ async function isDemoExpiredForLocationId(locationId: string): Promise<boolean> 
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
-  const { data } = await supabase.from("locations").select("plan, created_at").eq("id", locationId).maybeSingle()
-  const demoExpired = isDemoExpired(data?.plan, data?.created_at)
+  const { data } = await supabase.from("locations").select("plan, demo_started_at").eq("id", locationId).maybeSingle()
+  const demoExpired = isDemoExpired(data?.plan, data?.demo_started_at)
   demoStatusByIdCache.set(locationId, { demoExpired, expiresAt: Date.now() + CACHE_TTL_MS })
   return demoExpired
 }
@@ -80,7 +80,7 @@ async function getLocationIdForHost(hostname: string): Promise<{ id: string; dem
   let demoExpired = false
   if (location) {
     id = location.id
-    demoExpired = isDemoExpired(location.plan, location.created_at)
+    demoExpired = isDemoExpired(location.plan, location.demo_started_at)
   } else {
     // No matching tenant. A *subdomain* of the platform domain that doesn't
     // match any real slug (e.g. a stale/mistyped or made-up demo link) falls

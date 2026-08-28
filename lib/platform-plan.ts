@@ -9,7 +9,7 @@
 // There is NO free trial at this step -- payment is captured immediately.
 // The only evaluation period is the separate /platform demo request flow
 // (see DEMO_TRIAL_DAYS / isDemoExpired in lib/location.ts), which self-
-// expires a prospect's demo site after 7 days. By the time someone reaches
+// expires a prospect's demo site after 14 days. By the time someone reaches
 // /start and enters payment info, they've already decided to subscribe.
 export const SELF_SIGNUP_PLAN = {
   name: "WashFoldClean Platform",

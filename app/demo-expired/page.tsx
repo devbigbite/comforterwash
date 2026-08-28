@@ -2,7 +2,7 @@ import Link from "next/link"
 
 // Shown by middleware.ts (see isDemoExpired / DEMO_TRIAL_DAYS in
 // lib/location.ts) in place of any page on a demo tenant's site or admin
-// dashboard once its 7-day evaluation window has passed. The only way back
+// dashboard once its 14-day evaluation window has passed. The only way back
 // in is to actually subscribe at /start -- there is no second trial.
 export default function DemoExpiredPage() {
   return (
@@ -11,7 +11,7 @@ export default function DemoExpiredPage() {
         <div className="text-5xl mb-4">⏳</div>
         <h1 className="text-2xl font-extrabold text-[#0D2240] mb-2">Your demo has ended</h1>
         <p className="text-sm text-gray-500 mb-8">
-          Your 7-day free evaluation of the WashFoldClean platform has expired. Subscribe now to
+          Your 14-day free evaluation of the WashFoldClean platform has expired. Subscribe now to
           keep your booking site, dispatch board, and admin dashboard running under your own name.
         </p>
         <Link

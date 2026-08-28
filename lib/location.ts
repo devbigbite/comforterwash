@@ -22,18 +22,23 @@ export const ORLANDO_LOCATION_ID = "8b95bcee-d145-4d74-974c-ff3745aeff01"
 // paying-customer site. See middleware.ts's getLocationIdForHost().
 export const WASHFOLD_DEMO_LOCATION_ID = "832b1605-cb3c-48d6-b8bc-125125834e19"
 
-// ── Demo tenants self-expire after 7 days ────────────────────────────────────
+// ── Demo tenants self-expire after 14 days ───────────────────────────────────
 // A tenant created via the /platform demo-request flow (locations.plan ===
 // "demo") is meant to be a time-boxed evaluation, not an indefinitely-free
 // site -- see createDemoTenantForRequest() in app/actions/platform-demo-site.ts.
 // There is deliberately no separate "trial" once someone actually subscribes
 // at /start; that Stripe checkout charges immediately (see
 // app/actions/self-signup.ts). This is the ONLY trial in the product.
-export const DEMO_TRIAL_DAYS = 7
+//
+// The clock starts from locations.demo_started_at, NOT created_at -- this is
+// a separate, resettable field so a tenant's demo window can be extended or
+// restarted (e.g. after a policy change) without falsifying its real
+// creation date.
+export const DEMO_TRIAL_DAYS = 14
 
-export function isDemoExpired(plan: string | null | undefined, createdAt: string | null | undefined): boolean {
-  if (plan !== "demo" || !createdAt) return false
-  const ageMs = Date.now() - new Date(createdAt).getTime()
+export function isDemoExpired(plan: string | null | undefined, demoStartedAt: string | null | undefined): boolean {
+  if (plan !== "demo" || !demoStartedAt) return false
+  const ageMs = Date.now() - new Date(demoStartedAt).getTime()
   return ageMs > DEMO_TRIAL_DAYS * 24 * 60 * 60 * 1000
 }
 
@@ -163,7 +168,7 @@ export async function getShipdayConfigForLocation(locationId: string): Promise<S
 export async function resolveLocationFromHost(
   hostname: string,
   platformDomain: string, // e.g. "washfold.com"
-): Promise<{ id: string; slug: string; name: string; plan: string | null; created_at: string | null } | null> {
+): Promise<{ id: string; slug: string; name: string; plan: string | null; demo_started_at: string | null } | null> {
   const supabase = createAdminClient()
 
   // Strip www
@@ -172,7 +177,7 @@ export async function resolveLocationFromHost(
   // Check if it's a subdomain: orlando.washfold.com → slug = "orlando"
   const subdomainMatch = host.match(new RegExp(`^([a-z0-9-]+)\\.${platformDomain.replace(".", "\\.")}$`))
 
-  let query = supabase.from("locations").select("id, slug, name, plan, created_at").eq("status", "active")
+  let query = supabase.from("locations").select("id, slug, name, plan, demo_started_at").eq("status", "active")
 
   if (subdomainMatch) {
     query = query.eq("slug", subdomainMatch[1])

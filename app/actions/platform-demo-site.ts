@@ -124,6 +124,7 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
       business_name: displayName,
       status: "active",
       plan: "demo",
+      demo_started_at: new Date().toISOString(),
     })
     .select("id")
     .single()
