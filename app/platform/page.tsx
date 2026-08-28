@@ -227,7 +227,7 @@ export default function PlatformPage() {
           {s.pricingCta} →
         </Link>
         <p className="text-xs text-gray-400 mt-4">
-          {SELF_SIGNUP_PLAN.trialDays}-day free trial · cancel anytime
+          {fmt$(SELF_SIGNUP_PLAN.setupFeeCents)} setup fee is due today, non-refundable · {SELF_SIGNUP_PLAN.trialDays}-day free trial on the monthly plan · cancel anytime
         </p>
       </div>
 

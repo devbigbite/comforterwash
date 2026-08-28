@@ -20,7 +20,10 @@ export default function StartPage() {
           <p className="text-xs font-bold uppercase tracking-wide text-white/50 mb-1">{SELF_SIGNUP_PLAN.name}</p>
           <p className="text-3xl font-extrabold">{fmt$(SELF_SIGNUP_PLAN.monthlyPriceCents)}<span className="text-base font-semibold text-white/60">/mo</span></p>
           <p className="text-xs text-white/50 mt-1">
-            + {fmt$(SELF_SIGNUP_PLAN.setupFeeCents)} one-time setup · {SELF_SIGNUP_PLAN.trialDays}-day free trial
+            + {fmt$(SELF_SIGNUP_PLAN.setupFeeCents)} one-time setup (charged today, non-refundable)
+          </p>
+          <p className="text-xs text-white/50 mt-0.5">
+            {SELF_SIGNUP_PLAN.trialDays}-day free trial on the {fmt$(SELF_SIGNUP_PLAN.monthlyPriceCents)}/mo plan
           </p>
         </div>
 
