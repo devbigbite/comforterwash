@@ -443,8 +443,14 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
     const available = activeRoutes.length > 0 ? isDeliveryDay(d, activeRoutes) : isWeekday(d)
     if (!available) return false
     if (formData.pickupDate) {
-      const min = new Date(formData.pickupDate)
-      min.setDate(min.getDate() + 2)
+      // Same turnaround rule the auto-suggested delivery date is computed
+      // with (getEarliestRouteDelivery) -- previously this used a flat
+      // pickup+2 minimum regardless of which days actually have a delivery
+      // route, so e.g. a Saturday pickup showed Monday as pickable in the
+      // calendar even on locations where Monday isn't a real delivery day
+      // (clothes aren't processed until Monday night), even though the
+      // auto-suggested date correctly skipped ahead to Tuesday.
+      const min = getEarliestRouteDelivery(formData.pickupDate, activeRoutes)
       min.setHours(0, 0, 0, 0)
       return d >= min
     }
@@ -452,7 +458,7 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
   }
 
   const handlePickupSelect = (date: Date) => {
-    const delv = getEarliestRouteDelivery(date, activeRoutes, 3)
+    const delv = getEarliestRouteDelivery(date, activeRoutes)
     setFormData(p => ({ ...p, pickupDate: date, deliveryDate: delv }))
   }
 
