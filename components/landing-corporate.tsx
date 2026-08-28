@@ -82,7 +82,7 @@ export function CorporateLanding() {
       })()}
 
       {/* ── 3 Simple Steps ─────────────────────────────────────────────── */}
-      <section id="how" className="bg-[#f7f8fb] px-4 py-16">
+      <section id="how" className="bg-[#f7f8fb] px-4 pt-6 pb-16">
         <div className="mx-auto max-w-4xl">
           {/* CTA -- moved out of the hero image and placed here, centered,
               directly above the "Clean Laundry in N Simple Steps" heading. */}
