@@ -110,3 +110,76 @@ export async function setPricingConfig(config: PricingConfig): Promise<void> {
   revalidatePath("/book/wash-only")
   revalidatePath("/book/comforter-wash")
 }
+
+// ── Wash & Fold — By-the-Bag pricing (alternative to per-pound) ───────────────
+// Some tenants (e.g. WashFold Orlando's Cassie) charge a flat price per bag
+// size instead of per pound. This is a per-location toggle: washFoldPricingMode
+// "per_lb" keeps the existing $/lb behavior above unchanged; "per_bag" uses the
+// flat-priced bag sizes below instead. Up to 3 bag sizes, each with a label
+// (e.g. "Small", "Medium", "Large") and a flat price.
+export type WashFoldPricingMode = "per_lb" | "per_bag"
+
+export interface BagSize {
+  id: string           // stable id so reordering/editing doesn't reshuffle rows
+  label: string         // e.g. "Small Bag"
+  priceCents: number    // flat price for this bag size
+}
+
+export interface WashFoldBagConfig {
+  mode: WashFoldPricingMode
+  bagSizes: BagSize[]
+}
+
+const DEFAULT_BAG_SIZES: BagSize[] = [
+  { id: "small",  label: "Small Bag",  priceCents: 2500 },
+  { id: "medium", label: "Medium Bag", priceCents: 3500 },
+  { id: "large",  label: "Large Bag",  priceCents: 4500 },
+]
+
+const WASH_FOLD_MODE_KEY = "wash_fold_pricing_mode"
+const WASH_FOLD_BAG_SIZES_KEY = "wash_fold_bag_sizes"
+
+export async function getWashFoldBagConfig(): Promise<WashFoldBagConfig> {
+  try {
+    const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+    const { data } = await supabase
+      .from("settings")
+      .select("key, value")
+      .eq("location_id", locationId)
+      .in("key", [WASH_FOLD_MODE_KEY, WASH_FOLD_BAG_SIZES_KEY])
+
+    const map: Record<string, string> = {}
+    for (const row of data ?? []) map[row.key] = row.value
+
+    const mode: WashFoldPricingMode = map[WASH_FOLD_MODE_KEY] === "per_bag" ? "per_bag" : "per_lb"
+    let bagSizes = DEFAULT_BAG_SIZES
+    if (map[WASH_FOLD_BAG_SIZES_KEY]) {
+      try {
+        const parsed = JSON.parse(map[WASH_FOLD_BAG_SIZES_KEY])
+        if (Array.isArray(parsed) && parsed.length > 0) bagSizes = parsed
+      } catch {
+        // fall back to defaults on malformed JSON
+      }
+    }
+    return { mode, bagSizes }
+  } catch {
+    return { mode: "per_lb", bagSizes: DEFAULT_BAG_SIZES }
+  }
+}
+
+export async function setWashFoldBagConfig(config: WashFoldBagConfig): Promise<void> {
+  await requireAdmin()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  // Cap at 3 bag sizes -- matches Cassie's ask (2 or 3 flat sizes), keeps the
+  // booking form's bag picker from growing unbounded.
+  const bagSizes = config.bagSizes.slice(0, 3)
+  await supabase.from("settings").upsert(
+    [
+      { key: WASH_FOLD_MODE_KEY, value: config.mode, location_id: locationId, updated_at: new Date().toISOString() },
+      { key: WASH_FOLD_BAG_SIZES_KEY, value: JSON.stringify(bagSizes), location_id: locationId, updated_at: new Date().toISOString() },
+    ],
+    { onConflict: "location_id,key" }
+  )
+  revalidatePath("/admin/pricing")
+  revalidatePath("/book/wash-fold")
+}
