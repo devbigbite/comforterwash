@@ -167,9 +167,29 @@ export async function createDemoTenantForRequest(requestId: string): Promise<Dem
   return { success: true, demoUrl, locationId: location.id }
 }
 
+// Generates a random, human-typeable password -- avoids visually ambiguous
+// characters (0/O, 1/l/I) since this often gets read off a phone screen or
+// retyped by hand. Duplicated from super-admin.ts's identical helper rather
+// than imported, same reason as below.
+function generateTempPassword(): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
+  let out = ""
+  for (let i = 0; i < 12; i++) out += chars[Math.floor(Math.random() * chars.length)]
+  return out
+}
+
 // Shared with inviteLocationAdmin's approach, duplicated here (rather than
 // imported) because that function is requireSuperAdmin()-gated and this path
 // runs with no admin session yet.
+//
+// Used to send a magic-link sign-in email here, same as
+// _inviteLocationAdminCore in super-admin.ts did before that was fixed --
+// but being a separate copy-pasted function, fixing that one didn't fix
+// this one. This is actually the highest-volume of the three paths (every
+// demo-request submission hits it, not just paying signups), which is
+// exactly the one a real prospect hit and never got a working admin login
+// from. Now emails a real password the same way the other two paths do --
+// nothing for a scanner or link-preview fetch to consume.
 async function grantDemoAdminAccess(locationId: string, email: string): Promise<void> {
   const supabase = createAdminClient()
   const cleanEmail = email.trim().toLowerCase()
@@ -177,10 +197,13 @@ async function grantDemoAdminAccess(locationId: string, email: string): Promise<
 
   const { data: userList } = await supabase.auth.admin.listUsers()
   let userId = userList?.users.find(u => u.email?.toLowerCase() === cleanEmail)?.id
+  let tempPassword: string | null = null
 
   if (!userId) {
+    tempPassword = generateTempPassword()
     const { data: created, error: createError } = await supabase.auth.admin.createUser({
       email: cleanEmail,
+      password: tempPassword,
       email_confirm: true,
     })
     if (createError || !created?.user) {
@@ -197,27 +220,9 @@ async function grantDemoAdminAccess(locationId: string, email: string): Promise<
       { onConflict: "location_id,user_id" }
     )
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://comforterwash.com"
-  const { data: linkData, error: linkGenError } = await supabase.auth.admin.generateLink({
-    type: "magiclink",
-    email: cleanEmail,
-    options: { redirectTo: `${siteUrl}/admin/auth/callback?location_id=${locationId}` },
-  })
-  if (linkGenError) {
-    console.error("[platform-demo-site] generateLink failed:", linkGenError)
-    return
-  }
-
-  // Build our own link from hashed_token rather than sending the raw
-  // action_link — that delivers tokens as a URL hash fragment, which
-  // never reaches the server and silently fails to sign anyone in.
-  const tokenHash = (linkData as { properties?: { hashed_token?: string } } | null)?.properties?.hashed_token
-  const magicLink = tokenHash
-    ? `${siteUrl}/admin/auth/callback?token_hash=${tokenHash}&type=magiclink&location_id=${locationId}`
-    : undefined
-  if (magicLink) {
-    const { sendAdminMagicLinkEmail } = await import("@/lib/email")
-    await sendAdminMagicLinkEmail(cleanEmail, magicLink, locationId)
+  if (tempPassword) {
+    const { sendAdminCredentialsEmail } = await import("@/lib/email")
+    await sendAdminCredentialsEmail(cleanEmail, tempPassword, locationId)
   }
 }
 
