@@ -6,6 +6,7 @@ import { getSiteLangCookie } from "@/app/actions/site-lang"
 import en from "@/lib/translations/en"
 import es from "@/lib/translations/es"
 import { getBranding, getLocationId } from "@/lib/location"
+import { getFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
 
 export async function generateMetadata() {
   const branding = await getBranding()
@@ -28,12 +29,15 @@ export default async function ServiceAreasPage({
   const tr = lang === "es" ? es.serviceAreasPage : en.serviceAreasPage
 
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
-  const { data: areas } = await supabase
-    .from("service_areas")
-    .select("zip_code, city, notes, active")
-    .eq("active", true)
-    .eq("location_id", locationId)
-    .order("zip_code")
+  const [{ data: areas }, freePickupDeliveryEnabled] = await Promise.all([
+    supabase
+      .from("service_areas")
+      .select("zip_code, city, notes, active")
+      .eq("active", true)
+      .eq("location_id", locationId)
+      .order("zip_code"),
+    getFreePickupDeliveryLineEnabled(),
+  ])
 
   const activeAreas = areas ?? []
   const titleLines = tr.title.split("\n")
@@ -50,7 +54,7 @@ export default async function ServiceAreasPage({
           {titleLines[0]}<br />{titleLines[1]}
         </h1>
         <p className="text-white/70 text-base md:text-lg max-w-xl mx-auto">
-          {tr.subtitle}
+          {freePickupDeliveryEnabled ? tr.subtitle : tr.subtitlePaidDelivery}
         </p>
         <a href={lang === "es" ? "/book/wash-fold?lang=es" : "/book/wash-fold"}
           className="inline-block mt-6 bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide transition-colors shadow-lg">

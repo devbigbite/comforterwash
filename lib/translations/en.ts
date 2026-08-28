@@ -406,6 +406,7 @@ const en = {
     badge:          "WashFold Orlando",
     title:          "Pickup & Delivery\nService Areas",
     subtitle:       "We serve your local area — free pickup and delivery straight to your door.",
+    subtitlePaidDelivery: "We serve your local area — schedule your pickup and delivery today.",
     scheduleBtn:    "Schedule a Pickup",
     checkZip:       "Check Your ZIP Code",
     areasTitle:     "Areas We Serve",
