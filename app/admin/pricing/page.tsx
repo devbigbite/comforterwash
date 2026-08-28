@@ -1,7 +1,11 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { getPricingConfig, setPricingConfig, type PricingConfig, getWashFoldBagConfig, setWashFoldBagConfig, type WashFoldBagConfig, type WashFoldPricingMode, type BagSize, MAX_BAG_SIZES } from "@/app/actions/pricing"
+import { getPricingConfig, setPricingConfig, type PricingConfig, getWashFoldBagConfig, setWashFoldBagConfig, type WashFoldBagConfig, type WashFoldPricingMode, type BagSize } from "@/app/actions/pricing"
+
+// Mirrors the literal in app/actions/pricing.ts (kept local there since a
+// "use server" file can only export async functions).
+const MAX_BAG_SIZES = 5
 import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, type ServiceOption } from "@/app/actions/service-options"
 import { isSaleActive } from "@/lib/service-option-utils"
 import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getTipsEnabled, setTipsEnabled, getFreePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled } from "@/app/actions/settings"

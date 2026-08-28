@@ -121,7 +121,11 @@ export async function setPricingConfig(config: PricingConfig): Promise<void> {
 // and just uncheck the ones that aren't active without losing the pricing
 // they set up for them.
 export type WashFoldPricingMode = "per_lb" | "per_bag"
-export const MAX_BAG_SIZES = 5
+// NOTE: kept as a literal (not an exported const) because this file has
+// "use server" -- Next.js only allows async function exports from such
+// files, so a plain exported constant fails the build. Mirror this value
+// in app/admin/pricing/page.tsx's MAX_BAG_SIZES if it ever changes.
+const MAX_BAG_SIZES = 5
 
 export interface BagSize {
   id: string           // stable id so reordering/editing doesn't reshuffle rows
