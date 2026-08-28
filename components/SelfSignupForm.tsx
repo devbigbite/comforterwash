@@ -85,7 +85,6 @@ export function SelfSignupForm() {
       <div className="flex flex-col gap-1">
         <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Email</label>
         <input name="contact_email" type="email" required placeholder="jamie@sunshinelaundry.com" className={inp} />
-        <p className="text-[11px] text-gray-400">Your admin login link goes here right after checkout.</p>
       </div>
 
       {state.error && (
@@ -101,9 +100,6 @@ export function SelfSignupForm() {
       >
         {pending ? "Redirecting to checkout…" : "Continue to Payment →"}
       </button>
-      <p className="text-[11px] text-gray-400 text-center">
-        You won&apos;t be charged the monthly fee until your free trial ends. Cancel anytime.
-      </p>
     </form>
   )
 }
