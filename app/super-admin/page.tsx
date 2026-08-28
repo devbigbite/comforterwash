@@ -268,8 +268,12 @@ export default function SuperAdminPage() {
       {/* Table -- Name/Slug/Domain collapsed into one "Tenant" column and the
           6 row actions collapsed into a single "..." dropdown, so the whole
           table fits without horizontal scroll instead of running off-screen. */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm table-fixed">
+      <div className="bg-white rounded-xl border border-slate-200">
+        {/* No overflow-hidden here -- it clipped the row-actions dropdown
+            whenever it opened near the bottom of the table (e.g. the last
+            row). Rounded corners are applied directly to the header/footer
+            cells below instead, so nothing needs to clip. */}
+        <table className="w-full text-sm table-fixed [&>thead>tr:first-child>th:first-child]:rounded-tl-xl [&>thead>tr:first-child>th:last-child]:rounded-tr-xl [&>tbody>tr:last-child>td:first-child]:rounded-bl-xl [&>tbody>tr:last-child>td:last-child]:rounded-br-xl">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left">
               <th className="px-4 py-3 font-semibold text-slate-600 w-[26%]">Tenant</th>
