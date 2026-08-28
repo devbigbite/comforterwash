@@ -5,6 +5,7 @@ import { getSiteLangCookie } from "@/app/actions/site-lang"
 import { getServiceAreaPolygon } from "@/app/actions/settings"
 import { getBranding, getLocationId } from "@/lib/location"
 import { ServiceAreaMap } from "@/components/service-area-map"
+import { getZctaBoundary } from "@/lib/zcta-boundary"
 import { ZipChecker } from "@/components/zip-checker"
 import en from "@/lib/translations/en"
 import es from "@/lib/translations/es"
@@ -75,6 +76,19 @@ export default async function ServiceAreaDetailPage({
       .limit(8),
   ])
 
+  // If the tenant hasn't drawn their own delivery-zone shape yet, fall back
+  // to this ZIP's official Census boundary instead of the "coming soon"
+  // placeholder -- see lib/zcta-boundary.ts.
+  let mapPolygon: object | null = polygon
+  let mapIsApproximate = false
+  if (!mapPolygon) {
+    const zctaBoundary = await getZctaBoundary(area.zip_code)
+    if (zctaBoundary) {
+      mapPolygon = zctaBoundary
+      mapIsApproximate = true
+    }
+  }
+
   const name = branding.business_name || "WashFold Orlando"
   const vars = { city: area.city, zip: area.zip_code, business: name }
   const intro = area.public_blurb?.trim() || fillTemplate(tr.introTemplate, vars)
@@ -105,7 +119,7 @@ export default async function ServiceAreaDetailPage({
         {/* Map */}
         <div className="mb-14">
           <h2 className="text-xl font-extrabold text-[var(--brand-primary)] text-center mb-6">{tr.mapHeading}</h2>
-          <ServiceAreaMap polygon={polygon} />
+          <ServiceAreaMap polygon={mapPolygon} approximate={mapIsApproximate} />
         </div>
 
         {/* Services available */}

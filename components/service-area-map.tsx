@@ -4,9 +4,15 @@ import { useEffect, useRef } from "react"
 
 interface Props {
   polygon: object | null
+  // True when `polygon` is an auto-fetched Census ZCTA boundary (this ZIP's
+  // official shape) rather than a shape the tenant drew themselves in
+  // Admin > Service Area Map Editor. Shown as a small caption so it's clear
+  // this is an approximate, government-sourced outline, not a hand-picked
+  // delivery zone.
+  approximate?: boolean
 }
 
-export function ServiceAreaMap({ polygon }: Props) {
+export function ServiceAreaMap({ polygon, approximate = false }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<unknown>(null)
 
@@ -61,10 +67,15 @@ export function ServiceAreaMap({ polygon }: Props) {
 
           layer.on("click", () => {
             layer.bindPopup(
-              `<div style="font-family:sans-serif;padding:4px 6px">
-                <strong style="color:#0D2240;font-size:14px">WashFold Orlando</strong><br/>
-                <span style="color:#666;font-size:12px">Service delivery zone</span>
-              </div>`
+              approximate
+                ? `<div style="font-family:sans-serif;padding:4px 6px">
+                    <strong style="color:#0D2240;font-size:14px">ZIP boundary</strong><br/>
+                    <span style="color:#666;font-size:12px">Approximate — US Census data</span>
+                  </div>`
+                : `<div style="font-family:sans-serif;padding:4px 6px">
+                    <strong style="color:#0D2240;font-size:14px">WashFold Orlando</strong><br/>
+                    <span style="color:#666;font-size:12px">Service delivery zone</span>
+                  </div>`
             ).openPopup()
           })
         } catch {
@@ -79,7 +90,7 @@ export function ServiceAreaMap({ polygon }: Props) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (mapInstance.current) { (mapInstance.current as any).remove(); mapInstance.current = null }
     }
-  }, [polygon])
+  }, [polygon, approximate])
 
   if (!polygon) {
     return (
@@ -94,10 +105,17 @@ export function ServiceAreaMap({ polygon }: Props) {
   }
 
   return (
-    <div
-      ref={mapRef}
-      className="w-full rounded-2xl overflow-hidden shadow-md border border-gray-100"
-      style={{ height: "480px" }}
-    />
+    <div>
+      <div
+        ref={mapRef}
+        className="w-full rounded-2xl overflow-hidden shadow-md border border-gray-100"
+        style={{ height: "480px" }}
+      />
+      {approximate && (
+        <p className="text-xs text-gray-400 text-center mt-2">
+          Approximate ZIP boundary (US Census data) — actual delivery area may vary.
+        </p>
+      )}
+    </div>
   )
 }
