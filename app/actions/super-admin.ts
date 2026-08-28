@@ -173,6 +173,39 @@ export async function inviteLocationAdmin(
   return result
 }
 
+// ── Get a sign-in link WITHOUT depending on email delivery ───────────────────
+// Same magic-link generation as inviteLocationAdmin, but hands the actual URL
+// back to the super admin instead of (only) emailing it -- for the case where
+// a tenant says the email never arrived and needs in today. Copy/paste it
+// into a text message, WhatsApp, whatever reaches them fastest. The link is
+// still a real Supabase magic-link token: single use, expires like any other.
+export async function getLocationAdminSignInLink(
+  locationId: string,
+  email: string,
+): Promise<{ link?: string; error?: string }> {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+  const cleanEmail = email.trim().toLowerCase()
+  if (!cleanEmail || !cleanEmail.includes("@")) return { error: "Enter a valid email address." }
+
+  const { data: userList } = await supabase.auth.admin.listUsers()
+  const userId = userList?.users.find(u => u.email?.toLowerCase() === cleanEmail)?.id
+  if (!userId) return { error: "No account found for that email yet -- invite them first." }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://comforterwash.com"
+  const { data: linkData, error: linkGenError } = await supabase.auth.admin.generateLink({
+    type: "magiclink",
+    email: cleanEmail,
+    options: { redirectTo: `${siteUrl}/admin/auth/callback?location_id=${locationId}` },
+  })
+  if (linkGenError) return { error: linkGenError.message }
+
+  const tokenHash = (linkData as { properties?: { hashed_token?: string } } | null)?.properties?.hashed_token
+  if (!tokenHash) return { error: "Failed to generate a sign-in link." }
+
+  return { link: `${siteUrl}/admin/auth/callback?token_hash=${tokenHash}&type=magiclink&location_id=${locationId}` }
+}
+
 // Unexported core — the actual user-creation/link/magic-link logic, with no
 // auth gate. Exists so the self-signup webhook (app/api/stripe/webhook/route.ts)
 // can provision a brand-new tenant's first admin automatically, without a

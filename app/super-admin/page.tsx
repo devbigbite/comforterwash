@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
-import { getAllLocations, updateLocation, inviteLocationAdmin, getLocationAdmins, removeLocationAdmin, deleteLocation, enterTenantAdmin, type DeleteLocationResult } from "@/app/actions/super-admin"
+import { getAllLocations, updateLocation, inviteLocationAdmin, getLocationAdminSignInLink, getLocationAdmins, removeLocationAdmin, deleteLocation, enterTenantAdmin, type DeleteLocationResult } from "@/app/actions/super-admin"
 import { setLocationPlanPrice, createBillingCheckoutLink, cancelLocationBilling, sendBillingCheckoutEmail } from "@/app/actions/platform-billing"
 
 // Mirrors middleware.ts's PLATFORM_DOMAIN — used here just to build the
@@ -60,6 +60,8 @@ export default function SuperAdminPage() {
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviting, setInviting] = useState(false)
   const [inviteMsg, setInviteMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
+  const [linkFor, setLinkFor] = useState<string | null>(null)
+  const [linkResult, setLinkResult] = useState<{ type: "ok" | "err"; text: string } | null>(null)
 
   // Billing modal
   const [billingForId, setBillingForId] = useState<string | null>(null)
@@ -151,6 +153,8 @@ export default function SuperAdminPage() {
     setAdminsForId(locId)
     setInviteEmail("")
     setInviteMsg(null)
+    setLinkFor(null)
+    setLinkResult(null)
     setLoadingAdmins(true)
     const data = await getLocationAdmins(locId)
     setAdmins(data)
@@ -176,6 +180,18 @@ export default function SuperAdminPage() {
     await removeLocationAdmin(adminsForId, userId)
     const data = await getLocationAdmins(adminsForId)
     setAdmins(data)
+  }
+
+  // Bypasses email entirely -- generates the same one-time sign-in link but
+  // hands it back for the super admin to copy/paste and send however
+  // actually reaches the tenant (text, WhatsApp, read over the phone).
+  async function handleGetLink(email: string) {
+    if (!adminsForId) return
+    setLinkFor(email)
+    setLinkResult(null)
+    const result = await getLocationAdminSignInLink(adminsForId, email)
+    if (result.error) { setLinkResult({ type: "err", text: result.error }); return }
+    setLinkResult({ type: "ok", text: result.link ?? "" })
   }
 
   async function load() {
@@ -427,15 +443,54 @@ export default function SuperAdminPage() {
                   <p className="text-sm text-slate-400 py-2">No admins yet — invite the first one below.</p>
                 )}
                 {admins.map(a => (
-                  <div key={a.user_id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">{a.email}</p>
-                      <p className="text-xs text-slate-400">{a.is_super_admin ? "Super admin" : a.role}</p>
+                  <div key={a.user_id} className="bg-slate-50 rounded-lg px-3 py-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{a.email}</p>
+                        <p className="text-xs text-slate-400">{a.is_super_admin ? "Super admin" : a.role}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {!a.is_super_admin && (
+                          <button onClick={() => handleGetLink(a.email)} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                            Get link
+                          </button>
+                        )}
+                        {!a.is_super_admin && (
+                          <button onClick={() => handleRemoveAdmin(a.user_id)} className="text-xs text-red-500 hover:text-red-700 font-medium">
+                            Remove
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    {!a.is_super_admin && (
-                      <button onClick={() => handleRemoveAdmin(a.user_id)} className="text-xs text-red-500 hover:text-red-700 font-medium">
-                        Remove
-                      </button>
+
+                    {linkFor === a.email && (
+                      <div className="mt-2 pt-2 border-t border-slate-200">
+                        {linkResult === null ? (
+                          <p className="text-xs text-slate-400">Generating…</p>
+                        ) : linkResult.type === "err" ? (
+                          <p className="text-xs text-red-500 font-medium">{linkResult.text}</p>
+                        ) : (
+                          <>
+                            <p className="text-xs text-slate-500 mb-1.5">
+                              Doesn't depend on email at all — copy this and send it however actually reaches them (text, WhatsApp, read it over the phone). One-time use, expires like any sign-in link.
+                            </p>
+                            <div className="flex gap-2">
+                              <input
+                                readOnly
+                                value={linkResult.text}
+                                onClick={e => (e.target as HTMLInputElement).select()}
+                                className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-700 bg-white"
+                              />
+                              <button
+                                onClick={() => navigator.clipboard.writeText(linkResult.text)}
+                                className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}
