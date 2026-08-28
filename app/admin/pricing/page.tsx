@@ -511,7 +511,7 @@ export default function PricingPage() {
           <div className="space-y-3">
             {([
               { key: "comforter_wash" as keyof ServicesConfig, icon: "🛏️", label: "Comforter Wash", desc: "Per-piece comforter cleaning" },
-              { key: "wash_fold"      as keyof ServicesConfig, icon: "👕", label: "Wash & Fold",    desc: "Priced by weight ($/lb)" },
+              { key: "wash_fold"      as keyof ServicesConfig, icon: "👕", label: "Wash & Fold",    desc: "Priced by weight, by the bag, or both" },
               { key: "wash_only"      as keyof ServicesConfig, icon: "🧺", label: "Wash Only",      desc: "Wash without folding" },
             ] as const).map(({ key, icon, label, desc }) => (
               <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-[#f7f8fb] border border-gray-100">
