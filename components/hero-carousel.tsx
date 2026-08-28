@@ -62,17 +62,23 @@ export default function HeroCarousel({
         {/* Scrim — dark top for headline, dark bottom for the step strip */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/15 to-black/75 pointer-events-none" />
 
-        {/* Headline + subline + CTA */}
+        {/* Headline + subline */}
         <div className="absolute inset-x-0 top-0 px-3 sm:px-8 pt-3 sm:pt-8">
           <div className="mx-auto max-w-7xl">
             <h1 className="text-white font-extrabold text-lg sm:text-3xl md:text-4xl lg:text-5xl leading-tight max-w-2xl mb-1 sm:mb-3" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.65)" }}>
               {headline}
             </h1>
             <p className="text-white/90 text-[11px] sm:text-base md:text-lg max-w-xl mb-2 sm:mb-4 line-clamp-2 sm:line-clamp-none" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}>{subline}</p>
-            <a href="/book/wash-fold" className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-[11px] sm:text-sm px-4 sm:px-7 py-2 sm:py-3 rounded-full uppercase tracking-wide transition-colors shadow-lg">
-              {cta}
-            </a>
           </div>
+        </div>
+
+        {/* CTA -- centered horizontally over the middle of the hero image,
+            in the band above the 4-step strip (roughly aligned with the
+            "Clean Laundry in 4 Simple Steps" heading directly below). */}
+        <div className="absolute inset-x-0 bottom-16 sm:bottom-24 px-3 sm:px-8 flex justify-center">
+          <a href="/book/wash-fold" className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-[11px] sm:text-sm px-4 sm:px-7 py-2 sm:py-3 rounded-full uppercase tracking-wide transition-colors shadow-lg">
+            {cta}
+          </a>
         </div>
 
         {/* 4-step strip along the bottom of the image */}
