@@ -7,7 +7,7 @@ import { useLang } from "@/components/lang-provider"
 const STRINGS = {
   en: {
     doneTitle: "Request received!",
-    doneSub: "We'll reach out shortly to set up your demo.",
+    doneSub: "Check your email inbox — your customer landing page and admin dashboard are already live for you to explore.",
     name: "Your Name",
     email: "Email",
     phone: "Phone",
@@ -19,7 +19,7 @@ const STRINGS = {
   },
   es: {
     doneTitle: "¡Solicitud recibida!",
-    doneSub: "Nos pondremos en contacto pronto para organizar tu demo.",
+    doneSub: "Revisa tu correo electrónico — tu página de aterrizaje y tu panel de administración ya están listos para explorar.",
     name: "Tu Nombre",
     email: "Correo Electrónico",
     phone: "Teléfono",
