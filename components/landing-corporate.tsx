@@ -30,7 +30,8 @@ export function CorporateLanding() {
   const [siteText, setSiteText] = useState<SiteText>(DEFAULT_TEXT)
   const [services, setServices] = useState<ServicesConfig | null>(null)
   const [livePricing, setLivePricing] = useState<PricingConfig>(PRICING_DEFAULTS)
-  const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState(true)
+  // null until loaded -- prevents flash of the monthly-plan CTA on first render
+  const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState<boolean | null>(null)
   const [businessName, setBusinessName] = useState("WashFold Orlando")
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   useEffect(() => {
@@ -321,7 +322,7 @@ export function CorporateLanding() {
       </section>
 
       {/* ── Monthly Plans CTA ──────────────────────────────────────────── */}
-      {monthlyPlanEnabled && <section className="bg-[var(--brand-primary)] px-4 py-12">
+      {monthlyPlanEnabled === true && <section className="bg-[var(--brand-primary)] px-4 py-12">
         <div className="mx-auto max-w-3xl flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
           <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-3xl shrink-0">📅</div>
           <div className="flex-1">
