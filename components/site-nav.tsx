@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useLang } from "@/components/lang-provider"
@@ -44,6 +45,12 @@ const EXCLUDED_PREFIXES = [
 export function SiteNav({ businessName = "WashFold Orlando", logoUrl, landingTemplate }: { businessName?: string; logoUrl?: string | null; landingTemplate?: string }) {
   const pathname = usePathname()
   const { translations: tr, locale } = useLang()
+  // With 7 nav links plus the logo lockup and "Schedule Pickup" button, the
+  // inline nav ran out of room well before a phone's width -- links wrapped
+  // and visually overlapped each other (reported on a real device). Below
+  // `lg` everything collapses into the hamburger menu instead, which has
+  // enough width to breathe at every size that isn't a wide desktop window.
+  const [menuOpen, setMenuOpen] = useState(false)
 
   if (EXCLUDED_PREFIXES.some(prefix => pathname.startsWith(prefix))) return null
   // The operator (personal/solo-operator) homepage template renders its own
@@ -104,7 +111,7 @@ export function SiteNav({ businessName = "WashFold Orlando", logoUrl, landingTem
             </div>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1 ml-6">
+          <nav className="hidden lg:flex items-center gap-1 ml-6">
             {navLinks.map((n) => (
               <a
                 key={n.label}
@@ -120,11 +127,56 @@ export function SiteNav({ businessName = "WashFold Orlando", logoUrl, landingTem
 
           <a
             href={lp("/book/wash-fold")}
-            className="shrink-0 bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-2.5 rounded-full transition-colors uppercase tracking-wide shadow-sm"
+            className="hidden lg:inline-block shrink-0 bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-2.5 rounded-full transition-colors uppercase tracking-wide shadow-sm"
           >
             {tr.common.schedulePickup}
           </a>
+
+          {/* Hamburger toggle — everything below `lg` */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(v => !v)}
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? (locale === "es" ? "Cerrar menú" : "Close menu") : (locale === "es" ? "Abrir menú" : "Open menu")}
+            className="lg:hidden shrink-0 p-2 -mr-2 rounded-lg text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/5 transition-colors"
+          >
+            {menuOpen ? (
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>
+            ) : (
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile / tablet dropdown panel */}
+        {menuOpen && (
+          <div className="lg:hidden border-t border-gray-100 bg-white">
+            <nav className="mx-auto max-w-7xl px-4 py-2 flex flex-col">
+              {navLinks.map((n) => (
+                <a
+                  key={n.label}
+                  href={n.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="px-2 py-3 text-sm font-semibold text-[var(--brand-primary)] border-b border-gray-50 last:border-0 uppercase tracking-wide"
+                >
+                  {n.label}
+                </a>
+              ))}
+              <div className="flex items-center gap-4 py-3 text-xs text-[var(--brand-primary)]/60">
+                <Link href="/login" onClick={() => setMenuOpen(false)} className="hover:text-[var(--brand-accent)] transition-colors">{tr.common.signIn}</Link>
+                <Link href="/account" onClick={() => setMenuOpen(false)} className="hover:text-[var(--brand-accent)] transition-colors">{tr.common.myAccount}</Link>
+                <LangToggle />
+              </div>
+              <a
+                href={lp("/book/wash-fold")}
+                onClick={() => setMenuOpen(false)}
+                className="my-2 text-center bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-6 py-3 rounded-full transition-colors uppercase tracking-wide shadow-sm"
+              >
+                {tr.common.schedulePickup}
+              </a>
+            </nav>
+          </div>
+        )}
       </header>
     </>
   )
