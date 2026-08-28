@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing")
 const SEND_ADDRESS = "clean@washfoldorlando.com"
-const PLATFORM_URL = "https://www.comforterwash.com/platform"
+const PLATFORM_URL = "https://www.washfoldkit.com"
 
 // Sent to anyone who requests a demo via the /platform "Request a Demo" form —
 // either automatically right after they submit (see requestPlatformDemo in
