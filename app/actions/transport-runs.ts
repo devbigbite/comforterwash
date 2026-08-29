@@ -6,7 +6,7 @@ import { createShipdayRunOrder } from "@/lib/shipday"
 import { todayET } from "@/lib/date-et"
 import { getAllFacilityWindows } from "@/app/actions/facility-windows"
 import { isWithinAccessWindow } from "@/lib/facility-utils"
-import { getLocationId, getShipdayConfig, getBranding } from "@/lib/location"
+import { getLocationId, getShipdayConfig, getBranding, getLocationTimezone } from "@/lib/location"
 import { resolveMinLbs } from "@/lib/order-minimum"
 
 export interface TransportRun {
@@ -221,6 +221,7 @@ export async function cancelTransportRun(runId: string) {
 // Advances ALL orders in the run to their next status/phase and assigns facility where needed.
 export async function completeTransportRun(formData: FormData) {
   const supabase    = createAdminClient()
+  const locationId  = await getLocationId()
   const runId       = formData.get("runId")      as string
   const completedBy = formData.get("workerName") as string
   const photoUrl    = (formData.get("photoUrl")  as string) || null
@@ -332,7 +333,7 @@ export async function completeTransportRun(formData: FormData) {
           comforter_wash: "Comforter",
         }
         const arrivedAt = new Date().toLocaleTimeString("en-US", {
-          hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York",
+          hour: "numeric", minute: "2-digit", hour12: true, timeZone: await getLocationTimezone(locationId),
         })
         import("@/lib/email").then(({ sendFacilityArrivalEmail }) =>
           sendFacilityArrivalEmail(facility.contact_email!, {

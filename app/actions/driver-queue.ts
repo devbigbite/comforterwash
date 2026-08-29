@@ -1,7 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getLocationId, getBranding } from "@/lib/location"
+import { getLocationId, getBranding, getLocationTimezone } from "@/lib/location"
 import { sendSMS } from "@/lib/sms"
 import { sendPickupReminderToCustomer } from "@/lib/email"
 import { geocodeAddress, distanceMiles, type LatLng } from "@/lib/geocoding"
@@ -45,7 +45,7 @@ export async function getDriverQueue(driverId: string): Promise<{
   if (!driverId) return { pickups: [], deliveries: [], routeAlreadyStarted: false }
 
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: await getLocationTimezone(locationId) }).format(new Date())
 
   // The "owner" sentinel worker (admin using the "Enter as Owner" bypass on
   // the driver station) sees every in-progress pickup/delivery for the whole

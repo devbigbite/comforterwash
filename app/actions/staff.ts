@@ -8,7 +8,7 @@ import {
   SCHEDULE_ALERT_RECIPIENT,
 } from "@/lib/staff-config"
 import { sendScheduleAlertEmail } from "@/lib/email"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 
 export interface TimePunch {
@@ -206,8 +206,9 @@ async function checkSchedule(
   locationId: string
 ): Promise<{ warning: ScheduleWarning | null; scheduledShift: ScheduledShift | null }> {
   const supabase  = createAdminClient()
-  const todayET   = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" })
-  const nowET     = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }))
+  const tz        = await getLocationTimezone(locationId)
+  const todayET   = new Date().toLocaleDateString("en-CA", { timeZone: tz })
+  const nowET     = new Date(new Date().toLocaleString("en-US", { timeZone: tz }))
   const nowMins   = nowET.getHours() * 60 + nowET.getMinutes()
 
   const { data: shifts } = await supabase
@@ -311,7 +312,7 @@ export async function clockIn(formData: FormData) {
   // Level 3: email alert (disabled by default)
   if (warning && SCHEDULE_ALERT_EMAIL_ENABLED) {
     const nowStr = new Date().toLocaleTimeString("en-US", {
-      timeZone: "America/New_York", hour: "numeric", minute: "2-digit",
+      timeZone: await getLocationTimezone(locationId), hour: "numeric", minute: "2-digit",
     })
     await sendScheduleAlertEmail(SCHEDULE_ALERT_RECIPIENT, {
       workerName,
@@ -357,7 +358,7 @@ export async function clockOut(formData: FormData) {
     // Level 3 email for out-flags
     if (warning && SCHEDULE_ALERT_EMAIL_ENABLED) {
       const nowStr = new Date().toLocaleTimeString("en-US", {
-        timeZone: "America/New_York", hour: "numeric", minute: "2-digit",
+        timeZone: await getLocationTimezone(locationId), hour: "numeric", minute: "2-digit",
       })
       await sendScheduleAlertEmail(SCHEDULE_ALERT_RECIPIENT, {
         workerName:    punchData.worker_name,
