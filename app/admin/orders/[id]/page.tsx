@@ -952,11 +952,20 @@ export default async function OrderDetailPage({
           </div>
         )}
 
+        {/* Photo capture, in the order these actually happen on an order:
+            picked up from the customer, dropped at the facility/warehouse,
+            packaged back up by the operator (Finished Product), then
+            delivered back to the customer. */}
+        <div className="grid gap-4 sm:grid-cols-2 mb-6">
+          <PhotoUploader bookingId={id} action={logCustomerPickupPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Customer Pickup Photo" compact={false} initialPhotos={photosByEvent("photo_customer_pickup")} />
+          <PhotoUploader bookingId={id} action={logFacilityDropoffPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Facility/Warehouse Drop-off Photo" compact={false} initialPhotos={photosByEvent("photo_facility_dropoff")} />
+        </div>
+
         {/* Finished Product & Facility Location — the operator's photo of the
             packaged bags and where they're placed, taken when processing
             finishes. Read from the booking itself (facility_floor_photo_url),
             same field the Facility Board and driver app already use — not an
-            order_event like the four photos below. */}
+            order_event like the other three photos here. */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
           <div className="px-4 py-3 border-b border-gray-50">
             <h3 className="font-bold text-[#0D2240] text-sm">📦 Finished Product &amp; Facility Location Photo</h3>
@@ -982,10 +991,7 @@ export default async function OrderDetailPage({
           </div>
         </div>
 
-        {/* Photo capture — driver flow photos, logged straight from the admin page */}
-        <div className="grid gap-4 sm:grid-cols-2 mb-6">
-          <PhotoUploader bookingId={id} action={logCustomerPickupPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Customer Pickup Photo" compact={false} initialPhotos={photosByEvent("photo_customer_pickup")} />
-          <PhotoUploader bookingId={id} action={logFacilityDropoffPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Facility/Warehouse Drop-off Photo" compact={false} initialPhotos={photosByEvent("photo_facility_dropoff")} />
+        <div className="mb-6">
           <PhotoUploader bookingId={id} action={logCustomerDeliveryPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Customer Delivery Photo" compact={false} initialPhotos={photosByEvent("photo_customer_delivery")} />
         </div>
 
