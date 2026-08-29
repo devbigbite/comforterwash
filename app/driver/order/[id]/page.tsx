@@ -144,7 +144,6 @@ async function confirmDropoff(formData: FormData) {
   // pickup for facility-mode tenants, since most bookings never had
   // assigned_facility_id pre-set at pickup time.
   const dropoffLocation = (formData.get("dropoffLocation") as string) || "facility"
-  const floorPhotoUrl   = (formData.get("floorPhotoUrl") as string) || null
   if (isNaN(weightLbs) || weightLbs <= 0) return
 
   const supabase = createAdminClient()
@@ -204,7 +203,6 @@ async function confirmDropoff(formData: FormData) {
     weight_entered_at:      new Date().toISOString(),
     status:                 newStatus,
     ...(assignedFacilityId ? { assigned_facility_id: assignedFacilityId } : {}),
-    ...(floorPhotoUrl ? { facility_floor_photo_url: floorPhotoUrl } : {}),
   }).eq("id", bookingId)
 
   // This update was previously unchecked — if it failed, the driver still
@@ -235,17 +233,6 @@ async function confirmDropoff(formData: FormData) {
     notes:      `Weight: ${weightLbs} lbs · Customer billed $${(customerFinalCents / 100).toFixed(2)} (${basis}) · Facility cost $${(facilityCostCents / 100).toFixed(2)} · Dropped at ${locationLabel}`,
     created_by: driverName,
   })
-
-  // Internal-only floor photo (excluded from customer-visible events)
-  if (floorPhotoUrl) {
-    await supabase.from("order_events").insert({
-      booking_id: bookingId,
-      event_type: "photo_facility_dropoff",
-      photo_url:  floorPhotoUrl,
-      notes:      `[Internal] Bags placed at ${locationLabel} — location photo`,
-      created_by: driverName,
-    })
-  }
 
   // Dispatch the actual charge. Commercial pay-at-service accounts have no
   // pre-auth to capture — they're charged off-session against the card on
