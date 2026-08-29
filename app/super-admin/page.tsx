@@ -20,6 +20,7 @@ type Location = {
   billing_status: string
   plan_price_cents: number | null
   plan_name: string | null
+  admin_email: string | null
 }
 
 const BILLING_COLORS: Record<string, string> = {
@@ -289,7 +290,8 @@ export default function SuperAdminPage() {
         <table className="w-full text-sm table-fixed [&>thead>tr:first-child>th:first-child]:rounded-tl-xl [&>thead>tr:first-child>th:last-child]:rounded-tr-xl [&>tbody>tr:last-child>td:first-child]:rounded-bl-xl [&>tbody>tr:last-child>td:last-child]:rounded-br-xl">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left">
-              <th className="px-4 py-3 font-semibold text-slate-600 w-[26%]">Tenant</th>
+              <th className="px-4 py-3 font-semibold text-slate-600 w-[20%]">Tenant</th>
+              <th className="px-4 py-3 font-semibold text-slate-600 w-[18%]">Email</th>
               <th className="px-4 py-3 font-semibold text-slate-600 w-[14%]">Plan</th>
               <th className="px-4 py-3 font-semibold text-slate-600 w-[12%]">Status</th>
               <th className="px-4 py-3 font-semibold text-slate-600 w-[18%]">Billing</th>
@@ -316,6 +318,9 @@ export default function SuperAdminPage() {
                         placeholder="custom-domain.com"
                         className="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
                       />
+                    </td>
+                    <td className="px-4 py-2 text-slate-400 text-xs truncate" title={loc.admin_email ?? undefined}>
+                      {loc.admin_email ?? <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-4 py-2">
                       <input
@@ -366,6 +371,9 @@ export default function SuperAdminPage() {
                       {loc.custom_domain && (
                         <p className="text-xs text-slate-400 truncate" title={loc.custom_domain}>{loc.custom_domain}</p>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-xs truncate" title={loc.admin_email ?? undefined}>
+                      {loc.admin_email ?? <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-4 py-3 text-slate-500 text-xs truncate" title={loc.plan ?? undefined}>{loc.plan ?? <span className="text-slate-300">—</span>}</td>
                     <td className="px-4 py-3">

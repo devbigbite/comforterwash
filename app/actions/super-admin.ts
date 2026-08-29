@@ -54,14 +54,44 @@ export async function exitTenantAdmin(): Promise<void> {
 
 // ── Read ──────────────────────────────────────────────────────────────────────
 
-export async function getAllLocations(): Promise<(Location & { created_at: string; billing_status: string; plan_price_cents: number | null; plan_name: string | null })[]> {
+export async function getAllLocations(): Promise<(Location & { created_at: string; billing_status: string; plan_price_cents: number | null; plan_name: string | null; admin_email: string | null })[]> {
   await requireSuperAdmin()
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("locations")
     .select("id, slug, name, custom_domain, status, plan, created_at, billing_status, plan_price_cents, plan_name")
     .order("created_at", { ascending: true })
-  return (data ?? []) as (Location & { created_at: string; billing_status: string; plan_price_cents: number | null; plan_name: string | null })[]
+  const locations = (data ?? []) as (Location & { created_at: string; billing_status: string; plan_price_cents: number | null; plan_name: string | null })[]
+  if (locations.length === 0) return []
+
+  // One tenant contact email per row for the locations table -- prefer the
+  // account that actually signed up (role "admin"), falling back to
+  // whichever membership exists, so a support/billing question about a
+  // tenant ("do we have one with this email?") doesn't require a manual
+  // DB lookup every time. Bulk-fetched once for the whole table rather than
+  // per row (that's what getLocationAdmins is for, used in the per-tenant
+  // admin-management modal instead).
+  const [{ data: memberships }, { data: userList }] = await Promise.all([
+    supabase.from("location_users").select("location_id, user_id, role").in("location_id", locations.map(l => l.id)),
+    supabase.auth.admin.listUsers({ perPage: 200 }),
+  ])
+  const emailByUserId = new Map((userList?.users ?? []).map(u => [u.id, u.email ?? null]))
+  const adminRoleSetFor = new Set<string>()
+  const adminEmailByLocationId = new Map<string, string | null>()
+  for (const m of memberships ?? []) {
+    // Prefer an "admin"-role membership's email; only fall back to some
+    // other role if no admin-role membership has been seen for this
+    // location yet (locations are processed in whatever order Supabase
+    // returned the rows, not necessarily admin-first).
+    if (m.role === "admin") {
+      adminEmailByLocationId.set(m.location_id, emailByUserId.get(m.user_id) ?? null)
+      adminRoleSetFor.add(m.location_id)
+    } else if (!adminRoleSetFor.has(m.location_id) && !adminEmailByLocationId.has(m.location_id)) {
+      adminEmailByLocationId.set(m.location_id, emailByUserId.get(m.user_id) ?? null)
+    }
+  }
+
+  return locations.map(loc => ({ ...loc, admin_email: adminEmailByLocationId.get(loc.id) ?? null }))
 }
 
 // ── Create ────────────────────────────────────────────────────────────────────
