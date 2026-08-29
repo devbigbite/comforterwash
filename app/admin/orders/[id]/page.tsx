@@ -1,6 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { notFound, redirect } from "next/navigation"
-import { format } from "date-fns"
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import {
@@ -25,6 +24,32 @@ import PhotoUploader from "@/app/operator/order/[id]/photo-uploader"
 import { WeightEntryForm } from "@/components/admin/WeightEntryForm"
 import { OrderSnapshot } from "@/components/admin/order-snapshot"
 import { AddressEditPanel } from "./address-edit-panel"
+
+// This page runs server-side on Vercel, whose default runtime clock is UTC
+// -- date-fns' format() has no timezone awareness, so it was rendering every
+// order-timeline timestamp (and the weigh-in date below) several hours off
+// from actual local time. The rest of the app already standardizes tenant-
+// facing times on America/New_York (see app/actions/staff.ts,
+// app/actions/driver-queue.ts) rather than per-tenant timezones, so these
+// follow the same convention until locations get their own timezone field.
+function formatEventTimeET(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(iso))
+}
+
+function formatDateET(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(iso))
+}
 
 // bookings has its own location_id — every inline action below verifies the
 // bookingId it's given actually belongs to the current tenant before doing
@@ -818,7 +843,7 @@ export default async function OrderDetailPage({
               <p>
                 <span className="font-bold">⚠️ Billing incomplete</span> — the weight <span className="font-bold">is</span> on file
                 ({actualWeightLbs} lbs{booking.weight_entered_by ? `, entered by ${booking.weight_entered_by}` : ""}
-                {booking.weight_entered_at ? ` on ${format(new Date(booking.weight_entered_at as string), "MMM d")}` : ""}),
+                {booking.weight_entered_at ? ` on ${formatDateET(booking.weight_entered_at as string)}` : ""}),
                 but the billing figures were never finished, so nothing has been charged for this order.
               </p>
               <p className="text-xs text-red-600/80 mt-1">
@@ -1371,7 +1396,7 @@ export default async function OrderDetailPage({
                     )}
                     {event.notes && !event.photo_url && <p className="text-sm text-gray-500 mt-0.5">{event.notes}</p>}
                     <p className="text-xs text-gray-300 mt-1">
-                      {format(new Date(event.created_at), "MMM d, h:mm a")}
+                      {formatEventTimeET(event.created_at)}
                       {event.created_by && event.created_by !== "system" && ` · ${event.created_by}`}
                     </p>
                   </div>
