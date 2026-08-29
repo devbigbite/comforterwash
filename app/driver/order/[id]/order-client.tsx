@@ -318,6 +318,7 @@ export default function DriverOrderClient({
                 <div>
                   <p className="text-base font-extrabold text-[#0D2240] mb-0.5">Step 1 — Collect from customer</p>
                   <p className="text-sm text-gray-500">Label all {bags.length} bag{bags.length !== 1 ? "s" : ""}, take a photo, then confirm.</p>
+                  <p className="text-xs text-gray-400 mt-0.5">This photo goes to the customer as pickup proof — just the bags where you found them, no people, faces, or house interior.</p>
                 </div>
                 <div className={`rounded-xl overflow-hidden border-2 ${customerPickupPhotoErr ? "border-red-400" : hasCustomerPickupPhoto ? "border-green-400" : "border-gray-200"}`}>
                   <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
@@ -609,6 +610,7 @@ export default function DriverOrderClient({
                 <div>
                   <p className="text-base font-extrabold text-[#0D2240] mb-0.5">Step 2 — Deliver to customer</p>
                   <p className="text-sm text-gray-500">Take a photo at the customer's door, then confirm delivery.</p>
+                  <p className="text-xs text-gray-400 mt-0.5">This photo goes to the customer as delivery proof — just the bags at the door, no people, faces, or house interior.</p>
                 </div>
                 <div className={`rounded-xl overflow-hidden border-2 ${deliveryPhotoErr ? "border-red-400" : hasDeliveryPhoto ? "border-green-400" : "border-gray-200"}`}>
                   <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}

@@ -3,6 +3,16 @@
 import { useState, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 
+// A photo the uploader already knows is saved to order_events -- carries
+// the event id so it can be deleted. A photo just uploaded in this browser
+// session (see handleFile) has no id yet, since the insert action here
+// doesn't return one; those simply render without a delete button until
+// the next page load picks them up as initialPhotos.
+interface SavedPhoto {
+  id: string
+  url: string
+}
+
 interface Props {
   bookingId: string
   action: (formData: FormData) => Promise<void>
@@ -15,7 +25,13 @@ interface Props {
   // so a refresh (or just navigating back later) makes previously-saved
   // photos look like they vanished even though they're still in the
   // database. Pass in whatever's already on file so it renders immediately.
-  initialPhotos?: string[]
+  // Plain strings still work (older callers that don't need delete); pass
+  // SavedPhoto objects to also get a delete button per photo.
+  initialPhotos?: (string | SavedPhoto)[]
+  // When provided, each already-saved photo (one with a known event id)
+  // gets a small delete button. Takes the same (bookingId, eventId) shape
+  // as the other form actions on this page.
+  onDeletePhoto?: (formData: FormData) => Promise<void>
 }
 
 export default function PhotoUploader({
@@ -26,11 +42,30 @@ export default function PhotoUploader({
   compact = false,
   onPhotoUploaded,
   initialPhotos = [],
+  onDeletePhoto,
 }: Props) {
   const [uploading, setUploading] = useState(false)
-  const [photos, setPhotos] = useState<string[]>(initialPhotos)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [photos, setPhotos] = useState<SavedPhoto[]>(
+    initialPhotos.map((p) => (typeof p === "string" ? { id: "", url: p } : p))
+  )
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  async function handleDelete(photoId: string) {
+    if (!onDeletePhoto || !photoId) return
+    if (!window.confirm("Delete this photo? This can't be undone.")) return
+    setDeletingId(photoId)
+    const fd = new FormData()
+    fd.append("bookingId", bookingId)
+    fd.append("eventId", photoId)
+    try {
+      await onDeletePhoto(fd)
+      setPhotos((prev) => prev.filter((p) => p.id !== photoId))
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -58,7 +93,7 @@ export default function PhotoUploader({
       .from("order-photos")
       .getPublicUrl(path)
 
-    setPhotos((prev) => [...prev, publicUrl])
+    setPhotos((prev) => [...prev, { id: "", url: publicUrl }])
     setUploading(false)
     if (inputRef.current) inputRef.current.value = ""
     onPhotoUploaded?.()
@@ -101,15 +136,28 @@ export default function PhotoUploader({
         {error && <p className="text-xs text-red-500">{error}</p>}
         {photos.length > 0 && (
           <div className="grid grid-cols-4 gap-1.5">
-            {photos.map((url, i) => (
-              <a key={i} href={url} target="_blank" rel="noreferrer">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={url}
-                  alt={`Photo ${i + 1}`}
-                  className="w-full aspect-square object-cover rounded-lg border border-gray-100"
-                />
-              </a>
+            {photos.map((p, i) => (
+              <div key={p.id || i} className="relative">
+                <a href={p.url} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.url}
+                    alt={`Photo ${i + 1}`}
+                    className="w-full aspect-square object-cover rounded-lg border border-gray-100"
+                  />
+                </a>
+                {onDeletePhoto && p.id && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(p.id)}
+                    disabled={deletingId === p.id}
+                    title="Delete photo"
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-900/80 hover:bg-red-600 text-white text-xs leading-none flex items-center justify-center disabled:opacity-50"
+                  >
+                    {deletingId === p.id ? "…" : "×"}
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         )}
@@ -148,15 +196,28 @@ export default function PhotoUploader({
       />
       {photos.length > 0 && (
         <div className="p-3 grid grid-cols-3 gap-2">
-          {photos.map((url, i) => (
-            <a key={i} href={url} target="_blank" rel="noreferrer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={url}
-                alt={`Photo ${i + 1}`}
-                className="w-full aspect-square object-cover rounded-xl border border-gray-100"
-              />
-            </a>
+          {photos.map((p, i) => (
+            <div key={p.id || i} className="relative">
+              <a href={p.url} target="_blank" rel="noreferrer">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={p.url}
+                  alt={`Photo ${i + 1}`}
+                  className="w-full aspect-square object-cover rounded-xl border border-gray-100"
+                />
+              </a>
+              {onDeletePhoto && p.id && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(p.id)}
+                  disabled={deletingId === p.id}
+                  title="Delete photo"
+                  className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-gray-900/80 hover:bg-red-600 text-white text-sm leading-none flex items-center justify-center disabled:opacity-50"
+                >
+                  {deletingId === p.id ? "…" : "×"}
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}

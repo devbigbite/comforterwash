@@ -550,6 +550,24 @@ async function logCustomerDeliveryPhoto(formData: FormData) {
   await logPhotoAction("photo_customer_delivery", "Delivery photo logged by admin", formData)
 }
 
+// Lets an admin remove a single already-saved proof-of-service photo --
+// e.g. a customer-pickup/delivery shot that shows more than just "bags at
+// the door" (a face, a house interior, a license plate) and shouldn't be
+// sitting on the customer's public tracking link. Deletes the order_event
+// row outright rather than just hiding it, since photo_customer_pickup/
+// photo_customer_delivery are read straight off order_events by
+// app/track/[code]/page.tsx -- removing the row removes it everywhere,
+// admin and customer-facing, in one step.
+async function deleteOrderPhoto(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const eventId    = formData.get("eventId") as string
+  await assertBookingOwnership(bookingId)
+  const supabase = createAdminClient()
+  await supabase.from("order_events").delete().eq("id", eventId).eq("booking_id", bookingId)
+  revalidatePath(`/admin/orders/${bookingId}`)
+}
+
 // Finished Product & Facility Location photo — this is the operator's photo
 // of the finished, packaged bags and where they're placed at the facility,
 // distinct from the driver's own pickup-accountability photo above. It's
@@ -638,7 +656,7 @@ export default async function OrderDetailPage({
   const photosByEvent = (eventType: string) =>
     (events ?? [])
       .filter(e => e.event_type === eventType && e.photo_url)
-      .map(e => e.photo_url as string)
+      .map(e => ({ id: e.id as string, url: e.photo_url as string }))
 
   // short_code is the one real order number staff and customers both use
   // (matches the Order Snapshot card, receipts, dispatch, etc). Only fall
@@ -970,10 +988,10 @@ export default async function OrderDetailPage({
 
         {/* Photo capture — driver flow photos, logged straight from the admin page */}
         <div className="grid gap-4 sm:grid-cols-2 mb-6">
-          <PhotoUploader bookingId={id} action={logCustomerPickupPhoto} label="📷 Customer Pickup Photo" compact={false} initialPhotos={photosByEvent("photo_customer_pickup")} />
-          <PhotoUploader bookingId={id} action={logFacilityDropoffPhoto} label="📷 Facility/Warehouse Drop-off Photo" compact={false} initialPhotos={photosByEvent("photo_facility_dropoff")} />
-          <PhotoUploader bookingId={id} action={logFacilityPickupPhoto} label="📷 Driver Pickup of Clean Bags Photo" compact={false} initialPhotos={photosByEvent("photo_facility_pickup")} />
-          <PhotoUploader bookingId={id} action={logCustomerDeliveryPhoto} label="📷 Customer Delivery Photo" compact={false} initialPhotos={photosByEvent("photo_customer_delivery")} />
+          <PhotoUploader bookingId={id} action={logCustomerPickupPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Customer Pickup Photo" compact={false} initialPhotos={photosByEvent("photo_customer_pickup")} />
+          <PhotoUploader bookingId={id} action={logFacilityDropoffPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Facility/Warehouse Drop-off Photo" compact={false} initialPhotos={photosByEvent("photo_facility_dropoff")} />
+          <PhotoUploader bookingId={id} action={logFacilityPickupPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Driver Pickup of Clean Bags Photo" compact={false} initialPhotos={photosByEvent("photo_facility_pickup")} />
+          <PhotoUploader bookingId={id} action={logCustomerDeliveryPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Customer Delivery Photo" compact={false} initialPhotos={photosByEvent("photo_customer_delivery")} />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
