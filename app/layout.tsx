@@ -6,6 +6,7 @@ import Script from "next/script"
 import { cookies } from "next/headers"
 import { LangProvider } from "@/components/lang-provider"
 import { SiteNav } from "@/components/site-nav"
+import { SiteFooter } from "@/components/site-footer"
 import type { Locale } from "@/lib/i18n"
 import { getBranding, getLocationId, WASHFOLD_DEMO_LOCATION_ID } from "@/lib/location"
 import "./globals.css"
@@ -102,6 +103,7 @@ export default async function RootLayout({
           )}
           <SiteNav businessName={branding.business_name ?? undefined} logoUrl={branding.logo_url} landingTemplate={branding.landing_page_template} />
           {children}
+          <SiteFooter />
         </LangProvider>
         <Analytics />
       </body>
