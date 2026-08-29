@@ -541,10 +541,6 @@ async function logFacilityDropoffPhoto(formData: FormData) {
   "use server"
   await logPhotoAction("photo_facility_dropoff", "Facility drop-off photo logged by admin", formData)
 }
-async function logFacilityPickupPhoto(formData: FormData) {
-  "use server"
-  await logPhotoAction("photo_facility_pickup", "Driver pickup-of-clean-bags photo logged by admin", formData)
-}
 async function logCustomerDeliveryPhoto(formData: FormData) {
   "use server"
   await logPhotoAction("photo_customer_delivery", "Delivery photo logged by admin", formData)
@@ -990,7 +986,6 @@ export default async function OrderDetailPage({
         <div className="grid gap-4 sm:grid-cols-2 mb-6">
           <PhotoUploader bookingId={id} action={logCustomerPickupPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Customer Pickup Photo" compact={false} initialPhotos={photosByEvent("photo_customer_pickup")} />
           <PhotoUploader bookingId={id} action={logFacilityDropoffPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Facility/Warehouse Drop-off Photo" compact={false} initialPhotos={photosByEvent("photo_facility_dropoff")} />
-          <PhotoUploader bookingId={id} action={logFacilityPickupPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Driver Pickup of Clean Bags Photo" compact={false} initialPhotos={photosByEvent("photo_facility_pickup")} />
           <PhotoUploader bookingId={id} action={logCustomerDeliveryPhoto} onDeletePhoto={deleteOrderPhoto} label="📷 Customer Delivery Photo" compact={false} initialPhotos={photosByEvent("photo_customer_delivery")} />
         </div>
 
