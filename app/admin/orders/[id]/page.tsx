@@ -13,7 +13,7 @@ import { getMiscFees } from "@/app/actions/fees"
 import { MiscFeesPanel } from "./misc-fees-panel"
 import { getOrderIssueNotes } from "@/app/actions/order-issue-notes"
 import { OrderIssueNotesPanel } from "./order-issue-notes-panel"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { recordWeightAndCharge } from "@/app/actions/weigh-in"
 import { calculateOrderBilling } from "@/lib/order-billing"
@@ -28,13 +28,12 @@ import { AddressEditPanel } from "./address-edit-panel"
 // This page runs server-side on Vercel, whose default runtime clock is UTC
 // -- date-fns' format() has no timezone awareness, so it was rendering every
 // order-timeline timestamp (and the weigh-in date below) several hours off
-// from actual local time. The rest of the app already standardizes tenant-
-// facing times on America/New_York (see app/actions/staff.ts,
-// app/actions/driver-queue.ts) rather than per-tenant timezones, so these
-// follow the same convention until locations get their own timezone field.
-function formatEventTimeET(iso: string): string {
+// from actual local time. Each tenant now has its own locations.timezone
+// (set in Admin > Branding), so these render in that tenant's own local
+// time rather than a hardcoded zone.
+function formatEventTime(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
+    timeZone,
     month: "short",
     day: "numeric",
     hour: "numeric",
@@ -43,9 +42,9 @@ function formatEventTimeET(iso: string): string {
   }).format(new Date(iso))
 }
 
-function formatDateET(iso: string): string {
+function formatDate(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
+    timeZone,
     month: "short",
     day: "numeric",
   }).format(new Date(iso))
@@ -576,7 +575,7 @@ export default async function OrderDetailPage({
   await requireAdmin()
   const { id } = await params
   const { billingMsg } = await searchParams
-  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const [supabase, locationId, tenantTimeZone] = [createAdminClient(), await getLocationId(), await getLocationTimezone()]
 
   const { data: booking } = await supabase
     .from("bookings")
@@ -843,7 +842,7 @@ export default async function OrderDetailPage({
               <p>
                 <span className="font-bold">⚠️ Billing incomplete</span> — the weight <span className="font-bold">is</span> on file
                 ({actualWeightLbs} lbs{booking.weight_entered_by ? `, entered by ${booking.weight_entered_by}` : ""}
-                {booking.weight_entered_at ? ` on ${formatDateET(booking.weight_entered_at as string)}` : ""}),
+                {booking.weight_entered_at ? ` on ${formatDate(booking.weight_entered_at as string, tenantTimeZone)}` : ""}),
                 but the billing figures were never finished, so nothing has been charged for this order.
               </p>
               <p className="text-xs text-red-600/80 mt-1">
@@ -1396,7 +1395,7 @@ export default async function OrderDetailPage({
                     )}
                     {event.notes && !event.photo_url && <p className="text-sm text-gray-500 mt-0.5">{event.notes}</p>}
                     <p className="text-xs text-gray-300 mt-1">
-                      {formatEventTimeET(event.created_at)}
+                      {formatEventTime(event.created_at, tenantTimeZone)}
                       {event.created_by && event.created_by !== "system" && ` · ${event.created_by}`}
                     </p>
                   </div>

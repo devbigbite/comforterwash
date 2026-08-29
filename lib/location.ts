@@ -58,6 +58,10 @@ export interface Location {
   support_email: string | null
   address: string | null
   fb_pixel_id: string | null
+  // IANA zone (e.g. "America/New_York", "America/Chicago") -- used to
+  // render tenant-facing times (order timeline, dispatch schedules, etc.)
+  // in that tenant's own local time instead of the server's UTC clock.
+  timezone: string
 }
 
 // ── Fallback branding — only used when getLocationId() can't resolve a row
@@ -74,6 +78,7 @@ export const DEFAULT_BRANDING = {
   support_email: null as string | null,
   address: null as string | null,
   fb_pixel_id: null as string | null,
+  timezone: "America/New_York",
 }
 
 // ── Get just the location_id (most common use case) ──────────────────────────
@@ -93,7 +98,7 @@ export async function getLocation(overrideLocationId?: string): Promise<Location
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("locations")
-    .select("id, slug, name, custom_domain, status, plan, business_name, tagline, logo_url, primary_color, accent_color, support_phone, support_email, address, fb_pixel_id, landing_page_template")
+    .select("id, slug, name, custom_domain, status, plan, business_name, tagline, logo_url, primary_color, accent_color, support_phone, support_email, address, fb_pixel_id, landing_page_template, timezone")
     .eq("id", locationId)
     .single()
   if (!data) return null
@@ -104,7 +109,16 @@ export async function getLocation(overrideLocationId?: string): Promise<Location
     business_name: data.business_name ?? data.name,
     primary_color: data.primary_color ?? DEFAULT_BRANDING.primary_color,
     accent_color:  data.accent_color  ?? DEFAULT_BRANDING.accent_color,
+    timezone:      (data as { timezone?: string }).timezone ?? DEFAULT_BRANDING.timezone,
   } as Location
+}
+
+// ── Get just the tenant's timezone (cheap, for date/time formatting) ─────────
+// Pass overrideLocationId the same way as getLocation() -- e.g. a cron job
+// formatting a time for a specific tenant with no ambient request.
+export async function getLocationTimezone(overrideLocationId?: string): Promise<string> {
+  const loc = await getLocation(overrideLocationId)
+  return loc?.timezone ?? DEFAULT_BRANDING.timezone
 }
 
 // ── Get just the branding subset (cheap, for headers/footers/emails) ─────────
@@ -122,6 +136,7 @@ export async function getBranding(overrideLocationId?: string) {
     address:       loc.address,
     fb_pixel_id:   loc.fb_pixel_id,
     landing_page_template: (loc as { landing_page_template?: string }).landing_page_template ?? "corporate",
+    timezone:      loc.timezone,
   }
 }
 

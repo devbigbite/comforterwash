@@ -177,6 +177,22 @@ export default function BrandingPage() {
               <input className={FIELD_CLS} value={settings.address}
                 onChange={e => setSettings(s => s && { ...s, address: e.target.value })} />
             </div>
+            <div>
+              <label className={LABEL_CLS}>Timezone</label>
+              <select className={FIELD_CLS} value={settings.timezone}
+                onChange={e => setSettings(s => s && { ...s, timezone: e.target.value })}>
+                <option value="America/New_York">Eastern (New York)</option>
+                <option value="America/Chicago">Central (Chicago)</option>
+                <option value="America/Denver">Mountain (Denver)</option>
+                <option value="America/Phoenix">Mountain, no DST (Phoenix)</option>
+                <option value="America/Los_Angeles">Pacific (Los Angeles)</option>
+                <option value="America/Anchorage">Alaska (Anchorage)</option>
+                <option value="Pacific/Honolulu">Hawaii (Honolulu)</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Used to show order timestamps and dispatch schedules in your local time.
+              </p>
+            </div>
           </div>
         </div>
 

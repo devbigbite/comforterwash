@@ -14,13 +14,17 @@ export interface BrandingSettings {
   support_phone: string
   support_email: string
   address: string
+  // IANA zone (e.g. "America/New_York") -- used to render times (order
+  // timeline, dispatch schedules, etc.) in the tenant's own local time
+  // instead of the server's UTC clock. See lib/location.ts.
+  timezone: string
 }
 
 export async function getBrandingSettings(): Promise<BrandingSettings> {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("locations")
-    .select("business_name, tagline, logo_url, primary_color, accent_color, support_phone, support_email, address")
+    .select("business_name, tagline, logo_url, primary_color, accent_color, support_phone, support_email, address, timezone")
     .eq("id", locationId)
     .single()
 
@@ -34,6 +38,7 @@ export async function getBrandingSettings(): Promise<BrandingSettings> {
       support_phone: DEFAULT_BRANDING.support_phone,
       support_email: DEFAULT_BRANDING.support_email,
       address: DEFAULT_BRANDING.address,
+      timezone: DEFAULT_BRANDING.timezone,
     }
   }
 
@@ -46,6 +51,7 @@ export async function getBrandingSettings(): Promise<BrandingSettings> {
     support_phone: data.support_phone ?? DEFAULT_BRANDING.support_phone,
     support_email: data.support_email ?? DEFAULT_BRANDING.support_email,
     address: data.address ?? DEFAULT_BRANDING.address,
+    timezone: (data as { timezone?: string }).timezone ?? DEFAULT_BRANDING.timezone,
   }
 }
 
@@ -60,6 +66,9 @@ export async function setBrandingSettings(settings: BrandingSettings): Promise<{
   if (!settings.business_name?.trim()) {
     return { error: "Business name is required" }
   }
+  if (!settings.timezone?.trim()) {
+    return { error: "Timezone is required" }
+  }
 
   const { error } = await supabase
     .from("locations")
@@ -72,6 +81,7 @@ export async function setBrandingSettings(settings: BrandingSettings): Promise<{
       support_phone: settings.support_phone?.trim() || null,
       support_email: settings.support_email?.trim() || null,
       address: settings.address?.trim() || null,
+      timezone: settings.timezone.trim(),
     })
     .eq("id", locationId)
 
