@@ -321,7 +321,11 @@ export async function sendAdminCredentialsEmail(toEmail: string, password: strin
   const branding = await getEmailBranding(locationId)
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://comforterwash.com"
   const loginUrl = `${siteUrl}/admin/login`
-  const subject = `Your ${branding.businessName} admin login`
+  // Public, ungated copy of the tenant operations manual (app/guide/page.tsx)
+  // -- linked instead of attached as a static PDF so it can never go stale
+  // and never gets clipped by an attachment size/spam-filter limit.
+  const guideUrl = `${siteUrl}/guide`
+  const subject = `Your ${branding.businessName} admin login + operations guide`
   const html = `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
       <h2 style="color:${branding.primaryColor};margin-bottom:12px">Your admin login is ready</h2>
@@ -335,12 +339,56 @@ export async function sendAdminCredentialsEmail(toEmail: string, password: strin
       <a href="${loginUrl}" style="display:inline-block;background:${branding.accentColor};color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:14px">
         Sign In →
       </a>
+      <p style="color:#444;font-size:14px;line-height:1.6;margin-top:28px;margin-bottom:8px">
+        Before your first order, take a few minutes with the operations guide -- it walks through the admin dashboard, driver app, and operator app step by step:
+      </p>
+      <a href="${guideUrl}" style="display:inline-block;color:${branding.accentColor};font-weight:700;font-size:14px;text-decoration:underline">
+        View the Operations Guide →
+      </a>
       <p style="color:#999;font-size:12px;margin-top:28px">
         Didn't request this? You can safely ignore this email.
       </p>
     </div>
   `
   return safeSend({ from: await fromAdmin(locationId), to: [toEmail], subject, html })
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Platform owner alert: a brand-new tenant just signed up and paid
+// (self-signup checkout completed). Fires once per tenant from
+// provisionSelfSignupTenant() -- the platform owner previously had no way
+// of knowing a signup happened except by noticing it in Stripe.
+// ─────────────────────────────────────────────────────────────────
+export async function sendPlatformSignupAlert(data: {
+  businessName: string
+  slug: string
+  contactEmail: string
+  planName: string
+  planPriceCents: number
+  locationId: string
+}) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://comforterwash.com"
+  const adminUrl = `${siteUrl}/super-admin`
+  const priceStr = `$${(data.planPriceCents / 100).toFixed(2)}`
+  const subject = `🎉 New signup: ${data.businessName}`
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:#0D2240;margin-bottom:12px">New tenant signed up</h2>
+      <div style="background:#f7f8fb;border-radius:10px;padding:16px 20px;margin-bottom:24px">
+        <p style="color:#444;font-size:13px;margin:0 0 8px"><strong>Business:</strong> ${data.businessName}</p>
+        <p style="color:#444;font-size:13px;margin:0 0 8px"><strong>Contact email:</strong> ${data.contactEmail}</p>
+        <p style="color:#444;font-size:13px;margin:0 0 8px"><strong>Plan:</strong> ${data.planName} (${priceStr})</p>
+        <p style="color:#444;font-size:13px;margin:0"><strong>Slug:</strong> ${data.slug}</p>
+      </div>
+      <p style="color:#444;font-size:14px;line-height:1.6;margin-bottom:20px">
+        Their admin account and login credentials email were sent automatically. Worth a personal check-in over the next day or two to make sure they actually logged in.
+      </p>
+      <a href="${adminUrl}" style="display:inline-block;background:#0D2240;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:14px">
+        View in Super Admin →
+      </a>
+    </div>
+  `
+  return safeSend({ from: `WashFoldClean <${SEND_DOMAIN}>`, to: [ADMIN_EMAIL], subject, html })
 }
 
 // ─────────────────────────────────────────────────────────────────

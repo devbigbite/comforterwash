@@ -442,6 +442,23 @@ export async function provisionSelfSignupTenant(params: {
     console.error(`[provisionSelfSignupTenant] location ${location.id} created but admin invite failed:`, inviteResult.error)
   }
 
+  // Let the platform owner know a real signup happened — previously the
+  // only way to find out was noticing it in Stripe. Best-effort: a failed
+  // alert email should never block or fail the provisioning itself.
+  try {
+    const { sendPlatformSignupAlert } = await import("@/lib/email")
+    await sendPlatformSignupAlert({
+      businessName: params.businessName,
+      slug,
+      contactEmail: params.contactEmail,
+      planName: params.planName,
+      planPriceCents: params.planPriceCents,
+      locationId: location.id,
+    })
+  } catch (err) {
+    console.error(`[provisionSelfSignupTenant] location ${location.id} created but signup alert failed:`, err)
+  }
+
   return { locationId: location.id }
 }
 
