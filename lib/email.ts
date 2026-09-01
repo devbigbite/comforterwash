@@ -403,6 +403,37 @@ export async function sendPlatformSignupAlert(data: {
   return safeSend({ from: `WashFoldClean <${SEND_DOMAIN}>`, to: [ADMIN_EMAIL], subject, html })
 }
 
+// New self-serve city added under Option B multi-city -- unlike a brand new
+// tenant signup, there's no plan/price yet (billing stays a manual,
+// super-admin-set step, same as every other tenant's first city). Just
+// flags that a new location exists and needs a price set before it can be
+// billed.
+export async function sendNewCityAddedAlert(data: {
+  businessName: string
+  newCityName: string
+  newLocationId: string
+}) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://comforterwash.com"
+  const adminUrl = `${siteUrl}/super-admin`
+  const subject = `🏙️ ${data.businessName} added a new city: ${data.newCityName}`
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:#0D2240;margin-bottom:12px">New city added</h2>
+      <div style="background:#f7f8fb;border-radius:10px;padding:16px 20px;margin-bottom:24px">
+        <p style="color:#444;font-size:13px;margin:0 0 8px"><strong>Existing tenant:</strong> ${data.businessName}</p>
+        <p style="color:#444;font-size:13px;margin:0"><strong>New city:</strong> ${data.newCityName}</p>
+      </div>
+      <p style="color:#444;font-size:14px;line-height:1.6;margin-bottom:20px">
+        This city has no plan price set yet, so it isn't billed. Set a price and send a checkout link from Super Admin to start billing it as its own line item.
+      </p>
+      <a href="${adminUrl}" style="display:inline-block;background:#0D2240;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:14px">
+        Set price in Super Admin →
+      </a>
+    </div>
+  `
+  return safeSend({ from: `WashFoldClean <${SEND_DOMAIN}>`, to: [ADMIN_EMAIL], subject, html })
+}
+
 // ─────────────────────────────────────────────────────────────────
 // 9. Facility: Orders Arrived  (sent when driver completes to_facility run)
 // ─────────────────────────────────────────────────────────────────

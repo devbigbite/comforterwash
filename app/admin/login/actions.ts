@@ -220,3 +220,65 @@ export async function requestAdminMagicLink(email: string): Promise<{ error?: st
 
   return { sent: true }
 }
+
+
+// ── Multi-city switcher ─────────────────────────────────────────────────────
+// A single login can hold a location_users row for more than one location
+// (e.g. a tenant who runs more than one city) -- this lists all of them so
+// the admin nav can offer a switcher only when there's actually more than
+// one to switch between, and lets the user actually switch which one
+// admin_location_id (the cookie that decides which tenant's data every
+// /admin page loads) points at.
+export interface MyLocationOption {
+  id: string
+  name: string
+}
+
+export async function getMyLocations(): Promise<MyLocationOption[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const admin = createAdminClient()
+  const { data: memberships } = await admin
+    .from("location_users")
+    .select("location_id")
+    .eq("user_id", user.id)
+
+  const locationIds = Array.from(new Set((memberships ?? []).map(m => m.location_id)))
+  if (locationIds.length < 2) return []
+
+  const { data: locations } = await admin
+    .from("locations")
+    .select("id, business_name, name")
+    .in("id", locationIds)
+    .order("name")
+
+  return (locations ?? []).map(l => ({ id: l.id, name: l.business_name ?? l.name }))
+}
+
+export async function switchAdminLocation(locationId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not signed in." }
+
+  const admin = createAdminClient()
+  const { data: membership } = await admin
+    .from("location_users")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("location_id", locationId)
+    .maybeSingle()
+  if (!membership) return { error: "You don't have access to that location." }
+
+  const cookieStore = await cookies()
+  cookieStore.set("admin_location_id", locationId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+  })
+
+  redirect("/admin")
+}

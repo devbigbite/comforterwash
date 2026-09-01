@@ -4,8 +4,11 @@ import { AdminLangToggle } from "@/components/admin/admin-lang-toggle"
 import { AdminViewToggle } from "@/components/admin/admin-view-toggle"
 import { NavDropdown } from "@/components/admin/nav-dropdown"
 import { MobileMenu } from "@/components/admin/mobile-menu"
+import { LocationSwitcher } from "@/components/admin/location-switcher"
 import { getAdminLang } from "@/app/actions/admin-lang"
 import { getAdminViewMode, getOperatingMode, type OperatingMode } from "@/app/actions/branding"
+import { getMyLocations } from "@/app/admin/login/actions"
+import { getLocationId } from "@/lib/location"
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 
@@ -33,6 +36,7 @@ function buildSimpleNav(lang: "en" | "es", operatingMode: OperatingMode): NavIte
       ? [{ type: "link" as const, href: "/admin/laundromats", label: es ? "Mis Lavanderías" : "My Laundromats" }]
       : [{ type: "link" as const, href: "/admin/workers", label: es ? "Trabajadores" : "Workers" }]),
     { type: "link", href: "/admin/settings",   label: es ? "Configuración" : "Settings" },
+    { type: "link", href: "/admin/cities",     label: es ? "🏙️ Ciudades" : "🏙️ Cities" },
     { type: "link", href: "/admin/manual",     label: es ? "📖 Manual" : "📖 Manual" },
   ]
 }
@@ -119,6 +123,11 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
     },
     {
       type: "link",
+      href: "/admin/cities",
+      label: es ? "🏙️ Ciudades" : "🏙️ Cities",
+    },
+    {
+      type: "link",
       href: "/admin/manual",
       label: "📖 " + (es ? "Manual" : "Manual"),
     },
@@ -162,7 +171,9 @@ function actAsItems(lang: "en" | "es"): NavLink[] {
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export async function AdminHeader() {
-  const [lang, viewMode, operatingMode] = await Promise.all([getAdminLang(), getAdminViewMode(), getOperatingMode()])
+  const [lang, viewMode, operatingMode, myLocations, locationId] = await Promise.all([
+    getAdminLang(), getAdminViewMode(), getOperatingMode(), getMyLocations(), getLocationId(),
+  ])
   const navItems = viewMode === "simple" ? buildSimpleNav(lang, operatingMode) : buildNav(lang, operatingMode)
 
   return (
@@ -202,6 +213,14 @@ export async function AdminHeader() {
           )
         )}
       </nav>
+
+      {/* City switcher — only shown when this login has more than one
+          location (see getMyLocations); most tenants never see this. */}
+      {myLocations.length > 1 && (
+        <div className="hidden md:flex items-center px-3 shrink-0 border-l border-white/10">
+          <LocationSwitcher locations={myLocations} currentId={locationId} />
+        </div>
+      )}
 
       {/* Act As — own slot, distinct from the rest of the nav */}
       <div className="hidden md:flex items-center px-3 shrink-0 border-l border-white/10">
