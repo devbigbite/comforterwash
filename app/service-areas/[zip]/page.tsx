@@ -119,7 +119,7 @@ export default async function ServiceAreaDetailPage({
         {/* Map */}
         <div className="mb-14">
           <h2 className="text-xl font-extrabold text-[var(--brand-primary)] text-center mb-6">{tr.mapHeading}</h2>
-          <ServiceAreaMap polygon={mapPolygon} approximate={mapIsApproximate} />
+          <ServiceAreaMap polygon={mapPolygon} approximate={mapIsApproximate} businessName={name} />
         </div>
 
         {/* Services available */}

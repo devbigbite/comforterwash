@@ -10,9 +10,13 @@ interface Props {
   // this is an approximate, government-sourced outline, not a hand-picked
   // delivery zone.
   approximate?: boolean
+  // Shown in the popup for a tenant-drawn shape. Was hardcoded to
+  // "WashFold Orlando" for every tenant; defaults to a neutral label if
+  // not passed rather than reintroducing that.
+  businessName?: string
 }
 
-export function ServiceAreaMap({ polygon, approximate = false }: Props) {
+export function ServiceAreaMap({ polygon, approximate = false, businessName = "our" }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<unknown>(null)
 
@@ -41,10 +45,13 @@ export function ServiceAreaMap({ polygon, approximate = false }: Props) {
       const L = (window as any).L
       if (!mapRef.current || mapInstance.current) return
 
+      // No hardcoded default city -- when there's a polygon, fitBounds()
+      // below re-centers on it immediately; this initial view is just the
+      // brief pre-fit frame, so it's kept city-neutral (continental US).
       const map = L.map(mapRef.current, {
         zoomControl: true,
         scrollWheelZoom: false,
-      }).setView([28.48, -81.35], 10)
+      }).setView([39.8, -98.5], 4)
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -73,7 +80,7 @@ export function ServiceAreaMap({ polygon, approximate = false }: Props) {
                     <span style="color:#666;font-size:12px">Approximate — US Census data</span>
                   </div>`
                 : `<div style="font-family:sans-serif;padding:4px 6px">
-                    <strong style="color:#0D2240;font-size:14px">WashFold Orlando</strong><br/>
+                    <strong style="color:#0D2240;font-size:14px">${businessName}</strong><br/>
                     <span style="color:#666;font-size:12px">Service delivery zone</span>
                   </div>`
             ).openPopup()
@@ -90,7 +97,7 @@ export function ServiceAreaMap({ polygon, approximate = false }: Props) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (mapInstance.current) { (mapInstance.current as any).remove(); mapInstance.current = null }
     }
-  }, [polygon, approximate])
+  }, [polygon, approximate, businessName])
 
   if (!polygon) {
     return (

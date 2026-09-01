@@ -5,9 +5,14 @@ import { setServiceAreaPolygon, deleteServiceAreaPolygon } from "@/app/actions/s
 
 interface Props {
   initialPolygon: object | null
+  // Best-effort starting view (this tenant's own city, derived from a ZIP
+  // they've already added) so the map doesn't open on a hardcoded default
+  // city with nothing on it. Null falls back to a neutral, zoomed-out
+  // continental-US view rather than any specific city.
+  initialCenter?: { lat: number; lng: number } | null
 }
 
-export function ServiceAreaEditor({ initialPolygon }: Props) {
+export function ServiceAreaEditor({ initialPolygon, initialCenter }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<unknown>(null)
   const drawnItems = useRef<unknown>(null)
@@ -49,7 +54,10 @@ export function ServiceAreaEditor({ initialPolygon }: Props) {
         const map = L.map(mapRef.current, {
           zoomControl: true,
           scrollWheelZoom: true,
-        }).setView([28.48, -81.35], 10)
+        }).setView(
+          initialCenter ? [initialCenter.lat, initialCenter.lng] : [39.8, -98.5],
+          initialCenter ? 11 : 4
+        )
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',

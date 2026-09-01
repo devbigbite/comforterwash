@@ -51,3 +51,35 @@ export async function getZctaBoundariesForZips(zips: string[]): Promise<object |
     return null
   }
 }
+
+
+/**
+ * Rough centroid (lat/lng) for a single ZIP, used to give admin map tools
+ * a sane starting view for this tenant's own city instead of a hardcoded
+ * default. Averages every ring coordinate of the ZCTA polygon -- not a
+ * true geometric centroid, but plenty precise for "where should the map
+ * open" purposes. Returns null on any failure (invalid ZIP, no boundary
+ * on file, network error).
+ */
+export async function getApproxCenterForZip(zip: string): Promise<{ lat: number; lng: number } | null> {
+  const boundary = await getZctaBoundary(zip) as { features?: Array<{ geometry?: { type?: string; coordinates?: unknown } }> } | null
+  const geometry = boundary?.features?.[0]?.geometry
+  if (!geometry?.coordinates) return null
+
+  // Polygon: [ [ [lng,lat], ... ] ], MultiPolygon: [ [ [ [lng,lat], ... ] ] ]
+  const rings: number[][][] =
+    geometry.type === "MultiPolygon"
+      ? (geometry.coordinates as number[][][][]).flat()
+      : (geometry.coordinates as number[][][])
+
+  let sumLat = 0, sumLng = 0, count = 0
+  for (const ring of rings) {
+    for (const [lng, lat] of ring) {
+      sumLat += lat
+      sumLng += lng
+      count++
+    }
+  }
+  if (count === 0) return null
+  return { lat: sumLat / count, lng: sumLng / count }
+}
