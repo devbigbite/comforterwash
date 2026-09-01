@@ -42,6 +42,15 @@ function fmtTime(isoStr: string) {
   return new Date(isoStr).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
 }
 
+// "8-28-2026" -- local calendar date (see toLocalInputValue's note on why
+// this can't be sliced off the raw ISO string directly).
+function fmtDateShort(isoStr: string) {
+  const local = toLocalInputValue(isoStr)
+  if (!local) return ""
+  const [y, m, d] = local.slice(0, 10).split("-")
+  return `${parseInt(m, 10)}-${parseInt(d, 10)}-${y}`
+}
+
 // Convert a stored UTC ISO timestamp into the value a <input type="datetime-local">
 // needs to *display the correct local time* — datetime-local always shows/edits in
 // the browser's local timezone, so we have to do the UTC→local conversion by hand
@@ -1206,53 +1215,19 @@ function AdminScheduleInner() {
                               </div>
                             )
 
-                            // Overnight shift: clock-out lands on a different calendar day
-                            // than clock-in (e.g. 10:59 PM -> 1:29 AM). This is the normal
-                            // shape of an operator's shift, not an edge case, so it gets its
-                            // own clear visual instead of a faint date easy to miss.
-                            const inDate  = toLocalInputValue(punch.clocked_in_at).slice(0, 10)
-                            const outDate = punch.clocked_out_at ? toLocalInputValue(punch.clocked_out_at).slice(0, 10) : null
-                            const isOvernight = outDate !== null && outDate !== inDate
-
                             return (
                               <div key={punch.id} className="flex items-center gap-4 px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm">
-                                <div className="w-28 shrink-0 flex flex-col gap-1">
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold capitalize w-fit ${ROLE_COLOR[punch.role]}`}>
-                                    {punch.role}
-                                  </span>
-                                  {/* Quick-scan signal at the front of the row -- catches the
-                                      eye before anyone has to compare the two date columns. */}
-                                  {isOvernight && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold w-fit bg-indigo-50 text-indigo-600 border border-indigo-200">
-                                      🌙 Overnight
-                                    </span>
-                                  )}
+                                {/* Full date + time on both sides, always -- no separate role
+                                    column, no relying on a badge to notice a shift crosses
+                                    midnight. "8-28-2026 10:00 PM  to  8-29-2026 3:00 AM" reads
+                                    correctly on its own with nothing to compare against. */}
+                                <div className="w-48 shrink-0 text-gray-700 font-semibold tabular-nums">
+                                  {fmtDateShort(punch.clocked_in_at)} {fmtTime(punch.clocked_in_at)}
                                 </div>
-                                <div className="w-32 shrink-0 text-gray-500 text-xs tabular-nums">
-                                  {/* Use the local calendar date, not the raw UTC date from
-                                      the ISO string — a 10:30 PM Eastern clock-in is already
-                                      past midnight UTC, so splitting the ISO string directly
-                                      shows the *next* day and looks wrong next to the time. */}
-                                  {inDate}
-                                </div>
-                                <div className="w-24 shrink-0 text-gray-700 tabular-nums">
-                                  {fmtTime(punch.clocked_in_at)}
-                                </div>
-                                <div className="w-4 shrink-0 text-gray-300 text-center">→</div>
-                                <div className="w-32 shrink-0 tabular-nums">
+                                <div className="w-6 shrink-0 text-gray-300 text-center text-xs">to</div>
+                                <div className="w-48 shrink-0 tabular-nums">
                                   {punch.clocked_out_at
-                                    ? (
-                                      <span className="text-gray-700 flex items-center gap-1.5">
-                                        {fmtTime(punch.clocked_out_at)}
-                                        {/* A solid colored "next day" badge, not faint gray text
-                                            underneath -- the thing that was easy to miss before. */}
-                                        {isOvernight && (
-                                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 whitespace-nowrap">
-                                            next day · {outDate!.slice(5, 10)}
-                                          </span>
-                                        )}
-                                      </span>
-                                    )
+                                    ? <span className="text-gray-700 font-semibold">{fmtDateShort(punch.clocked_out_at)} {fmtTime(punch.clocked_out_at)}</span>
                                     : <span className="text-green-500 font-bold text-xs">Active ●</span>}
                                 </div>
                                 <div className="w-16 shrink-0 font-bold text-[#0D2240] tabular-nums leading-tight">
