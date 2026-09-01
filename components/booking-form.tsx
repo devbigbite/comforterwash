@@ -120,7 +120,7 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
-export function BookingForm({ topSlot }: { topSlot?: ReactNode } = {}) {
+export function BookingForm({ topSlot, timezone }: { topSlot?: ReactNode; timezone?: string } = {}) {
   const { translations: tr, locale } = useLang()
   const tf = tr.form
   // Detergent/extra/accessory names & descriptions are admin-entered per option
@@ -352,7 +352,7 @@ export function BookingForm({ topSlot }: { topSlot?: ReactNode } = {}) {
   const isExcluded = (d: Date) => excludedDates.has(d.toISOString().split("T")[0])
 
   const isPickupAvailable = (d: Date) => {
-    if (isExcluded(d) || !isOnOrAfterMinPickup(d)) return false
+    if (isExcluded(d) || !isOnOrAfterMinPickup(d, timezone)) return false
     if (activeRoutes.length === 0) {
       // No routes yet — fall back to Mon/Tue/Wed
       const day = d.getDay(); return day === 1 || day === 2 || day === 3

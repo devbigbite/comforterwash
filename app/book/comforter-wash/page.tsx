@@ -4,7 +4,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServicesConfig, getMonthlyPlanEnabled } from "@/app/actions/settings"
 import { getPricingConfig, getWashFoldBagConfig } from "@/app/actions/pricing"
-import { getBranding } from "@/lib/location"
+import { getBranding, getLocationTimezone } from "@/lib/location"
 
 export async function generateMetadata() {
   const branding = await getBranding()
@@ -15,7 +15,7 @@ export async function generateMetadata() {
 }
 
 export default async function ComforterWashPage() {
-  const [services, pricing, washFoldBagConfig, monthlyPlanEnabled] = await Promise.all([getServicesConfig(), getPricingConfig(), getWashFoldBagConfig(), getMonthlyPlanEnabled()])
+  const [services, pricing, washFoldBagConfig, monthlyPlanEnabled, timezone] = await Promise.all([getServicesConfig(), getPricingConfig(), getWashFoldBagConfig(), getMonthlyPlanEnabled(), getLocationTimezone()])
   if (!services.comforter_wash) redirect("/")
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
@@ -39,7 +39,7 @@ export default async function ComforterWashPage() {
         </div>
       </header>
 
-      <ServiceSwitcher defaultService="comforter_wash" services={services} pricing={pricing} washFoldBagConfig={washFoldBagConfig} monthlyPlanEnabled={monthlyPlanEnabled} />
+      <ServiceSwitcher defaultService="comforter_wash" services={services} pricing={pricing} washFoldBagConfig={washFoldBagConfig} monthlyPlanEnabled={monthlyPlanEnabled} timezone={timezone} />
     </main>
   )
 }

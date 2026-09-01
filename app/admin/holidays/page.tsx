@@ -99,7 +99,7 @@ export default async function HolidaysPage() {
   const timezone = await getLocationTimezone()
 
   const existingDates = new Set(exclusions.map(e => e.date))
-  const today = todayET()
+  const today = todayET(timezone)
   const upcoming = exclusions.filter(e => e.date >= today)
   const past = exclusions.filter(e => e.date < today)
 

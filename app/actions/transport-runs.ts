@@ -173,7 +173,7 @@ export async function createTransportRun(formData: FormData) {
 
     const orderSummary = `${orderIds.length} order${orderIds.length !== 1 ? "s" : ""} · assigned to ${assignedTo}`
 
-    const today = todayET()
+    const today = todayET(await getLocationTimezone(locationId))
 
     const shipdayOrderId = await createShipdayRunOrder(
       {

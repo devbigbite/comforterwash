@@ -2,7 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import { getLocationId, getShipdayConfig, getBranding } from "@/lib/location"
+import { getLocationId, getShipdayConfig, getBranding, getLocationTimezone } from "@/lib/location"
 import { sendBookingNotification } from "@/lib/sms"
 import { createShipdayOrder } from "@/lib/shipday"
 import { format } from "date-fns"
@@ -495,7 +495,7 @@ export async function getBookingsByDate(date: string) {
 export async function getUpcomingDates() {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
-  const today = todayET()
+  const today = todayET(await getLocationTimezone(locationId))
 
   const { data: pickupDates, error: pickupError } = await supabase
     .from("bookings")

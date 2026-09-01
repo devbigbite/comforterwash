@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { getBookings } from "@/app/actions/bookings"
 import { getFulfillmentMode } from "@/app/actions/walkin"
 import { getMyBillingStatus } from "@/app/actions/platform-billing"
-import { getBranding, getLocationId, ORLANDO_LOCATION_ID, DEFAULT_BRANDING } from "@/lib/location"
+import { getBranding, getLocationId, getLocationTimezone, ORLANDO_LOCATION_ID, DEFAULT_BRANDING } from "@/lib/location"
 import { getAdminViewMode, getOperatingModeConfirmed } from "@/app/actions/branding"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { todayET } from "@/lib/pickup-cutoff"
@@ -60,7 +60,7 @@ export default async function AdminHub() {
   const [bookings, branding, fulfillmentMode, billingStatus, locationId, viewMode] = await Promise.all([
     getBookings(), getBranding(), getFulfillmentMode(), getMyBillingStatus(), getLocationId(), getAdminViewMode(),
   ])
-  const today = todayET()
+  const today = todayET(await getLocationTimezone(locationId))
   const showWalkin = fulfillmentMode === "walkin" || fulfillmentMode === "both"
   const isOrlando = locationId === ORLANDO_LOCATION_ID
 

@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import Link from "next/link"
 import { FacilityAccessWindowsEditor, type AccessWindow } from "@/components/admin/FacilityAccessWindowsEditor"
@@ -247,11 +247,11 @@ const STORAGE_LABEL: Record<number, { label: string; color: string }> = {
 
 export default async function FacilitiesPage() {
   await requireAdmin()
-  // Eastern, like the rest of the app — a UTC date rolls over at 8pm ET and
-  // would prefill tomorrow.
-  const payoutPeriodTo   = todayET()
-  const payoutPeriodFrom = `${payoutPeriodTo.slice(0, 7)}-01`
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  // Tenant-local date — a UTC date can roll over hours before or after the
+  // tenant's own evening, prefilling the wrong month.
+  const payoutPeriodTo   = todayET(await getLocationTimezone(locationId))
+  const payoutPeriodFrom = `${payoutPeriodTo.slice(0, 7)}-01`
   const [{ data: facilities }, { data: allWindows }, { data: allStorageSpaces }, { data: allEntryWindows }, { data: allPayouts }] = await Promise.all([
     supabase.from("facilities").select("*, machine_groups(count)").eq("location_id", locationId).order("name"),
     supabase.from("facility_access_windows").select("*").eq("location_id", locationId).eq("active", true).order("start_time"),

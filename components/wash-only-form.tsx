@@ -112,7 +112,7 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
   )
 }
 
-export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: PricingConfig; topSlot?: ReactNode }) {
+export function WashOnlyForm({ initialPricing, topSlot, timezone }: { initialPricing?: PricingConfig; topSlot?: ReactNode; timezone?: string }) {
   const { translations: tr, locale } = useLang()
   const tf = tr.form
   const tw = tr.washFoldForm
@@ -298,7 +298,7 @@ export function WashOnlyForm({ initialPricing, topSlot }: { initialPricing?: Pri
   const isExcluded = (d: Date) => excludedDates.has(d.toISOString().split("T")[0])
 
   const isPickupAvailable = (d: Date) => {
-    if (isExcluded(d) || !isOnOrAfterMinPickup(d)) return false
+    if (isExcluded(d) || !isOnOrAfterMinPickup(d, timezone)) return false
     if (activeRoutes.length === 0) {
       const day = d.getDay(); return day === 1 || day === 2 || day === 3
     }

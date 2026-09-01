@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { requireAdmin } from "@/lib/auth-guard"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { FacilityPayoutForms } from "@/components/admin/FacilityPayoutForms"
 import { PAYMENT_METHOD_LABEL } from "@/lib/facility-payment-methods"
@@ -23,6 +23,7 @@ export default async function FacilityPaymentsPage() {
 
   const supabase  = createAdminClient()
   const locationId = await getLocationId()
+  const tz = await getLocationTimezone(locationId)
 
   const { data: facilities } = await supabase
     .from("facilities")
@@ -85,7 +86,7 @@ export default async function FacilityPaymentsPage() {
   // todayET, not new Date().toISOString() — the server runs in UTC, so after
   // 8pm Eastern a raw toISOString() date is already "tomorrow" and the
   // prefilled Period To would sit a day ahead of the operator's actual date.
-  const defaultTo   = todayET()
+  const defaultTo   = todayET(tz)
   const defaultFrom = `${defaultTo.slice(0, 7)}-01`
 
   return (

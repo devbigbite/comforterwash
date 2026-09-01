@@ -4,7 +4,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServicesConfig, getMonthlyPlanEnabled } from "@/app/actions/settings"
 import { getPricingConfig, getWashFoldBagConfig } from "@/app/actions/pricing"
-import { getBranding } from "@/lib/location"
+import { getBranding, getLocationTimezone } from "@/lib/location"
 
 export const dynamic = "force-dynamic"
 
@@ -17,7 +17,7 @@ export async function generateMetadata() {
 }
 
 export default async function WashOnlyPage() {
-  const [services, pricing, washFoldBagConfig, monthlyPlanEnabled] = await Promise.all([getServicesConfig(), getPricingConfig(), getWashFoldBagConfig(), getMonthlyPlanEnabled()])
+  const [services, pricing, washFoldBagConfig, monthlyPlanEnabled, timezone] = await Promise.all([getServicesConfig(), getPricingConfig(), getWashFoldBagConfig(), getMonthlyPlanEnabled(), getLocationTimezone()])
   if (!services.wash_only) redirect("/")
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
@@ -40,7 +40,7 @@ export default async function WashOnlyPage() {
         </div>
       </header>
 
-      <ServiceSwitcher defaultService="wash_only" services={services} pricing={pricing} washFoldBagConfig={washFoldBagConfig} monthlyPlanEnabled={monthlyPlanEnabled} />
+      <ServiceSwitcher defaultService="wash_only" services={services} pricing={pricing} washFoldBagConfig={washFoldBagConfig} monthlyPlanEnabled={monthlyPlanEnabled} timezone={timezone} />
     </main>
   )
 }

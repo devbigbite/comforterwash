@@ -220,7 +220,7 @@ function WeekdayPicker({
 }
 
 // ─── main component ───────────────────────────────────────────────────────────
-export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnabled }: { initialPricing?: PricingConfig; topSlot?: ReactNode; initialMonthlyPlanEnabled?: boolean }) {
+export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnabled, timezone }: { initialPricing?: PricingConfig; topSlot?: ReactNode; initialMonthlyPlanEnabled?: boolean; timezone?: string }) {
   const { translations: tr, locale } = useLang()
   const tf = tr.form
   const tw = tr.washFoldForm
@@ -472,7 +472,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   const isWeekday  = (d: Date) => d.getDay() >= 1 && d.getDay() <= 5
 
   const isPickupAvailable = (d: Date) => {
-    if (isExcluded(d) || !isOnOrAfterMinPickup(d)) return false
+    if (isExcluded(d) || !isOnOrAfterMinPickup(d, timezone)) return false
     if (activeRoutes.length === 0) return isWeekday(d)
     return isPickupDay(d, activeRoutes)
   }

@@ -1,7 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { todayET } from "@/lib/date-et"
 
 /**
@@ -12,11 +12,12 @@ import { todayET } from "@/lib/date-et"
  */
 export async function getExcludedDates(): Promise<string[]> {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const tz = await getLocationTimezone(locationId)
   const { data } = await supabase
     .from("holiday_exclusions")
     .select("date, date_to")
     .eq("location_id", locationId)
-    .gte("date", todayET())
+    .gte("date", todayET(tz))
 
   const excluded: string[] = []
 
@@ -55,8 +56,8 @@ export async function getExcludedDates(): Promise<string[]> {
     .eq("id", locationId)
     .single()
 
-  if (loc?.first_available_pickup_date && loc.first_available_pickup_date > todayET()) {
-    const cur = new Date(todayET() + "T00:00:00")
+  if (loc?.first_available_pickup_date && loc.first_available_pickup_date > todayET(tz)) {
+    const cur = new Date(todayET(tz) + "T00:00:00")
     const firstAvailable = new Date(loc.first_available_pickup_date + "T00:00:00")
     while (cur < firstAvailable) {
       excluded.push(cur.toISOString().split("T")[0])
@@ -70,7 +71,7 @@ export async function getExcludedDates(): Promise<string[]> {
       .select("pickup_date")
       .eq("location_id", locationId)
       .neq("status", "cancelled")
-      .gte("pickup_date", todayET())
+      .gte("pickup_date", todayET(tz))
 
     if (counts) {
       const byDate = new Map<string, number>()
