@@ -30,11 +30,13 @@ export function ServiceSwitcher({
   services,
   pricing,
   washFoldBagConfig,
+  monthlyPlanEnabled,
 }: {
   defaultService: ServiceKey
   services: ServicesConfig
   pricing: PricingConfig
   washFoldBagConfig?: WashFoldBagConfig
+  monthlyPlanEnabled?: boolean
 }) {
   const [service, setService] = useState<ServiceKey>(defaultService)
   const available = (Object.keys(SERVICE_META) as ServiceKey[]).filter(k => services[k])
@@ -101,7 +103,7 @@ export function ServiceSwitcher({
           step, so it moved down into the card where the actual choice
           happens. */}
       <div className="mx-auto max-w-2xl px-4 py-10">
-        {service === "wash_fold" && <WashFoldForm initialPricing={pricing} topSlot={picker} />}
+        {service === "wash_fold" && <WashFoldForm initialPricing={pricing} topSlot={picker} initialMonthlyPlanEnabled={monthlyPlanEnabled} />}
         {service === "wash_only" && (
           <>
             <WashOnlyInfoBox />

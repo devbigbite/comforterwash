@@ -220,7 +220,7 @@ function WeekdayPicker({
 }
 
 // ─── main component ───────────────────────────────────────────────────────────
-export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: PricingConfig; topSlot?: ReactNode }) {
+export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnabled }: { initialPricing?: PricingConfig; topSlot?: ReactNode; initialMonthlyPlanEnabled?: boolean }) {
   const { translations: tr, locale } = useLang()
   const tf = tr.form
   const tw = tr.washFoldForm
@@ -273,7 +273,7 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [serviceMode, setServiceMode] = useState<"paygo" | "subscription">("paygo")
   const [subscribeType, setSubscribeType] = useState<"weekly" | "biweekly" | "monthly">("weekly")
-  const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState(true)
+  const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState(initialMonthlyPlanEnabled ?? true)
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "",
     pickupStreet: "", pickupUnit: "", pickupCity: "", pickupState: "FL", pickupZip: "",
@@ -386,7 +386,11 @@ export function WashFoldForm({ initialPricing, topSlot }: { initialPricing?: Pri
   useEffect(() => {
     getExcludedDates().then(dates => setExcludedDates(new Set(dates)))
     getActiveRoutes().then(setActiveRoutes)
-    getMonthlyPlanEnabled().then(setMonthlyPlanEnabled)
+    // Only re-fetch client-side when the caller didn't already pass the
+    // server-resolved value -- re-running this unconditionally on every
+    // mount is what caused the Monthly plan card to flash true, then
+    // disappear a beat later for any tenant with it turned off.
+    if (initialMonthlyPlanEnabled === undefined) getMonthlyPlanEnabled().then(setMonthlyPlanEnabled)
     getComforterPromo().then(setComforterPromo)
     getDeliveryFeeSettings().then(s => setFeeConfig(s))
     getTipsEnabled().then(setTipsEnabled)

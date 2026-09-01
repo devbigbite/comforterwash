@@ -2,7 +2,7 @@ import { ServiceSwitcher } from "@/components/service-switcher"
 import { LangToggle } from "@/components/lang-toggle"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getServicesConfig } from "@/app/actions/settings"
+import { getServicesConfig, getMonthlyPlanEnabled } from "@/app/actions/settings"
 import { getPricingConfig, getWashFoldBagConfig } from "@/app/actions/pricing"
 import { getBranding } from "@/lib/location"
 
@@ -17,7 +17,7 @@ export async function generateMetadata() {
 }
 
 export default async function WashOnlyPage() {
-  const [services, pricing, washFoldBagConfig] = await Promise.all([getServicesConfig(), getPricingConfig(), getWashFoldBagConfig()])
+  const [services, pricing, washFoldBagConfig, monthlyPlanEnabled] = await Promise.all([getServicesConfig(), getPricingConfig(), getWashFoldBagConfig(), getMonthlyPlanEnabled()])
   if (!services.wash_only) redirect("/")
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
@@ -40,7 +40,7 @@ export default async function WashOnlyPage() {
         </div>
       </header>
 
-      <ServiceSwitcher defaultService="wash_only" services={services} pricing={pricing} washFoldBagConfig={washFoldBagConfig} />
+      <ServiceSwitcher defaultService="wash_only" services={services} pricing={pricing} washFoldBagConfig={washFoldBagConfig} monthlyPlanEnabled={monthlyPlanEnabled} />
     </main>
   )
 }
