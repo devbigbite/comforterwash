@@ -1,8 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
-import { PlatformHoursEditor } from "@/components/admin/platform-hours-editor"
+import { SupportHoursEditor } from "@/components/admin/support-hours-editor"
 import { todayET } from "@/lib/date-et"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 
 async function addHoliday(formData: FormData) {
@@ -70,16 +70,33 @@ export default async function HolidaysPage() {
   if (exclusionsError) console.error("[admin/holidays] Failed to load exclusions:", exclusionsError.message)
   const exclusions = exclusionsData ?? []
 
-  // Load saved platform hours from settings
+  // Load saved support hours from settings -- new key ("support_hours"),
+  // falling back to the old "platform_hours" key so a tenant who already
+  // configured hours under the old concept doesn't lose that data (see
+  // migration note in app/api/admin/support-hours/route.ts).
   const { data: hoursSetting } = await supabase
     .from("settings")
     .select("value")
-    .eq("key", "platform_hours")
+    .eq("key", "support_hours")
     .eq("location_id", locationId)
     .single()
 
-  let savedHours = null
-  try { savedHours = hoursSetting?.value ? JSON.parse(hoursSetting.value) : null } catch { /* ignore */ }
+  let savedHoursValue: { enabled: boolean; hours: Record<string, { open: boolean; start: string; end: string }> } | null = null
+  try { savedHoursValue = hoursSetting?.value ? JSON.parse(hoursSetting.value) : null } catch { /* ignore */ }
+
+  if (!savedHoursValue) {
+    const { data: legacyHoursSetting } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "platform_hours")
+      .eq("location_id", locationId)
+      .single()
+    try {
+      if (legacyHoursSetting?.value) savedHoursValue = { enabled: false, hours: JSON.parse(legacyHoursSetting.value) }
+    } catch { /* ignore */ }
+  }
+
+  const timezone = await getLocationTimezone()
 
   const existingDates = new Set(exclusions.map(e => e.date))
   const today = todayET()
@@ -90,11 +107,15 @@ export default async function HolidaysPage() {
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold text-[#0D2240]">Schedule & Availability</h1>
-        <p className="text-sm text-gray-400 mt-1">Control blocked dates and platform operating hours.</p>
+        <p className="text-sm text-gray-400 mt-1">Control blocked dates and manage your customer service hours.</p>
       </div>
 
-      {/* ── Platform Hours ──────────────────────────────────────────────── */}
-      <PlatformHoursEditor initialHours={savedHours} />
+      {/* ── Customer Service Hours ──────────────────────────────────────── */}
+      <SupportHoursEditor
+        initialEnabled={savedHoursValue?.enabled ?? false}
+        initialHours={savedHoursValue?.hours ?? null}
+        timezone={timezone}
+      />
 
       {/* ── Quick-add Holidays ──────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
