@@ -265,12 +265,39 @@ export async function resendDemoGuideEmail(requestId: string) {
 // Reuses the same public/guide.pdf → HTTP-fetch → attach approach as the
 // initial demo-guide email, for the same reason (serverless filesystem
 // access to public/ is unreliable; the CDN URL always works).
-function guideAnnouncementHtml(firstName: string, guideUrl: string): string {
+function guideAnnouncementHtml(firstName: string, guideUrl: string, lang: "en" | "es"): string {
+  if (lang === "es") {
+    return `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#333">
+      <p style="font-size:15px;line-height:1.6">Hola ${firstName},</p>
+      <p style="font-size:15px;line-height:1.6">
+        Actualización rápida — acabo de armar una guía mucho más detallada de cómo funciona WashFoldKit día a
+        día: el panel de administración (tanto la vista simple como el juego de herramientas completo), las apps
+        de conductor y operador que tu equipo usaría en el campo, y el sitio de reservas para clientes. Va paso a
+        paso por las pantallas reales, no solo una lista de funciones.
+      </p>
+      <div style="text-align:center;margin:24px 0">
+        <a href="${guideUrl}" style="display:inline-block;background:#E8726A;color:white;font-weight:800;font-size:14px;text-decoration:none;padding:12px 28px;border-radius:999px;text-transform:uppercase;letter-spacing:0.5px">
+          Leer la Guía →
+        </a>
+        <p style="color:#999;font-size:12px;margin:14px 0 0">${guideUrl}</p>
+      </div>
+      <p style="font-size:15px;line-height:1.6">
+        También adjunté una copia en PDF a este correo, por si es más fácil de revisar desde tu teléfono o
+        reenviarla a un socio de negocio.
+      </p>
+      <p style="font-size:15px;line-height:1.6;margin-top:20px">
+        ¿Preguntas después de leerla? Solo responde aquí, o escríbeme por WhatsApp al 407-734-0888.
+      </p>
+      <p style="font-size:14px;color:#888;margin-top:24px">— JB<br><span style="font-size:12px;color:#aaa">Fundador, WashFoldKit</span></p>
+    </div>
+  `
+  }
   return `
     <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#333">
       <p style="font-size:15px;line-height:1.6">Hi ${firstName},</p>
       <p style="font-size:15px;line-height:1.6">
-        Quick update — we just put together a much more detailed guide to how WashFoldClean actually works day to
+        Quick update — I just put together a much more detailed guide to how WashFoldKit actually works day to
         day: the admin dashboard (both the simple view and the full toolset), the driver and operator apps your team
         would use out in the field, and the customer booking site. It walks through the real screens step by step,
         not just a feature list.
@@ -286,14 +313,15 @@ function guideAnnouncementHtml(firstName: string, guideUrl: string): string {
         business partner.
       </p>
       <p style="font-size:15px;line-height:1.6;margin-top:20px">
-        Any questions after reading through it — just reply here.
+        Any questions after reading through it — just reply here, or reach me on WhatsApp at 407-734-0888.
       </p>
-      <p style="font-size:14px;color:#888;margin-top:24px">— The WashFoldClean Team</p>
+      <p style="font-size:14px;color:#888;margin-top:24px">— JB<br><span style="font-size:12px;color:#aaa">Founder, WashFoldKit</span></p>
     </div>
   `
 }
 
-export async function sendGuideAnnouncementEmail(params: { name: string; email: string }) {
+export async function sendGuideAnnouncementEmail(params: { name: string; email: string; language?: "en" | "es" }) {
+  const lang: "en" | "es" = params.language === "es" ? "es" : "en"
   const firstName = params.name.trim().split(" ")[0] || params.name
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.comforterwash.com"
   const guideUrl = `${siteUrl}/guide`
@@ -303,17 +331,21 @@ export async function sendGuideAnnouncementEmail(params: { name: string; email: 
     const res = await fetch(`${siteUrl}/guide.pdf`)
     if (!res.ok) throw new Error(`Fetch failed: ${res.status}`)
     const pdfBuffer = Buffer.from(await res.arrayBuffer())
-    attachments = [{ filename: "WashFoldClean-Platform-Guide.pdf", content: pdfBuffer }]
+    attachments = [{ filename: "WashFoldKit-Platform-Guide.pdf", content: pdfBuffer }]
   } catch (err) {
     console.error("[platform-demo-email] Could not attach guide PDF:", err)
   }
 
+  const subject = lang === "es"
+    ? `${firstName}, aquí tienes una mirada más profunda a cómo funciona WashFoldKit`
+    : `${firstName}, here's a deeper look at how WashFoldKit works`
+
   const result = await resend.emails.send({
-    from: `WashFoldClean <${SEND_ADDRESS}>`,
+    from: `WashFoldKit <${SEND_ADDRESS}>`,
     to: [params.email],
     replyTo: SEND_ADDRESS,
-    subject: `${firstName}, here's a deeper look at how WashFoldClean works`,
-    html: guideAnnouncementHtml(firstName, guideUrl),
+    subject,
+    html: guideAnnouncementHtml(firstName, guideUrl, lang),
     ...(attachments ? { attachments } : {}),
   })
 
@@ -333,12 +365,12 @@ export async function sendGuideAnnouncementToAllLeads(): Promise<{ checked: numb
 
   const { data: leads } = await supabase
     .from("platform_demo_requests")
-    .select("id, name, email, status")
+    .select("id, name, email, status, preferred_language")
     .in("status", ["new", "contacted", "demo_viewed", "negotiating"])
 
   for (const lead of leads ?? []) {
     try {
-      const result = await sendGuideAnnouncementEmail({ name: lead.name, email: lead.email })
+      const result = await sendGuideAnnouncementEmail({ name: lead.name, email: lead.email, language: lead.preferred_language === "es" ? "es" : "en" })
       if (result.error) { errors.push(`${lead.email}: ${result.error}`); continue }
       const { logAutomatedActivity } = await import("@/app/actions/platform-demo-activities")
       await logAutomatedActivity(lead.id, "email_sent", "Guide announcement email sent")
