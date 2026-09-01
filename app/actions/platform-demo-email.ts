@@ -348,6 +348,36 @@ export async function sendGuideAnnouncementToAllLeads(): Promise<{ checked: numb
   return { checked: leads?.length ?? 0, sent, errors }
 }
 
+// One-off bulk resend — the personalized demo-guide email (founder note,
+// support pillars, WhatsApp) to every lead still active in the funnel
+// (won/lost excluded, same filter as sendGuideAnnouncementToAllLeads).
+// Reuses resendDemoGuideEmail per lead so language and demo-site lookup
+// stay identical to a single manual "Resend guide" click -- this is just
+// that same action, looped.
+export async function sendDemoGuideToAllActiveLeads(): Promise<{ checked: number; sent: number; errors: string[] }> {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+  const errors: string[] = []
+  let sent = 0
+
+  const { data: leads } = await supabase
+    .from("platform_demo_requests")
+    .select("id, email")
+    .in("status", ["new", "contacted", "demo_viewed", "negotiating"])
+
+  for (const lead of leads ?? []) {
+    try {
+      const result = await resendDemoGuideEmail(lead.id)
+      if ("error" in result) { errors.push(`${lead.email}: ${result.error}`); continue }
+      sent++
+    } catch (err) {
+      errors.push(`${lead.email}: ${err instanceof Error ? err.message : "unknown error"}`)
+    }
+  }
+
+  return { checked: leads?.length ?? 0, sent, errors }
+}
+
 // ── Automated follow-up sequence ──────────────────────────────────────────
 // Runs daily off a cron job (see app/api/cron/demo-follow-ups/route.ts), not
 // from the UI. A lead that's gone quiet after the initial demo email gets up

@@ -7,7 +7,7 @@ import {
   type PlatformDemoRequest,
 } from "@/app/actions/platform-demo-requests"
 import { DEMO_REQUEST_STAGES, type DemoRequestStatus } from "@/lib/demo-request-stages"
-import { resendDemoGuideEmail, sendGuideAnnouncementToAllLeads } from "@/app/actions/platform-demo-email"
+import { resendDemoGuideEmail, sendGuideAnnouncementToAllLeads, sendDemoGuideToAllActiveLeads } from "@/app/actions/platform-demo-email"
 import { sendSignupLinkToLead } from "@/app/actions/platform-billing"
 import { enterTenantAdmin } from "@/app/actions/super-admin"
 import { ActivityPanel } from "./activity-panel"
@@ -43,6 +43,9 @@ export default function DemoRequestsPage() {
   const [guideSending, setGuideSending] = useState(false)
   const [guideResult, setGuideResult] = useState<string | null>(null)
   const [guideConfirming, setGuideConfirming] = useState(false)
+  const [demoGuideSending, setDemoGuideSending] = useState(false)
+  const [demoGuideResult, setDemoGuideResult] = useState<string | null>(null)
+  const [demoGuideConfirming, setDemoGuideConfirming] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -114,6 +117,18 @@ export default function DemoRequestsPage() {
     )
   }
 
+  async function handleSendDemoGuideToAll() {
+    setDemoGuideSending(true)
+    setDemoGuideResult(null)
+    const result = await sendDemoGuideToAllActiveLeads()
+    setDemoGuideSending(false)
+    setDemoGuideConfirming(false)
+    setDemoGuideResult(
+      `Sent to ${result.sent} of ${result.checked} active leads.` +
+      (result.errors.length ? ` ${result.errors.length} failed: ${result.errors.join("; ")}` : "")
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 text-slate-400 text-sm">
@@ -166,6 +181,39 @@ export default function DemoRequestsPage() {
             </div>
           )}
           {guideResult && <p className="text-xs text-slate-500 mt-2 max-w-xs">{guideResult}</p>}
+</div>
+
+        {/* One-off catch-up — the new personalized demo-guide email (founder
+            note, support pillars, WhatsApp) resent to every lead still
+            active in the funnel. Same filter/exclusions as the guide
+            announcement above (won/lost excluded); Cassandra/Perfect Spin
+            is "won" so she's excluded automatically, and non-lead tenants
+            like Fabiola/Homefront were never in this table to begin with. */}
+        <div className="shrink-0 text-right">
+          {!demoGuideConfirming ? (
+            <button
+              onClick={() => { setDemoGuideConfirming(true); setDemoGuideResult(null) }}
+              className="text-sm font-medium text-white bg-[#0D2240] hover:bg-[#132c54] rounded-lg px-4 py-2 transition-colors"
+            >
+              🚀 Resend New Demo Email to All Active Leads
+            </button>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm max-w-xs">
+              <p className="text-amber-800 font-medium mb-2">
+                Resend the updated demo-guide email (founder note + support pillars) to
+                {" "}{requests.filter(r => ACTIVE_STAGES.includes(r.status)).length} active leads?
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setDemoGuideConfirming(false)} className="text-slate-500 hover:text-slate-700 px-2 py-1">Cancel</button>
+                <button
+                  onClick={handleSendDemoGuideToAll}
+                  disabled={demoGuideSending}
+                  className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold px-3 py-1 rounded-lg"
+                >{demoGuideSending ? "Sending…" : "Confirm Send"}</button>
+              </div>
+            </div>
+          )}
+          {demoGuideResult && <p className="text-xs text-slate-500 mt-2 max-w-xs">{demoGuideResult}</p>}
         </div>
       </div>
 
