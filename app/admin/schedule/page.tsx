@@ -16,6 +16,7 @@ import {
   } from "@/app/actions/staff"
 import { minutesBetween, formatDuration, decimalHours } from "@/lib/staff-utils"
 import type { TimePunch, ScheduledShift, ActiveWorker } from "@/app/actions/staff"
+import { CircularTimePicker, timeValueFrom24h, timeValueTo24h } from "@/components/admin/circular-time-picker"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,10 @@ function AdminScheduleInner() {
   })
   const [shiftSaving, setShiftSaving] = useState(false)
   const [shiftError, setShiftError]   = useState<string | null>(null)
+  // Actual clocked minutes per worker for the visible week, keyed by
+  // worker_name -- lets the schedule grid show "worked / scheduled" per
+  // person instead of only what was scheduled.
+  const [actualMinsByWorker, setActualMinsByWorker] = useState<Record<string, number>>({})
 
   // ── Time Sheet state ───────────────────────────────────────────────────────
   const [tsFrom, setTsFrom]       = useState(() => getMondayOf(new Date()))
@@ -138,6 +143,9 @@ function AdminScheduleInner() {
   const [editPunchId, setEditPunchId] = useState<string | null>(null)
   const [editForm, setEditForm]   = useState({ clockedInAt: "", clockedOutAt: "", breakMinutes: "0", miles: "" })
   const [deletePunchId, setDeletePunchId] = useState<string | null>(null)
+  // Which side of the currently-edited punch (if any) has the circular clock
+  // picker open -- only one at a time, keyed by which field it edits.
+  const [clockPickerFor, setClockPickerFor] = useState<"clockedInAt" | "clockedOutAt" | null>(null)
   const [deletingPunch, setDeletingPunch] = useState(false)
   // Time Sheet is grouped by worker (one collapsible section per person) so an
   // admin can scan one person's week at a time instead of re-reading the name
@@ -166,9 +174,21 @@ function AdminScheduleInner() {
 
   const loadSchedule = useCallback(async () => {
     setSchedLoading(true)
-    const [s, w] = await Promise.all([getShiftsForWeek(weekStart), getActiveWorkers()])
+    const weekEnd = addDays(weekStart, 6)
+    const [s, w, weekPunches] = await Promise.all([
+      getShiftsForWeek(weekStart),
+      getActiveWorkers(),
+      getTimeSheet(weekStart, weekEnd),
+    ])
     setShifts(s)
     setWorkers(w)
+    const mins: Record<string, number> = {}
+    for (const p of weekPunches) {
+      if (!p.clocked_out_at) continue
+      mins[p.worker_name] = (mins[p.worker_name] ?? 0)
+        + Math.max(0, minutesBetween(p.clocked_in_at, p.clocked_out_at) - (p.break_minutes ?? 0))
+    }
+    setActualMinsByWorker(mins)
     setSchedLoading(false)
   }, [weekStart])
 
@@ -484,29 +504,33 @@ function AdminScheduleInner() {
               >Next →</button>
             </div>
 
-            {/* Stats bar */}
-            <div className="flex items-center gap-6 bg-white border border-gray-200 rounded-2xl px-5 py-3.5 mb-4 shadow-sm">
-              <div>
+            {/* Compact stats cluster + Create Shift, right-aligned like a
+                real scheduling tool's toolbar instead of a row of separate
+                cards. */}
+            <div className="flex items-center justify-end gap-6 mb-4">
+              <div className="text-right">
+                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">OT Hours</p>
+                <p className="text-[#0D2240] font-extrabold text-base tabular-nums">
+                  {formatDuration(Math.max(0, ...allScheduleWorkers.map(name =>
+                    shifts.filter(s => s.worker_name === name).reduce((acc, s) => acc + shiftMins(s), 0) - 40 * 60
+                  ), 0))}
+                </p>
+              </div>
+              <div className="text-right">
                 <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Shifts</p>
-                <p className="text-[#0D2240] font-extrabold text-xl">{shifts.length}</p>
+                <p className="text-[#0D2240] font-extrabold text-base tabular-nums">{shifts.length}</p>
               </div>
-              <div>
+              <div className="text-right">
                 <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Scheduled Hours</p>
-                <p className="text-[#0D2240] font-extrabold text-xl">{totalScheduledHours.toFixed(1)}h</p>
+                <p className="text-[#0D2240] font-extrabold text-base tabular-nums">{formatDuration(Math.round(totalScheduledHours * 60))}</p>
               </div>
-              <div>
-                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Staff</p>
-                <p className="text-[#0D2240] font-extrabold text-xl">{allScheduleWorkers.length}</p>
-              </div>
-              <div className="ml-auto">
-                <button
-                  onClick={() => {
-                    setNewShift(n => ({ ...n, workerName: "", shiftDate: weekStart }))
-                    setShowAddShift(true)
-                  }}
-                  className="bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-4 py-2 rounded-xl transition-colors"
-                >+ Create Shift</button>
-              </div>
+              <button
+                onClick={() => {
+                  setNewShift(n => ({ ...n, workerName: "", shiftDate: weekStart }))
+                  setShowAddShift(true)
+                }}
+                className="bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-sm px-4 py-2 rounded-xl transition-colors shrink-0"
+              >+ Create Shift</button>
             </div>
 
             {/* Sling-style grid */}
@@ -559,8 +583,12 @@ function AdminScheduleInner() {
                                 </div>
                                 <div className="min-w-0">
                                   <p className="font-bold text-[#0D2240] text-xs leading-tight truncate">{workerName}</p>
+                                  {/* worked / scheduled -- worked comes from actual clock-in/out
+                                      punches this week, scheduled from the shifts on this grid.
+                                      They match once a shift is worked as planned; they diverge
+                                      when someone works unscheduled hours or misses a shift. */}
                                   <p className="text-[10px] text-gray-400 tabular-nums">
-                                    {weekMins > 0 ? `${(weekMins / 60).toFixed(1)}h / wk` : "0h"}
+                                    {formatDuration(actualMinsByWorker[workerName] ?? 0)} / {formatDuration(weekMins)}
                                   </p>
                                 </div>
                               </div>
@@ -1116,15 +1144,35 @@ function AdminScheduleInner() {
                                 <div className={`grid gap-2 items-end ${punch.role === "driver" ? "grid-cols-4" : "grid-cols-3"}`}>
                                   <div>
                                     <label className="text-xs text-gray-400 font-bold">Clock In</label>
-                                    <input type="datetime-local" value={toLocalInputValue(editForm.clockedInAt)}
-                                      onChange={e => setEditForm(f => ({ ...f, clockedInAt: localInputToISO(e.target.value) }))}
-                                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
+                                    <div className="flex gap-1 mt-0.5">
+                                      <input type="date" value={toLocalInputValue(editForm.clockedInAt).slice(0, 10)}
+                                        onChange={e => {
+                                          const time = toLocalInputValue(editForm.clockedInAt).slice(10) || "T09:00"
+                                          setEditForm(f => ({ ...f, clockedInAt: localInputToISO(`${e.target.value}${time}`) }))
+                                        }}
+                                        className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none" />
+                                      {/* Circular clock picker instead of a raw time input -- click to open
+                                          the dial (hour, then minute) rather than typing digits. */}
+                                      <button type="button" onClick={() => setClockPickerFor("clockedInAt")}
+                                        className="shrink-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold text-[#0D2240] hover:border-[#0D2240] transition-colors">
+                                        🕐 {editForm.clockedInAt ? fmtTime(editForm.clockedInAt) : "Set"}
+                                      </button>
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="text-xs text-gray-400 font-bold">Clock Out</label>
-                                    <input type="datetime-local" value={toLocalInputValue(editForm.clockedOutAt)}
-                                      onChange={e => setEditForm(f => ({ ...f, clockedOutAt: localInputToISO(e.target.value) }))}
-                                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
+                                    <div className="flex gap-1 mt-0.5">
+                                      <input type="date" value={toLocalInputValue(editForm.clockedOutAt).slice(0, 10)}
+                                        onChange={e => {
+                                          const time = toLocalInputValue(editForm.clockedOutAt).slice(10) || "T17:00"
+                                          setEditForm(f => ({ ...f, clockedOutAt: localInputToISO(`${e.target.value}${time}`) }))
+                                        }}
+                                        className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none" />
+                                      <button type="button" onClick={() => setClockPickerFor("clockedOutAt")}
+                                        className="shrink-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold text-[#0D2240] hover:border-[#0D2240] transition-colors">
+                                        🕐 {editForm.clockedOutAt ? fmtTime(editForm.clockedOutAt) : "Set"}
+                                      </button>
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="text-xs text-gray-400 font-bold">Break (min)</label>
@@ -1402,6 +1450,36 @@ function AdminScheduleInner() {
         </div>
         )
       })()}
+
+      {/* Circular clock picker modal -- shared by the Clock In / Clock Out
+          buttons in the Time Sheet edit row, wherever that row currently is. */}
+      {clockPickerFor && (
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4" onClick={() => setClockPickerFor(null)}>
+          <div onClick={e => e.stopPropagation()}>
+            <CircularTimePicker
+              initial={(() => {
+                const iso = editForm[clockPickerFor]
+                const local = toLocalInputValue(iso)
+                if (!local) return timeValueFrom24h(9, 0)
+                const [h, m] = local.slice(11).split(":").map(Number)
+                return timeValueFrom24h(h, m)
+              })()}
+              onCancel={() => setClockPickerFor(null)}
+              onApply={v => {
+                const { hour24, minute } = timeValueTo24h(v)
+                const field = clockPickerFor
+                setEditForm(f => {
+                  const currentIso = f[field]
+                  const datePart = toLocalInputValue(currentIso).slice(0, 10) || new Date().toISOString().slice(0, 10)
+                  const pad = (n: number) => String(n).padStart(2, "0")
+                  return { ...f, [field]: localInputToISO(`${datePart}T${pad(hour24)}:${pad(minute)}`) }
+                })
+                setClockPickerFor(null)
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
