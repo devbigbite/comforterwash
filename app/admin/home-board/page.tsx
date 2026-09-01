@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react"
 import { getBookings, updateBookingStatus, setBookingFacilityRouting } from "@/app/actions/bookings"
 import { getMyLaundromats, type Laundromat } from "@/app/actions/laundromats"
+import { getMyTimezoneLabel } from "@/app/actions/settings"
 
 // A comforter order, or any order at/above this weight, doesn't fit most
 // home washer/dryer setups — so it's pre-suggested (not forced) as needing
@@ -44,13 +45,15 @@ function suggestsFacility(b: Booking): boolean {
 export default function HomeBoardPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [laundromats, setLaundromats] = useState<Laundromat[]>([])
+  const [timezoneLabel, setTimezoneLabel] = useState("")
   const [loading, setLoading] = useState(true)
   const [isPending, startTransition] = useTransition()
 
   async function load() {
-    const [data, spots] = await Promise.all([getBookings(), getMyLaundromats()])
+    const [data, spots, tzLabel] = await Promise.all([getBookings(), getMyLaundromats(), getMyTimezoneLabel()])
     setBookings((data ?? []).filter(b => b.status !== "delivered" && b.status !== "cancelled") as Booking[])
     setLaundromats(spots)
+    setTimezoneLabel(tzLabel)
     setLoading(false)
   }
 
@@ -81,7 +84,14 @@ export default function HomeBoardPage() {
     <div className="max-w-6xl mx-auto px-6 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[#0D2240]">Today's Work</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Pick up → wash → deliver — tap a card to move it forward.</p>
+        <p className="text-sm text-gray-400 mt-0.5">
+          Pick up → wash → deliver — tap a card to move it forward.
+          {timezoneLabel && (
+            <span className="ml-2 text-[9px] font-bold text-gray-400 bg-[#f7f8fb] border border-gray-200 rounded-full px-2 py-0.5 uppercase tracking-wide align-middle">
+              Times in {timezoneLabel}
+            </span>
+          )}
+        </p>
       </div>
 
       {loading ? (

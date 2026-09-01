@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getLocationTimezone } from "@/lib/location"
+import { getTimezoneLabel } from "@/lib/timezone-label"
 import { requireAdmin } from "@/lib/auth-guard"
 import Link from "next/link"
 import { OrderRow } from "@/components/admin/order-row"
@@ -24,6 +25,7 @@ export default async function OrdersPage({
   await requireAdmin()
   const { status = "all", q } = await searchParams
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const timezoneLabel = getTimezoneLabel(await getLocationTimezone(locationId))
 
   let query = supabase
     .from("bookings")
@@ -72,7 +74,12 @@ export default async function OrdersPage({
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold text-[#0D2240]">Orders</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{counts.all ?? 0} total orders</p>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {counts.all ?? 0} total orders
+            <span className="ml-2 text-[9px] font-bold text-gray-400 bg-[#f7f8fb] border border-gray-200 rounded-full px-2 py-0.5 uppercase tracking-wide align-middle">
+              Times in {timezoneLabel}
+            </span>
+          </p>
         </div>
         {/* Quick search */}
         <form method="GET" className="flex gap-2">

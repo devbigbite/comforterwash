@@ -2,7 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
 import { DEFAULT_IMAGES, type SiteImages } from "@/lib/site-images-config"
 import { DEFAULT_TEXT, type SiteText } from "@/lib/site-text-config"
@@ -514,4 +514,12 @@ export async function checkZipServiceable(zip: string): Promise<{ serviceable: b
     .eq("active", true)
     .maybeSingle()
   return { serviceable: !!data, zoneName: data?.zone_name ?? null }
+}
+
+
+// ── Timezone label, for client components that can't call lib/location.ts's
+// getLocationTimezone directly (it isn't a "use server" file) ─────────────
+export async function getMyTimezoneLabel(): Promise<string> {
+  const { getTimezoneLabel } = await import("@/lib/timezone-label")
+  return getTimezoneLabel(await getLocationTimezone())
 }

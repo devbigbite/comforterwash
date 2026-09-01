@@ -1,7 +1,8 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getBranding } from "@/lib/location"
+import { getBranding, getLocationTimezone } from "@/lib/location"
+import { getTimezoneAbbr } from "@/lib/timezone-label"
 
 // ── SMS templates ────────────────────────────────────────────────────────────
 // Last arg on every template is the business name — always supplied by
@@ -9,11 +10,11 @@ import { getBranding } from "@/lib/location"
 // "WashFold Orlando" so nothing changes if it's ever omitted.
 
 const SMS_TEMPLATES = {
-  booking_confirmed: (name: string, pickupDate: string, pickupTime: string, businessName = "WashFoldClean") =>
-    `Hi ${name}! Your ${businessName} booking is confirmed. Pickup scheduled for ${pickupDate} between ${pickupTime}.`,
+  booking_confirmed: (name: string, pickupDate: string, pickupTime: string, businessName = "WashFoldClean", tzAbbr = "") =>
+    `Hi ${name}! Your ${businessName} booking is confirmed. Pickup scheduled for ${pickupDate} between ${pickupTime}${tzAbbr ? ` (${tzAbbr})` : ""}.`,
 
-  pickup_reminder: (name: string, pickupTime: string) =>
-    `Hi ${name}! We'll be there soon to pick-up your laundry bags! Please leave them by your door. See you soon!`,
+  pickup_reminder: (name: string, pickupTime: string, _businessName?: string, tzAbbr = "") =>
+    `Hi ${name}! We'll be there soon to pick-up your laundry bags${tzAbbr ? ` (${tzAbbr})` : ""}! Please leave them by your door. See you soon!`,
 
   // No longer mentions an estimated delivery date — the driver hasn't
   // weighed/inspected the load yet at pickup time, so quoting a delivery
@@ -111,11 +112,12 @@ export async function sendBookingNotification(
     throw new Error("Booking not found")
   }
 
-  const branding = await getBranding()
-  // Extra trailing arg is ignored by templates that don't declare a
-  // businessName param — safe to always pass it.
+  const [branding, timezone] = await Promise.all([getBranding(booking.location_id), getLocationTimezone(booking.location_id)])
+  const tzAbbr = getTimezoneAbbr(timezone)
+  // Trailing args (business name, tz abbreviation) are ignored by templates
+  // that don't declare those params — safe to always pass both.
   const templateFn = SMS_TEMPLATES[notificationType] as (...args: string[]) => string
-  const message = templateFn(...templateArgs, branding.business_name)
+  const message = templateFn(...templateArgs, branding.business_name, tzAbbr)
   const result  = await sendSMS(booking.customer_phone, message)
 
   if (result.success) {

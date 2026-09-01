@@ -1,4 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationTimezone } from "@/lib/location"
+import { getTimezoneLabel } from "@/lib/timezone-label"
 import { format, parseISO } from "date-fns"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
@@ -248,6 +250,7 @@ export default async function DispatchPage({
   const activeTab = tabParam === "operators" ? "operators" : tabParam === "transfers" ? "transfers" : tabParam === "aerial" ? "aerial" : "drivers"
 
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const timezoneLabel = getTimezoneLabel(await getLocationTimezone(locationId))
 
   // Workers
   const { data: activeDrivers } = await supabase
@@ -401,7 +404,12 @@ export default async function DispatchPage({
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-extrabold text-[#0D2240]">Dispatch</h1>
-            <p className="text-sm text-gray-400 mt-0.5">{displayDate}</p>
+            <p className="text-sm text-gray-400 mt-0.5">
+              {displayDate}
+              <span className="ml-2 text-[9px] font-bold text-gray-400 bg-[#f7f8fb] border border-gray-200 rounded-full px-2 py-0.5 uppercase tracking-wide align-middle">
+                Times in {timezoneLabel}
+              </span>
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <a

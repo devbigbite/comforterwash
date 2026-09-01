@@ -133,6 +133,8 @@ export interface EmailTemplateOverride {
 }
 
 // ─── 1. CUSTOMER BOOKING CONFIRMATION ────────────────────────────
+import { getTimezoneAbbr } from "@/lib/timezone-label"
+
 export interface BookingConfirmationData {
   customerName: string
   customerEmail: string
@@ -148,6 +150,7 @@ export interface BookingConfirmationData {
   estimatedTotal: string   // e.g. "$48.00"
   bookingId: string
   shortCode?: string       // 6-digit track code, e.g. "523847"
+  timezone?: string        // IANA tz (locations.timezone) -- appends "(CT)" etc. so the pickup time is never ambiguous
 }
 
 export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: EmailTemplateOverride = {}, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): { subject: string; html: string } {
@@ -171,7 +174,7 @@ export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: Em
       <div class="detail-card">
         ${detailRow("Service", serviceLabel(d.serviceType))}
         ${itemRow}
-        ${detailRow("Pickup", `${formatDate(d.pickupDate)} · ${d.pickupTimeWindow}`)}
+        ${detailRow("Pickup", `${formatDate(d.pickupDate)} · ${d.pickupTimeWindow}${d.timezone ? ` (${getTimezoneAbbr(d.timezone)})` : ""}`)}
         ${detailRow("Delivery", `${formatDate(d.deliveryDate)} · ${d.deliveryTimeWindow}`)}
         ${detailRow("Pickup address", d.pickupAddress)}
         ${detailRow("Est. total", d.estimatedTotal)}
@@ -282,6 +285,7 @@ export interface PickupReminderData {
   // the evening before, via /api/cron/next-day-reminders) — same template,
   // just swaps the day word and badge so copy stays accurate either way.
   when?: "today" | "tomorrow"
+  timezone?: string   // IANA tz -- appends "(CT)" etc. to the pickup window
 }
 
 export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplateOverride = {}, branding: EmailBranding = DEFAULT_EMAIL_BRANDING): { subject: string; html: string } {
@@ -307,7 +311,7 @@ export function buildPickupReminderEmail(d: PickupReminderData, ov: EmailTemplat
 
       <div class="detail-card">
         ${detailRow("Service", serviceLabel(d.serviceType))}
-        ${detailRow("Pickup window", d.pickupTimeWindow)}
+        ${detailRow("Pickup window", `${d.pickupTimeWindow}${d.timezone ? ` (${getTimezoneAbbr(d.timezone)})` : ""}`)}
         ${detailRow("Address", d.pickupAddress)}
       </div>
 

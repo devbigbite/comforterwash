@@ -26,6 +26,7 @@ import { isOnOrAfterMinPickup, isBeforeSameDayCutoff } from "@/lib/pickup-cutoff
 import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, isSameDayEligible, type Route, type TimeWindow } from "@/lib/route-availability"
 import { getActiveRoutes } from "@/app/actions/routes"
 import { getSameDayConfig, type SameDayConfig } from "@/app/actions/same-day"
+import { getTimezoneLabel } from "@/lib/timezone-label"
 import { useLang } from "@/components/lang-provider"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
 
@@ -647,6 +648,11 @@ export function WashOnlyForm({ initialPricing, topSlot, timezone }: { initialPri
                 <div className="flex items-center gap-1.5 mb-3">
                   <span className="w-5 h-5 rounded-full bg-[var(--brand-accent)] text-white text-[10px] font-bold flex items-center justify-center">1</span>
                   <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tb.pickupDateTitle}</h4>
+                  {timezone && (
+                    <span className="text-[9px] font-bold text-gray-400 bg-[#f7f8fb] border border-gray-200 rounded-full px-2 py-0.5 uppercase tracking-wide">
+                      {getTimezoneLabel(timezone)}
+                    </span>
+                  )}
                 </div>
                 {sameDayConfig.enabled && isBeforeSameDayCutoff(sameDayConfig.cutoffHour, timezone) && isSameDayEligible(new Date(), activeRoutes) && !isExcluded(new Date()) && (
                   <button

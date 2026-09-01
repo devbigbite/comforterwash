@@ -19,7 +19,7 @@ import {
   type OrderIssueData,
 } from "./email-templates"
 import { getEmailTemplate } from "@/app/actions/email-templates"
-import { getBranding, getLocationId, ORLANDO_LOCATION_ID } from "@/lib/location"
+import { getBranding, getLocationId, getLocationTimezone, ORLANDO_LOCATION_ID } from "@/lib/location"
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { EmailBranding } from "./email-templates"
 
@@ -144,8 +144,8 @@ async function safeSend(payload: Parameters<typeof resend.emails.send>[0]) {
 // 1. Customer: Booking Confirmation
 // ─────────────────────────────────────────────────────────────────
 export async function sendBookingConfirmationEmail(data: BookingConfirmationData) {
-  const [ov, branding] = await Promise.all([getEmailTemplate("customer_booking_confirmation"), getEmailBranding()])
-  const { subject, html } = buildBookingConfirmationEmail(data, ov ?? {}, branding)
+  const [ov, branding, timezone] = await Promise.all([getEmailTemplate("customer_booking_confirmation"), getEmailBranding(), getLocationTimezone()])
+  const { subject, html } = buildBookingConfirmationEmail({ ...data, timezone: data.timezone ?? timezone }, ov ?? {}, branding)
   return safeSend({ from: await fromCustomer(), to: [data.customerEmail], subject, html })
 }
 
@@ -179,8 +179,8 @@ export async function sendPickupReminderEmail(data: PickupReminderData) {
 }
 
 export async function sendPickupReminderToCustomer(toEmail: string, data: PickupReminderData, locationId?: string) {
-  const [ov, branding] = await Promise.all([getEmailTemplate("pickup_reminder"), getEmailBranding(locationId)])
-  const { subject, html } = buildPickupReminderEmail(data, ov ?? {}, branding)
+  const [ov, branding, timezone] = await Promise.all([getEmailTemplate("pickup_reminder"), getEmailBranding(locationId), getLocationTimezone(locationId)])
+  const { subject, html } = buildPickupReminderEmail({ ...data, timezone: data.timezone ?? timezone }, ov ?? {}, branding)
   return safeSend({ from: await fromCustomer(locationId), to: [toEmail], subject, html })
 }
 
