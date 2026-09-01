@@ -127,13 +127,40 @@ export async function sendBillingCheckoutEmail(
     .single()
   if (!loc) return { error: "Location not found" }
 
+  // No language field on locations itself -- fall back to the preferred_language
+  // recorded on the demo request that originally spun up this tenant, if any.
+  const { data: originatingRequest } = await supabase
+    .from("platform_demo_requests")
+    .select("preferred_language")
+    .eq("demo_location_id", locationId)
+    .maybeSingle()
+  const lang: "en" | "es" = originatingRequest?.preferred_language === "es" ? "es" : "en"
+
   const priceDisplay = loc.plan_price_cents ? ` ($${(loc.plan_price_cents / 100).toFixed(2)}/mo)` : ""
 
-  const result = await resend.emails.send({
-    from: "WashFoldClean <clean@washfoldorlando.com>",
-    to: [toEmail.trim()],
-    subject: `${loc.name} — your WashFoldClean billing checkout link`,
-    html: `
+  const subject = lang === "es"
+    ? `${loc.name} — tu enlace de facturación de WashFoldKit`
+    : `${loc.name} — your WashFoldKit billing checkout link`
+
+  const html = lang === "es" ? `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#333">
+        <p style="font-size:15px;line-height:1.6">Hola,</p>
+        <p style="font-size:15px;line-height:1.6">
+          Aquí tienes el enlace de pago para configurar la facturación de <strong>${loc.name}</strong> en el
+          plan <strong>${loc.plan_name || "Platform"}</strong>${priceDisplay}. Ingresa tu tarjeta en la página
+          segura de Stripe — nunca vemos ni almacenamos los datos de tu tarjeta.
+        </p>
+        <div style="text-align:center;margin:24px 0">
+          <a href="${checkoutUrl}" style="display:inline-block;background:#E8726A;color:white;font-weight:800;font-size:14px;text-decoration:none;padding:12px 28px;border-radius:999px;text-transform:uppercase;letter-spacing:0.5px">
+            Completar Configuración de Facturación →
+          </a>
+        </div>
+        <p style="font-size:14px;color:#888;line-height:1.6">
+          ¿Preguntas? Solo responde a este correo, o escríbeme por WhatsApp al 407-734-0888.
+        </p>
+        <p style="font-size:14px;color:#888;margin-top:24px">— JB<br><span style="font-size:12px;color:#aaa">Fundador, WashFoldKit</span></p>
+      </div>
+    ` : `
       <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#333">
         <p style="font-size:15px;line-height:1.6">Hi,</p>
         <p style="font-size:15px;line-height:1.6">
@@ -147,11 +174,17 @@ export async function sendBillingCheckoutEmail(
           </a>
         </div>
         <p style="font-size:14px;color:#888;line-height:1.6">
-          Questions? Just reply to this email.
+          Questions? Just reply to this email, or reach me on WhatsApp at 407-734-0888.
         </p>
-        <p style="font-size:14px;color:#888;margin-top:24px">— The WashFoldClean Team</p>
+        <p style="font-size:14px;color:#888;margin-top:24px">— JB<br><span style="font-size:12px;color:#aaa">Founder, WashFoldKit</span></p>
       </div>
-    `,
+    `
+
+  const result = await resend.emails.send({
+    from: "WashFoldKit <clean@washfoldorlando.com>",
+    to: [toEmail.trim()],
+    subject,
+    html,
   })
 
   if (result.error) return { error: result.error.message }
@@ -195,15 +228,41 @@ export async function sendSignupLinkToLead(params: {
   const linkResult = await createBillingCheckoutLink(params.locationId)
   if (linkResult.error || !linkResult.url) return { error: linkResult.error ?? "Could not generate checkout link" }
 
+  const supabase = createAdminClient()
+  const { data: req } = await supabase
+    .from("platform_demo_requests")
+    .select("status, preferred_language")
+    .eq("id", params.requestId)
+    .single()
+  const lang: "en" | "es" = req?.preferred_language === "es" ? "es" : "en"
+
   const firstName = params.leadName.trim().split(" ")[0] || params.leadName
-  const bizPart = params.business ? ` for ${params.business}` : ""
+  const bizPart = params.business ? (lang === "es" ? ` de ${params.business}` : ` for ${params.business}`) : ""
   const priceDisplay = `$${(params.planPriceCents / 100).toFixed(2)}/mo`
 
-  const result = await resend.emails.send({
-    from: "WashFoldClean <clean@washfoldorlando.com>",
-    to: [params.leadEmail],
-    subject: `${firstName}, here's your WashFoldClean signup link`,
-    html: `
+  const subject = lang === "es"
+    ? `${firstName}, aquí tienes tu enlace de registro de WashFoldKit`
+    : `${firstName}, here's your WashFoldKit signup link`
+
+  const html = lang === "es" ? `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#333">
+        <p style="font-size:15px;line-height:1.6">Hola ${firstName},</p>
+        <p style="font-size:15px;line-height:1.6">
+          ¿Listo para seguir adelante${bizPart}? Aquí tienes tu enlace de registro para el plan
+          <strong>${params.planName}</strong> (${priceDisplay}) — tu sitio de demo se convierte en tu sitio real
+          y en vivo en el momento en que completes el pago, sin nada que migrar ni reconfigurar.
+        </p>
+        <div style="text-align:center;margin:24px 0">
+          <a href="${linkResult.url}" style="display:inline-block;background:#E8726A;color:white;font-weight:800;font-size:14px;text-decoration:none;padding:12px 28px;border-radius:999px;text-transform:uppercase;letter-spacing:0.5px">
+            Completar Registro →
+          </a>
+        </div>
+        <p style="font-size:14px;color:#888;line-height:1.6">
+          ¿Preguntas antes de registrarte? Solo responde a este correo, o escríbeme por WhatsApp al 407-734-0888.
+        </p>
+        <p style="font-size:14px;color:#888;margin-top:24px">— JB<br><span style="font-size:12px;color:#aaa">Fundador, WashFoldKit</span></p>
+      </div>
+    ` : `
       <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#333">
         <p style="font-size:15px;line-height:1.6">Hi ${firstName},</p>
         <p style="font-size:15px;line-height:1.6">
@@ -217,23 +276,23 @@ export async function sendSignupLinkToLead(params: {
           </a>
         </div>
         <p style="font-size:14px;color:#888;line-height:1.6">
-          Questions before you sign up? Just reply to this email.
+          Questions before you sign up? Just reply to this email, or reach me on WhatsApp at 407-734-0888.
         </p>
-        <p style="font-size:14px;color:#888;margin-top:24px">— The WashFoldClean Team</p>
+        <p style="font-size:14px;color:#888;margin-top:24px">— JB<br><span style="font-size:12px;color:#aaa">Founder, WashFoldKit</span></p>
       </div>
-    `,
+    `
+
+  const result = await resend.emails.send({
+    from: "WashFoldKit <clean@washfoldorlando.com>",
+    to: [params.leadEmail],
+    subject,
+    html,
   })
 
   if (result.error) return { error: result.error.message }
 
   // Move the funnel entry to "negotiating" if it isn't further along already
   // (won/lost) — sending a signup link is a clear signal a deal is active.
-  const supabase = createAdminClient()
-  const { data: req } = await supabase
-    .from("platform_demo_requests")
-    .select("status")
-    .eq("id", params.requestId)
-    .single()
   if (req && req.status !== "won" && req.status !== "lost") {
     await supabase
       .from("platform_demo_requests")

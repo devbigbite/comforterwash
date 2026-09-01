@@ -398,13 +398,13 @@ function daysSince(iso: string): number {
 
 function followUpSubject(step: number, firstName: string, lang: "en" | "es"): string {
   if (lang === "es") {
-    if (step === 1) return `${firstName}, ¿sigues explorando tu demo de WashFoldClean?`
+    if (step === 1) return `${firstName}, ¿sigues explorando tu demo de WashFoldKit?`
     if (step === 2) return `Un par de cosas que se me olvidó mencionar, ${firstName}`
-    return `Último aviso, ${firstName} — cerrando el tema`
+    return `¿Necesitas ayuda, ${firstName}? Estoy aquí`
   }
-  if (step === 1) return `${firstName}, still exploring your WashFoldClean demo?`
+  if (step === 1) return `${firstName}, still exploring your WashFoldKit demo?`
   if (step === 2) return `A couple things I forgot to mention, ${firstName}`
-  return `Last check-in, ${firstName} — closing the loop`
+  return `Need a hand, ${firstName}? I'm here`
 }
 
 function followUpHtml(step: number, params: { firstName: string; demoUrl: string; business?: string | null; lang: "en" | "es" }): string {
@@ -413,19 +413,20 @@ function followUpHtml(step: number, params: { firstName: string; demoUrl: string
 
   const body = lang === "es"
     ? (step === 1
-        ? `Quería asegurarme de que tu demo${bizPart} no se perdiera — sigue en vivo y esperándote en el enlace de abajo. Tómate unos minutos para explorar el flujo de reservación y las preguntas frecuentes cuando puedas.`
+        ? `Quería asegurarme de que tu demo${bizPart} esté en tus manos — sigue en vivo y esperándote en el enlace de abajo. Tómate unos minutos para explorar el flujo de reservación y las preguntas frecuentes cuando puedas.`
         : step === 2
         ? `Un seguimiento rápido — un par de cosas que los interesados suelen preguntar y que no cubrí la primera vez: el flujo de reservación específico para edredones (la mayoría de plataformas no lo tiene), y el "modo simple" del panel de administración, hecho para operadores solos que no quieren una docena de pantallas de configuración. Ambos ya están activos en tu demo.`
-        : `No he sabido de ti, así que seré breve — si ahora no es el momento adecuado, no hay problema, solo responde y avísame. Si sigues interesado(a), tu sitio de demo sigue activo y con gusto agendamos una llamada rápida cuando te convenga.`)
+        : `Sé que todos estamos ocupados, así que seré breve — si necesitas ayuda o tienes alguna pregunta, solo responde y avísame. O escríbeme directamente al 407-734-0888. ¡Puedo ayudarte! Tu sitio de demo sigue activo y con gusto agendamos una llamada rápida cuando te convenga.`)
     : (step === 1
-        ? `Wanted to make sure your demo${bizPart} didn't get buried — it's still live and waiting for you at the link below. Take a few minutes to click around the booking flow and FAQ when you get a chance.`
+        ? `Wanted to make sure your demo${bizPart} is in your hands — it's still live and waiting for you at the link below. Take a few minutes to click around the booking flow and FAQ when you get a chance.`
         : step === 2
         ? `Quick follow-up — a couple things prospects usually ask about that I didn't cover the first time: the comforter-specific booking flow (most platforms don't have one), and the admin dashboard's "Simple mode," built for solo operators who don't want a dozen settings screens. Both are already live in your demo.`
-        : `Haven't heard back, so I'll keep this brief — if now's not the right time, no worries at all, just reply and let me know. If you're still interested, your demo site is still live and I'm happy to jump on a quick call whenever works.`)
+        : `I know we're all busy, so I'll keep this brief — if you need any help or have any questions, just reply and let me know. Or message me directly at 407-734-0888. I can help! Your demo site is still live and I'm happy to jump on a quick call whenever works.`)
 
   const hi = lang === "es" ? `Hola ${firstName},` : `Hi ${firstName},`
   const btn = lang === "es" ? "Abrir Tu Demo →" : "Open Your Demo →"
-  const sign = lang === "es" ? "— El Equipo de WashFoldClean" : "— The WashFoldClean Team"
+  const sign = lang === "es" ? "— JB" : "— JB"
+  const signSub = lang === "es" ? "Fundador, WashFoldKit" : "Founder, WashFoldKit"
 
   return `
     <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#333">
@@ -436,7 +437,7 @@ function followUpHtml(step: number, params: { firstName: string; demoUrl: string
           ${btn}
         </a>
       </div>
-      <p style="font-size:14px;color:#888;margin-top:24px">${sign}</p>
+      <p style="font-size:14px;color:#888;margin-top:24px">${sign}<br><span style="font-size:12px;color:#aaa">${signSub}</span></p>
     </div>
   `
 }
