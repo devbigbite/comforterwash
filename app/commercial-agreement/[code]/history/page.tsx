@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getCommercialAccountOrderHistory } from "@/app/actions/commercial-accounts"
 import { OrderSnapshot, type OrderSnapshotData } from "@/components/admin/order-snapshot"
+import { getBranding } from "@/lib/location"
 
 const PAYMENT_STATUS_STYLE: Record<string, string> = {
   captured:       "bg-green-50 text-green-700 border-green-200",
@@ -60,7 +61,7 @@ function deliveryHappened(status: string) {
 
 export default async function CommercialAccountHistoryPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
-  const result = await getCommercialAccountOrderHistory(code)
+  const [result, branding] = await Promise.all([getCommercialAccountOrderHistory(code), getBranding()])
   if (!result) notFound()
   const { account, orders } = result
 
@@ -95,7 +96,7 @@ export default async function CommercialAccountHistoryPage({ params }: { params:
               ← Back to Agreement
             </Link>
             <h1 className="text-2xl font-extrabold text-[#0D2240] mt-2">Order &amp; Billing History</h1>
-            <p className="text-sm text-gray-400 mt-1">{account.business_name} · WashFold Orlando</p>
+            <p className="text-sm text-gray-400 mt-1">{account.business_name} · {branding.business_name}</p>
             {rateLabel && (
               <p className="text-sm text-[#0D2240] font-semibold mt-2 bg-[#f7f8fb] border border-gray-100 rounded-xl px-3 py-2 inline-block">
                 Your rate: {rateLabel}

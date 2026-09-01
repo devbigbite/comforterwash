@@ -390,8 +390,10 @@ export async function sendPaymentUpdateLink(accountId: string): Promise<{ succes
   }
   if (account.contact_phone) {
     const { sendSMS } = await import("@/lib/sms")
+    const { getBranding } = await import("@/lib/location")
+    const branding = await getBranding()
     const result = await sendSMS(account.contact_phone,
-      `Hi, this is WashFold Orlando. Your payment method on file needs to be updated for ${account.business_name}'s account. Please update it here: ${link}`)
+      `Hi, this is ${branding.business_name}. Your payment method on file needs to be updated for ${account.business_name}'s account. Please update it here: ${link}`)
     if (result.success) sent = true
   }
 

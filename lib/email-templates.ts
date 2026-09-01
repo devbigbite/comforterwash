@@ -54,6 +54,10 @@ export interface EmailBranding {
   supportPhone: string
   supportEmail: string
   websiteDomain: string   // no protocol, e.g. "washfoldorlando.com"
+  // Only set for a tenant that actually has a Google Business review link
+  // on file -- was previously hardcoded to WashFold Orlando's own listing
+  // for every tenant, sending other tenants' customers to review Orlando.
+  googleReviewUrl?: string | null
 }
 
 export const DEFAULT_EMAIL_BRANDING: EmailBranding = {
@@ -440,7 +444,7 @@ export function buildDeliveredEmail(d: DeliveredData, ov: EmailTemplateOverride 
 
       <p style="font-size:14px;color:#374151;margin-bottom:16px;">We'd love to hear how it went! Your feedback helps us keep improving. 🙏</p>
 
-      <a href="https://g.page/r/washfoldorlando/review" class="cta-button">${ov.cta_text ?? "Leave Us a Google Review ⭐"}</a>
+      ${branding.googleReviewUrl ? `<a href="${branding.googleReviewUrl}" class="cta-button">${ov.cta_text ?? "Leave Us a Google Review ⭐"}</a>` : ""}
 
       <p style="font-size:13px;color:#9ca3af;margin-top:16px;">Booking #${d.bookingId.slice(0, 8).toUpperCase()} · <a href="https://${branding.websiteDomain}" style="color:${branding.accentColor};">Book again</a></p>
     </div>

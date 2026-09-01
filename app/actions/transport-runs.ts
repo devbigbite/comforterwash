@@ -6,7 +6,7 @@ import { createShipdayRunOrder } from "@/lib/shipday"
 import { todayET } from "@/lib/date-et"
 import { getAllFacilityWindows } from "@/app/actions/facility-windows"
 import { isWithinAccessWindow } from "@/lib/facility-utils"
-import { getLocationId, getShipdayConfig, getBranding, getLocationTimezone } from "@/lib/location"
+import { getLocationId, getShipdayConfig, getBranding, getLocationTimezone, ORLANDO_LOCATION_ID } from "@/lib/location"
 import { resolveMinLbs } from "@/lib/order-minimum"
 
 export interface TransportRun {
@@ -155,7 +155,10 @@ export async function createTransportRun(formData: FormData) {
         .eq("location_id", locationId)
         .eq("key", "warehouse_address")
         .single()
-      warehouseAddress = warehouseSetting?.value ?? process.env.BUSINESS_ADDRESS ?? "Orlando, FL"
+      // Non-Orlando tenants without a warehouse_address setting get an
+      // empty string, not Orlando's -- this used to silently reuse
+      // "Orlando, FL" for every tenant that hadn't configured one yet.
+      warehouseAddress = warehouseSetting?.value ?? (locationId === ORLANDO_LOCATION_ID ? process.env.BUSINESS_ADDRESS ?? "Orlando, FL" : "")
     }
 
     // Fetch facility address

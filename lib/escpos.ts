@@ -121,6 +121,10 @@ export interface ReceiptLabels {
   washPrefsLabel: string
   dueDateLabel: string
   footerNote: string
+  // Printed as the header text when the tenant has no logo image uploaded
+  // -- used to be a hardcoded "WASHFOLD ORLANDO" literal, so every other
+  // tenant's bag receipts printed WashFold Orlando's name on them.
+  businessNameHeader: string
 }
 
 const DEFAULT_LABELS: ReceiptLabels = {
@@ -130,6 +134,7 @@ const DEFAULT_LABELS: ReceiptLabels = {
   washPrefsLabel: "WASH PREFERENCES",
   dueDateLabel: "Deliver to customer by",
   footerNote: "Do not remove - Match sticker to bag",
+  businessNameHeader: "LAUNDRY SERVICE",
 }
 
 /** Builds one full bag receipt as raw ESC/POS bytes, formatted to roughly
@@ -144,7 +149,7 @@ export function buildReceiptBytes(r: ReceiptData, logoBytes?: Uint8Array | null,
   if (logoBytes && logoBytes.length > 0) {
     b.raster(logoBytes).feed(1)
   } else {
-    b.text("WASHFOLD ORLANDO").feed(1)
+    b.text(labels.businessNameHeader).feed(1)
   }
 
   b.bold(true)

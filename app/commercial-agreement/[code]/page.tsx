@@ -4,11 +4,13 @@ import { getCommercialAccountByCode, signCommercialAgreement } from "@/app/actio
 import { SignAgreementForm } from "./sign-form"
 import CommercialCardSetup from "@/components/commercial-card-setup"
 import { UpdatePaymentToggle } from "./update-payment-toggle"
+import { getBranding } from "@/lib/location"
 
 export default async function CommercialAgreementPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
-  const account = await getCommercialAccountByCode(code)
+  const [account, branding] = await Promise.all([getCommercialAccountByCode(code), getBranding()])
   if (!account) notFound()
+  const businessName = branding.business_name
 
   const rateLabel =
     account.rate_type === "per_lb" ? "per pound" :
@@ -20,7 +22,7 @@ export default async function CommercialAgreementPage({ params }: { params: Prom
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-extrabold text-[#0D2240]">Commercial Laundry Service Agreement</h1>
-            <p className="text-sm text-gray-400 mt-1">WashFold Orlando · Commercial Recurring Service</p>
+            <p className="text-sm text-gray-400 mt-1">{businessName} · Commercial Recurring Service</p>
           </div>
 
           <div className="rounded-xl bg-[#f7f8fb] border border-gray-100 p-4 mb-6 text-sm text-[#0D2240] space-y-1">
@@ -85,7 +87,7 @@ export default async function CommercialAgreementPage({ params }: { params: Prom
               <div className="prose prose-sm max-w-none text-gray-600 mb-6 max-h-80 overflow-y-auto border border-gray-100 rounded-xl p-4 bg-white">
                 <h2 className="text-sm font-bold text-[#0D2240]">Terms of Service</h2>
                 <p>
-                  This Commercial Laundry Service Agreement ("Agreement") is entered into between WashFold Orlando
+                  This Commercial Laundry Service Agreement ("Agreement") is entered into between {businessName}
                   ("Service Provider") and {account.business_name} ("Customer"), effective as of the date of signature below.
                 </p>
                 <p><strong>1. Scope of Service.</strong> Service Provider agrees to provide recurring commercial wash-and-fold

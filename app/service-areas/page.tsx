@@ -13,7 +13,7 @@ export async function generateMetadata() {
   const name = branding.business_name || "WashFold Orlando"
   return {
     title: `Service Areas | ${name}`,
-    description: `${name} provides free laundry pickup and delivery across the Orlando metro area. Check if we serve your ZIP code.`,
+    description: `${name} provides free laundry pickup and delivery across our service area. Check if we serve your ZIP code.`,
   }
 }
 

@@ -69,7 +69,10 @@ export interface Location {
 // NOT WashFold-specific, so a new tenant never silently inherits WashFold
 // Orlando's name/phone/email if something's misconfigured.
 export const DEFAULT_BRANDING = {
-  business_name: "WashFold Orlando",
+  // Was literally "WashFold Orlando" despite the comment above promising
+  // this stays generic -- a misconfigured/unresolvable tenant would have
+  // silently shown Orlando's name instead of a neutral placeholder.
+  business_name: "Your Laundry Service",
   tagline: null as string | null,
   logo_url: null as string | null,
   primary_color: "#0D2240",
@@ -79,6 +82,7 @@ export const DEFAULT_BRANDING = {
   address: null as string | null,
   fb_pixel_id: null as string | null,
   timezone: "America/New_York",
+  website_domain: process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfoldclean.com",
 }
 
 // ── Get just the location_id (most common use case) ──────────────────────────
@@ -137,6 +141,12 @@ export async function getBranding(overrideLocationId?: string) {
     fb_pixel_id:   loc.fb_pixel_id,
     landing_page_template: (loc as { landing_page_template?: string }).landing_page_template ?? "corporate",
     timezone:      loc.timezone,
+    // Tenant's actual public domain -- their own custom domain if set,
+    // otherwise their subdomain on the shared platform (slug.washfold.com).
+    // Used anywhere copy needs to link back to "this tenant's site" instead
+    // of the hardcoded washfoldorlando.com that used to leak into every
+    // tenant's emails.
+    website_domain: loc.custom_domain || `${loc.slug}.${process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfoldclean.com"}`,
   }
 }
 
@@ -172,7 +182,11 @@ export async function getShipdayConfigForLocation(locationId: string): Promise<S
 
   return {
     apiKey: data?.shipday_api_key ?? (isOrlando ? process.env.SHIPDAY_API_KEY ?? null : null),
-    facilityAddress: data?.business_address ?? (isOrlando ? process.env.BUSINESS_ADDRESS ?? "Orlando, FL" : "Orlando, FL"),
+    // Non-Orlando tenants that haven't set a business address yet get an
+    // empty string, not Orlando's -- a tenant in Houston should never see
+    // (or have their driver dispatch silently use) "Orlando, FL" as a
+    // fallback facility address.
+    facilityAddress: data?.business_address ?? (isOrlando ? process.env.BUSINESS_ADDRESS ?? "Orlando, FL" : ""),
     facilityPhone: data?.business_phone ?? (isOrlando ? process.env.BUSINESS_PHONE ?? "" : ""),
   }
 }

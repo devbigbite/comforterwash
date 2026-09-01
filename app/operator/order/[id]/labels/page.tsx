@@ -5,6 +5,7 @@ import { OperatorOrderGate } from "@/components/operator-order-gate"
 import { PrintReceiptsButton } from "@/components/print-receipts-button"
 import type { ReceiptData } from "@/lib/escpos"
 import { getReceiptText } from "@/app/actions/settings"
+import { getBranding } from "@/lib/location"
 import { loyaltyNoticeFor } from "@/lib/receipt-text-config"
 
 // Color keys are physical stickers applied by hand — the thermal printer is
@@ -75,7 +76,7 @@ export default async function OperatorLabelsPage({
   // (a warm thank-you), while the small tag above it is the operator's cue
   // for what to slip into the bag. Wording is a per-tenant setting — see
   // Content → Receipt Text — rather than hardcoded here.
-  const receiptText = await getReceiptText()
+  const [receiptText, branding] = await Promise.all([getReceiptText(), getBranding()])
   const loyaltyNotice = loyaltyNoticeFor(visitNumber, receiptText)
 
   // Loyalty count + customer name together, for staff to quickly match a bag
@@ -282,6 +283,7 @@ export default async function OperatorLabelsPage({
                   washPrefsLabel: receiptText.washPrefsLabel,
                   dueDateLabel: receiptText.dueDateLabel,
                   footerNote: receiptText.footerNote,
+                  businessNameHeader: branding.business_name.toUpperCase(),
                 }}
               />
             </div>

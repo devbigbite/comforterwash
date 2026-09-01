@@ -70,7 +70,10 @@ async function adminAlertRecipients(overrideLocationId?: string): Promise<string
 }
 
 async function getEmailBranding(overrideLocationId?: string): Promise<EmailBranding> {
-  const b = await getBranding(overrideLocationId)
+  const [b, locationId] = await Promise.all([
+    getBranding(overrideLocationId),
+    overrideLocationId ? Promise.resolve(overrideLocationId) : getLocationId(),
+  ])
   return {
     businessName: b.business_name,
     primaryColor: b.primary_color,
@@ -80,7 +83,16 @@ async function getEmailBranding(overrideLocationId?: string): Promise<EmailBrand
     // customers yet, so this always resolves to the shared support inbox
     // rather than a per-tenant column (there isn't one yet).
     supportEmail: SEND_DOMAIN,
-    websiteDomain: "washfoldorlando.com",
+    // The tenant's own domain (custom domain, or slug.<platform domain>) --
+    // was hardcoded to "washfoldorlando.com" for every tenant, which meant
+    // "Book again" / "Track your order" links in every other tenant's
+    // emails pointed at Orlando's site instead of their own.
+    websiteDomain: b.website_domain,
+    // Grandfathered: Orlando's own Google Business review link. No other
+    // tenant has one on file yet (there's no settings field to collect it),
+    // so no other tenant's delivered-email shows a review button rather
+    // than misdirecting customers to Orlando's listing.
+    googleReviewUrl: locationId === ORLANDO_LOCATION_ID ? "https://g.page/r/washfoldorlando/review" : null,
   }
 }
 
