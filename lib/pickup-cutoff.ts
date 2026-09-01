@@ -71,3 +71,18 @@ export function isOnOrAfterMinPickup(d: Date, tz: string = DEFAULT_TZ): boolean 
   const mDay = new Date(min); mDay.setHours(0, 0, 0, 0)
   return dDay >= mDay
 }
+
+
+/**
+ * Same-day delivery cutoff. Independent of the regular pickup cutoff above --
+ * a tenant configures its own same-day cutoff hour (settings key
+ * same_day_cutoff_hour, see app/actions/same-day.ts), typically earlier in
+ * the day (e.g. noon) since a same-day order needs to be picked up AND
+ * delivered before end of business.
+ *
+ * `cutoffHour` is 24-hour, tenant-local (e.g. 12 = noon).
+ */
+export function isBeforeSameDayCutoff(cutoffHour: number, tz: string = DEFAULT_TZ): boolean {
+  const local = new Date(new Date().toLocaleString("en-US", { timeZone: tz }))
+  return local.getHours() < cutoffHour
+}

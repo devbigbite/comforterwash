@@ -32,6 +32,7 @@ export type Route = {
   recurrence: "weekly" | "biweekly" | "both"
   biweekly_start_date: string | null  // "YYYY-MM-DD" reference date for biweekly
   turnaround_days: number          // minimum days between pickup and delivery
+  allow_same_day: boolean          // if true, this route can offer same-day pickup+delivery (subject to tenant-level cutoff/fee settings)
   active: boolean
   time_windows: TimeWindow[]       // windows attached to this route
   facility_id: string | null       // home facility/warehouse for this route
@@ -247,4 +248,23 @@ export function getEarliestRouteDelivery(pickup: Date, routes: Route[]): Date {
   fallback.setDate(fallback.getDate() + gap)
   if (fallback.getDay() === 0) fallback.setDate(fallback.getDate() + 1)
   return fallback
+}
+
+
+// ── Public: same-day eligibility ──────────────────────────────────────────────
+
+/**
+ * True if any active route allows same-day service AND serves `date` as a
+ * pickup day. Does not check time-of-day cutoff -- callers combine this with
+ * a cutoff check (see lib/pickup-cutoff.ts's isBeforeSameDayCutoff) since the
+ * cutoff is a tenant-level setting, not a route property.
+ */
+export function isSameDayEligible(date: Date, routes: Route[]): boolean {
+  const dayName = DAY_NAMES[date.getDay()]
+  return routes.some(r =>
+    r.active &&
+    r.allow_same_day &&
+    (r.pickup_days ?? []).includes(dayName) &&
+    isOnWeek(r, date)
+  )
 }

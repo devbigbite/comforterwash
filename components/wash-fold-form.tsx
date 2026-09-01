@@ -21,9 +21,10 @@ import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/c
 import { effectivePrice, effectivePriceForOrder, isSaleActive, unitSuffix } from "@/lib/service-option-utils"
 import { getTipsEnabled, getDeliveryFeeSettings } from "@/app/actions/settings"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
-import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
-import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, getAllTimeWindows, type Route, type TimeWindow } from "@/lib/route-availability"
+import { isOnOrAfterMinPickup, isBeforeSameDayCutoff } from "@/lib/pickup-cutoff"
+import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, getAllTimeWindows, isSameDayEligible, type Route, type TimeWindow } from "@/lib/route-availability"
 import { getActiveRoutes } from "@/app/actions/routes"
+import { getSameDayConfig, type SameDayConfig } from "@/app/actions/same-day"
 import { useLang } from "@/components/lang-provider"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
 import { dayAbbr, monthAbbr, weekdayFull, formatShortDate } from "@/lib/i18n-date"
@@ -301,6 +302,8 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
 
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
   const [activeRoutes, setActiveRoutes] = useState<Route[]>([])
+  const [sameDayConfig, setSameDayConfig] = useState<SameDayConfig>({ enabled: false, feeCents: 0, cutoffHour: 12 })
+  const [sameDay, setSameDay] = useState(false)
   const [promo, setPromo] = useState<{ code: string; discountCents: number } | null>(null)
   const [giftCard, setGiftCard] = useState<{ code: string; discountCents: number } | null>(null)
   const [tipOption, setTipOption] = useState<TipOption>("none")
@@ -386,6 +389,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   useEffect(() => {
     getExcludedDates().then(dates => setExcludedDates(new Set(dates)))
     getActiveRoutes().then(setActiveRoutes)
+    getSameDayConfig().then(setSameDayConfig)
     // Only re-fetch client-side when the caller didn't already pass the
     // server-resolved value -- re-running this unconditionally on every
     // mount is what caused the Monthly plan card to flash true, then
@@ -454,8 +458,9 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   const discountCents    = promo ? Math.min(promo.discountCents, subtotalCents) : 0
   const afterDiscountCents = subtotalCents - discountCents
   const deliveryFeeCents = calcDeliveryFee(feeConfig, "wash_fold")
+  const sameDayFeeCents  = sameDay ? sameDayConfig.feeCents : 0
   const tipCents         = calcTip(tipOption, customTipCents, afterDiscountCents)
-  const totalBeforeGiftCardCents = afterDiscountCents + deliveryFeeCents + tipCents
+  const totalBeforeGiftCardCents = afterDiscountCents + deliveryFeeCents + sameDayFeeCents + tipCents
   // Stripe requires a minimum charge (~$0.50) — a gift card can cover the
   // rest of an order but never zero it out entirely.
   const giftCardDiscountCents = giftCard ? Math.min(giftCard.discountCents, Math.max(0, totalBeforeGiftCardCents - 50)) : 0
@@ -463,7 +468,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   // Bag-mode pricing is a flat, known-in-advance total — no weight
   // uncertainty to buffer for, unlike per-lb where the scale reading can
   // come in over the estimate. Only the per-lb path gets the 1.25x cushion.
-  const preAuthCentsRaw  = Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * (isBagMode ? 1 : 1.25))) + comforterSubtotalCents + tipCents
+  const preAuthCentsRaw  = Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * (isBagMode ? 1 : 1.25))) + comforterSubtotalCents + tipCents + sameDayFeeCents
   const preAuthCents     = Math.max(50, preAuthCentsRaw - giftCardDiscountCents)
   const totalDisplay     = (totalCents / 100).toFixed(2)
   const priceLabel      = freqPricing[formData.frequency as keyof typeof freqPricing].label
@@ -496,9 +501,29 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
     return true
   }
 
+  const today = new Date()
+  const sameDayAvailableToday =
+    sameDayConfig.enabled &&
+    isBeforeSameDayCutoff(sameDayConfig.cutoffHour, timezone) &&
+    isSameDayEligible(today, activeRoutes) &&
+    !isExcluded(today)
+
   const handlePickupSelect = (date: Date) => {
-    const delv = getEarliestRouteDelivery(date, activeRoutes)
+    const isToday = date.toDateString() === today.toDateString()
+    if (!isToday) setSameDay(false)
+    const delv = isToday && sameDay ? date : getEarliestRouteDelivery(date, activeRoutes)
     setFormData(p => ({ ...p, pickupDate: date, deliveryDate: delv }))
+  }
+
+  function selectSameDay() {
+    setSameDay(true)
+    setFormData(p => ({
+      ...p,
+      pickupDate: today,
+      deliveryDate: today,
+      pickupTimeWindow: p.pickupTimeWindow || "ASAP",
+      deliveryTimeWindow: "Same day",
+    }))
   }
 
   const firstPickup   = formData.recurringPickupDay ? nextOccurrence(formData.recurringPickupDay) : undefined
@@ -609,6 +634,8 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
     giftCardCode:        giftCard?.code ?? "",
     giftCardDiscountCents: String(giftCardDiscountCents),
     deliveryFeeCents:    String(deliveryFeeCents),
+    sameDay:             sameDay.toString(),
+    sameDayFeeCents:     String(sameDayFeeCents),
     tipCents:            String(tipCents),
     specialInstructions: formData.specialInstructions,
   }
@@ -1197,6 +1224,18 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                       <span className="w-5 h-5 rounded-full bg-[var(--brand-accent)] text-white text-[10px] font-bold flex items-center justify-center">1</span>
                       <h4 className="font-bold text-[var(--brand-primary)] text-sm">{tf.labelPickup} {tf.dateTimeLabel}</h4>
                     </div>
+                    {sameDayAvailableToday && (
+                      <button
+                        type="button"
+                        onClick={selectSameDay}
+                        className={`mb-4 flex items-center justify-between w-full rounded-xl border-2 px-4 py-3 text-left transition-colors ${
+                          sameDay ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/10" : "border-amber-200 bg-amber-50 hover:bg-amber-100"
+                        }`}
+                      >
+                        <span className="text-sm font-bold text-[#0D2240]">⚡ Same-day delivery available today</span>
+                        <span className="text-sm font-bold text-[var(--brand-accent)]">+${(sameDayConfig.feeCents / 100).toFixed(2)}</span>
+                      </button>
+                    )}
                     <DateStrip selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} tomorrow={tf.tomorrow} locale={locale} />
                     {formData.pickupDate && (
                       <TimeSlotPicker label={tf.availableTimeSlots} value={formData.pickupTimeWindow} onChange={(v) => setFormData(p => ({ ...p, pickupTimeWindow: v }))} windows={getTimeWindowsForDate(formData.pickupDate!, activeRoutes, "pickup")} />
@@ -1649,6 +1688,12 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                 <div className="flex justify-between gap-4 text-gray-600">
                   <span className="shrink-0">Delivery fee</span>
                   <span className="font-semibold">${(deliveryFeeCents / 100).toFixed(2)}</span>
+                </div>
+              )}
+              {sameDayFeeCents > 0 && (
+                <div className="flex justify-between gap-4 text-gray-600">
+                  <span className="shrink-0">Same-day delivery fee</span>
+                  <span className="font-semibold">${(sameDayFeeCents / 100).toFixed(2)}</span>
                 </div>
               )}
               {tipCents > 0 && (

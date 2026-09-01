@@ -23,9 +23,10 @@ import { getServiceOptions, type ServiceOption } from "@/app/actions/service-opt
 import { effectivePriceForOrder, unitSuffix } from "@/lib/service-option-utils"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
 import { calcDeliveryFee, calcTip, TIP_PRESETS, type TipOption, type DeliveryFeeConfig } from "@/lib/checkout-fees"
-import { isOnOrAfterMinPickup } from "@/lib/pickup-cutoff"
-import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, type Route, type TimeWindow } from "@/lib/route-availability"
+import { isOnOrAfterMinPickup, isBeforeSameDayCutoff } from "@/lib/pickup-cutoff"
+import { isPickupDay, isDeliveryDay, getEarliestRouteDelivery, getTimeWindowsForDate, isSameDayEligible, type Route, type TimeWindow } from "@/lib/route-availability"
 import { getActiveRoutes } from "@/app/actions/routes"
+import { getSameDayConfig, type SameDayConfig } from "@/app/actions/same-day"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 // ── Pricing ─────────────────────────────────────────────────────────────────
@@ -141,6 +142,8 @@ export function BookingForm({ topSlot, timezone }: { topSlot?: ReactNode; timezo
   const [promoActive, setPromoActive] = useState(false)
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set())
   const [activeRoutes, setActiveRoutes] = useState<Route[]>([])
+  const [sameDayConfig, setSameDayConfig] = useState<SameDayConfig>({ enabled: false, feeCents: 0, cutoffHour: 12 })
+  const [sameDay, setSameDay] = useState(false)
 
   const [quantities, setQuantities] = useState<Quantities>({ twin: 0, full: 0, queen: 0, king: 0 })
 
@@ -305,6 +308,7 @@ export function BookingForm({ topSlot, timezone }: { topSlot?: ReactNode; timezo
   useEffect(() => {
     import("@/app/actions/holidays").then(m => m.getExcludedDates()).then(dates => setExcludedDates(new Set(dates)))
     getActiveRoutes().then(setActiveRoutes)
+    getSameDayConfig().then(setSameDayConfig)
     getComforterPromo().then(setPromoActive)
     getDeliveryFeeSettings().then(s => setFeeConfig(s))
     getTipsEnabled().then(setTipsEnabled)
@@ -342,8 +346,9 @@ export function BookingForm({ topSlot, timezone }: { topSlot?: ReactNode; timezo
   const discountCents      = promo ? Math.min(promo.discountCents, subtotalCents) : 0
   const afterDiscountCents = Math.max(0, subtotalCents - discountCents) + selectedAddonsCents
   const deliveryFeeCents   = calcDeliveryFee(feeConfig, "comforter_wash")
+  const sameDayFeeCents    = sameDay ? sameDayConfig.feeCents : 0
   const tipCents           = calcTip(tipOption, customTipCents, afterDiscountCents)
-  const totalBeforeGiftCardCents = afterDiscountCents + deliveryFeeCents + tipCents
+  const totalBeforeGiftCardCents = afterDiscountCents + deliveryFeeCents + sameDayFeeCents + tipCents
   const giftCardDiscountCents = giftCard ? Math.min(giftCard.discountCents, Math.max(0, totalBeforeGiftCardCents - 50)) : 0
   const totalCents         = totalBeforeGiftCardCents - giftCardDiscountCents
   const totalDisplay       = (totalCents / 100).toFixed(2)
@@ -373,8 +378,32 @@ export function BookingForm({ topSlot, timezone }: { topSlot?: ReactNode; timezo
     return true
   }
 
+  const today = new Date()
+  const sameDayAvailableToday =
+    sameDayConfig.enabled &&
+    isBeforeSameDayCutoff(sameDayConfig.cutoffHour, timezone) &&
+    isSameDayEligible(today, activeRoutes) &&
+    !isExcluded(today)
+
   const handlePickupSelect = (date: Date) => {
-    setFormData(p => ({ ...p, pickupDate: date, deliveryDate: getEarliestRouteDelivery(date, activeRoutes) }))
+    const isToday = date.toDateString() === today.toDateString()
+    if (!isToday) setSameDay(false)
+    setFormData(p => ({
+      ...p,
+      pickupDate: date,
+      deliveryDate: isToday && sameDay ? date : getEarliestRouteDelivery(date, activeRoutes),
+    }))
+  }
+
+  function selectSameDay() {
+    setSameDay(true)
+    setFormData(p => ({
+      ...p,
+      pickupDate: today,
+      deliveryDate: today,
+      pickupTimeWindow: p.pickupTimeWindow || "ASAP",
+      deliveryTimeWindow: "Same day",
+    }))
   }
 
   // ── Counter helpers ──────────────────────────────────────────────────────
@@ -463,6 +492,12 @@ export function BookingForm({ topSlot, timezone }: { topSlot?: ReactNode; timezo
                 <span className="font-semibold">${(deliveryFeeCents / 100).toFixed(2)}</span>
               </div>
             )}
+            {sameDayFeeCents > 0 && (
+              <div className="flex justify-between gap-4 text-gray-600 text-sm">
+                <span>Same-day delivery fee</span>
+                <span className="font-semibold">${(sameDayFeeCents / 100).toFixed(2)}</span>
+              </div>
+            )}
             {tipCents > 0 && (
               <div className="flex justify-between gap-4 text-gray-600 text-sm">
                 <span>Tip</span>
@@ -510,6 +545,8 @@ export function BookingForm({ topSlot, timezone }: { topSlot?: ReactNode; timezo
               giftCardCode: giftCard?.code ?? "",
               giftCardDiscountCents: String(giftCardDiscountCents),
               deliveryFeeCents: String(deliveryFeeCents),
+              sameDay: sameDay.toString(),
+              sameDayFeeCents: String(sameDayFeeCents),
               tipCents: String(tipCents),
               specialInstructions: formData.specialInstructions,
             }}
@@ -693,6 +730,18 @@ export function BookingForm({ topSlot, timezone }: { topSlot?: ReactNode; timezo
                   <span className="text-xs text-gray-400">— {tb.pickupDaysNote}</span>
                 </div>
                 <p className="text-xs text-gray-400 mb-4 ml-6">{tb.pickupWhen}</p>
+                {sameDayAvailableToday && (
+                  <button
+                    type="button"
+                    onClick={selectSameDay}
+                    className={`ml-6 mb-4 flex items-center justify-between w-[calc(100%-1.5rem)] rounded-xl border-2 px-4 py-3 text-left transition-colors ${
+                      sameDay ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/10" : "border-amber-200 bg-amber-50 hover:bg-amber-100"
+                    }`}
+                  >
+                    <span className="text-sm font-bold text-[#0D2240]">⚡ Same-day delivery available today</span>
+                    <span className="text-sm font-bold text-[var(--brand-accent)]">+${(sameDayConfig.feeCents / 100).toFixed(2)}</span>
+                  </button>
+                )}
                 <DateStrip label="" selected={formData.pickupDate} onSelect={handlePickupSelect} isAvailable={isPickupAvailable} tomorrow={tf.tomorrow} locale={locale} />
                 {formData.pickupDate && (
                   <TimeSlotPicker

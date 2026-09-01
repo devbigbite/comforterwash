@@ -35,6 +35,8 @@ export interface BookingData {
   promoDiscountCents?: number
   tipCents?: number
   deliveryFeeCents?: number
+  sameDay?: boolean          // true if the customer opted into paid same-day pickup+delivery
+  sameDayFeeCents?: number   // fee charged for same-day service, locked in at booking time
   isManualCapture?: boolean
   deliveryAddress?: string
   detergent?: string
@@ -207,6 +209,8 @@ export async function createBooking(data: BookingData) {
       promo_discount_cents: data.promoDiscountCents ?? 0,
       tip_cents: data.tipCents ?? 0,
       delivery_fee_cents: data.deliveryFeeCents ?? 0,
+      same_day: data.sameDay ?? false,
+      same_day_fee_cents: data.sameDayFeeCents ?? null,
       delivery_address: data.deliveryAddress ?? null,
       detergent: data.detergent ?? null,
       extras: data.extras ?? null,

@@ -15,7 +15,7 @@ export async function getActiveRoutes(): Promise<Route[]> {
 
   const { data: routes, error } = await supabase
     .from("routes")
-    .select("id, name, pickup_days, delivery_days, recurrence, biweekly_start_date, turnaround_days, active, facility_id")
+    .select("id, name, pickup_days, delivery_days, recurrence, biweekly_start_date, turnaround_days, allow_same_day, active, facility_id")
     .eq("location_id", locationId)
     .eq("active", true)
     .order("created_at", { ascending: true })
@@ -44,6 +44,7 @@ export async function getActiveRoutes(): Promise<Route[]> {
   return routes.map(r => ({
     ...r,
     turnaround_days: r.turnaround_days ?? 2,
+    allow_same_day: r.allow_same_day ?? false,
     time_windows: windowsByRoute[r.id] ?? [],
   })) as Route[]
 }
@@ -80,6 +81,7 @@ export async function getAllRoutesWithWindows(): Promise<Route[]> {
   return routes.map(r => ({
     ...r,
     turnaround_days: r.turnaround_days ?? 3,
+    allow_same_day: r.allow_same_day ?? false,
     time_windows: windowsByRoute[r.id] ?? [],
   })) as Route[]
 }

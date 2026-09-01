@@ -9,6 +9,7 @@ const MAX_BAG_SIZES = 5
 import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, type ServiceOption } from "@/app/actions/service-options"
 import { isSaleActive } from "@/lib/service-option-utils"
 import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getTipsEnabled, setTipsEnabled, getFreePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
+import { getSameDayConfig, setSameDayConfig, type SameDayConfig } from "@/app/actions/same-day"
 import Link from "next/link"
 
 function cents(val: number) { return `$${(val / 100).toFixed(2)}` }
@@ -344,6 +345,9 @@ export default function PricingPage() {
   const [deliveryFee, setDeliveryFee] = useState<DeliveryFeeSettings>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
   const [savingFee, setSavingFee] = useState(false)
   const [savedFee, setSavedFee] = useState(false)
+  const [sameDay, setSameDayState] = useState<SameDayConfig>({ enabled: false, feeCents: 1000, cutoffHour: 12 })
+  const [savingSameDay, setSavingSameDay] = useState(false)
+  const [savedSameDay, setSavedSameDay] = useState(false)
   const [svcs, setSvcs] = useState<ServicesConfig>({ comforter_wash: true, wash_fold: true, wash_only: true })
   const [savingSvcKey, setSavingSvcKey] = useState<keyof ServicesConfig | null>(null)
   const [monthlyPlanEnabled, setMonthlyPlanEnabledState] = useState(true)
@@ -360,7 +364,7 @@ export default function PricingPage() {
   const [savedWashOnlyBagConfig, setSavedWashOnlyBagConfig] = useState(false)
 
   async function loadAll() {
-    const [cfg, dets, exts, accs, fee, svcsCfg, planEnabled, bagCfg, woBagCfg] = await Promise.all([
+    const [cfg, dets, exts, accs, fee, svcsCfg, planEnabled, bagCfg, woBagCfg, sameDayCfg] = await Promise.all([
       getPricingConfig(),
       getAllServiceOptions("detergent"),
       getAllServiceOptions("extra"),
@@ -370,6 +374,7 @@ export default function PricingPage() {
       getMonthlyPlanEnabled(),
       getWashFoldBagConfig(),
       getWashOnlyBagConfig(),
+      getSameDayConfig(),
     ])
     setConfig(cfg)
     setDetergents(dets)
@@ -380,6 +385,7 @@ export default function PricingPage() {
     setMonthlyPlanEnabledState(planEnabled)
     setBagConfig(bagCfg)
     setWashOnlyBagConfigState(woBagCfg)
+    setSameDayState(sameDayCfg)
     getTipsEnabled().then(setTipsEnabledState)
     getFreePickupDeliveryLineEnabled().then(setFreePickupDeliveryLineEnabledState)
   }
@@ -454,6 +460,14 @@ export default function PricingPage() {
     setSavingFee(false)
     setSavedFee(true)
     setTimeout(() => setSavedFee(false), 3000)
+  }
+
+  async function handleSaveSameDay() {
+    setSavingSameDay(true)
+    await setSameDayConfig(sameDay)
+    setSavingSameDay(false)
+    setSavedSameDay(true)
+    setTimeout(() => setSavedSameDay(false), 3000)
   }
 
   useEffect(() => { loadAll() }, [])
@@ -1029,6 +1043,72 @@ export default function PricingPage() {
             </button>
             {savedFee && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
           </div>
+        </div>
+
+        {/* ── Same-Day Delivery ───────────────────────── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xl">⚡</span>
+            <h2 className="font-extrabold text-[#0D2240] text-base">Same-Day Delivery</h2>
+          </div>
+          <p className="text-xs text-gray-400 mb-5">
+            Let customers pay extra to get same-day pickup + delivery instead of the normal turnaround. Only offered on
+            routes where you&apos;ve checked &quot;Allow same-day&quot; (Routes page), and only until the cutoff time below.
+          </p>
+
+          <label className="flex items-center gap-2 text-sm font-bold text-[#0D2240] mb-5">
+            <input
+              type="checkbox"
+              checked={sameDay.enabled}
+              onChange={e => setSameDayState(s => ({ ...s, enabled: e.target.checked }))}
+              className="rounded"
+            />
+            Enable same-day delivery option at checkout
+          </label>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <div className="border border-gray-100 rounded-xl p-4 bg-[#f7f8fb]">
+              <p className="text-xs font-bold text-[#0D2240] mb-2">Fee</p>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                <PriceInput
+                  className={inputCls + " pl-7"}
+                  cents={sameDay.feeCents}
+                  onChange={c => setSameDayState(s => ({ ...s, feeCents: c ?? 0 }))}
+                />
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1.5">Added on top of the normal price when a customer chooses same-day.</p>
+            </div>
+            <div className="border border-gray-100 rounded-xl p-4 bg-[#f7f8fb]">
+              <p className="text-xs font-bold text-[#0D2240] mb-2">Cutoff Time (local)</p>
+              <select
+                value={sameDay.cutoffHour}
+                onChange={e => setSameDayState(s => ({ ...s, cutoffHour: parseInt(e.target.value, 10) }))}
+                className={inputCls}
+              >
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>
+                    {h === 0 ? "12:00 AM" : h < 12 ? `${h}:00 AM` : h === 12 ? "12:00 PM" : `${h - 12}:00 PM`}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-gray-400 mt-1.5">Same-day stops being offered at this time each day.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleSaveSameDay}
+              disabled={savingSameDay}
+              className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-60"
+            >
+              {savingSameDay ? "Saving…" : "Save Same-Day Settings"}
+            </button>
+            {savedSameDay && <span className="text-green-600 text-sm font-semibold">✓ Saved — live immediately</span>}
+          </div>
+          <p className="text-[10px] text-gray-400 mt-3">
+            Also remember to check &quot;Allow same-day&quot; on the routes that should offer it — see <Link href="/admin/routes" className="underline">Route Management</Link>.
+          </p>
         </div>
 
         {/* ── Detergent Options ───────────────────────── */}

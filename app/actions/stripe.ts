@@ -561,6 +561,8 @@ export async function handleSuccessfulPayment(sessionId: string, stripeAccountId
         promoDiscountCents:  meta.promoDiscountCents ? parseInt(meta.promoDiscountCents) : undefined,
         tipCents:            meta.tipCents ? parseInt(meta.tipCents) : undefined,
         deliveryFeeCents:    meta.deliveryFeeCents ? parseInt(meta.deliveryFeeCents) : undefined,
+        sameDay:             meta.sameDay === "true",
+        sameDayFeeCents:     meta.sameDayFeeCents ? parseInt(meta.sameDayFeeCents) : undefined,
         deliveryAddress:     meta.deliveryAddress ?? undefined,
         detergent:           meta.detergent ?? undefined,
         extras:              meta.extras ?? undefined,

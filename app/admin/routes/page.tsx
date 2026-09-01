@@ -20,6 +20,7 @@ async function createRoute(formData: FormData) {
 
   const turnaround = parseInt(formData.get("turnaround_days") as string || "3", 10)
   const biweeklyStart = formData.get("biweekly_start_date") as string || null
+  const allowSameDay = formData.get("allow_same_day") === "on"
 
   await supabase.from("routes").insert({
     location_id:         locationId,
@@ -30,6 +31,7 @@ async function createRoute(formData: FormData) {
     recurrence:          formData.get("recurrence") as string,
     notes:               formData.get("notes") as string || null,
     turnaround_days:     turnaround,
+    allow_same_day:      allowSameDay,
     biweekly_start_date: biweeklyStart || null,
     facility_id:                formData.get("facility_id") as string || null,
     default_storage_space_id:   formData.get("default_storage_space_id") as string || null,
@@ -63,11 +65,13 @@ async function updateRoute(id: string, formData: FormData) {
   const areas = (formData.get("service_areas") as string)
     .split(",").map(s => s.trim()).filter(Boolean)
   const biweeklyDate = formData.get("biweekly_start_date") as string || null
+  const allowSameDay = formData.get("allow_same_day") === "on"
 
   await supabase.from("routes").update({
     name:                formData.get("name") as string,
     recurrence:          formData.get("recurrence") as string,
     turnaround_days:     parseInt(formData.get("turnaround_days") as string || "3", 10),
+    allow_same_day:      allowSameDay,
     biweekly_start_date: biweeklyDate || null,
     service_areas:       areas,
     pickup_days:         pickupDays,
@@ -112,6 +116,7 @@ export default async function RoutesPage() {
   const routes: Route[] = (routesRaw ?? []).map(r => ({
     ...r,
     turnaround_days: r.turnaround_days ?? 3,
+    allow_same_day: r.allow_same_day ?? false,
     time_windows: windowsByRoute[r.id] ?? [],
   })) as Route[]
 
@@ -162,6 +167,11 @@ export default async function RoutesPage() {
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#E8726A]" />
             </div>
           </div>
+
+          <label className="flex items-center gap-2 text-xs font-semibold text-[#0D2240]">
+            <input type="checkbox" name="allow_same_day" className="rounded" />
+            Allow same-day pickup + delivery on this route
+          </label>
 
           <div>
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Service Areas (comma-separated)</label>
@@ -248,7 +258,7 @@ export default async function RoutesPage() {
                     {r.recurrence === "both" ? "Weekly & Bi-weekly" : r.recurrence === "biweekly" ? "Bi-weekly" : "Weekly"}
                   </span>
                   <span className="text-[10px] text-[#0D2240] bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">
-                    {r.turnaround_days}d turnaround
+                    {r.turnaround_days}d turnaround{r.allow_same_day && <span className="ml-2 text-[#E8726A]">⚡ same-day</span>}
                   </span>
                   {r.recurrence === "biweekly" && r.biweekly_start_date && (
                     <span className="text-[10px] text-purple-600 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">

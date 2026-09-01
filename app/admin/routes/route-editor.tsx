@@ -27,6 +27,7 @@ export function RouteEditor({ route, onSave, facilities = [], storageSpaces = []
   const [name, setName] = useState(route.name)
   const [recurrence, setRecurrence] = useState(route.recurrence)
   const [turnaround, setTurnaround] = useState(String(route.turnaround_days ?? 3))
+  const [allowSameDay, setAllowSameDay] = useState(route.allow_same_day ?? false)
   const [biweeklyDate, setBiweeklyDate] = useState(route.biweekly_start_date ?? "")
   const [serviceAreas, setServiceAreas] = useState((route.service_areas ?? []).join(", "))
   const [pickupDays, setPickupDays] = useState<string[]>(route.pickup_days ?? [])
@@ -55,6 +56,7 @@ export function RouteEditor({ route, onSave, facilities = [], storageSpaces = []
       fd.append("name", name)
       fd.append("recurrence", recurrence)
       fd.append("turnaround_days", turnaround)
+      if (allowSameDay) fd.append("allow_same_day", "on")
       fd.append("biweekly_start_date", biweeklyDate)
       fd.append("service_areas", serviceAreas)
       fd.append("notes", notes)
@@ -116,6 +118,11 @@ export function RouteEditor({ route, onSave, facilities = [], storageSpaces = []
             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#E8726A]" />
         </div>
       </div>
+
+      <label className="flex items-center gap-2 text-xs font-semibold text-[#0D2240]">
+        <input type="checkbox" checked={allowSameDay} onChange={e => setAllowSameDay(e.target.checked)} className="rounded" />
+        Allow same-day pickup + delivery on this route
+      </label>
 
       {/* Service areas */}
       <div>
