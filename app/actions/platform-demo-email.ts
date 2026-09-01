@@ -49,7 +49,9 @@ export async function sendPlatformDemoGuideEmail(params: {
         I've lived it first. WashFoldKit isn't a guess at what operators need; it's the exact system I run on,
         opened up so you can run on it too.`,
       founderNote2: `That's the difference I want you to feel from this email on: you're not signing up for
-        software support. You're getting a partner who's already made the mistakes so you don't have to.`,
+        software support. You're getting a partner who's already made the mistakes so you don't have to. And
+        getting started is probably easier than you think — if you already have a car, a washer, and a dryer
+        at home, you're 95% of the way there. Your biggest investment is already made.`,
       pillarsIntro: `Here's what I mean by that in practice — the support built into WashFoldKit, beyond the booking site itself:`,
       pillars: [
         {
@@ -65,7 +67,7 @@ export async function sendPlatformDemoGuideEmail(params: {
         {
           icon: "\u{1F64B}",
           title: "Real support, from someone who's been on the road",
-          desc: "When you reply with a question, you're not filed into a ticket queue. You get answers from someone who has actually solved that exact problem in their own operation.",
+          desc: "When you reply with a question, you're not filed into a ticket queue. From your first customer to your first commercial account, I'm actively here to help you find opportunities and grow — not just answer tickets.",
         },
         {
           icon: "\u{1F4B3}",
@@ -102,7 +104,8 @@ export async function sendPlatformDemoGuideEmail(params: {
         también lo uses.`,
       founderNote2: `Esa es la diferencia que quiero que sientas desde este mensaje en adelante: no te estás
         suscribiendo a soporte de software. Estás en comunicación directa con alguien que ya cometió los errores
-        para que tú no tengas que hacerlo.`,
+        para que tú no tengas que hacerlo. Y empezar probablemente sea más fácil de lo que piensas — si ya tienes
+        un carro, una lavadora y una secadora en casa, ya llevas el 95% del camino. Tu mayor inversión ya está hecha.`,
       pillarsIntro: `Esto es lo que quiero decir en la práctica — el soporte integrado en WashFoldKit, más allá del sitio de reservas:`,
       pillars: [
         {
@@ -118,7 +121,7 @@ export async function sendPlatformDemoGuideEmail(params: {
         {
           icon: "\u{1F64B}",
           title: "Soporte real, de alguien que ha estado en la carretera",
-          desc: "Cuando respondes con una pregunta, no te archivan en una fila de tickets. Recibes respuestas de alguien que ya resolvió ese mismo problema en su propia operación.",
+          desc: "Cuando respondes con una pregunta, no te archivan en una fila de tickets. Desde tu primer cliente hasta tu primera cuenta comercial, estoy activamente aquí para ayudarte a encontrar oportunidades y crecer — no solo a responder tickets.",
         },
         {
           icon: "\u{1F4B3}",
