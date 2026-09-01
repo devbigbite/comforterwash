@@ -35,84 +35,104 @@ export async function sendPlatformDemoGuideEmail(params: {
 
   const T = {
     en: {
-      subject: `${firstName}, here's your WashFoldClean demo \u{1F680}`,
-      intro: `Thanks for requesting a demo of WashFoldClean${params.business ? ` for <strong>${params.business}</strong>` : ""} —
-        we're excited to show you around. Here's everything you need to explore it yourself, right now, plus a
-        PDF guide attached to this email covering the same steps in more depth. Your demo site and admin login
-        below stay active for the next <strong>14 days</strong> — plenty of time to explore before deciding.`,
-      about: `A little about us: we're laundry pickup &amp; delivery operators ourselves — not a software company guessing at what
-        this business needs. We built WashFoldClean to run our own operation, and unlike most tools in this space, it's
-        designed first for small operators who don't own a laundromat: working out of your own home, or partnering with a
-        local laundromat as your processing facility. If that's closer to how you run (or want to run) your business, this
-        was built with you in mind.`,
-      demoLabel: "Your Own Demo Site",
-      demoBtn: "Open Your Demo →",
-      guideTitle: "A quick guide to what you're looking at:",
-      steps: [
-        `This is a real, live mini-site set up just for you at <strong>${demoUrl}</strong> — pre-loaded with sample services and pricing so you can see exactly how it would look and work.`,
-        `Browse it like a customer would: check out "Pick Up &amp; Delivery," "How It Works," "Pricing," and "FAQ" in the top menu.`,
-        `Try the actual booking flow — pick dates, add-ons, and see pricing update live. Feel free to stop before entering real payment details; nothing here processes real charges yet.`,
-        params.adminPassword
-          ? `Your admin dashboard login is below — that's where you can change your logo, colors, pricing, and text yourself, no code needed.`
-          : `Your site's admin dashboard is where you can change your logo, colors, pricing, and text yourself, no code needed.`,
-        `Want the full feature list and pricing to sign up for real? Visit <a href="${PLATFORM_URL}" style="color:#E8726A">${PLATFORM_URL}</a>.`,
-      ],
-      whyTitle: "Why laundry businesses choose WashFoldClean:",
-      why: [
-        `<strong>Built for operators without a laundromat</strong> — run everything from home, or route orders to a local laundromat you partner with as your processing facility. Most platforms assume you own a facility; we don't.`,
-        `<strong>A dedicated comforter service, built in</strong> — comforters get their own booking flow, pricing, and handling, not just another "item" on a wash & fold list. Most competing platforms have no idea what to do with a comforter order.`,
-        `<strong>An admin dashboard that fits you</strong> — a simple mode for solo operators, a full toolset for teams running a facility, same platform either way.`,
-        `<strong>Your own branded site</strong> — your name, logo, and colors, bilingual out of the box.`,
-        `<strong>Billing handled for you</strong> — Stripe-powered one-time orders, subscriptions, tips, and promo codes.`,
-        `<strong>Driver dispatch &amp; tracking</strong> — optional live tracking and customer texts, whether you hire drivers or deliver yourself.`,
-        `<strong>PIN-protected worker apps</strong> — separate driver and operator views so your team only sees what they need.`,
-        `<strong>No code, ever</strong> — promotions, testimonials, FAQs, and pricing are all editable from your own dashboard.`,
-      ],
-      closing: "Have questions after browsing, or want a live walkthrough instead? Just reply to this email — happy to jump on a call.",
-      sign: "— The WashFoldClean Team",
+      subject: `${firstName}, here's your WashFoldKit demo \u{1F680}`,
       hi: `Hi ${firstName},`,
+      intro: `Thanks for taking a look at WashFoldKit${params.business ? ` for <strong>${params.business}</strong>` : ""} — I wanted to
+        reach out myself and welcome you into our family. Our system has been developed by me and a small crew, not
+        just a software company that's never done wash and fold. Your demo site and admin login below stay active
+        for the next <strong>7 days</strong> — plenty of time to look around before deciding.`,
+      founderName: "JB",
+      founderTitle: "Founder, WashFoldKit",
+      founderPhotoUrl: `${siteUrlForAdminLogin}/founder-jb.jpg`,
+      founderNote1: `A little about why I built this: I run a real wash &amp; fold pickup-delivery business myself.
+        Every price sheet, every driver route, every awkward &quot;how do I even price the service&quot; question —
+        I've lived it first. WashFoldKit isn't a guess at what operators need; it's the exact system I run on,
+        opened up so you can run on it too.`,
+      founderNote2: `That's the difference I want you to feel from this email on: you're not signing up for
+        software support. You're getting a partner who's already made the mistakes so you don't have to.`,
+      pillarsIntro: `Here's what I mean by that in practice — the support built into WashFoldKit, beyond the booking site itself:`,
+      pillars: [
+        {
+          icon: "\u{1F4D6}",
+          title: "The Playbook — you're never starting from a blank page",
+          desc: "Order-processing guides and manuals. Real processes — the same ones my own team uses.",
+        },
+        {
+          icon: "\u{1F9F0}",
+          title: "The Launch Kit — nothing to design or source yourself",
+          desc: "Vetted suppliers for detergent, bags and tags; print-ready flyers, door hangers and social templates. You open, not build.",
+        },
+        {
+          icon: "\u{1F64B}",
+          title: "Real support, from someone who's been on the road",
+          desc: "When you reply with a question, you're not filed into a ticket queue. You get answers from someone who has actually solved that exact problem in their own operation.",
+        },
+        {
+          icon: "\u{1F4B3}",
+          title: "One price, everything included",
+          desc: `No tiers, no &quot;upgrade to unlock.&quot; The Platform, the Playbook, and the Launch Kit all come together — because a business needs all three to actually work, not just the software.`,
+        },
+      ],
+      demoLabel: "Your Demo Is Ready",
+      demoBtn: "Open Your Demo →",
+      closing: `Take your time looking around — your demo site and admin login stay live for 7 days. And if
+        you'd rather just talk it through, reply to this email or reach me on WhatsApp at
+        <strong>407-734-0888</strong>. It comes straight to me.`,
+      sign: "— JB",
+      signSub: "Founder, WashFoldKit",
       adminLabel: "Your Admin Login",
       adminEmailLabel: "Email",
       adminPasswordLabel: "Password",
       adminLoginLink: "Sign in to your dashboard",
     },
     es: {
-      subject: `${firstName}, aquí tienes tu demo de WashFoldClean \u{1F680}`,
-      intro: `Gracias por solicitar una demo de WashFoldClean${params.business ? ` para <strong>${params.business}</strong>` : ""} —
-        estamos emocionados de mostrártela. Aquí tienes todo lo que necesitas para explorarla tú mismo(a), ahora mismo, además de una
-        guía en PDF adjunta a este correo con los mismos pasos explicados con más detalle. Tu sitio de demo y tu acceso de
-        administrador siguen activos durante los próximos <strong>14 días</strong> — tiempo de sobra para explorar antes de decidir.`,
-      about: `Un poco sobre nosotros: somos operadores de recogida y entrega de lavandería nosotros mismos — no una empresa de software adivinando lo que
-        este negocio necesita. Construimos WashFoldClean para manejar nuestra propia operación, y a diferencia de la mayoría de herramientas en este espacio, está
-        diseñada primero para operadores pequeños que no son dueños de una lavandería: trabajando desde tu propia casa, o asociándote con
-        una lavandería local como tu instalación de procesamiento. Si eso se parece más a cómo manejas (o quieres manejar) tu negocio, esto
-        fue construido pensando en ti.`,
-      demoLabel: "Tu Propio Sitio de Demo",
-      demoBtn: "Abrir Tu Demo →",
-      guideTitle: "Una guía rápida de lo que estás viendo:",
-      steps: [
-        `Este es un mini-sitio real y en vivo creado solo para ti en <strong>${demoUrl}</strong> — precargado con servicios y precios de muestra para que veas exactamente cómo se vería y funcionaría.`,
-        `Explóralo como lo haría un cliente: revisa "Recogida y Entrega," "Cómo Funciona," "Precios," y "Preguntas Frecuentes" en el menú superior.`,
-        `Prueba el flujo real de reservación — elige fechas, complementos, y mira cómo se actualiza el precio en vivo. Puedes detenerte antes de ingresar datos de pago reales; nada aquí procesa cobros reales todavía.`,
-        params.adminPassword
-          ? `El acceso a tu panel de administración está más abajo — ahí es donde puedes cambiar tu logo, colores, precios y textos tú mismo(a), sin necesidad de código.`
-          : `El panel de administración de tu sitio es donde puedes cambiar tu logo, colores, precios y textos tú mismo(a), sin necesidad de código.`,
-        `¿Quieres la lista completa de funciones y precios para registrarte de verdad? Visita <a href="${PLATFORM_URL}" style="color:#E8726A">${PLATFORM_URL}</a>.`,
-      ],
-      whyTitle: "Por qué los negocios de lavandería eligen WashFoldClean:",
-      why: [
-        `<strong>Diseñado para operadores sin lavandería propia</strong> — maneja todo desde casa, o dirige pedidos a una lavandería local con la que te asocies como tu instalación de procesamiento. La mayoría de plataformas asumen que tienes una planta; la nuestra no.`,
-        `<strong>Un servicio dedicado para edredones, incluido</strong> — los edredones tienen su propio flujo de reservación, precios y manejo, no solo otro "artículo" en una lista de lavado y doblado. La mayoría de plataformas de la competencia no sabe qué hacer con un pedido de edredón.`,
-        `<strong>Un panel de administración que se adapta a ti</strong> — un modo simple para operadores solos, un juego de herramientas completo para equipos que manejan una planta, la misma plataforma en ambos casos.`,
-        `<strong>Tu propio sitio con tu marca</strong> — tu nombre, logo y colores, bilingüe desde el primer día.`,
-        `<strong>Facturación resuelta por nosotros</strong> — pedidos únicos, suscripciones, propinas y códigos promocionales, todo con Stripe.`,
-        `<strong>Despacho y rastreo de conductores</strong> — rastreo en vivo opcional y mensajes de texto a clientes, ya sea que contrates conductores o entregues tú mismo(a).`,
-        `<strong>Apps para trabajadores protegidas con PIN</strong> — vistas separadas para conductores y operadores, para que tu equipo solo vea lo que necesita.`,
-        `<strong>Sin código, nunca</strong> — promociones, testimonios, preguntas frecuentes y precios son editables desde tu propio panel.`,
-      ],
-      closing: "¿Tienes preguntas después de explorar, o prefieres un recorrido en vivo? Solo responde a este correo — con gusto agendamos una llamada.",
-      sign: "— El Equipo de WashFoldClean",
+      subject: `${firstName}, aquí tienes tu demo de WashFoldKit \u{1F680}`,
       hi: `Hola ${firstName},`,
+      intro: `Gracias por evaluar WashFoldKit${params.business ? ` para <strong>${params.business}</strong>` : ""} — quise
+        escribirte yo mismo y darte la bienvenida a nuestra familia. Nuestro sistema fue desarrollado por mí y un
+        pequeño equipo, no solo por una empresa de software que nunca ha hecho lavado y doblado. Tu sitio de demo y
+        tu acceso de administrador siguen activos durante los próximos <strong>7 días</strong> — tiempo para
+        explorar antes de decidir.`,
+      founderName: "JB",
+      founderTitle: "Fundador, WashFoldKit",
+      founderPhotoUrl: `${siteUrlForAdminLogin}/founder-jb.jpg`,
+      founderNote1: `Un poco sobre por qué construí esto: yo mismo dirijo un negocio real de recogida y entrega de
+        lavado y doblado. Cada tarifa, cada ruta de conductor, cada pregunta — ya la he vivido. WashFoldKit no es
+        una suposición de lo que necesitan los operadores; es el mismo sistema que yo uso, abierto para que tú
+        también lo uses.`,
+      founderNote2: `Esa es la diferencia que quiero que sientas desde este mensaje en adelante: no te estás
+        suscribiendo a soporte de software. Estás en comunicación directa con alguien que ya cometió los errores
+        para que tú no tengas que hacerlo.`,
+      pillarsIntro: `Esto es lo que quiero decir en la práctica — el soporte integrado en WashFoldKit, más allá del sitio de reservas:`,
+      pillars: [
+        {
+          icon: "\u{1F4D6}",
+          title: "El Playbook — nunca empiezas desde cero",
+          desc: "Guías y manuales de procesamiento de pedidos. Procesos reales — los mismos que usa mi propio equipo.",
+        },
+        {
+          icon: "\u{1F9F0}",
+          title: "El Launch Kit — nada que diseñar o buscar por tu cuenta",
+          desc: "Proveedores confiables de detergente, bolsas y etiquetas; volantes, colgadores de puerta y plantillas para redes sociales listos para imprimir. Tú abres, no construyes.",
+        },
+        {
+          icon: "\u{1F64B}",
+          title: "Soporte real, de alguien que ha estado en la carretera",
+          desc: "Cuando respondes con una pregunta, no te archivan en una fila de tickets. Recibes respuestas de alguien que ya resolvió ese mismo problema en su propia operación.",
+        },
+        {
+          icon: "\u{1F4B3}",
+          title: "Un solo precio, todo incluido",
+          desc: `Sin niveles, sin &quot;actualiza para desbloquear.&quot; La Plataforma, el Playbook y el Launch Kit vienen juntos — porque un negocio necesita los tres para funcionar de verdad, no solo el software.`,
+        },
+      ],
+      demoLabel: "Tu Demo Está Lista",
+      demoBtn: "Abrir Tu Demo →",
+      closing: `Tómate tu tiempo para explorar — tu sitio de demo y tu acceso de administrador siguen activos por
+        7 días. Y si prefieres hablarlo directamente, responde a este correo o escríbeme por WhatsApp al
+        <strong>407-734-0888</strong>. Me llega directo a mí.`,
+      sign: "— JB",
+      signSub: "Fundador, WashFoldKit",
       adminLabel: "Tu Acceso de Administrador",
       adminEmailLabel: "Correo",
       adminPasswordLabel: "Contraseña",
@@ -126,14 +146,42 @@ export async function sendPlatformDemoGuideEmail(params: {
     <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#333">
       <p style="font-size:15px;line-height:1.6">${t.hi}</p>
       <p style="font-size:15px;line-height:1.6">${t.intro}</p>
-      <p style="font-size:15px;line-height:1.6">${t.about}</p>
 
-      <div style="background:#0D2240;border-radius:16px;padding:24px;text-align:center;margin:24px 0">
-        <p style="color:rgba(255,255,255,0.6);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin:0 0 10px">${t.demoLabel}</p>
-        <a href="${demoUrl}" style="display:inline-block;background:#E8726A;color:white;font-weight:800;font-size:14px;text-decoration:none;padding:12px 28px;border-radius:999px;text-transform:uppercase;letter-spacing:0.5px">
+      <div style="background:#ffffff;border:1px solid #e8e6e1;border-radius:16px;padding:22px 22px 20px;margin:22px 0">
+        <table style="width:100%;border-collapse:collapse">
+          <tr>
+            <td style="width:76px;vertical-align:top">
+              <img src="${t.founderPhotoUrl}" width="64" height="64" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block" alt="${t.founderName}">
+            </td>
+            <td style="vertical-align:top;padding-left:14px">
+              <p style="margin:0 0 2px;font-weight:700;color:#0D2240;font-size:14px">${t.founderName}</p>
+              <p style="margin:0;font-size:12px;color:#888">${t.founderTitle}</p>
+            </td>
+          </tr>
+        </table>
+        <p style="font-size:14px;line-height:1.7;color:#444;margin:16px 0 0">${t.founderNote1}</p>
+        <p style="font-size:14px;line-height:1.7;color:#444;margin:12px 0 0">${t.founderNote2}</p>
+      </div>
+
+      <p style="font-size:15px;line-height:1.6">${t.pillarsIntro}</p>
+
+      <div style="margin:20px 0">
+        ${t.pillars.map((p, i) => `
+        <div style="display:table;width:100%;margin-bottom:${i === t.pillars.length - 1 ? "0" : "16px"}">
+          <div style="display:table-cell;width:34px;vertical-align:top;font-size:20px">${p.icon}</div>
+          <div style="display:table-cell;vertical-align:top;padding-left:8px">
+            <p style="margin:0 0 4px;font-weight:700;color:#0D2240;font-size:14px">${p.title}</p>
+            <p style="margin:0;font-size:13px;line-height:1.65;color:#555">${p.desc}</p>
+          </div>
+        </div>`).join("")}
+      </div>
+
+      <div style="background:#0D2240;border-radius:16px;padding:22px;text-align:center;margin:24px 0">
+        <p style="color:rgba(255,255,255,0.65);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin:0 0 10px">${t.demoLabel}</p>
+        <a href="${demoUrl}" style="display:inline-block;background:#E8726A;color:#ffffff;font-weight:800;font-size:14px;text-decoration:none;padding:12px 28px;border-radius:999px;text-transform:uppercase;letter-spacing:0.5px">
           ${t.demoBtn}
         </a>
-        <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:14px 0 0">${demoUrl}</p>
+        <p style="color:rgba(255,255,255,0.45);font-size:12px;margin:14px 0 0">${demoUrl}</p>
       </div>
 
       ${params.adminPassword ? `
@@ -145,26 +193,8 @@ export async function sendPlatformDemoGuideEmail(params: {
       </div>
       ` : ""}
 
-      <p style="font-size:15px;font-weight:700;color:#0D2240;margin-bottom:8px">${t.guideTitle}</p>
-      <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px">
-        ${t.steps.map((step, i) => {
-          const borderTop = i > 0 ? "border-top:1px solid #eee;" : ""
-          const bg = i % 2 === 0 ? "background:#f8f8f8;" : ""
-          return `
-        <tr>
-          <td style="padding:10px 12px;${borderTop}${bg}font-weight:700;color:#0D2240;width:28px;vertical-align:top">${i + 1}</td>
-          <td style="padding:10px 12px;${borderTop}${bg}">${step}</td>
-        </tr>`
-        }).join("")}
-      </table>
-
-      <p style="font-size:15px;font-weight:700;color:#0D2240;margin-bottom:8px">${t.whyTitle}</p>
-      <ul style="font-size:14px;line-height:1.9;color:#555;padding-left:20px;margin-top:0">
-        ${t.why.map(w => `<li>${w}</li>`).join("")}
-      </ul>
-
-      <p style="font-size:15px;line-height:1.6;margin-top:20px">${t.closing}</p>
-      <p style="font-size:14px;color:#888;margin-top:24px">${t.sign}</p>
+      <p style="font-size:15px;line-height:1.6">${t.closing}</p>
+      <p style="font-size:14px;color:#888;margin-top:24px">${t.sign}<br><span style="font-size:12px;color:#aaa">${t.signSub}</span></p>
     </div>
   `
 
