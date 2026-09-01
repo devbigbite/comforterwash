@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
+import { getMarketingSettings } from "@/app/actions/marketing-settings"
 
 export async function createPromoCode(formData: FormData) {
   await requireAdmin()
@@ -71,7 +72,17 @@ export async function validatePromoCode(
     .eq("active", true)
     .single()
 
-  if (!promo) return { valid: false, error: "Code not found or inactive." }
+  if (!promo) {
+    // Not a promo code -- check whether it's a customer's referral code
+    // instead. Referral codes are validated the same way a promo would be:
+    // same input field on the booking form, same discount mechanics. The
+    // referrer's own bonus credit is granted separately, after the referred
+    // booking is actually paid (see grantReferrerCredit, called from
+    // createBooking) -- not here, since this call doesn't create a booking.
+    const referral = await validateReferralCode(code, locationId, subtotalCents, customerEmail)
+    if (referral) return referral
+    return { valid: false, error: "Code not found or inactive." }
+  }
 
   // Check expiry
   if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
@@ -128,12 +139,14 @@ export async function validatePromoCode(
 
   return {
     valid: true,
+    error: undefined,
     discountCents,
     discountLabel: promo.discount_type === "percent"
       ? `${promo.discount_value}% off`
       : `$${(promo.discount_value).toFixed(2)} off`,
     promoId: promo.id,
     description: promo.description,
+    isReferralCode: false,
   }
 }
 
@@ -184,4 +197,42 @@ export async function recordPromoRedemption(params: {
     .from("promo_codes")
     .update({ uses_count: (promo.uses_count ?? 0) + 1 })
     .eq("id", promo.id)
+}
+
+
+// ── Referral code fallback for validatePromoCode ───────────────────────────
+async function validateReferralCode(
+  code: string,
+  locationId: string,
+  subtotalCents: number,
+  customerEmail?: string | null,
+) {
+  const settings = await getMarketingSettings(locationId)
+  if (!settings.referralEnabled) return null
+
+  const supabase = createAdminClient()
+  const normalized = code.toUpperCase().trim()
+
+  const { data: referrer } = await supabase
+    .from("customers")
+    .select("id, email")
+    .eq("location_id", locationId)
+    .eq("referral_code", normalized)
+    .maybeSingle()
+
+  if (!referrer) return null
+  if (customerEmail && referrer.email && referrer.email.toLowerCase() === customerEmail.toLowerCase()) {
+    return { valid: false, error: "You can't use your own referral code." }
+  }
+
+  const discountCents = Math.min(settings.referralRefereeCreditCents, subtotalCents)
+  return {
+    valid: true,
+    error: undefined,
+    discountCents,
+    discountLabel: `$${(discountCents / 100).toFixed(2)} off (referral)`,
+    promoId: null,
+    description: "Referral discount",
+    isReferralCode: true,
+  }
 }

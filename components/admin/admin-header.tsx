@@ -35,6 +35,7 @@ function buildSimpleNav(lang: "en" | "es", operatingMode: OperatingMode): NavIte
     ...(isHome
       ? [{ type: "link" as const, href: "/admin/laundromats", label: es ? "Mis Lavanderías" : "My Laundromats" }]
       : [{ type: "link" as const, href: "/admin/workers", label: es ? "Trabajadores" : "Workers" }]),
+    { type: "link", href: "/admin/marketing",  label: es ? "Marketing" : "Marketing" },
     { type: "link", href: "/admin/settings",   label: es ? "Configuración" : "Settings" },
     { type: "link", href: "/admin/cities",     label: es ? "🏙️ Ciudades" : "🏙️ Cities" },
     { type: "link", href: "/admin/manual",     label: es ? "📖 Manual" : "📖 Manual" },
@@ -102,6 +103,14 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
         { href: "/admin/facility-payments", label: es ? "🏦 Pagos a Instalaciones" : "🏦 Facility Payments" },
         { href: "/admin/pricing",  label: es ? "Precios" : "Pricing" },
         { href: "/admin/tips",     label: es ? "Propinas" : "Tips" },
+      ],
+    },
+    {
+      type: "dropdown",
+      label: es ? "Marketing" : "Marketing",
+      items: [
+        { href: "/admin/customers", label: es ? "Clientes" : "Customers" },
+        { href: "/admin/marketing", label: es ? "Marketing" : "Marketing" },
       ],
     },
     {

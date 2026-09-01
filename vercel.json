@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/shipday-sync",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/abandoned-cart-recovery",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/re-engagement",
+      "schedule": "0 14 * * *"
     }
   ]
 }

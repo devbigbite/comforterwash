@@ -11,6 +11,8 @@ import { recordPromoRedemption } from "@/app/actions/promos"
 import { getComforterPromo } from "@/app/actions/settings"
 import { getPricingConfig, getWashFoldBagConfig, getWashOnlyBagConfig } from "@/app/actions/pricing"
 import { computeComforterFacilityCostCents } from "@/lib/facility-comforter-cost"
+import { syncCustomerFromBooking } from "@/app/actions/customers"
+import { grantReferrerCredit } from "@/app/actions/referrals"
 
 export interface BookingData {
   customerName: string
@@ -243,6 +245,36 @@ export async function createBooking(data: BookingData) {
       locationId,
     }).catch(err => console.error("[promos] recordPromoRedemption failed:", err))
   }
+
+  // Marketing engine: keep the customers table in sync with every booking
+  // (segments/campaigns/abandoned-cart/re-engagement all read from it), and
+  // if this booking used someone's referral code, grant that referrer their
+  // bonus credit now that the order is actually paid for.
+  syncCustomerFromBooking({
+    locationId,
+    email: data.customerEmail,
+    phone: data.customerPhone,
+    name: data.customerName,
+    amountCents: data.totalAmount,
+    bookingCreatedAt: booking.created_at ?? new Date().toISOString(),
+    referredByCode: data.promoCode ?? null,
+  }).then(({ customerId }) => {
+    if (!customerId) return
+    return createAdminClient()
+      .from("customers")
+      .select("referred_by_customer_id")
+      .eq("id", customerId)
+      .maybeSingle()
+      .then(({ data: row }) => {
+        if (row?.referred_by_customer_id) {
+          return grantReferrerCredit({
+            locationId,
+            referrerCustomerId: row.referred_by_customer_id,
+            bookingId: booking.id,
+          })
+        }
+      })
+  }).catch(err => console.error("[customers] booking sync/referral grant failed:", err))
 
   // Auto-create order bags
   // Note: the Supabase client resolves with { error } on constraint violations —
