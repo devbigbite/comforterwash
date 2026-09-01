@@ -7,6 +7,7 @@ import { useLang } from "@/components/lang-provider"
 export function ZipChecker() {
   const [zip, setZip] = useState("")
   const [status, setStatus] = useState<"idle" | "loading" | "yes" | "no">("idle")
+  const [zoneName, setZoneName] = useState<string | null>(null)
   const { translations: tr } = useLang()
   const t = tr.zip
 
@@ -14,7 +15,8 @@ export function ZipChecker() {
     const cleaned = zip.trim()
     if (cleaned.length < 5) return
     setStatus("loading")
-    const serviceable = await checkZipServiceable(cleaned)
+    const { serviceable, zoneName } = await checkZipServiceable(cleaned)
+    setZoneName(zoneName)
     setStatus(serviceable ? "yes" : "no")
   }
 
@@ -46,7 +48,7 @@ export function ZipChecker() {
       {status === "yes" && (
         <div className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 font-medium">
           <span className="text-green-500 text-base">✓</span>
-          {t.available}
+          {zoneName ? `${t.available} — ${zoneName}` : t.available}
         </div>
       )}
       {status === "no" && (

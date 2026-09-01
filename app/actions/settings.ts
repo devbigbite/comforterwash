@@ -504,14 +504,14 @@ export async function setReceiptText(text: ReceiptText): Promise<void> {
 // could get a false "yes we serve you" based on ANY tenant's zip list. Routing
 // it through a server action scopes the lookup to the current request's
 // tenant via getLocationId().
-export async function checkZipServiceable(zip: string): Promise<boolean> {
+export async function checkZipServiceable(zip: string): Promise<{ serviceable: boolean; zoneName: string | null }> {
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("service_areas")
-    .select("zip_code")
+    .select("zip_code, zone_name")
     .eq("zip_code", zip)
     .eq("location_id", locationId)
     .eq("active", true)
     .maybeSingle()
-  return !!data
+  return { serviceable: !!data, zoneName: data?.zone_name ?? null }
 }

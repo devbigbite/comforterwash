@@ -7,6 +7,7 @@ interface Area {
   zip_code: string
   city: string
   state: string | null
+  zone_name: string | null
   notes: string | null
   public_blurb: string | null
   active: boolean
@@ -22,6 +23,7 @@ interface Props {
 export default function EditZipRow({ area, toggleZip, updateZip, deleteZip }: Props) {
   const [editing, setEditing] = useState(false)
   const [city, setCity] = useState(area.city)
+  const [zoneName, setZoneName] = useState(area.zone_name ?? "")
   const [notes, setNotes] = useState(area.notes ?? "")
   const [publicBlurb, setPublicBlurb] = useState(area.public_blurb ?? "")
   const [isPending, startTransition] = useTransition()
@@ -33,6 +35,7 @@ export default function EditZipRow({ area, toggleZip, updateZip, deleteZip }: Pr
     fd.set("id", area.id)
     fd.set("zip_code", area.zip_code)
     fd.set("city", city)
+    fd.set("zone_name", zoneName)
     fd.set("notes", notes)
     fd.set("public_blurb", publicBlurb)
     startTransition(async () => {
@@ -61,13 +64,19 @@ export default function EditZipRow({ area, toggleZip, updateZip, deleteZip }: Pr
     return (
       <tr className="bg-[#fdf6f3]/60">
         <td className="px-6 py-4 font-bold text-[#0D2240]">{area.zip_code}</td>
-        <td className="px-6 py-3" colSpan={2}>
+        <td className="px-6 py-3" colSpan={3}>
           <form onSubmit={handleSave} className="flex flex-col gap-2">
             <div className="flex gap-2 items-center">
               <input
                 value={city}
                 onChange={e => setCity(e.target.value)}
                 placeholder="City"
+                className="w-28 rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-[#0D2240] focus:outline-none focus:ring-1 focus:ring-[#E8726A]/40"
+              />
+              <input
+                value={zoneName}
+                onChange={e => setZoneName(e.target.value)}
+                placeholder="Zone (optional)"
                 className="w-28 rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-[#0D2240] focus:outline-none focus:ring-1 focus:ring-[#E8726A]/40"
               />
               <input
@@ -120,6 +129,13 @@ export default function EditZipRow({ area, toggleZip, updateZip, deleteZip }: Pr
     <tr className="hover:bg-[#f7f8fb]/60 transition-colors">
       <td className="px-6 py-4 font-bold text-[#0D2240]">{area.zip_code}</td>
       <td className="px-6 py-4 text-gray-500">{area.city}{area.state ? `, ${area.state}` : ""}</td>
+      <td className="px-6 py-4">
+        {area.zone_name ? (
+          <span className="text-xs font-bold bg-[#0D2240]/5 text-[#0D2240] px-2.5 py-1 rounded-full">{area.zone_name}</span>
+        ) : (
+          <span className="text-gray-300 text-xs">—</span>
+        )}
+      </td>
       <td className="px-6 py-4 text-gray-400 text-xs">{area.notes ?? "—"}</td>
       <td className="px-6 py-4">
         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${

@@ -55,7 +55,7 @@ export default async function ServiceAreaDetailPage({
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data: area } = await supabase
     .from("service_areas")
-    .select("zip_code, city, active, public_blurb")
+    .select("zip_code, city, zone_name, active, public_blurb")
     .eq("location_id", locationId)
     .eq("zip_code", zip)
     .eq("active", true)
@@ -104,6 +104,9 @@ export default async function ServiceAreaDetailPage({
         <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
           {area.city}, {area.zip_code}
         </h1>
+        {area.zone_name && (
+          <p className="text-[var(--brand-accent)] text-xs font-bold uppercase tracking-wide mt-2">{area.zone_name} zone</p>
+        )}
         <p className="text-white/60 text-sm md:text-base mt-4 max-w-xl mx-auto leading-relaxed">
           {intro}
         </p>

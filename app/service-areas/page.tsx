@@ -32,7 +32,7 @@ export default async function ServiceAreasPage({
   const [{ data: areas }, freePickupDeliveryEnabled] = await Promise.all([
     supabase
       .from("service_areas")
-      .select("zip_code, city, notes, active")
+      .select("zip_code, city, zone_name, notes, active")
       .eq("active", true)
       .eq("location_id", locationId)
       .order("zip_code"),
@@ -90,7 +90,7 @@ export default async function ServiceAreasPage({
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <span className="text-3xl">📍</span>
                   <span className="text-xs font-bold bg-[#0D2240]/5 text-[#0D2240] px-2.5 py-1 rounded-full">
-                    {area.city}
+                    {area.zone_name ? `${area.city} · ${area.zone_name}` : area.city}
                   </span>
                 </div>
                 <p className="text-3xl font-extrabold text-[#0D2240] tracking-tight mb-1">{area.zip_code}</p>

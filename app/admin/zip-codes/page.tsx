@@ -9,12 +9,13 @@ async function addZip(formData: FormData) {
   "use server"
   await requireAdmin()
   const zip = (formData.get("zip") as string)?.trim()
-  const city = (formData.get("city") as string)?.trim() || "Orlando"
+  const city = (formData.get("city") as string)?.trim() || null
+  const zoneName = (formData.get("zone_name") as string)?.trim() || null
   const notes = (formData.get("notes") as string)?.trim() || null
   if (!zip || zip.length !== 5) return
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   await supabase.from("service_areas").upsert(
-    { zip_code: zip, city, notes, active: true, location_id: locationId },
+    { zip_code: zip, city, zone_name: zoneName, notes, active: true, location_id: locationId },
     { onConflict: "location_id,zip_code" }
   )
   revalidatePath("/admin/zip-codes")
@@ -43,13 +44,15 @@ async function updateZip(formData: FormData) {
   "use server"
   await requireAdmin()
   const id = formData.get("id") as string
-  const city = (formData.get("city") as string)?.trim() || "Orlando"
+  const city = (formData.get("city") as string)?.trim() || null
+  const zoneName = (formData.get("zone_name") as string)?.trim() || null
   const notes = (formData.get("notes") as string)?.trim() || null
   const publicBlurb = (formData.get("public_blurb") as string)?.trim() || null
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
-  await supabase.from("service_areas").update({ city, notes, public_blurb: publicBlurb }).eq("id", id).eq("location_id", locationId)
+  await supabase.from("service_areas").update({ city, zone_name: zoneName, notes, public_blurb: publicBlurb }).eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/zip-codes")
   revalidatePath(`/service-areas/${(formData.get("zip_code") as string) ?? ""}`)
+  revalidatePath("/service-areas")
 }
 
 export default async function ZipCodesPage() {
@@ -73,6 +76,11 @@ export default async function ZipCodesPage() {
             <h1 className="text-2xl font-extrabold text-[#0D2240]">Service Areas</h1>
             <p className="text-sm text-gray-400 mt-1">
               {activeCount} active ZIP code{activeCount !== 1 ? "s" : ""} · Notes are admin-only
+            </p>
+            <p className="text-xs text-gray-400 mt-2 max-w-xl">
+              Optional: group ZIPs into named Zones (e.g. "Bellaire", "South", "Clear Lake") so customers see
+              which part of your service area they're in. ZIPs with no zone just show as individually served.
+              Leave a nearby area's ZIPs out entirely if you don't want to serve it yet.
             </p>
           </div>
           <a href="/admin" className="text-sm text-gray-400 hover:text-[#0D2240] transition-colors">
@@ -113,8 +121,17 @@ export default async function ZipCodesPage() {
               <input
                 name="city"
                 type="text"
-                defaultValue="Orlando"
+                placeholder="City"
                 className="w-36 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Zone (optional)</label>
+              <input
+                name="zone_name"
+                type="text"
+                placeholder="e.g. Bellaire"
+                className="w-32 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
               />
             </div>
             <div className="flex flex-col gap-1 flex-1">
@@ -145,6 +162,7 @@ export default async function ZipCodesPage() {
                 <tr className="border-b border-gray-100 bg-[#f7f8fb]">
                   <th className="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">ZIP</th>
                   <th className="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">City</th>
+                  <th className="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Zone</th>
                   <th className="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Notes</th>
                   <th className="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Status</th>
                   <th className="px-6 py-3" />
