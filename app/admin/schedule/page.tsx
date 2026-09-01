@@ -1178,7 +1178,22 @@ function AdminScheduleInner() {
                                 <div className="w-4 shrink-0 text-gray-300 text-center">→</div>
                                 <div className="w-28 shrink-0 tabular-nums">
                                   {punch.clocked_out_at
-                                    ? <span className="text-gray-700">{fmtTime(punch.clocked_out_at)}</span>
+                                    ? (
+                                      <span className="text-gray-700">
+                                        {fmtTime(punch.clocked_out_at)}
+                                        {/* Shift crossed midnight (e.g. 10:59 PM -> 1:29 AM) --
+                                            the single date column to the left only shows the
+                                            clock-in day, so a clock-out on the next calendar day
+                                            looked unexplained. Only shown when it actually
+                                            differs, so same-day punches (the common case) stay
+                                            uncluttered. */}
+                                        {toLocalInputValue(punch.clocked_out_at).slice(0, 10) !== toLocalInputValue(punch.clocked_in_at).slice(0, 10) && (
+                                          <span className="block text-[10px] font-semibold text-gray-400 leading-tight">
+                                            {toLocalInputValue(punch.clocked_out_at).slice(5, 10)}
+                                          </span>
+                                        )}
+                                      </span>
+                                    )
                                     : <span className="text-green-500 font-bold text-xs">Active ●</span>}
                                 </div>
                                 <div className="w-16 shrink-0 font-bold text-[#0D2240] tabular-nums leading-tight">
