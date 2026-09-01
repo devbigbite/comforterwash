@@ -40,13 +40,13 @@ export async function sendPlatformDemoGuideEmail(params: {
       intro: `Thanks for taking a look at WashFoldKit${params.business ? ` for <strong>${params.business}</strong>` : ""} — I wanted to
         reach out myself and welcome you into our family. Our system has been developed by me and a small crew, not
         just a software company that's never done wash and fold. Your demo site and admin login below stay active
-        for the next <strong>7 days</strong> — plenty of time to look around before deciding.`,
+        for the next <strong>7 days</strong> — so you can look around before deciding.`,
       founderName: "JB",
       founderTitle: "Founder, WashFoldKit",
       founderPhotoUrl: `${siteUrlForAdminLogin}/founder-jb.jpg`,
       founderNote1: `A little about why I built this: I run a real wash &amp; fold pickup-delivery business myself.
-        Every price sheet, every driver route, every awkward &quot;how do I even price the service&quot; question —
-        I've lived it first. WashFoldKit isn't a guess at what operators need; it's the exact system I run on,
+        Every price sheet, every driver route, every question — I've lived it first. WashFoldKit isn't a
+        guess at what operators need; it's the exact system I run on,
         opened up so you can run on it too.`,
       founderNote2: `That's the difference I want you to feel from this email on: you're not signing up for
         software support. You're getting a partner who's already made the mistakes so you don't have to. And
