@@ -54,14 +54,14 @@ export async function exitTenantAdmin(): Promise<void> {
 
 // ── Read ──────────────────────────────────────────────────────────────────────
 
-export async function getAllLocations(): Promise<(Location & { created_at: string; billing_status: string; plan_price_cents: number | null; plan_name: string | null; admin_email: string | null })[]> {
+export async function getAllLocations(): Promise<(Location & { created_at: string; billing_status: string; plan_price_cents: number | null; plan_name: string | null; admin_email: string | null; paused: boolean; paused_reason: string | null })[]> {
   await requireSuperAdmin()
   const supabase = createAdminClient()
   const { data } = await supabase
     .from("locations")
-    .select("id, slug, name, custom_domain, status, plan, created_at, billing_status, plan_price_cents, plan_name")
+    .select("id, slug, name, custom_domain, status, plan, created_at, billing_status, plan_price_cents, plan_name, paused, paused_reason")
     .order("created_at", { ascending: true })
-  const locations = (data ?? []) as (Location & { created_at: string; billing_status: string; plan_price_cents: number | null; plan_name: string | null })[]
+  const locations = (data ?? []) as (Location & { created_at: string; billing_status: string; plan_price_cents: number | null; plan_name: string | null; paused: boolean; paused_reason: string | null })[]
   if (locations.length === 0) return []
 
   // One tenant contact email per row for the locations table -- prefer the
@@ -536,6 +536,39 @@ export async function updateLocation(
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq("id", id)
 
+  if (error) return { error: error.message }
+  revalidatePath("/super-admin")
+  return {}
+}
+
+// ── Pause / resume a single location's public site ────────────────────────
+// Blocks booking, tracking, and the marketing site for JUST this
+// `locations` row (see isLocationPaused in middleware.ts) -- /admin stays
+// reachable. Auto-triggered by Stripe on subscription cancellation (see
+// app/api/stripe/webhook/route.ts); this is the manual override for
+// anything else -- billing arrears the owner wants to act on before Stripe
+// auto-cancels, a policy issue, or any other "stop serving customers here
+// for now" reason. In multi-city, pausing one city's location never
+// touches a sibling city's own row.
+export async function pauseLocation(locationId: string, reason: string): Promise<{ error?: string }> {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from("locations")
+    .update({ paused: true, paused_reason: reason.trim() || "manual" })
+    .eq("id", locationId)
+  if (error) return { error: error.message }
+  revalidatePath("/super-admin")
+  return {}
+}
+
+export async function resumeLocation(locationId: string): Promise<{ error?: string }> {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from("locations")
+    .update({ paused: false, paused_reason: null })
+    .eq("id", locationId)
   if (error) return { error: error.message }
   revalidatePath("/super-admin")
   return {}

@@ -65,6 +65,12 @@ export async function POST(req: NextRequest) {
             stripe_customer_id: stripeCustomerId ?? null,
             stripe_subscription_id: stripeSubId ?? null,
             billing_status: "active",
+            // Paying (or resuming payment) automatically un-pauses --
+            // matches the auto-pause on subscription.deleted below. A
+            // manual pause (set for a non-billing reason) also gets
+            // cleared here; if that's ever a problem, un-pausing can be
+            // made conditional on paused_reason being billing-only.
+            paused: false,
           }).eq("id", locationId)
 
           // If this location started life as a demo request, this is the
@@ -209,7 +215,7 @@ export async function POST(req: NextRequest) {
         // no-op if stripeSubId doesn't match any location.
         await supabase
           .from("locations")
-          .update({ billing_status: "active" })
+          .update({ billing_status: "active", paused: false })
           .eq("stripe_subscription_id", stripeSubId)
         break
       }
@@ -260,6 +266,12 @@ export async function POST(req: NextRequest) {
       }
 
       // ── Subscription cancelled in Stripe ──────────────────────────────────
+      // A cancelled platform subscription auto-pauses that location's public
+      // site (booking, tracking, marketing pages) -- see isLocationPaused in
+      // middleware.ts. /admin itself stays reachable so the tenant can see
+      // their status and resubscribe. In multi-city, this only ever affects
+      // the ONE `locations` row tied to the cancelled subscription -- a
+      // sibling city's own subscription is untouched.
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription
         await supabase
@@ -269,7 +281,7 @@ export async function POST(req: NextRequest) {
 
         await supabase
           .from("locations")
-          .update({ billing_status: "canceled" })
+          .update({ billing_status: "canceled", paused: true, paused_reason: "billing" })
           .eq("stripe_subscription_id", sub.id)
         break
       }

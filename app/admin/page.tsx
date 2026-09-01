@@ -2,7 +2,7 @@ import type React from "react"
 import { redirect } from "next/navigation"
 import { getBookings } from "@/app/actions/bookings"
 import { getFulfillmentMode } from "@/app/actions/walkin"
-import { getMyBillingStatus } from "@/app/actions/platform-billing"
+import { getMyBillingStatus, getMyPauseStatus } from "@/app/actions/platform-billing"
 import { getBranding, getLocationId, getLocationTimezone, ORLANDO_LOCATION_ID, DEFAULT_BRANDING } from "@/lib/location"
 import { getAdminViewMode, getOperatingModeConfirmed } from "@/app/actions/branding"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -57,8 +57,8 @@ export default async function AdminHub() {
   const isAdmin = await isAdminForCurrentLocation()
   if (!isAdmin) redirect("/admin/login")
 
-  const [bookings, branding, fulfillmentMode, billingStatus, locationId, viewMode] = await Promise.all([
-    getBookings(), getBranding(), getFulfillmentMode(), getMyBillingStatus(), getLocationId(), getAdminViewMode(),
+  const [bookings, branding, fulfillmentMode, billingStatus, pauseStatus, locationId, viewMode] = await Promise.all([
+    getBookings(), getBranding(), getFulfillmentMode(), getMyBillingStatus(), getMyPauseStatus(), getLocationId(), getAdminViewMode(),
   ])
   const today = todayET(await getLocationTimezone(locationId))
   const showWalkin = fulfillmentMode === "walkin" || fulfillmentMode === "both"
@@ -105,6 +105,16 @@ export default async function AdminHub() {
                 {billingStatus === "canceled"
                   ? "Your subscription has been cancelled. Contact the platform to reactivate your account."
                   : "Your last payment failed. Please update your billing to keep your account in good standing."}
+              </p>
+            </div>
+          )}
+
+          {pauseStatus.paused && (
+            <div className="rounded-2xl border px-5 py-4 flex items-center gap-3 bg-red-50 border-red-200">
+              <span className="text-xl">⏸️</span>
+              <p className="text-sm font-semibold text-red-700">
+                This location is paused{pauseStatus.reason ? ` (${pauseStatus.reason})` : ""} — your public booking
+                site is showing "temporarily unavailable" to customers. Contact the platform to resume.
               </p>
             </div>
           )}
@@ -348,6 +358,16 @@ export default async function AdminHub() {
               {billingStatus === "canceled"
                 ? "Your subscription has been cancelled. Contact the platform to reactivate your account."
                 : "Your last payment failed. Please update your billing to keep your account in good standing."}
+            </p>
+          </div>
+        )}
+
+        {pauseStatus.paused && (
+          <div className="rounded-2xl border px-5 py-4 flex items-center gap-3 bg-red-50 border-red-200">
+            <span className="text-xl">⏸️</span>
+            <p className="text-sm font-semibold text-red-700">
+              This location is paused{pauseStatus.reason ? ` (${pauseStatus.reason})` : ""} — your public booking
+              site is showing "temporarily unavailable" to customers. Contact the platform to resume.
             </p>
           </div>
         )}

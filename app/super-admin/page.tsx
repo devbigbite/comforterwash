@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
-import { getAllLocations, updateLocation, inviteLocationAdmin, setLocationAdminPassword, getLocationAdmins, removeLocationAdmin, deleteLocation, enterTenantAdmin, type DeleteLocationResult } from "@/app/actions/super-admin"
+import { getAllLocations, updateLocation, inviteLocationAdmin, setLocationAdminPassword, getLocationAdmins, removeLocationAdmin, deleteLocation, enterTenantAdmin, pauseLocation, resumeLocation, type DeleteLocationResult } from "@/app/actions/super-admin"
 import { setLocationPlanPrice, createBillingCheckoutLink, cancelLocationBilling, sendBillingCheckoutEmail } from "@/app/actions/platform-billing"
 
 // Mirrors middleware.ts's PLATFORM_DOMAIN — used here just to build the
@@ -21,6 +21,8 @@ type Location = {
   plan_price_cents: number | null
   plan_name: string | null
   admin_email: string | null
+  paused: boolean
+  paused_reason: string | null
 }
 
 const BILLING_COLORS: Record<string, string> = {
@@ -81,6 +83,8 @@ export default function SuperAdminPage() {
   const [billEmailTo, setBillEmailTo] = useState("")
   const [billEmailSending, setBillEmailSending] = useState(false)
   const [billEmailMsg, setBillEmailMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
+  const [pauseReason, setPauseReason] = useState("")
+  const [pausing, setPausing] = useState(false)
 
   // Delete
   const [deleteForId, setDeleteForId] = useState<string | null>(null)
@@ -154,6 +158,32 @@ export default function SuperAdminPage() {
     setBillSaving(false)
     if (res.error) { setBillMsg({ type: "err", text: res.error }); return }
     setBillMsg({ type: "ok", text: "Subscription cancelled." })
+    startTransition(() => { load() })
+  }
+
+  // Pause blocks JUST this location's public site (booking, tracking,
+  // marketing pages) -- /admin stays reachable so the tenant can see this
+  // and fix it. In multi-city, only this one `locations` row is affected.
+  async function handlePause() {
+    if (!billingForId) return
+    setPausing(true)
+    setBillMsg(null)
+    const res = await pauseLocation(billingForId, pauseReason)
+    setPausing(false)
+    if (res.error) { setBillMsg({ type: "err", text: res.error }); return }
+    setBillMsg({ type: "ok", text: "Location paused — public site now shows 'temporarily unavailable'." })
+    setPauseReason("")
+    startTransition(() => { load() })
+  }
+
+  async function handleResume() {
+    if (!billingForId) return
+    setPausing(true)
+    setBillMsg(null)
+    const res = await resumeLocation(billingForId)
+    setPausing(false)
+    if (res.error) { setBillMsg({ type: "err", text: res.error }); return }
+    setBillMsg({ type: "ok", text: "Location resumed." })
     startTransition(() => { load() })
   }
 
@@ -393,6 +423,14 @@ export default function SuperAdminPage() {
                       >
                         {loc.billing_status}{loc.plan_price_cents ? ` · $${(loc.plan_price_cents / 100).toFixed(0)}/mo` : ""}
                       </button>
+                      {loc.paused && (
+                        <span
+                          title={loc.paused_reason ? `Paused: ${loc.paused_reason}` : "Paused"}
+                          className="ml-1.5 inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700"
+                        >
+                          ⏸️ Paused
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-400 text-xs">
                       {new Date(loc.created_at).toLocaleDateString()}
@@ -665,6 +703,50 @@ export default function SuperAdminPage() {
                 >
                   Cancel Subscription
                 </button>
+              </div>
+
+              {/* Pause blocks just this location's public site (booking, tracking,
+                  marketing) without touching billing or /admin -- for arrears the
+                  owner wants to act on before Stripe auto-cancels, or any other
+                  "stop serving customers here for now" reason. Auto-clears when
+                  billing_status returns to active (see the Stripe webhook). */}
+              <div className="border-t border-slate-100 pt-4">
+                {locations.find(l => l.id === billingForId)?.paused ? (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-xs text-red-700 font-medium mb-2">
+                      Paused{locations.find(l => l.id === billingForId)?.paused_reason ? ` — ${locations.find(l => l.id === billingForId)?.paused_reason}` : ""}.
+                      Public site shows "temporarily unavailable"; /admin still works.
+                    </p>
+                    <button
+                      onClick={handleResume}
+                      disabled={pausing}
+                      className="w-full bg-white border border-red-300 hover:bg-red-100 disabled:opacity-50 text-red-700 text-sm font-medium py-2 rounded-lg transition-colors"
+                    >
+                      {pausing ? "Resuming…" : "Resume"}
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                      Pause this location (reason, e.g. "in arrears")
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        value={pauseReason}
+                        onChange={e => setPauseReason(e.target.value)}
+                        placeholder="Payment in arrears"
+                        className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      />
+                      <button
+                        onClick={handlePause}
+                        disabled={pausing}
+                        className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium px-4 rounded-lg transition-colors whitespace-nowrap"
+                      >
+                        {pausing ? "Pausing…" : "Pause"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {billMsg && (

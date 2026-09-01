@@ -34,6 +34,28 @@ async function isDemoExpiredForLocationId(locationId: string): Promise<boolean> 
   return demoExpired
 }
 
+// A tenant (or, in multi-city, one specific city's `locations` row) can be
+// paused -- automatically when Stripe reports its subscription cancelled
+// (billing_status "canceled"), or manually by the platform owner for any
+// other reason (see pauseLocation in app/actions/super-admin.ts). Only
+// blocks PUBLIC pages (see use below) -- /admin stays reachable so the
+// tenant can see their billing status and existing orders.
+const pausedStatusCache = new Map<string, { paused: boolean; expiresAt: number }>()
+
+async function isLocationPaused(locationId: string): Promise<boolean> {
+  const cached = pausedStatusCache.get(locationId)
+  if (cached && cached.expiresAt > Date.now()) return cached.paused
+
+  const supabase = createEdgeAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  const { data } = await supabase.from("locations").select("paused").eq("id", locationId).maybeSingle()
+  const paused = data?.paused === true
+  pausedStatusCache.set(locationId, { paused, expiresAt: Date.now() + CACHE_TTL_MS })
+  return paused
+}
+
 // ── Rate limiting for /partner/ routes ──────────────────────────────────────
 const rateLimitStore = new Map<string, { count: number; windowStart: number }>()
 const RATE_LIMIT_WINDOW_MS = 60_000  // 1-minute sliding window
@@ -179,6 +201,20 @@ export async function middleware(request: NextRequest) {
   // marketing site's own /demo sandbox is never itself expirable this way).
   if (hostDemoExpired && !demoLocationOverride && pathname !== "/demo-expired" && !pathname.startsWith("/api")) {
     return NextResponse.redirect(new URL("/demo-expired", request.url))
+  }
+
+  // ── 1c. Paused accounts (billing arrears, or a manual pause) ─────────────
+  // Public pages only -- /admin deliberately stays reachable (see
+  // isLocationPaused above). Never applies to /admin or /super-admin (those
+  // are pinned to the canonical host before this point ever runs for them).
+  if (
+    !pathname.startsWith("/admin") &&
+    !pathname.startsWith("/super-admin") &&
+    pathname !== "/account-paused" &&
+    !pathname.startsWith("/api") &&
+    (await isLocationPaused(locationId))
+  ) {
+    return NextResponse.redirect(new URL("/account-paused", request.url))
   }
 
   // ── 2. Admin auth (cookie-based) ─────────────────────────────────────────

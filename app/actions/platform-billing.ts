@@ -204,6 +204,20 @@ export async function getMyBillingStatus(): Promise<"none" | "trialing" | "activ
   return (data?.billing_status as "none" | "trialing" | "active" | "past_due" | "canceled") ?? "none"
 }
 
+// Separate from billing_status -- a location can be paused for a
+// non-billing reason too (see pauseLocation in app/actions/super-admin.ts),
+// so this is checked independently rather than folded into the billing
+// banner. Public site is already blocked by middleware.ts's
+// isLocationPaused; this just lets the tenant SEE why from their own
+// dashboard instead of only discovering it from a customer complaint.
+export async function getMyPauseStatus(): Promise<{ paused: boolean; reason: string | null }> {
+  await requireAdmin()
+  const locationId = await getLocationId()
+  const supabase = createAdminClient()
+  const { data } = await supabase.from("locations").select("paused, paused_reason").eq("id", locationId).single()
+  return { paused: data?.paused === true, reason: data?.paused_reason ?? null }
+}
+
 // ── Sales funnel: send a signup/checkout link to a demo-request lead ──────
 // Sets the plan price on their demo tenant (if given), generates the Stripe
 // Checkout link via createBillingCheckoutLink above, and emails it straight
