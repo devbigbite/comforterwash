@@ -42,6 +42,18 @@ function fmtTime(isoStr: string) {
   return new Date(isoStr).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
 }
 
+// "HH:MM" (24h, from a native time input) -> "11:00 PM" for display on the
+// circular-picker trigger buttons.
+function fmtHHMM(hhmm: string): string {
+  if (!hhmm) return ""
+  const [h, m] = hhmm.split(":").map(Number)
+  if (isNaN(h) || isNaN(m)) return ""
+  const ampm = h >= 12 ? "PM" : "AM"
+  let hour = h % 12
+  if (hour === 0) hour = 12
+  return `${hour}:${String(m).padStart(2, "0")} ${ampm}`
+}
+
 // "8-28-2026" -- local calendar date (see toLocalInputValue's note on why
 // this can't be sliced off the raw ISO string directly).
 function fmtDateShort(isoStr: string) {
@@ -155,6 +167,7 @@ function AdminScheduleInner() {
   // Which side of the currently-edited punch (if any) has the circular clock
   // picker open -- only one at a time, keyed by which field it edits.
   const [clockPickerFor, setClockPickerFor] = useState<"clockedInAt" | "clockedOutAt" | null>(null)
+  const [shiftPickerFor, setShiftPickerFor] = useState<"startTime" | "endTime" | null>(null)
   const [deletingPunch, setDeletingPunch] = useState(false)
   // Time Sheet is grouped by worker (one collapsible section per person) so an
   // admin can scan one person's week at a time instead of re-reading the name
@@ -708,23 +721,25 @@ function AdminScheduleInner() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Start</label>
-                        <input
-                          type="time"
-                          value={newShift.startTime}
-                          onChange={e => setNewShift(n => ({ ...n, startTime: e.target.value }))}
-                          required
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
-                        />
+                        <button
+                          type="button"
+                          onClick={() => setShiftPickerFor("startTime")}
+                          className="w-full flex items-center justify-between border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none hover:border-[#0D2240] transition-colors"
+                        >
+                          <span>{fmtHHMM(newShift.startTime) || "Select"}</span>
+                          <span aria-hidden>🕐</span>
+                        </button>
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">End</label>
-                        <input
-                          type="time"
-                          value={newShift.endTime}
-                          onChange={e => setNewShift(n => ({ ...n, endTime: e.target.value }))}
-                          required
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
-                        />
+                        <button
+                          type="button"
+                          onClick={() => setShiftPickerFor("endTime")}
+                          className="w-full flex items-center justify-between border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0D2240] font-semibold outline-none hover:border-[#0D2240] transition-colors"
+                        >
+                          <span>{fmtHHMM(newShift.endTime) || "Select"}</span>
+                          <span aria-hidden>🕐</span>
+                        </button>
                       </div>
                     </div>
 
@@ -1461,6 +1476,33 @@ function AdminScheduleInner() {
                   return { ...f, [field]: localInputToISO(`${datePart}T${pad(hour24)}:${pad(minute)}`) }
                 })
                 setClockPickerFor(null)
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Circular clock picker modal for the New Shift form's Start / End
+          buttons above -- newShift.startTime / endTime are plain "HH:MM"
+          24h strings (native <input type="time"> shape), not ISO. */}
+      {shiftPickerFor && (
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4" onClick={() => setShiftPickerFor(null)}>
+          <div onClick={e => e.stopPropagation()}>
+            <CircularTimePicker
+              initial={(() => {
+                const hhmm = newShift[shiftPickerFor]
+                if (!hhmm) return timeValueFrom24h(9, 0)
+                const [h, m] = hhmm.split(":").map(Number)
+                if (isNaN(h) || isNaN(m)) return timeValueFrom24h(9, 0)
+                return timeValueFrom24h(h, m)
+              })()}
+              onCancel={() => setShiftPickerFor(null)}
+              onApply={v => {
+                const { hour24, minute } = timeValueTo24h(v)
+                const field = shiftPickerFor
+                const pad = (n: number) => String(n).padStart(2, "0")
+                setNewShift(n => ({ ...n, [field]: `${pad(hour24)}:${pad(minute)}` }))
+                setShiftPickerFor(null)
               }}
             />
           </div>
