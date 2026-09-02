@@ -1247,9 +1247,23 @@ function AdminScheduleInner() {
                         </div>
                       </button>
 
-                      {/* Individual punches */}
+                      {/* Individual punches -- table columns modeled on the
+                          TimeStation "Employee Activity" layout: Date, In,
+                          Out, Deduction, Hours, Notes, Edit. */}
                       {!collapsed && (
-                        <div className="divide-y divide-gray-50">
+                        <div>
+                          <div className="grid gap-2 px-4 py-1.5 bg-gray-50 border-y border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider"
+                               style={{ gridTemplateColumns: "108px 88px 88px 84px 72px 84px 1fr 96px" }}>
+                            <div>Date</div>
+                            <div>In</div>
+                            <div>Out</div>
+                            <div>Deduction</div>
+                            <div>Hours</div>
+                            <div>Pay</div>
+                            <div>Notes</div>
+                            <div className="text-right">Edit</div>
+                          </div>
+                          <div className="divide-y divide-gray-50">
                           {workerPunches.map(punch => {
                             const isEditing = editPunchId === punch.id
                             const isDeleting = deletePunchId === punch.id
@@ -1353,28 +1367,40 @@ function AdminScheduleInner() {
                               </div>
                             )
 
+                            // Overnight punches still need the date to disambiguate --
+                            // if In and Out land on different calendar days, the Out
+                            // column carries its own short date too instead of only
+                            // a bare time that would otherwise look wrong.
+                            const inDate  = fmtDateShort(punch.clocked_in_at)
+                            const outDate = punch.clocked_out_at ? fmtDateShort(punch.clocked_out_at) : null
+                            const crossesMidnight = outDate !== null && outDate !== inDate
+                            const noteBits: string[] = []
+                            if (punch.schedule_flag) noteBits.push(`⚠ ${flagText[punch.schedule_flag] ?? punch.schedule_flag}${punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}`)
+                            if (punchMiles > 0) noteBits.push(`🚗 ${punchMiles.toFixed(1)} mi${mileCents > 0 ? ` · $${(mileCents / 100).toFixed(2)}` : ""}`)
+
                             return (
-                              <div key={punch.id} className="flex items-center gap-4 px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm">
-                                {/* Full date + time on both sides, always -- no separate role
-                                    column, no relying on a badge to notice a shift crosses
-                                    midnight. "8-28-2026 10:00 PM  to  8-29-2026 3:00 AM" reads
-                                    correctly on its own with nothing to compare against. */}
-                                <div className="w-48 shrink-0 text-gray-700 font-semibold tabular-nums">
-                                  {fmtDateShort(punch.clocked_in_at)} {fmtTime(punch.clocked_in_at)}
+                              <div key={punch.id} className="grid gap-2 items-center px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm"
+                                   style={{ gridTemplateColumns: "108px 88px 88px 84px 72px 84px 1fr 96px" }}>
+                                <div className="text-gray-700 font-semibold tabular-nums">{inDate}</div>
+                                <div className="text-gray-700 tabular-nums">{fmtTime(punch.clocked_in_at)}</div>
+                                <div className="tabular-nums">
+                                  {punch.clocked_out_at ? (
+                                    <span className="text-gray-700">
+                                      {fmtTime(punch.clocked_out_at)}
+                                      {crossesMidnight && <span className="block text-[10px] text-indigo-500 font-bold">{outDate}</span>}
+                                    </span>
+                                  ) : (
+                                    <span className="text-green-500 font-bold text-xs">Active ●</span>
+                                  )}
                                 </div>
-                                <div className="w-6 shrink-0 text-gray-300 text-center text-xs">to</div>
-                                <div className="w-48 shrink-0 tabular-nums">
-                                  {punch.clocked_out_at
-                                    ? <span className="text-gray-700 font-semibold">{fmtDateShort(punch.clocked_out_at)} {fmtTime(punch.clocked_out_at)}</span>
-                                    : <span className="text-green-500 font-bold text-xs">Active ●</span>}
-                                </div>
-                                <div className="w-16 shrink-0 font-bold text-[#0D2240] tabular-nums leading-tight">
+                                <div className="text-gray-500 tabular-nums">{punch.break_minutes > 0 ? `${punch.break_minutes}m` : "—"}</div>
+                                <div className="font-bold text-[#0D2240] tabular-nums leading-tight">
                                   {mins !== null ? formatDuration(mins) : "—"}
                                   {mins !== null && (
                                     <span className="block text-[10px] font-semibold text-gray-400">{decimalHours(mins)}</span>
                                   )}
                                 </div>
-                                <div className="w-20 shrink-0 tabular-nums">
+                                <div className="tabular-nums">
                                   {payCents !== null ? (
                                     <span className="font-bold text-green-600">${(payCents / 100).toFixed(2)}</span>
                                   ) : wageCents === 0 ? (
@@ -1383,20 +1409,14 @@ function AdminScheduleInner() {
                                     <span className="text-gray-300 text-xs">—</span>
                                   )}
                                 </div>
-                                {punch.schedule_flag && (
-                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase shrink-0 ${flagStyles[punch.schedule_flag] ?? ""}`}>
-                                    ⚠ {flagText[punch.schedule_flag] ?? punch.schedule_flag}{punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}
-                                  </span>
-                                )}
-                                {punch.break_minutes > 0 && (
-                                  <span className="text-gray-300 text-xs shrink-0">−{punch.break_minutes}m break</span>
-                                )}
-                                {punchMiles > 0 && (
-                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 shrink-0">
-                                    🚗 {punchMiles.toFixed(1)} mi{mileCents > 0 ? ` · $${(mileCents / 100).toFixed(2)}` : ""}
-                                  </span>
-                                )}
-                                <div className="ml-auto flex gap-3 shrink-0">
+                                <div className="flex flex-wrap gap-1 min-w-0">
+                                  {noteBits.length === 0
+                                    ? <span className="text-gray-300 text-xs">—</span>
+                                    : noteBits.map((bit, i) => (
+                                        <span key={i} className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">{bit}</span>
+                                      ))}
+                                </div>
+                                <div className="flex justify-end gap-3 shrink-0">
                                   <button
                                     onClick={() => {
                                       setEditPunchId(punch.id)
@@ -1408,7 +1428,8 @@ function AdminScheduleInner() {
                                       })
                                     }}
                                     className="text-gray-300 hover:text-gray-500 text-xs font-bold transition-colors"
-                                  >Edit</button>
+                                    title="Edit"
+                                  >✏️</button>
                                   <button
                                     onClick={() => setDeletePunchId(punch.id)}
                                     className="text-gray-300 hover:text-red-500 text-xs font-bold transition-colors"
@@ -1417,6 +1438,7 @@ function AdminScheduleInner() {
                               </div>
                             )
                           })}
+                          </div>
                         </div>
                       )}
                     </div>
