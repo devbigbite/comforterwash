@@ -130,8 +130,9 @@ function AdminScheduleInner() {
   // Lets other pages (e.g. the admin home "Timesheet" quick link) deep-link
   // straight into the timesheet tab via /admin/schedule?tab=timesheet.
   const initialTab = searchParams.get("tab") === "timesheet" ? "timesheet"
-    : searchParams.get("tab") === "schedule" ? "schedule" : "now"
-  const [tab, setTab] = useState<"now" | "schedule" | "timesheet">(initialTab)
+    : searchParams.get("tab") === "schedule" ? "schedule"
+    : searchParams.get("tab") === "report" ? "report" : "now"
+  const [tab, setTab] = useState<"now" | "schedule" | "timesheet" | "report">(initialTab)
 
   // ── Right Now state ────────────────────────────────────────────────────────
   const [currentPunches, setCurrentPunches] = useState<TimePunch[]>([])
@@ -181,6 +182,21 @@ function AdminScheduleInner() {
   // on every row of a long flat list. Collapsed-state is tracked per worker
   // name; a name not in the set is expanded (the default).
   const [collapsedWorkers, setCollapsedWorkers] = useState<Set<string>>(new Set())
+  // Focusing the Time Sheet on one employee -- shows an Employee Info card
+  // (name, id, email, role, hourly rate) above just that person's punches,
+  // instead of the flat all-workers accordion. Set from the "View" link on
+  // a worker's accordion header; cleared by "All Employees" to go back.
+  const [focusedWorker, setFocusedWorker] = useState<string | null>(null)
+
+  // ── Daily Summary report state ─────────────────────────────────────────────
+  // A payroll-style grid: one row per worker, one column per day in a 14-day
+  // window starting at rpStart, hours worked that day in each cell, totals
+  // and pay at the end. Its own date range/data so it doesn't fight with the
+  // Time Sheet tab's own From/To.
+  const [rpStart, setRpStart]     = useState(() => addDays(getMondayOf(new Date()), -7))
+  const [rpPunches, setRpPunches] = useState<TimePunch[]>([])
+  const [rpWorkers, setRpWorkers] = useState<ActiveWorker[]>([])
+  const [rpLoading, setRpLoading] = useState(false)
 
   // ── Add Punch state ────────────────────────────────────────────────────────
   const [showAddPunch, setShowAddPunch]   = useState(false)
@@ -231,8 +247,18 @@ function AdminScheduleInner() {
     setTsLoading(false)
   }, [tsFrom, tsTo])
 
+  const loadReport = useCallback(async () => {
+    setRpLoading(true)
+    const rpEnd = addDays(rpStart, 13)
+    const [data, wkrs] = await Promise.all([getTimeSheet(rpStart, rpEnd), getActiveWorkers()])
+    setRpPunches(data)
+    setRpWorkers(wkrs)
+    setRpLoading(false)
+  }, [rpStart])
+
   useEffect(() => { if (tab === "now")       loadNow() },       [tab, loadNow])
   useEffect(() => { if (tab === "schedule")  loadSchedule() },  [tab, loadSchedule])
+  useEffect(() => { if (tab === "report")    loadReport() },    [tab, loadReport])
   useEffect(() => { if (tab === "timesheet") loadTimeSheet() }, [tab, loadTimeSheet])
 
   // Tick every minute to keep elapsed timers fresh
@@ -377,7 +403,7 @@ function AdminScheduleInner() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
-        {(["now", "schedule", "timesheet"] as const).map(t => (
+        {(["now", "schedule", "timesheet", "report"] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -385,7 +411,7 @@ function AdminScheduleInner() {
               tab === t ? "bg-white text-[#0D2240] shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            {t === "now" ? "🟢 Right Now" : t === "schedule" ? "📅 Schedule" : "⏱ Time Sheet"}
+            {t === "now" ? "🟢 Right Now" : t === "schedule" ? "📅 Schedule" : t === "timesheet" ? "⏱ Time Sheet" : "🧾 Daily Summary"}
           </button>
         ))}
       </div>
@@ -1121,10 +1147,14 @@ function AdminScheduleInner() {
               late_out:    "Late out",
             }
 
-            const workerOrder = Object.entries(totals).sort((a, b) => b[1].mins - a[1].mins).map(([name]) => name)
+            let workerOrder = Object.entries(totals).sort((a, b) => b[1].mins - a[1].mins).map(([name]) => name)
             // Any worker with punches but no completed shift yet (still active,
             // so not in `totals`) still needs a section — append them at the end.
             for (const p of punches) if (!workerOrder.includes(p.worker_name)) workerOrder.push(p.worker_name)
+            // Employee focus: "View" on a worker's header (below) narrows the
+            // whole list down to just them, with an Info card above it.
+            if (focusedWorker) workerOrder = workerOrder.filter(n => n === focusedWorker)
+            const focusedWorkerObj = focusedWorker ? tsWorkers.find(w => w.name === focusedWorker) : null
 
             function toggleWorker(name: string) {
               setCollapsedWorkers(prev => {
@@ -1136,6 +1166,37 @@ function AdminScheduleInner() {
 
             return (
               <div className="space-y-3">
+                {focusedWorker && (
+                  <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-1">
+                    <div className="flex items-center justify-between px-5 py-2.5 bg-[#0D2240]">
+                      <span className="text-white font-extrabold text-xs uppercase tracking-widest">Employee Info</span>
+                      <button
+                        onClick={() => setFocusedWorker(null)}
+                        className="text-white/70 hover:text-white text-xs font-bold"
+                      >← All Employees</button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 px-5 py-4">
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Name</p>
+                        <p className="text-[#0D2240] font-bold text-sm mt-0.5">{focusedWorker}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Employee ID</p>
+                        <p className="text-[#0D2240] font-bold text-sm mt-0.5 font-mono">{focusedWorkerObj?.id.slice(0, 8) ?? "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</p>
+                        <p className="text-[#0D2240] font-bold text-sm mt-0.5 capitalize">{focusedWorkerObj?.roles?.join(", ") || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Hourly Rate</p>
+                        <p className="text-[#0D2240] font-bold text-sm mt-0.5">
+                          {focusedWorkerObj?.hourly_wage_cents ? `$${(focusedWorkerObj.hourly_wage_cents / 100).toFixed(2)}` : "Not set"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {workerOrder.map(workerName => {
                   const workerPunches = punches
                     .filter(p => p.worker_name === workerName)
@@ -1157,6 +1218,14 @@ function AdminScheduleInner() {
                           <span className={`text-gray-400 text-xs transition-transform ${collapsed ? "" : "rotate-90"}`}>▶</span>
                           <span className="font-bold text-[#0D2240] text-sm">{workerName}</span>
                           <span className="text-gray-300 text-xs">{workerPunches.length} punch{workerPunches.length === 1 ? "" : "es"}</span>
+                          {!focusedWorker && (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={e => { e.stopPropagation(); setFocusedWorker(workerName) }}
+                              className="text-[#2FA8A0] hover:underline text-xs font-bold"
+                            >View</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-4">
                           <span className="font-bold text-[#0D2240] text-sm tabular-nums">
@@ -1503,6 +1572,139 @@ function AdminScheduleInner() {
         )}
 
         </div>
+        )
+      })()}
+
+      {/* -- DAILY SUMMARY -------------------------------------------------- */}
+      {tab === "report" && (() => {
+        const rpEnd   = addDays(rpStart, 13)
+        const rpDates = Array.from({ length: 14 }, (_, i) => addDays(rpStart, i))
+        const wage: Record<string, number> = {}
+        rpWorkers.forEach(w => { wage[w.name] = w.hourly_wage_cents ?? 0 })
+
+        // minsByWorkerDay["Melissa Bello"]["2026-02-18"] = worked minutes that day
+        const minsByWorkerDay: Record<string, Record<string, number>> = {}
+        const roleByWorker: Record<string, string> = {}
+        rpPunches.forEach(p => {
+          if (!p.clocked_out_at) return
+          const day  = toLocalInputValue(p.clocked_in_at).slice(0, 10)
+          const mins = Math.max(0, minutesBetween(p.clocked_in_at, p.clocked_out_at) - (p.break_minutes ?? 0))
+          minsByWorkerDay[p.worker_name] ??= {}
+          minsByWorkerDay[p.worker_name][day] = (minsByWorkerDay[p.worker_name][day] ?? 0) + mins
+          roleByWorker[p.worker_name] ??= p.role
+        })
+
+        let reportWorkers = Object.keys(minsByWorkerDay).sort((a, b) => a.localeCompare(b))
+        if (reportWorkers.length === 0 && !rpLoading) reportWorkers = []
+
+        const grandTotalMins = reportWorkers.reduce(
+          (sum, w) => sum + Object.values(minsByWorkerDay[w]).reduce((a, b) => a + b, 0), 0
+        )
+        const grandTotalPayCents = reportWorkers.reduce((sum, w) => {
+          const totalMins = Object.values(minsByWorkerDay[w]).reduce((a, b) => a + b, 0)
+          return sum + Math.round((totalMins / 60) * (wage[w] ?? 0))
+        }, 0)
+
+        return (
+          <div>
+            {/* Report parameters */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-5 shadow-sm">
+              <div className="flex items-end gap-3 flex-wrap">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={rpStart}
+                    onChange={e => setRpStart(e.target.value)}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-[#0D2240] font-semibold outline-none focus:border-[#0D2240] transition-colors"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 pb-2.5">
+                  {fmtDateShort(rpStart + "T00:00:00")} – {fmtDateShort(rpEnd + "T00:00:00")} (14 days)
+                </p>
+                <button
+                  onClick={loadReport}
+                  className="bg-[#0D2240] hover:bg-[#142d52] text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors ml-auto"
+                >Run Report</button>
+              </div>
+            </div>
+
+            {rpLoading && <p className="text-gray-400 text-sm text-center py-8">Loading…</p>}
+
+            {!rpLoading && reportWorkers.length === 0 && (
+              <div className="bg-gray-50 rounded-2xl px-6 py-8 text-center">
+                <p className="text-gray-500 font-semibold">No punches found for this period.</p>
+              </div>
+            )}
+
+            {!rpLoading && reportWorkers.length > 0 && (
+              <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-3 bg-[#0D2240]">
+                  <span className="text-white font-extrabold text-xs uppercase tracking-widest">Employee Daily Summary — Two Weeks</span>
+                  <span className="text-white/70 text-xs">Records: {reportWorkers.length}</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-gray-100 bg-gray-50">
+                        <th className="text-left font-bold text-gray-500 uppercase tracking-wider px-3 py-2 whitespace-nowrap">Employee</th>
+                        <th className="text-left font-bold text-gray-500 uppercase tracking-wider px-3 py-2 whitespace-nowrap">Role</th>
+                        {rpDates.map(d => {
+                          const dt = new Date(d + "T00:00:00")
+                          return (
+                            <th key={d} className="text-center font-bold text-gray-500 uppercase tracking-wider px-2 py-2 whitespace-nowrap">
+                              {dt.toLocaleDateString("en-US", { weekday: "short" })}<br />
+                              <span className="font-mono normal-case">{fmtDateShort(d + "T00:00:00").slice(0, 5)}</span>
+                            </th>
+                          )
+                        })}
+                        <th className="text-right font-bold text-gray-500 uppercase tracking-wider px-3 py-2 whitespace-nowrap">Total Hours</th>
+                        <th className="text-right font-bold text-gray-500 uppercase tracking-wider px-3 py-2 whitespace-nowrap">Hourly Rate</th>
+                        <th className="text-right font-bold text-gray-500 uppercase tracking-wider px-3 py-2 whitespace-nowrap">Total Pay</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportWorkers.map(w => {
+                        const totalMins = Object.values(minsByWorkerDay[w]).reduce((a, b) => a + b, 0)
+                        const wageCents = wage[w] ?? 0
+                        const payCents  = Math.round((totalMins / 60) * wageCents)
+                        return (
+                          <tr key={w} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                            <td className="px-3 py-2 font-bold text-[#0D2240] whitespace-nowrap">{w}</td>
+                            <td className="px-3 py-2 text-gray-500 capitalize whitespace-nowrap">{roleByWorker[w] ?? "—"}</td>
+                            {rpDates.map(d => {
+                              const mins = minsByWorkerDay[w]?.[d] ?? 0
+                              return (
+                                <td key={d} className="px-2 py-2 text-center tabular-nums text-gray-700">
+                                  {mins > 0 ? decimalHours(mins) : "0.00"}
+                                </td>
+                              )
+                            })}
+                            <td className="px-3 py-2 text-right font-bold text-[#0D2240] tabular-nums whitespace-nowrap">{decimalHours(totalMins)}</td>
+                            <td className="px-3 py-2 text-right text-gray-500 tabular-nums whitespace-nowrap">{wageCents > 0 ? `$${(wageCents / 100).toFixed(2)}` : "—"}</td>
+                            <td className="px-3 py-2 text-right font-bold text-green-600 tabular-nums whitespace-nowrap">{wageCents > 0 ? `$${(payCents / 100).toFixed(2)}` : "—"}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-gray-50 border-t border-gray-200">
+                        <td className="px-3 py-2 font-extrabold text-[#0D2240]" colSpan={2}>Total</td>
+                        {rpDates.map(d => (
+                          <td key={d} className="px-2 py-2 text-center tabular-nums text-gray-400 font-semibold">
+                            {decimalHours(reportWorkers.reduce((s, w) => s + (minsByWorkerDay[w]?.[d] ?? 0), 0))}
+                          </td>
+                        ))}
+                        <td className="px-3 py-2 text-right font-extrabold text-[#0D2240] tabular-nums">{decimalHours(grandTotalMins)}</td>
+                        <td></td>
+                        <td className="px-3 py-2 text-right font-extrabold text-green-700 tabular-nums">${(grandTotalPayCents / 100).toFixed(2)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
         )
       })()}
 
