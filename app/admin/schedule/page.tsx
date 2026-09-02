@@ -9,6 +9,7 @@ import {
   getActiveWorkers,
   createShift,
   deleteShift,
+  moveShift,
   clockOut,
   updatePunch,
   createPunch,
@@ -168,6 +169,12 @@ function AdminScheduleInner() {
   // picker open -- only one at a time, keyed by which field it edits.
   const [clockPickerFor, setClockPickerFor] = useState<"clockedInAt" | "clockedOutAt" | null>(null)
   const [shiftPickerFor, setShiftPickerFor] = useState<"startTime" | "endTime" | null>(null)
+  // Drag-to-move / (Ctrl or Shift)+drag-to-copy a scheduled shift, à la
+  // Sling/7shifts. `dragOverKey` is `${workerName}::${date}` of the cell
+  // currently under the pointer, just for a visual drop-target highlight.
+  const [draggingShift, setDraggingShift] = useState<ScheduledShift | null>(null)
+  const [dragIsCopy, setDragIsCopy] = useState(false)
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null)
   const [deletingPunch, setDeletingPunch] = useState(false)
   // Time Sheet is grouped by worker (one collapsible section per person) so an
   // admin can scan one person's week at a time instead of re-reading the name
@@ -273,6 +280,31 @@ function AdminScheduleInner() {
 
   async function handleDeleteShift(id: string) {
     await deleteShift(id)
+    loadSchedule()
+  }
+
+  // Drop target for a dragged shift block: `copy` (Ctrl or Shift held)
+  // creates a new shift on the target worker/day and leaves the original
+  // in place; a plain drag repoints the original shift instead.
+  async function handleDropShift(workerName: string, shiftDate: string, isCopy: boolean) {
+    const s = draggingShift
+    setDraggingShift(null)
+    setDragOverKey(null)
+    if (!s) return
+    if (s.worker_name === workerName && s.shift_date === shiftDate) return // dropped on itself
+
+    if (isCopy) {
+      const fd = new FormData()
+      fd.set("workerName", workerName)
+      fd.set("role",       s.role)
+      fd.set("shiftDate",  shiftDate)
+      fd.set("startTime",  s.start_time.slice(0, 5))
+      fd.set("endTime",    s.end_time.slice(0, 5))
+      fd.set("notes",      s.notes ?? "")
+      await createShift(fd)
+    } else {
+      await moveShift(s.id, workerName, shiftDate)
+    }
     loadSchedule()
   }
 
@@ -620,16 +652,38 @@ function AdminScheduleInner() {
                             {weekDates.map(date => {
                               const dayShifts = shifts.filter(s => s.worker_name === workerName && s.shift_date === date)
                               const isToday   = date === today
+                              const cellKey = `${workerName}::${date}`
                               return (
                                 <td
                                   key={date}
-                                  className={`relative border-r border-gray-100 p-1 align-top group/cell ${isToday ? "bg-[#E8726A]/5" : ""}`}
+                                  className={`relative border-r border-gray-100 p-1 align-top group/cell transition-colors ${isToday ? "bg-[#E8726A]/5" : ""} ${dragOverKey === cellKey ? (dragIsCopy ? "bg-emerald-50 ring-2 ring-inset ring-emerald-400" : "bg-indigo-50 ring-2 ring-inset ring-indigo-400") : ""}`}
                                   style={{ minWidth: "80px", minHeight: "56px" }}
+                                  onDragOver={e => {
+                                    if (!draggingShift) return
+                                    e.preventDefault()
+                                    const copy = e.ctrlKey || e.shiftKey
+                                    e.dataTransfer.dropEffect = copy ? "copy" : "move"
+                                    if (dragOverKey !== cellKey) setDragOverKey(cellKey)
+                                    if (dragIsCopy !== copy) setDragIsCopy(copy)
+                                  }}
+                                  onDragLeave={() => { if (dragOverKey === cellKey) setDragOverKey(null) }}
+                                  onDrop={e => {
+                                    e.preventDefault()
+                                    handleDropShift(workerName, date, e.ctrlKey || e.shiftKey)
+                                  }}
                                 >
                                   {dayShifts.map(s => (
                                     <div
                                       key={s.id}
-                                      className={`group/shift relative rounded-lg px-2 py-1 mb-1 text-white text-[10px] cursor-default ${ROLE_BLOCK[s.role] ?? "bg-slate-500"}`}
+                                      draggable
+                                      onDragStart={e => {
+                                        setDraggingShift(s)
+                                        e.dataTransfer.effectAllowed = "copyMove"
+                                        e.dataTransfer.setData("text/plain", s.id)
+                                      }}
+                                      onDragEnd={() => { setDraggingShift(null); setDragOverKey(null) }}
+                                      className={`group/shift relative rounded-lg px-2 py-1 mb-1 text-white text-[10px] cursor-grab active:cursor-grabbing ${ROLE_BLOCK[s.role] ?? "bg-slate-500"} ${draggingShift?.id === s.id ? "opacity-40" : ""}`}
+                                      title="Drag to move -- hold Ctrl or Shift while dragging to copy"
                                     >
                                       <p className="font-bold leading-tight tabular-nums">
                                         {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}

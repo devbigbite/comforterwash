@@ -479,6 +479,26 @@ export async function deleteShift(shiftId: string) {
   revalidatePath("/admin/schedule")
 }
 
+// Repoints an existing shift at a different worker and/or day -- used by the
+// Schedule grid's drag-to-move (plain drag) so a moved shift keeps its id,
+// role, times and notes instead of being deleted and recreated.
+export async function moveShift(shiftId: string, workerName: string, shiftDate: string) {
+  await requireAdmin()
+
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  if (!shiftId || !workerName || !shiftDate) return { error: "Missing required fields" }
+
+  const { error } = await supabase
+    .from("staff_scheduled_shifts")
+    .update({ worker_name: workerName, shift_date: shiftDate })
+    .eq("id", shiftId)
+    .eq("location_id", locationId)
+
+  if (error) return { error: "Failed to move shift" }
+  revalidatePath("/admin/schedule")
+  return { ok: true }
+}
+
 // ── Admin: edit a punch (manual correction) ──────────────────────────────────
 // Miles is optional and only meaningful for drivers. An empty field stores
 // NULL (no mileage recorded) rather than 0, so "driver logged zero miles" and
