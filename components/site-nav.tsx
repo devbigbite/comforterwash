@@ -83,6 +83,23 @@ export function SiteNav({ businessName = "WashFold Orlando", logoUrl, landingTem
     { label: locale === "es" ? "Tarjetas de Regalo" : "Gift Cards", href: lp("/gift-cards") },
   ]
 
+  // The footer (rendered once, way down the page) carries a second set of
+  // links -- the individual services, plus Employment/Terms/Privacy/Driver/
+  // Operator -- that never show up at all on a phone unless someone scrolls
+  // all the way down past everything else. Mirroring them into the mobile
+  // menu means every footer link is reachable from the hamburger too, not
+  // just the primary nav links above.
+  const footerLinks = [
+    { label: locale === "es" ? "Comforter Wash" : "Comforter Wash", href: lp("/services/comforter-wash") },
+    { label: locale === "es" ? "Lavado y Doblado" : "Wash & Fold",   href: lp("/services/wash-fold") },
+    { label: locale === "es" ? "Solo Lavado" : "Wash Only",          href: lp("/services/wash-only") },
+    { label: "Employment", href: lp("/apply") },
+    { label: "Terms",      href: lp("/terms") },
+    { label: "Privacy",    href: lp("/privacy") },
+    { label: "Driver",     href: lp("/driver") },
+    { label: "Operator",   href: lp("/operator") },
+  ]
+
   return (
     <>
       {/* Top utility bar */}
@@ -162,6 +179,22 @@ export function SiteNav({ businessName = "WashFold Orlando", logoUrl, landingTem
                   {n.label}
                 </a>
               ))}
+
+              {/* Footer links, mirrored here so they're reachable without
+                  scrolling to the bottom of the page on a phone. */}
+              <div className="flex flex-wrap gap-x-4 gap-y-2 px-2 py-3 border-b border-gray-50">
+                {footerLinks.map((n) => (
+                  <a
+                    key={n.label}
+                    href={n.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="text-xs font-semibold text-[var(--brand-primary)]/50 hover:text-[var(--brand-accent)] transition-colors uppercase tracking-wide"
+                  >
+                    {n.label}
+                  </a>
+                ))}
+              </div>
+
               <div className="flex items-center gap-4 py-3 text-xs text-[var(--brand-primary)]/60">
                 <Link href="/login" onClick={() => setMenuOpen(false)} className="hover:text-[var(--brand-accent)] transition-colors">{tr.common.signIn}</Link>
                 <Link href="/account" onClick={() => setMenuOpen(false)} className="hover:text-[var(--brand-accent)] transition-colors">{tr.common.myAccount}</Link>

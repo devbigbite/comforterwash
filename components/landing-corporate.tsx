@@ -480,12 +480,12 @@ export function CorporateLanding() {
             </div>
           </div>
 
-          <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="border-t border-white/10 pt-6 flex flex-col items-center gap-4 text-center">
             <div className="flex items-center gap-2.5">
               <Logo size={28} src={logoUrl} />
               <span className="text-white font-extrabold">{businessName}</span>
             </div>
-            <div className="flex gap-5 text-white/40 text-xs">
+            <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-white/40 text-xs">
               <Link href="/services/comforter-wash" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.comforterWash}</Link>
               <Link href="/services/wash-fold" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.washFold}</Link>
               <Link href="/services/wash-only" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.washOnly}</Link>
@@ -494,13 +494,13 @@ export function CorporateLanding() {
               <Link href="/faq" className="hover:text-[var(--brand-accent)] transition-colors">{tr.footer.faq}</Link>
               <Link href="/apply" className="hover:text-[var(--brand-accent)] transition-colors">Employment</Link>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2">
               <p className="text-white/25 text-xs">&copy; {new Date().getFullYear()} {businessName}</p>
-              <span className="text-white/10 text-xs">·</span>
+              <span className="text-white/10 text-xs hidden sm:inline">·</span>
               <Link href="/faq" className="text-white/40 hover:text-[var(--brand-accent)] text-xs transition-colors">FAQ</Link>
               <Link href="/terms" className="text-white/40 hover:text-[var(--brand-accent)] text-xs transition-colors">Terms</Link>
               <Link href="/privacy" className="text-white/40 hover:text-[var(--brand-accent)] text-xs transition-colors">Privacy</Link>
-              <span className="text-white/10 text-xs">·</span>
+              <span className="text-white/10 text-xs hidden sm:inline">·</span>
               <Link href="/driver" className="text-white/20 hover:text-white/50 text-xs transition-colors">Driver</Link>
               <Link href="/operator" className="text-white/20 hover:text-white/50 text-xs transition-colors">Operator</Link>
             </div>
