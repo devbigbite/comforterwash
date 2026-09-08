@@ -19,6 +19,24 @@ function tomorrowET(): string {
   return d.toISOString().split("T")[0]
 }
 
+/** Same as tomorrowET() but for an arbitrary IANA timezone — used to compute
+ *  each tenant's own "tomorrow" below, not just Orlando's. */
+function tomorrowFor(tz: string): string {
+  const d = new Date(todayET(tz) + "T12:00:00")
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().split("T")[0]
+}
+
+/** YYYY-MM-DD for a UTC instant, offset by `days`. Used only to build a wide
+ *  enough net of candidate pickup_dates to cover "tomorrow" in ANY tenant's
+ *  timezone before we narrow down per-tenant below — this is intentionally
+ *  timezone-naive (UTC), not a substitute for the per-tenant check. */
+function utcDateOffset(days: number): string {
+  const d = new Date()
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().split("T")[0]
+}
+
 // Vercel cron calls this route — secured by CRON_SECRET. Runs the evening
 // before pickup (see vercel.json), a separate heads-up from
 // /api/cron/reminders which fires the morning of pickup itself.
@@ -28,16 +46,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const tomorrow = tomorrowET()
+  // "Tomorrow" is tenant-specific — a tenant outside Eastern time can have
+  // a different calendar date for "tomorrow evening" than Orlando does at
+  // the moment this cron fires. We used to filter the query to a single
+  // Eastern-derived `tomorrow` for every tenant, which meant a non-Eastern
+  // tenant's reminder could fire a day early/late relative to their own
+  // pickup date. Fix: pull a wide UTC-based net of candidate dates first,
+  // then resolve+check each booking's OWN tenant timezone below before
+  // deciding whether it's actually "tomorrow" for that tenant.
+  const tomorrow = tomorrowET() // kept for the response payload / logging (Orlando's "tomorrow")
+  const candidateDates = [utcDateOffset(-1), utcDateOffset(0), utcDateOffset(1), utcDateOffset(2)]
   const supabase = createAdminClient()
 
   // Same tenant-agnostic query pattern as /api/cron/reminders — a cron
-  // request has no hostname, so this covers every tenant's pickups for
-  // tomorrow and resolves each booking's own branding below.
-  const { data: pickups, error } = await supabase
+  // request has no hostname, so this covers every tenant's pickups in the
+  // candidate window and resolves each booking's own branding/timezone below.
+  const { data: pickupsWide, error } = await supabase
     .from("bookings")
-    .select("id, customer_name, customer_phone, customer_email, pickup_time_window, service_type, customer_address, location_id")
-    .eq("pickup_date", tomorrow)
+    .select("id, customer_name, customer_phone, customer_email, pickup_time_window, service_type, customer_address, location_id, pickup_date")
+    .in("pickup_date", candidateDates)
     .not("status", "in", '("picked_up","in_progress","out_for_delivery","delivered","cancelled")')
 
   if (error) {
@@ -45,8 +72,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  if (!pickups || pickups.length === 0) {
-    console.log(`[cron/next-day-reminders] No pickups for ${tomorrow}`)
+  if (!pickupsWide || pickupsWide.length === 0) {
+    console.log(`[cron/next-day-reminders] No candidate pickups in window ${candidateDates.join(",")}`)
     return NextResponse.json({ sent: 0, date: tomorrow })
   }
 
@@ -60,6 +87,24 @@ export async function GET(req: NextRequest) {
       brandingCache.set(key, await getBranding(locationId ?? undefined))
     }
     return brandingCache.get(key)!
+  }
+
+  let pickups: typeof pickupsWide = []
+  for (const booking of pickupsWide) {
+    const branding = await brandingFor(booking.location_id)
+    // Only send if booking.pickup_date is actually "tomorrow" in THIS
+    // booking's own tenant timezone — the candidate window above is
+    // deliberately wide (UTC ±1/2 days) to make sure every tenant's real
+    // "tomorrow" is included in it, so this check is what does the real
+    // narrowing, not the DB query.
+    if (booking.pickup_date === tomorrowFor(branding.timezone)) {
+      pickups.push(booking)
+    }
+  }
+
+  if (pickups.length === 0) {
+    console.log(`[cron/next-day-reminders] No pickups are "tomorrow" for any tenant in this run (candidates: ${candidateDates.join(",")})`)
+    return NextResponse.json({ sent: 0, date: tomorrow })
   }
 
   for (const booking of pickups) {
@@ -83,7 +128,7 @@ export async function GET(req: NextRequest) {
       try {
         await sendPickupReminderToCustomer(booking.customer_email, {
           customerName:     booking.customer_name ?? "Valued Customer",
-          pickupDate:       tomorrow,
+          pickupDate:       booking.pickup_date,
           pickupTimeWindow: timeWindow,
           pickupAddress:    booking.customer_address ?? "",
           serviceType:      booking.service_type ?? "laundry",

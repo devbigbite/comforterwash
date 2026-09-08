@@ -9,20 +9,64 @@ interface Props {
   onPhotoUploaded?: (url?: string) => void
   eventType?: string
   label?: string
+  // A photo already on file for this checkpoint from a previous page load —
+  // shown immediately so a reload never makes an already-taken photo look
+  // missing (see page.tsx for where this is fetched server-side).
+  initialPhotoUrl?: string | null
 }
 
-export default function PhotoUploader({ bookingId, action, onPhotoUploaded, eventType = "photo_pickup", label = "📷 Pickup Photos" }: Props) {
+export default function PhotoUploader({ bookingId, action, onPhotoUploaded, eventType = "photo_pickup", label = "📷 Pickup Photos", initialPhotoUrl = null }: Props) {
   const [uploading, setUploading] = useState(false)
-  const [photos, setPhotos] = useState<string[]>([])
+  const [photos, setPhotos] = useState<string[]>(initialPhotoUrl ? [initialPhotoUrl] : [])
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  /**
+   * Downscales + re-encodes a phone-camera photo before upload. Raw camera
+   * captures were landing at 2.5-4MB each (uncompressed, full sensor
+   * resolution) — fine for the upload itself, but the same full-size file
+   * then had to be re-downloaded just to render the small thumbnail preview,
+   * and on a driver's weak cellular signal out on a route that redundant
+   * multi-megabyte fetch would time out with a generic "Load failed", making
+   * a perfectly good upload look broken. Capping the longest edge at 1600px
+   * and re-encoding as JPEG q=0.75 is more than enough detail for proof-of-
+   * delivery/pickup photos and shrinks most captures to a few hundred KB.
+   * Falls back to the original file if compression fails for any reason
+   * (e.g. an unsupported format) — never blocks the upload over this.
+   */
+  async function compressImage(file: File): Promise<File> {
+    try {
+      const bitmap = await createImageBitmap(file)
+      const MAX_EDGE = 1600
+      const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height))
+      const w = Math.round(bitmap.width * scale)
+      const h = Math.round(bitmap.height * scale)
+
+      const canvas = document.createElement("canvas")
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext("2d")
+      if (!ctx) return file
+      ctx.drawImage(bitmap, 0, 0, w, h)
+
+      const blob: Blob | null = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.75))
+      if (!blob) return file
+
+      const compressedName = file.name.replace(/\.\w+$/, "") + ".jpg"
+      return new File([blob], compressedName, { type: "image/jpeg" })
+    } catch {
+      return file
+    }
+  }
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
 
     setUploading(true)
     setError(null)
+
+    const file = await compressImage(rawFile)
 
     const supabase = createClient()
     const safeName = file.name.replace(/[^a-z0-9.]/gi, "_").toLowerCase()

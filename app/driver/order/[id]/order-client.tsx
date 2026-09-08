@@ -75,6 +75,14 @@ interface Props {
   deliveryDate: string | null
   assignedFacilityName: string | null
   enrouteAlreadySent: boolean
+  // Whether each photo checkpoint already has a photo on file server-side —
+  // see the comment at the query site in page.tsx for why this matters.
+  hasCustomerPickupPhoto?: boolean
+  existingCustomerPickupPhotoUrl?: string | null
+  hasWarehouseDropoffPhoto?: boolean
+  existingFloorPhotoUrl?: string | null
+  hasDeliveryPhoto?: boolean
+  existingDeliveryPhotoUrl?: string | null
   // server actions
   notifyPickupEnroute: (fd: FormData) => Promise<void>
   confirmPickup:    (fd: FormData) => Promise<void>
@@ -101,6 +109,12 @@ export default function DriverOrderClient({
   allOutForDel, allDone,
   pickupDate, deliveryDate, assignedFacilityName,
   enrouteAlreadySent,
+  hasCustomerPickupPhoto: initialHasCustomerPickupPhoto = false,
+  existingCustomerPickupPhotoUrl = null,
+  hasWarehouseDropoffPhoto: initialHasWarehouseDropoffPhoto = false,
+  existingFloorPhotoUrl = null,
+  hasDeliveryPhoto: initialHasDeliveryPhoto = false,
+  existingDeliveryPhotoUrl = null,
   notifyPickupEnroute, confirmPickup, confirmDropoff, confirmDelivery, recordPhotoEvent,
 }: Props) {
   const today         = new Date().toISOString().split("T")[0]
@@ -122,14 +136,14 @@ export default function DriverOrderClient({
   // Photo checkpoints
   const [weightError, setWeightError] = useState(false)
 
-  const [hasCustomerPickupPhoto,   setHasCustomerPickupPhoto]   = useState(false)
+  const [hasCustomerPickupPhoto,   setHasCustomerPickupPhoto]   = useState(initialHasCustomerPickupPhoto)
   const [customerPickupPhotoErr,   setCustomerPickupPhotoErr]   = useState(false)
-  const [hasWarehouseDropoffPhoto, setHasWarehouseDropoffPhoto] = useState(false)
+  const [hasWarehouseDropoffPhoto, setHasWarehouseDropoffPhoto] = useState(initialHasWarehouseDropoffPhoto)
   const [warehouseDropoffPhotoErr, setWarehouseDropoffPhotoErr] = useState(false)
-  const [floorPhotoUrl,            setFloorPhotoUrl]            = useState<string | null>(null)
+  const [floorPhotoUrl,            setFloorPhotoUrl]            = useState<string | null>(existingFloorPhotoUrl)
   // Photo at pickup-from-warehouse/facility (Step 1) was dropped per explicit
   // request — only the delivery-to-customer photo (Step 2) is still required.
-  const [hasDeliveryPhoto,         setHasDeliveryPhoto]         = useState(false)
+  const [hasDeliveryPhoto,         setHasDeliveryPhoto]         = useState(initialHasDeliveryPhoto)
   const [deliveryPhotoErr,         setDeliveryPhotoErr]         = useState(false)
 
   // Auto-init: color from available pool, name from clock-in session
@@ -323,6 +337,7 @@ export default function DriverOrderClient({
                 <div className={`rounded-xl overflow-hidden border-2 ${customerPickupPhotoErr ? "border-red-400" : hasCustomerPickupPhoto ? "border-green-400" : "border-gray-200"}`}>
                   <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
                     eventType="photo_customer_pickup" label="📷 Photo at Customer"
+                    initialPhotoUrl={existingCustomerPickupPhotoUrl}
                     onPhotoUploaded={() => { setHasCustomerPickupPhoto(true); setCustomerPickupPhotoErr(false) }} />
                   <PhotoRequired taken={hasCustomerPickupPhoto} error={customerPickupPhotoErr} />
                 </div>
@@ -508,6 +523,7 @@ export default function DriverOrderClient({
                   <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
                     eventType="photo_facility_dropoff"
                     label={`📷 Photo — where you placed the bags at the ${dropoffLocation === "facility" ? "facility" : "warehouse"} (internal)`}
+                    initialPhotoUrl={existingFloorPhotoUrl}
                     onPhotoUploaded={(url?: string) => {
                       setHasWarehouseDropoffPhoto(true)
                       setWarehouseDropoffPhotoErr(false)
@@ -615,6 +631,7 @@ export default function DriverOrderClient({
                 <div className={`rounded-xl overflow-hidden border-2 ${deliveryPhotoErr ? "border-red-400" : hasDeliveryPhoto ? "border-green-400" : "border-gray-200"}`}>
                   <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
                     eventType="photo_customer_delivery" label="📷 Photo at Customer — Delivery"
+                    initialPhotoUrl={existingDeliveryPhotoUrl}
                     onPhotoUploaded={() => { setHasDeliveryPhoto(true); setDeliveryPhotoErr(false) }} />
                   <PhotoRequired taken={hasDeliveryPhoto} error={deliveryPhotoErr} />
                 </div>

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getLocationId } from "@/lib/location"
+import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
+import { todayET } from "@/lib/date-et"
 
 // Plain-CSV manifest of a day's pickups & deliveries — the no-Shipday
 // alternative. Opens directly in Excel, Google Sheets, or Numbers, so a
@@ -28,11 +29,14 @@ export async function GET(req: NextRequest) {
   await requireAdmin()
 
   const url = new URL(req.url)
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
-  const date = url.searchParams.get("date") || today
-
   const supabase = createAdminClient()
   const locationId = await getLocationId()
+  // Default export date is "today" in THIS tenant's own timezone, not a
+  // hardcoded Eastern default — a non-Eastern tenant opening this without an
+  // explicit ?date= param used to get Orlando's calendar day, which can be
+  // off by one near midnight.
+  const today = todayET(await getLocationTimezone(locationId))
+  const date = url.searchParams.get("date") || today
 
   const { data } = await supabase
     .from("bookings")

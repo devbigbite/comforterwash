@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationTimezone } from "@/lib/location"
+import { todayET } from "@/lib/date-et"
 import { getTimezoneLabel } from "@/lib/timezone-label"
 import { format, parseISO } from "date-fns"
 import { revalidatePath } from "next/cache"
@@ -246,11 +247,15 @@ export default async function DispatchPage({
   // page (same pattern as the other admin pages fixed in fix-admin-crash.patch).
   if (!(await isAdminForCurrentLocation())) redirect("/admin/login")
   const { tab: tabParam } = await searchParams
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
   const activeTab = tabParam === "operators" ? "operators" : tabParam === "transfers" ? "transfers" : tabParam === "aerial" ? "aerial" : "drivers"
 
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
-  const timezoneLabel = getTimezoneLabel(await getLocationTimezone(locationId))
+  const tenantTimezone = await getLocationTimezone(locationId)
+  const timezoneLabel = getTimezoneLabel(tenantTimezone)
+  // "Today" for this dispatch page must be the tenant's own local day, not a
+  // hardcoded Eastern one — otherwise a non-Eastern tenant near midnight
+  // could see Orlando's calendar day here instead of their own.
+  const today = todayET(tenantTimezone)
 
   // Workers
   const { data: activeDrivers } = await supabase

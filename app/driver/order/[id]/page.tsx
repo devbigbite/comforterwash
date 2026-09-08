@@ -367,6 +367,23 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
     .maybeSingle()
   const enrouteAlreadySent = !!enrouteEvent
 
+  // Which delivery-flow photos already exist for this booking — checked from
+  // the server on every load so a page reload (weak signal, backgrounded app,
+  // driver navigating away and back) never wipes a photo that was already
+  // successfully uploaded. Previously these checkpoints were tracked only in
+  // client-side React state, which reset to "no photo" on any reload even
+  // when a real photo already existed in storage, leaving drivers stuck
+  // re-taking photos they'd already taken and unable to confirm delivery.
+  const { data: photoEvents } = await supabase
+    .from("order_events")
+    .select("event_type, photo_url")
+    .eq("booking_id", id)
+    .in("event_type", ["photo_customer_pickup", "photo_facility_dropoff", "photo_customer_delivery"])
+
+  const hasPhotoEvent = (type: string) => (photoEvents ?? []).some(e => e.event_type === type)
+  const photoUrlFor = (type: string) => (photoEvents ?? []).find(e => e.event_type === type)?.photo_url ?? null
+  const existingFloorPhotoUrl = photoUrlFor("photo_facility_dropoff")
+
   // Colors already claimed by other orders on the same pickup date
   const { data: sameDay } = await supabase
     .from("bookings")
@@ -618,6 +635,12 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
           deliveryDate={booking.delivery_date ?? null}
           assignedFacilityName={(booking.assigned_facility as { name?: string } | null)?.name ?? null}
           enrouteAlreadySent={enrouteAlreadySent}
+          hasCustomerPickupPhoto={hasPhotoEvent("photo_customer_pickup")}
+          existingCustomerPickupPhotoUrl={photoUrlFor("photo_customer_pickup")}
+          hasWarehouseDropoffPhoto={hasPhotoEvent("photo_facility_dropoff")}
+          existingFloorPhotoUrl={existingFloorPhotoUrl}
+          hasDeliveryPhoto={hasPhotoEvent("photo_customer_delivery")}
+          existingDeliveryPhotoUrl={photoUrlFor("photo_customer_delivery")}
           notifyPickupEnroute={notifyPickupEnroute}
           confirmPickup={confirmPickup}
           confirmDropoff={confirmDropoff}
