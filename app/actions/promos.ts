@@ -16,15 +16,16 @@ export async function createPromoCode(formData: FormData) {
   const expiresAt = formData.get("expires_at") ? new Date(formData.get("expires_at") as string).toISOString() : null
 
   const { error } = await supabase.from("promo_codes").insert({
-    location_id:    locationId,
-    code:           (formData.get("code") as string).toUpperCase().trim(),
-    description:    formData.get("description") as string,
-    discount_type:  discountType,
-    discount_value: discountValue,
-    applies_to:     formData.get("applies_to") as string ?? "all",
-    max_uses:       maxUses,
-    expires_at:     expiresAt,
-    active:         true,
+    location_id:      locationId,
+    code:              (formData.get("code") as string).toUpperCase().trim(),
+    description:       formData.get("description") as string,
+    discount_type:     discountType,
+    discount_value:    discountValue,
+    applies_to:        formData.get("applies_to") as string ?? "all",
+    max_uses:          maxUses,
+    expires_at:        expiresAt,
+    first_order_only:  formData.get("first_order_only") === "on",
+    active:            true,
   })
 
   if (error) return { error: error.code === "23505" ? "That code already exists." : error.message }
@@ -120,6 +121,38 @@ export async function validatePromoCode(
     const { data: priorRedemption } = await redemptionQuery.maybeSingle()
     if (priorRedemption) {
       return { valid: false, error: "You've already used this code." }
+    }
+  }
+
+  // First-order-only check — distinct from the per-code redemption check
+  // above. That one only stops a customer reusing THIS SAME code twice; it
+  // does nothing to stop a returning customer (who's never used this
+  // particular code before) from redeeming a "first order" discount on
+  // their 5th order. This checks for ANY prior real booking by this
+  // customer at this location, regardless of which code (if any) they used
+  // on it. Skipped if the form doesn't have contact info yet (same caveat
+  // as the per-customer check above) or the promo isn't first-order-only.
+  if (promo.first_order_only && (customerEmail || customerPhone)) {
+    let priorBookingQuery = supabase
+      .from("bookings")
+      .select("id")
+      .eq("location_id", locationId)
+      .not("status", "eq", "cancelled")
+      .limit(1)
+
+    if (customerEmail && customerPhone) {
+      priorBookingQuery = priorBookingQuery.or(
+        `customer_email.ilike.${customerEmail.trim()},customer_phone.eq.${customerPhone.trim()}`
+      )
+    } else if (customerEmail) {
+      priorBookingQuery = priorBookingQuery.ilike("customer_email", customerEmail.trim())
+    } else if (customerPhone) {
+      priorBookingQuery = priorBookingQuery.eq("customer_phone", customerPhone!.trim())
+    }
+
+    const { data: priorBooking } = await priorBookingQuery.maybeSingle()
+    if (priorBooking) {
+      return { valid: false, error: "This code is only valid on your first order." }
     }
   }
 

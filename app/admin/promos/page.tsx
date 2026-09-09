@@ -174,6 +174,12 @@ export default async function PromotionsPage() {
               <input name="expires_at" type="date"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#E8726A]" />
             </div>
+            <div className="flex items-center col-span-2">
+              <label className="flex items-center gap-2 text-sm text-[#0D2240] font-semibold">
+                <input type="checkbox" name="first_order_only" className="w-4 h-4 accent-[#E8726A]" />
+                First order only — blocks anyone with a prior real booking, even if they've never used this exact code before
+              </label>
+            </div>
             <div className="flex items-end">
               <button type="submit"
                 className="w-full bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold py-2.5 rounded-xl text-sm uppercase tracking-wide transition-colors">
@@ -187,13 +193,16 @@ export default async function PromotionsPage() {
         <h3 className="font-extrabold text-[#0D2240] text-xs uppercase tracking-wide mb-3">Active Codes</h3>
         <div className="space-y-2 mb-6">
           {active.length === 0 && <p className="text-sm text-gray-400 py-4">No active promo codes.</p>}
-          {active.map((p: { id: string; code: string; discount_type: string; discount_value: number; applies_to: string; description?: string; uses_count: number; max_uses?: number; expires_at?: string }) => (
+          {active.map((p: { id: string; code: string; discount_type: string; discount_value: number; applies_to: string; description?: string; uses_count: number; max_uses?: number; expires_at?: string; first_order_only?: boolean }) => (
             <div key={p.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <span className="font-mono font-extrabold text-[#0D2240] text-base">{p.code}</span>
                 <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">{fmt(p)}</span>
                 {p.applies_to !== "all" && (
                   <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase">{p.applies_to.replace("_", " ")}</span>
+                )}
+                {p.first_order_only && (
+                  <span className="text-[10px] font-bold text-[#E8726A] bg-[#fdf6f3] border border-[#E8726A]/30 px-2 py-0.5 rounded-full uppercase">1st order only</span>
                 )}
                 {p.description && <span className="text-xs text-gray-400">{p.description}</span>}
               </div>
