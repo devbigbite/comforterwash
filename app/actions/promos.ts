@@ -25,6 +25,7 @@ export async function createPromoCode(formData: FormData) {
     max_uses:          maxUses,
     expires_at:        expiresAt,
     first_order_only:  formData.get("first_order_only") === "on",
+    second_order_only: formData.get("second_order_only") === "on",
     active:            true,
   })
 
@@ -153,6 +154,34 @@ export async function validatePromoCode(
     const { data: priorBooking } = await priorBookingQuery.maybeSingle()
     if (priorBooking) {
       return { valid: false, error: "This code is only valid on your first order." }
+    }
+  }
+
+  // Second-order-only check — counts this customer's prior non-cancelled
+  // bookings and requires EXACTLY ONE, confirming the order being placed
+  // right now would genuinely be their 2nd order (not their 1st, and not
+  // their 3rd+). Mirrors the first_order_only block above but with a count
+  // instead of an existence check.
+  if (promo.second_order_only && (customerEmail || customerPhone)) {
+    let priorBookingsQuery = supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("location_id", locationId)
+      .not("status", "eq", "cancelled")
+
+    if (customerEmail && customerPhone) {
+      priorBookingsQuery = priorBookingsQuery.or(
+        `customer_email.ilike.${customerEmail.trim()},customer_phone.eq.${customerPhone.trim()}`
+      )
+    } else if (customerEmail) {
+      priorBookingsQuery = priorBookingsQuery.ilike("customer_email", customerEmail.trim())
+    } else if (customerPhone) {
+      priorBookingsQuery = priorBookingsQuery.eq("customer_phone", customerPhone!.trim())
+    }
+
+    const { count: priorBookingsCount } = await priorBookingsQuery
+    if ((priorBookingsCount ?? 0) !== 1) {
+      return { valid: false, error: "This code is only valid on a customer's second order." }
     }
   }
 
