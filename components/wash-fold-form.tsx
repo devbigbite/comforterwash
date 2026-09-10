@@ -28,6 +28,7 @@ import { getSameDayConfig, type SameDayConfig } from "@/app/actions/same-day"
 import { getTimezoneLabel } from "@/lib/timezone-label"
 import { useLang } from "@/components/lang-provider"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
+import { BagSizeIcon } from "@/components/bag-size-icon"
 import { dayAbbr, monthAbbr, weekdayFull, formatShortDate } from "@/lib/i18n-date"
 import type { Locale } from "@/lib/i18n"
 
@@ -1018,15 +1019,19 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
             </div>
 
             <div className="space-y-2.5">
-              {bagConfig.bagSizes.map(bag => {
+              {bagConfig.bagSizes.map((bag, bagIdx) => {
                 const qty = bagQtys[bag.id] ?? 0
                 return (
                   <div key={bag.id}
                     className={cn("flex items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 transition-all",
                       qty > 0 ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white")}>
-                    <div className="min-w-0">
-                      <p className="font-extrabold text-sm text-[var(--brand-primary)]">{bag.label}</p>
-                      <p className="text-xs text-gray-400">${(bag.priceCents / 100).toFixed(2)} {tf.bag}</p>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <BagSizeIcon rank={bagIdx} total={bagConfig.bagSizes.length} className="text-[var(--brand-primary)]/60" />
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-sm text-[var(--brand-primary)]">{bag.label}</p>
+                        <p className="text-xs text-gray-400">${(bag.priceCents / 100).toFixed(2)} {tf.bag}</p>
+                        {bag.description && <p className="text-xs text-gray-400 mt-0.5">{bag.description}</p>}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <button type="button"

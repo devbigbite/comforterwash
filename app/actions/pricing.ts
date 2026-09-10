@@ -136,6 +136,7 @@ const MAX_BAG_SIZES = 5
 export interface BagSize {
   id: string           // stable id so reordering/editing doesn't reshuffle rows
   label: string         // e.g. "Small Bag"
+  description?: string  // customer-facing sizing guidance, e.g. "Fits a 13-gal kitchen trash bag, about 2-3 loads"
   priceCents: number    // flat price for this bag size
   enabled: boolean      // whether customers currently see/can pick this size
 }
@@ -146,9 +147,9 @@ export interface WashFoldBagConfig {
 }
 
 const DEFAULT_BAG_SIZES: BagSize[] = [
-  { id: "small",  label: "Small Bag",  priceCents: 2500, enabled: true },
-  { id: "medium", label: "Medium Bag", priceCents: 3500, enabled: true },
-  { id: "large",  label: "Large Bag",  priceCents: 4500, enabled: true },
+  { id: "small",  label: "Small Bag",  description: "Fits a standard 13-gal kitchen trash bag — about 2-3 loads",  priceCents: 2500, enabled: true },
+  { id: "medium", label: "Medium Bag", description: "A tall 30-gal kitchen bag — about 4-5 loads",                priceCents: 3500, enabled: true },
+  { id: "large",  label: "Large Bag",  description: "A 42-55 gal contractor bag — about 6-7 loads",                priceCents: 4500, enabled: true },
 ]
 
 const WASH_FOLD_MODE_KEY = "wash_fold_pricing_mode"
@@ -176,6 +177,7 @@ export async function getWashFoldBagConfig(): Promise<WashFoldBagConfig> {
           bagSizes = parsed.map((b: Partial<BagSize>) => ({
             id: b.id ?? `bag_${Math.random().toString(36).slice(2)}`,
             label: b.label ?? "",
+            description: b.description ?? "",
             priceCents: b.priceCents ?? 0,
             enabled: b.enabled ?? true,
           }))
@@ -218,9 +220,9 @@ export interface WashOnlyBagConfig {
 }
 
 const DEFAULT_WASH_ONLY_BAG_SIZES: BagSize[] = [
-  { id: "small",  label: "Small Bag",  priceCents: 2000, enabled: true },
-  { id: "medium", label: "Medium Bag", priceCents: 3000, enabled: true },
-  { id: "large",  label: "Large Bag",  priceCents: 4000, enabled: true },
+  { id: "small",  label: "Small Bag",  description: "Fits a standard 13-gal kitchen trash bag — about 2-3 loads",  priceCents: 2000, enabled: true },
+  { id: "medium", label: "Medium Bag", description: "A tall 30-gal kitchen bag — about 4-5 loads",                priceCents: 3000, enabled: true },
+  { id: "large",  label: "Large Bag",  description: "A 42-55 gal contractor bag — about 6-7 loads",                priceCents: 4000, enabled: true },
 ]
 
 const WASH_ONLY_MODE_KEY = "wash_only_pricing_mode"
@@ -250,6 +252,7 @@ export async function getWashOnlyBagConfig(): Promise<WashOnlyBagConfig> {
           bagSizes = parsed.map((b: Partial<BagSize>) => ({
             id: b.id ?? `bag_${Math.random().toString(36).slice(2)}`,
             label: b.label ?? "",
+            description: b.description ?? "",
             priceCents: b.priceCents ?? 0,
             enabled: b.enabled ?? true,
           }))

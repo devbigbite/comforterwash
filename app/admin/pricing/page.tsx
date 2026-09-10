@@ -722,37 +722,45 @@ export default function PricingPage() {
                     Check a size to make it active for customers. Unchecked sizes stay saved but hidden.
                   </p>
                   {bagConfig.bagSizes.map(bag => (
-                    <div key={bag.id} className="flex items-center gap-3">
-                      <label className="flex items-center shrink-0" title={bag.enabled ? "Active for customers" : "Hidden from customers"}>
+                    <div key={bag.id} className="space-y-1.5">
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center shrink-0" title={bag.enabled ? "Active for customers" : "Hidden from customers"}>
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 accent-[#0D2240]"
+                            checked={bag.enabled}
+                            onChange={e => updateBagSize(bag.id, { enabled: e.target.checked })}
+                          />
+                        </label>
                         <input
-                          type="checkbox"
-                          className="w-4 h-4 accent-[#0D2240]"
-                          checked={bag.enabled}
-                          onChange={e => updateBagSize(bag.id, { enabled: e.target.checked })}
+                          className={inputCls}
+                          placeholder="e.g. Small Bag"
+                          value={bag.label}
+                          onChange={e => updateBagSize(bag.id, { label: e.target.value })}
                         />
-                      </label>
-                      <input
-                        className={inputCls}
-                        placeholder="e.g. Small Bag"
-                        value={bag.label}
-                        onChange={e => updateBagSize(bag.id, { label: e.target.value })}
-                      />
-                      <div className="relative shrink-0 w-32">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                        <PriceInput
-                          key={bag.id}
-                          className={inputCls + " pl-7"}
-                          cents={bag.priceCents}
-                          onChange={c => updateBagSize(bag.id, { priceCents: c ?? 0 })}
-                        />
+                        <div className="relative shrink-0 w-32">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                          <PriceInput
+                            key={bag.id}
+                            className={inputCls + " pl-7"}
+                            cents={bag.priceCents}
+                            onChange={c => updateBagSize(bag.id, { priceCents: c ?? 0 })}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeBagSize(bag.id)}
+                          className="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors shrink-0"
+                        >
+                          Remove
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeBagSize(bag.id)}
-                        className="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors shrink-0"
-                      >
-                        Remove
-                      </button>
+                      <input
+                        className={inputCls + " ml-7 text-xs"}
+                        placeholder="What counts as this size? e.g. “Fits a 13-gal kitchen trash bag, about 2-3 loads”"
+                        value={bag.description ?? ""}
+                        onChange={e => updateBagSize(bag.id, { description: e.target.value })}
+                      />
                     </div>
                   ))}
                   {bagConfig.bagSizes.length < MAX_BAG_SIZES && (
@@ -850,37 +858,45 @@ export default function PricingPage() {
                     Check a size to make it active for customers. Unchecked sizes stay saved but hidden.
                   </p>
                   {washOnlyBagConfig.bagSizes.map(bag => (
-                    <div key={bag.id} className="flex items-center gap-3">
-                      <label className="flex items-center shrink-0" title={bag.enabled ? "Active for customers" : "Hidden from customers"}>
+                    <div key={bag.id} className="space-y-1.5">
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center shrink-0" title={bag.enabled ? "Active for customers" : "Hidden from customers"}>
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 accent-[#0D2240]"
+                            checked={bag.enabled}
+                            onChange={e => updateWashOnlyBagSize(bag.id, { enabled: e.target.checked })}
+                          />
+                        </label>
                         <input
-                          type="checkbox"
-                          className="w-4 h-4 accent-[#0D2240]"
-                          checked={bag.enabled}
-                          onChange={e => updateWashOnlyBagSize(bag.id, { enabled: e.target.checked })}
+                          className={inputCls}
+                          placeholder="e.g. Small Bag"
+                          value={bag.label}
+                          onChange={e => updateWashOnlyBagSize(bag.id, { label: e.target.value })}
                         />
-                      </label>
-                      <input
-                        className={inputCls}
-                        placeholder="e.g. Small Bag"
-                        value={bag.label}
-                        onChange={e => updateWashOnlyBagSize(bag.id, { label: e.target.value })}
-                      />
-                      <div className="relative shrink-0 w-32">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                        <PriceInput
-                          key={bag.id}
-                          className={inputCls + " pl-7"}
-                          cents={bag.priceCents}
-                          onChange={c => updateWashOnlyBagSize(bag.id, { priceCents: c ?? 0 })}
-                        />
+                        <div className="relative shrink-0 w-32">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                          <PriceInput
+                            key={bag.id}
+                            className={inputCls + " pl-7"}
+                            cents={bag.priceCents}
+                            onChange={c => updateWashOnlyBagSize(bag.id, { priceCents: c ?? 0 })}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeWashOnlyBagSize(bag.id)}
+                          className="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors shrink-0"
+                        >
+                          Remove
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeWashOnlyBagSize(bag.id)}
-                        className="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors shrink-0"
-                      >
-                        Remove
-                      </button>
+                      <input
+                        className={inputCls + " ml-7 text-xs"}
+                        placeholder="What counts as this size? e.g. “Fits a 13-gal kitchen trash bag, about 2-3 loads”"
+                        value={bag.description ?? ""}
+                        onChange={e => updateWashOnlyBagSize(bag.id, { description: e.target.value })}
+                      />
                     </div>
                   ))}
                   {washOnlyBagConfig.bagSizes.length < MAX_BAG_SIZES && (
