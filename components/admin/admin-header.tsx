@@ -31,6 +31,7 @@ function buildSimpleNav(lang: "en" | "es", operatingMode: OperatingMode): NavIte
     { type: "link", href: "/admin/orders",     label: es ? "Órdenes" : "Orders" },
     { type: "link", href: "/admin/branding",   label: es ? "Mi Negocio" : "My Business" },
     { type: "link", href: "/admin/pricing",    label: es ? "Precios" : "Pricing" },
+    { type: "link", href: "/admin/plans",      label: es ? "Planes Mensuales" : "Monthly Plans" },
     { type: "link", href: "/admin/zip-codes",  label: es ? "Área de Servicio" : "Service Area" },
     ...(isHome
       ? [{ type: "link" as const, href: "/admin/laundromats", label: es ? "Mis Lavanderías" : "My Laundromats" }]

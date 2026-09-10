@@ -556,6 +556,11 @@ export default function PricingPage() {
                 <div>
                   <p className="font-bold text-sm text-[#0D2240]">Monthly Plans</p>
                   <p className="text-xs text-gray-400">Allow customers to subscribe to a fixed monthly plan</p>
+                  {monthlyPlanEnabled && (
+                    <Link href="/admin/plans" className="text-xs font-bold text-[#E8726A] hover:text-[#d45f57] mt-1 inline-block">
+                      Manage plans (name, price, lbs included) →
+                    </Link>
+                  )}
                 </div>
               </div>
               <button
