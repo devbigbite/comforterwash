@@ -72,12 +72,27 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
     const safeName = file.name.replace(/[^a-z0-9.]/gi, "_").toLowerCase()
     const path = `${bookingId}/${Date.now()}-${safeName}`
 
+    // Explicitly declare the content-type instead of letting the browser's
+    // (sometimes blank, sometimes nonstandard e.g. "image/heif" instead of
+    // "image/heic") File.type flow through as the upload's Content-Type
+    // header. The storage bucket allowlists specific image mime types, and
+    // a driver's phone reporting a type that doesn't exactly match it was
+    // silently killing the upload before it ever produced a useful error --
+    // compressImage() above already guarantees real JPEG bytes whenever it
+    // succeeds, so declaring "image/jpeg" here is accurate for the common
+    // case and a safe fallback otherwise.
+    const contentType = file.type && file.type.startsWith("image/") ? file.type : "image/jpeg"
+
     const { error: uploadError } = await supabase.storage
       .from("order-photos")
-      .upload(path, file, { upsert: false })
+      .upload(path, file, { upsert: false, contentType })
 
     if (uploadError) {
-      setError(uploadError.message)
+      // Supabase's raw error text ("mime type ... is not supported", a
+      // network timeout, etc.) isn't something a driver standing at a
+      // customer's door can act on -- point them at the one thing they can
+      // actually do about it.
+      setError(`Couldn't upload that photo (${uploadError.message}). Check your signal and try again.`)
       setUploading(false)
       // Reset input so user can retry same file
       if (inputRef.current) inputRef.current.value = ""
