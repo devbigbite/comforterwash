@@ -60,12 +60,14 @@ const UNIT_LABEL: Record<string, string> = {
   per_pound: "per lb",
   per_item:  "per item",
   per_load:  "per load",
+  per_bag:   "per bag",
 }
-const UNIT_OPTIONS: { value: "per_order" | "per_pound" | "per_item" | "per_load"; label: string; hint: string }[] = [
+const UNIT_OPTIONS: { value: "per_order" | "per_pound" | "per_item" | "per_load" | "per_bag"; label: string; hint: string }[] = [
   { value: "per_order", label: "By the order",  hint: "Charged once per order (current default)" },
   { value: "per_pound", label: "By the pound",   hint: "Price × estimated/actual weight" },
   { value: "per_item",  label: "Per item",       hint: "Price × quantity of items (e.g. comforters)" },
   { value: "per_load",  label: "By the load",    hint: "Price × number of bags/loads" },
+  { value: "per_bag",   label: "By the bag",     hint: "Price × number of bags in the order" },
 ]
 
 function OptionsSection({

@@ -5,7 +5,7 @@ import { getLocationId } from "@/lib/location"
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/lib/auth-guard"
 
-export type PricingUnit = "per_order" | "per_pound" | "per_item" | "per_load"
+export type PricingUnit = "per_order" | "per_pound" | "per_item" | "per_load" | "per_bag"
 
 export interface ServiceOption {
   id: string
