@@ -59,15 +59,12 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
     }
   }
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const rawFile = e.target.files?.[0]
-    if (!rawFile) return
+  // Kept only when an upload fails, so "Retry" can re-send the exact same
+  // (already-compressed) bytes without making the driver reopen the camera
+  // and retake the photo.
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
 
-    setUploading(true)
-    setError(null)
-
-    const file = await compressImage(rawFile)
-
+  async function uploadFile(file: File) {
     const supabase = createClient()
     const safeName = file.name.replace(/[^a-z0-9.]/gi, "_").toLowerCase()
     const path = `${bookingId}/${Date.now()}-${safeName}`
@@ -83,18 +80,33 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
     // case and a safe fallback otherwise.
     const contentType = file.type && file.type.startsWith("image/") ? file.type : "image/jpeg"
 
-    const { error: uploadError } = await supabase.storage
-      .from("order-photos")
-      .upload(path, file, { upsert: false, contentType })
+    // A driver's cellular signal out on a route drops mid-request often
+    // enough that a bare "Load failed"/"Failed to fetch" (the browser's
+    // generic wording for a network hiccup, not anything actually wrong
+    // with the photo) was routine rather than exceptional. Retry the exact
+    // same upload a couple of times with a short, increasing delay before
+    // bothering the driver with anything -- the identical request usually
+    // just goes through a moment later.
+    let lastErrorMessage: string | null = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 1200 * attempt))
+      const { error: uploadError } = await supabase.storage
+        .from("order-photos")
+        .upload(path, file, { upsert: false, contentType })
+      if (!uploadError) {
+        lastErrorMessage = null
+        break
+      }
+      lastErrorMessage = uploadError.message
+    }
 
-    if (uploadError) {
-      // Supabase's raw error text ("mime type ... is not supported", a
-      // network timeout, etc.) isn't something a driver standing at a
+    if (lastErrorMessage) {
+      // Supabase's raw error text isn't something a driver standing at a
       // customer's door can act on -- point them at the one thing they can
-      // actually do about it.
-      setError(`Couldn't upload that photo (${uploadError.message}). Check your signal and try again.`)
+      // actually do about it, and let them retry without retaking the photo.
+      setError(`Couldn't upload that photo (${lastErrorMessage}). Check your signal and tap Retry.`)
       setUploading(false)
-      // Reset input so user can retry same file
+      setPendingFile(file)
       if (inputRef.current) inputRef.current.value = ""
       return
     }
@@ -103,6 +115,7 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
       .from("order-photos")
       .getPublicUrl(path)
 
+    setPendingFile(null)
     setPhotos((prev) => [...prev, publicUrl])
     setUploading(false)
     if (inputRef.current) inputRef.current.value = ""
@@ -114,6 +127,24 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
     fd.append("photoUrl", publicUrl)
     fd.append("eventType", eventType)
     await action(fd)
+  }
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
+
+    setUploading(true)
+    setError(null)
+
+    const file = await compressImage(rawFile)
+    await uploadFile(file)
+  }
+
+  async function handleRetry() {
+    if (!pendingFile) return
+    setUploading(true)
+    setError(null)
+    await uploadFile(pendingFile)
   }
 
   return (
@@ -170,7 +201,18 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
       )}
 
       {error && (
-        <p className="px-4 py-2 text-xs text-red-500">{error}</p>
+        <div className="px-4 py-2 flex items-center justify-between gap-3">
+          <p className="text-xs text-red-500">{error}</p>
+          {pendingFile && (
+            <button
+              onClick={handleRetry}
+              disabled={uploading}
+              className="text-xs font-bold text-[#E8726A] hover:text-[#d45f57] disabled:opacity-50 shrink-0"
+            >
+              Retry
+            </button>
+          )}
+        </div>
       )}
 
       {/* Empty state */}
