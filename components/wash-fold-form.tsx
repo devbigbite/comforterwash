@@ -223,7 +223,7 @@ function WeekdayPicker({
 }
 
 // ─── main component ───────────────────────────────────────────────────────────
-export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnabled, timezone }: { initialPricing?: PricingConfig; topSlot?: ReactNode; initialMonthlyPlanEnabled?: boolean; timezone?: string }) {
+export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnabled, initialBagConfig, timezone }: { initialPricing?: PricingConfig; topSlot?: ReactNode; initialMonthlyPlanEnabled?: boolean; initialBagConfig?: WashFoldBagConfig; timezone?: string }) {
   const { translations: tr, locale } = useLang()
   const tf = tr.form
   const tw = tr.washFoldForm
@@ -259,10 +259,22 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   const [subMinPickups, setSubMinPickups] = useState(3)
 
   // ── Wash & Fold "per_bag" pricing (per-tenant, opt-in — see app/actions/pricing.ts) ──
-  // Defaults to per_lb until the location's config loads, so most tenants
-  // (who never configure per_bag) see zero change to the existing lbs UI.
-  const [bagConfig, setBagConfig] = useState<WashFoldBagConfig>({ mode: "per_lb", bagSizes: [] })
-  const [bagQtys, setBagQtys] = useState<Record<string, number>>({})
+  // Seeded from the server-resolved prop when available so the first paint
+  // already matches the tenant's real mode (per_lb / per_bag / both) --
+  // without this, the form briefly rendered the old per_lb layout and then
+  // jumped to the correct one a beat later once the client-side fetch below
+  // resolved. Falls back to per_lb (today's default) until that fetch
+  // resolves for the rare caller that doesn't pass it.
+  const initialActiveBagConfig = initialBagConfig
+    ? { ...initialBagConfig, bagSizes: initialBagConfig.bagSizes.filter(b => b.enabled) }
+    : { mode: "per_lb" as const, bagSizes: [] }
+  const [bagConfig, setBagConfig] = useState<WashFoldBagConfig>(initialActiveBagConfig)
+  const [bagQtys, setBagQtys] = useState<Record<string, number>>(() => {
+    if ((initialActiveBagConfig.mode === "per_bag" || initialActiveBagConfig.mode === "both") && initialActiveBagConfig.bagSizes.length > 0) {
+      return { [initialActiveBagConfig.bagSizes[0].id]: 1 }
+    }
+    return {}
+  })
   // When the tenant's mode is "both", the customer picks per-pound or
   // per-bag up front; this only matters in that mode (defaults to per_lb,
   // the safest choice since most tenants never configure bag pricing at all).
@@ -419,17 +431,23 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
       setSubMinPickups(cfg.washFoldSubMinPickups)
       setComforterSizesList(buildComforterSizes())
     })
-    getWashFoldBagConfig().then(cfg => {
-      // Only ever show sizes the tenant currently has enabled -- a size they
-      // configured but unchecked in admin should not appear here even though
-      // it's still stored (so they can re-enable it later without re-entering
-      // its price).
-      const activeCfg = { ...cfg, bagSizes: cfg.bagSizes.filter(b => b.enabled) }
-      setBagConfig(activeCfg)
-      if ((activeCfg.mode === "per_bag" || activeCfg.mode === "both") && activeCfg.bagSizes.length > 0) {
-        setBagQtys({ [activeCfg.bagSizes[0].id]: 1 })
-      }
-    })
+    // Only re-fetch client-side when the caller didn't already pass the
+    // server-resolved config -- same reasoning as the monthly-plan flag
+    // above, and for the same reason: re-running this unconditionally
+    // flashed the wrong pricing mode for a beat on every load.
+    if (!initialBagConfig) {
+      getWashFoldBagConfig().then(cfg => {
+        // Only ever show sizes the tenant currently has enabled -- a size they
+        // configured but unchecked in admin should not appear here even though
+        // it's still stored (so they can re-enable it later without re-entering
+        // its price).
+        const activeCfg = { ...cfg, bagSizes: cfg.bagSizes.filter(b => b.enabled) }
+        setBagConfig(activeCfg)
+        if ((activeCfg.mode === "per_bag" || activeCfg.mode === "both") && activeCfg.bagSizes.length > 0) {
+          setBagQtys({ [activeCfg.bagSizes[0].id]: 1 })
+        }
+      })
+    }
     Promise.all([getServiceOptions("detergent"), getServiceOptions("extra"), getServiceOptions("accessory")]).then(([dets, exts, accs]) => {
       setDetergentOptions(dets)
       setExtraOptions(exts)
