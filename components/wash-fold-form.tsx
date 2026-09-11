@@ -586,8 +586,8 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
 
   // Top-level "What's your preferred system?" choice for tenants who offer
   // both per-pound and per-bag pricing. Picking Per Pound/Per Bag resets to
-  // a clean one-time state and lets the existing frequency cards (One-Time /
-  // Weekly / Biweekly) take it from there; picking Monthly Subscription
+  // a clean one-time state and expands the frequency choice (One-Time /
+  // Weekly / Biweekly) directly beneath it; picking Monthly Subscription
   // jumps straight to the existing monthly-plan panel.
   function selectSystem(choice: "per_lb" | "per_bag" | "monthly") {
     setSystemChoice(choice)
@@ -598,6 +598,18 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
       selectPaygo()
     }
   }
+
+  function selectFrequency(f: "one_time" | "weekly" | "biweekly") {
+    if (f === "one_time") selectPaygo()
+    else selectSubscribeType(f)
+  }
+  const currentFrequency: "one_time" | "weekly" | "biweekly" =
+    serviceMode === "paygo" ? "one_time" : (subscribeType === "monthly" ? "one_time" : subscribeType)
+  const FREQUENCY_OPTIONS = [
+    { value: "one_time" as const, label: tw.tierOneTimeLabel, note: tw.tierNoCommitment || "Single pickup" },
+    { value: "weekly"   as const, label: tw.tierWeekly,       note: tw.tierEveryWeek },
+    { value: "biweekly" as const, label: tw.tierBiweekly,     note: tw.tierEveryTwoWeeks },
+  ]
 
   function buildAddr(street: string, unit: string, city: string, state: string, zip: string) {
     // Apt/unit gets its own comma-delimited segment right after the street —
@@ -814,185 +826,244 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
         {step === 1 && (
           <div className="space-y-7">
 
-            {/* ── System picker: only for tenants offering BOTH per-pound and per-bag pricing ── */}
-            {showsSystemPicker && systemChoice === null && (
-              <div className="space-y-3">
-                <h3 className="text-xl font-extrabold text-[var(--brand-primary)]">What's your preferred system?</h3>
-                <p className="text-sm text-gray-400">Pick how you'd like to be charged — you can change this anytime before checkout.</p>
-                <div className="space-y-2.5">
-                  <button type="button" onClick={() => selectSystem("per_lb")}
-                    className="w-full text-left p-4 rounded-2xl border-2 border-gray-200 bg-white hover:border-[var(--brand-accent)] transition-colors">
-                    <p className="font-extrabold text-base text-[var(--brand-primary)]">Per Pound</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Pay by weight — {freqPricing.one_time.label}</p>
-                  </button>
-                  <button type="button" onClick={() => selectSystem("per_bag")}
-                    className="w-full text-left p-4 rounded-2xl border-2 border-gray-200 bg-white hover:border-[var(--brand-accent)] transition-colors">
-                    <p className="font-extrabold text-base text-[var(--brand-primary)]">Per Bag</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Flat price per bag size</p>
-                  </button>
-                  {monthlyPlanEnabled && (
-                    <button type="button" onClick={() => selectSystem("monthly")}
-                      className="w-full text-left p-4 rounded-2xl border-2 border-gray-200 bg-white hover:border-[var(--brand-accent)] transition-colors">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-extrabold text-base text-[var(--brand-primary)]">Monthly Subscription</p>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 uppercase tracking-wide">
-                          {tw.tierBestValue}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-0.5">Fixed pre-paid monthly fee</p>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {showsSystemPicker && systemChoice !== null && (
-              <button type="button" onClick={() => setSystemChoice(null)}
-                className="text-xs font-bold text-gray-400 hover:text-[var(--brand-primary)] transition-colors -mb-2">
-                ← Change system ({systemChoice === "per_lb" ? "Per Pound" : systemChoice === "per_bag" ? "Per Bag" : "Monthly Subscription"})
-              </button>
-            )}
-
             {/* ── Tier selector ── */}
-            {showTierAndBookingForm && (
             <div className="space-y-3">
-              <h3 className="text-xl font-extrabold text-[var(--brand-primary)]">{tw.howToBook}</h3>
+              <h3 className="text-xl font-extrabold text-[var(--brand-primary)]">
+                {showsSystemPicker ? "What's your preferred system?" : tw.howToBook}
+              </h3>
               {topSlot}
 
               <div className="space-y-2">
-                {/* ── Option 1: One-Time ── */}
-                <button type="button" onClick={selectPaygo}
-                  className={cn(
-                    "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
-                    serviceMode === "paygo" ? "border-[var(--brand-accent)] bg-[#fdf6f3] p-4" : "border-gray-200 bg-white hover:border-gray-300 px-4 py-3"
-                  )}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={cn("inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
-                        serviceMode === "paygo" ? "bg-[#fde8e5] text-[#b84c3e]" : "bg-gray-100 text-gray-500")}>
-                        {tw.tierOneTimeLabel}
-                      </span>
-                      <p className={cn("font-extrabold text-sm", serviceMode === "paygo" ? "text-[var(--brand-primary)]" : "text-gray-500")}>
-                        {tw.tierPayAsYouGo}
-                      </p>
-                    </div>
-                    {serviceMode === "paygo" && tw.tierNoCommitment && (
-                      <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
-                        {tw.tierNoCommitment}
-                      </p>
-                    )}
-                  </div>
-                  {!isBagMode && (
-                    <span className={cn("font-extrabold shrink-0 ml-4", serviceMode === "paygo" ? "text-[var(--brand-accent)] text-lg" : "text-gray-400 text-sm")}>
-                      {freqPricing.one_time.label}
-                    </span>
-                  )}
-                </button>
-
-                {/* ── Option 2: Subscribe by weight (weekly / biweekly) ── */}
-                <button type="button"
-                  onClick={() => selectSubscribeType(subscribeType === "monthly" ? "weekly" : subscribeType)}
-                  className={cn(
-                    "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
-                    serviceMode === "subscription" && subscribeType !== "monthly"
-                      ? "border-[var(--brand-primary)] bg-[#f0f4f9] p-4"
-                      : "border-gray-200 bg-white hover:border-gray-300 px-4 py-3"
-                  )}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={cn("inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
-                        serviceMode === "subscription" && subscribeType !== "monthly"
-                          ? "bg-[#d8e4f0] text-[var(--brand-primary)]"
-                          : "bg-gray-100 text-gray-500")}>
-                        {tw.tierRecurringLabel}
-                      </span>
-                      <p className={cn("font-extrabold text-sm", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[var(--brand-primary)]" : "text-gray-500")}>
-                        {tw.tierSubscribeLabel}
-                      </p>
-                    </div>
-                    {serviceMode === "subscription" && subscribeType !== "monthly" && (
-                      <div className="mt-1.5 space-y-1">
-                        <p className="text-[11px] text-gray-400 leading-snug">
-                          {bagConfig.mode === "per_bag" ? tw.tierLockInBag : bagConfig.mode === "both" ? tw.tierLockInBoth : tw.tierLockIn}
-                        </p>
-                        <p className="text-[11px] text-amber-600 font-semibold leading-snug">
-                          {subMinPickups > 0 ? tw.tierMinPickups.replace("{n}", String(subMinPickups)) : tw.tierNoMinPickups}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  {!isBagMode && (
-                    <span className={cn("font-extrabold shrink-0 ml-4", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[var(--brand-accent)] text-lg" : "text-gray-400 text-sm")}>
-                      {freqPricing.weekly.label}
-                    </span>
-                  )}
-                </button>
-
-                {/* Weekly / Biweekly toggle — shown when subscribe-by-weight is active */}
-                {serviceMode === "subscription" && subscribeType !== "monthly" && (
-                  <div className="grid grid-cols-2 gap-2 px-1 pb-1">
-                    {([
-                      { value: "weekly"   as const, label: tw.tierWeekly,    note: tw.tierEveryWeek },
-                      { value: "biweekly" as const, label: tw.tierBiweekly,  note: tw.tierEveryTwoWeeks },
-                    ] as const).map(opt => (
-                      <button key={opt.value} type="button"
-                        onClick={() => selectSubscribeType(opt.value)}
-                        className={cn(
-                          "flex flex-col items-center gap-0.5 rounded-xl border-2 py-2.5 px-2 transition-all",
-                          subscribeType === opt.value ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300"
-                        )}>
-                        <span className={cn("font-extrabold text-sm", subscribeType === opt.value ? "text-[var(--brand-primary)]" : "text-gray-600")}>
-                          {opt.label}
-                        </span>
-                        <span className="text-[10px] text-gray-400">{opt.note}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* ── Option 3: Monthly pre-paid plan (hidden when the top-level system picker already covers it) ── */}
-                {!showsSystemPicker && monthlyPlanEnabled && (
-                  <button type="button" onClick={() => selectSubscribeType("monthly")}
+                {showsSystemPicker ? (<>
+                  {/* ── Per Pound ── */}
+                  <button type="button" onClick={() => selectSystem("per_lb")}
                     className={cn(
                       "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
-                      serviceMode === "subscription" && subscribeType === "monthly"
+                      systemChoice === "per_lb" ? "border-[var(--brand-accent)] bg-[#fdf6f3] p-4" : "border-gray-200 bg-white hover:border-gray-300 px-4 py-3"
+                    )}>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("font-extrabold text-sm", systemChoice === "per_lb" ? "text-[var(--brand-primary)]" : "text-gray-500")}>
+                        Per Pound
+                      </p>
+                      {systemChoice === "per_lb" && (
+                        <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">Pay by weight, no bag counting</p>
+                      )}
+                    </div>
+                    <span className={cn("font-extrabold shrink-0 ml-4", systemChoice === "per_lb" ? "text-[var(--brand-accent)] text-lg" : "text-gray-400 text-sm")}>
+                      {freqPricing.one_time.label}
+                    </span>
+                  </button>
+
+                  {/* Frequency choice, expands directly under Per Pound once it's selected */}
+                  {systemChoice === "per_lb" && (
+                    <div className="grid grid-cols-3 gap-2 px-1 pb-1">
+                      {FREQUENCY_OPTIONS.map(opt => (
+                        <button key={opt.value} type="button" onClick={() => selectFrequency(opt.value)}
+                          className={cn(
+                            "flex flex-col items-center gap-0.5 rounded-xl border-2 py-2.5 px-2 transition-all",
+                            currentFrequency === opt.value ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300"
+                          )}>
+                          <span className={cn("font-extrabold text-sm", currentFrequency === opt.value ? "text-[var(--brand-primary)]" : "text-gray-600")}>
+                            {opt.label}
+                          </span>
+                          <span className="text-[10px] text-gray-400">{opt.note}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ── Per Bag ── */}
+                  <button type="button" onClick={() => selectSystem("per_bag")}
+                    className={cn(
+                      "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
+                      systemChoice === "per_bag" ? "border-[var(--brand-accent)] bg-[#fdf6f3] p-4" : "border-gray-200 bg-white hover:border-gray-300 px-4 py-3"
+                    )}>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("font-extrabold text-sm", systemChoice === "per_bag" ? "text-[var(--brand-primary)]" : "text-gray-500")}>
+                        Per Bag
+                      </p>
+                      {systemChoice === "per_bag" && (
+                        <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">Flat price per bag size</p>
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Frequency choice, expands directly under Per Bag once it's selected */}
+                  {systemChoice === "per_bag" && (
+                    <div className="grid grid-cols-3 gap-2 px-1 pb-1">
+                      {FREQUENCY_OPTIONS.map(opt => (
+                        <button key={opt.value} type="button" onClick={() => selectFrequency(opt.value)}
+                          className={cn(
+                            "flex flex-col items-center gap-0.5 rounded-xl border-2 py-2.5 px-2 transition-all",
+                            currentFrequency === opt.value ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300"
+                          )}>
+                          <span className={cn("font-extrabold text-sm", currentFrequency === opt.value ? "text-[var(--brand-primary)]" : "text-gray-600")}>
+                            {opt.label}
+                          </span>
+                          <span className="text-[10px] text-gray-400">{opt.note}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ── Monthly Subscription ── */}
+                  {monthlyPlanEnabled && (
+                    <button type="button" onClick={() => selectSystem("monthly")}
+                      className={cn(
+                        "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
+                        systemChoice === "monthly"
+                          ? "border-[var(--brand-primary)] bg-[#f0f4f9] p-4"
+                          : "border-gray-200 bg-white hover:border-gray-300 px-4 py-3"
+                      )}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className={cn("font-extrabold text-sm", systemChoice === "monthly" ? "text-[var(--brand-primary)]" : "text-gray-500")}>
+                            Monthly Subscription
+                          </p>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 uppercase tracking-wide">
+                            {tw.tierBestValue}
+                          </span>
+                        </div>
+                        {systemChoice === "monthly" && (
+                          <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">{tw.tierFixedMonthlyFee}</p>
+                        )}
+                      </div>
+                    </button>
+                  )}
+                </>) : (<>
+                  {/* ── Option 1: One-Time ── */}
+                  <button type="button" onClick={selectPaygo}
+                    className={cn(
+                      "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
+                      serviceMode === "paygo" ? "border-[var(--brand-accent)] bg-[#fdf6f3] p-4" : "border-gray-200 bg-white hover:border-gray-300 px-4 py-3"
+                    )}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={cn("inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
+                          serviceMode === "paygo" ? "bg-[#fde8e5] text-[#b84c3e]" : "bg-gray-100 text-gray-500")}>
+                          {tw.tierOneTimeLabel}
+                        </span>
+                        <p className={cn("font-extrabold text-sm", serviceMode === "paygo" ? "text-[var(--brand-primary)]" : "text-gray-500")}>
+                          {tw.tierPayAsYouGo}
+                        </p>
+                      </div>
+                      {serviceMode === "paygo" && tw.tierNoCommitment && (
+                        <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
+                          {tw.tierNoCommitment}
+                        </p>
+                      )}
+                    </div>
+                    {!isBagMode && (
+                      <span className={cn("font-extrabold shrink-0 ml-4", serviceMode === "paygo" ? "text-[var(--brand-accent)] text-lg" : "text-gray-400 text-sm")}>
+                        {freqPricing.one_time.label}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* ── Option 2: Subscribe by weight (weekly / biweekly) ── */}
+                  <button type="button"
+                    onClick={() => selectSubscribeType(subscribeType === "monthly" ? "weekly" : subscribeType)}
+                    className={cn(
+                      "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
+                      serviceMode === "subscription" && subscribeType !== "monthly"
                         ? "border-[var(--brand-primary)] bg-[#f0f4f9] p-4"
                         : "border-gray-200 bg-white hover:border-gray-300 px-4 py-3"
                     )}>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
-                          serviceMode === "subscription" && subscribeType === "monthly"
+                      <div className="flex items-center gap-2">
+                        <span className={cn("inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
+                          serviceMode === "subscription" && subscribeType !== "monthly"
                             ? "bg-[#d8e4f0] text-[var(--brand-primary)]"
                             : "bg-gray-100 text-gray-500")}>
-                          {tw.tierMonthlyLabel}
+                          {tw.tierRecurringLabel}
                         </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 uppercase tracking-wide">
-                          {tw.tierBestValue}
-                        </span>
-                        <p className={cn("font-extrabold text-sm", serviceMode === "subscription" && subscribeType === "monthly" ? "text-[var(--brand-primary)]" : "text-gray-500")}>
-                          {tw.tierPrePaidMonthly}
+                        <p className={cn("font-extrabold text-sm", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[var(--brand-primary)]" : "text-gray-500")}>
+                          {tw.tierSubscribeLabel}
                         </p>
                       </div>
-                      {serviceMode === "subscription" && subscribeType === "monthly" && (
-                        <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
-                          {tw.tierFixedMonthlyFee}
-                        </p>
+                      {serviceMode === "subscription" && subscribeType !== "monthly" && (
+                        <div className="mt-1.5 space-y-1">
+                          <p className="text-[11px] text-gray-400 leading-snug">
+                            {bagConfig.mode === "per_bag" ? tw.tierLockInBag : bagConfig.mode === "both" ? tw.tierLockInBoth : tw.tierLockIn}
+                          </p>
+                          <p className="text-[11px] text-amber-600 font-semibold leading-snug">
+                            {subMinPickups > 0 ? tw.tierMinPickups.replace("{n}", String(subMinPickups)) : tw.tierNoMinPickups}
+                          </p>
+                        </div>
                       )}
                     </div>
-                    <div className="shrink-0 ml-4 text-right">
-                      <span className={cn("font-extrabold block", serviceMode === "subscription" && subscribeType === "monthly" ? "text-[var(--brand-accent)] text-base" : "text-gray-400 text-sm")}>
-                        Fixed fee
+                    {!isBagMode && (
+                      <span className={cn("font-extrabold shrink-0 ml-4", serviceMode === "subscription" && subscribeType !== "monthly" ? "text-[var(--brand-accent)] text-lg" : "text-gray-400 text-sm")}>
+                        {freqPricing.weekly.label}
                       </span>
-                      {serviceMode === "subscription" && subscribeType === "monthly" && (
-                        <span className="text-[10px] text-gray-400">Pre-paid</span>
-                      )}
-                    </div>
+                    )}
                   </button>
-                )}
+
+                  {/* Weekly / Biweekly toggle — shown when subscribe-by-weight is active */}
+                  {serviceMode === "subscription" && subscribeType !== "monthly" && (
+                    <div className="grid grid-cols-2 gap-2 px-1 pb-1">
+                      {([
+                        { value: "weekly"   as const, label: tw.tierWeekly,    note: tw.tierEveryWeek },
+                        { value: "biweekly" as const, label: tw.tierBiweekly,  note: tw.tierEveryTwoWeeks },
+                      ] as const).map(opt => (
+                        <button key={opt.value} type="button"
+                          onClick={() => selectSubscribeType(opt.value)}
+                          className={cn(
+                            "flex flex-col items-center gap-0.5 rounded-xl border-2 py-2.5 px-2 transition-all",
+                            subscribeType === opt.value ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300"
+                          )}>
+                          <span className={cn("font-extrabold text-sm", subscribeType === opt.value ? "text-[var(--brand-primary)]" : "text-gray-600")}>
+                            {opt.label}
+                          </span>
+                          <span className="text-[10px] text-gray-400">{opt.note}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ── Option 3: Monthly pre-paid plan ── */}
+                  {monthlyPlanEnabled && (
+                    <button type="button" onClick={() => selectSubscribeType("monthly")}
+                      className={cn(
+                        "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
+                        serviceMode === "subscription" && subscribeType === "monthly"
+                          ? "border-[var(--brand-primary)] bg-[#f0f4f9] p-4"
+                          : "border-gray-200 bg-white hover:border-gray-300 px-4 py-3"
+                      )}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
+                            serviceMode === "subscription" && subscribeType === "monthly"
+                              ? "bg-[#d8e4f0] text-[var(--brand-primary)]"
+                              : "bg-gray-100 text-gray-500")}>
+                            {tw.tierMonthlyLabel}
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 uppercase tracking-wide">
+                            {tw.tierBestValue}
+                          </span>
+                          <p className={cn("font-extrabold text-sm", serviceMode === "subscription" && subscribeType === "monthly" ? "text-[var(--brand-primary)]" : "text-gray-500")}>
+                            {tw.tierPrePaidMonthly}
+                          </p>
+                        </div>
+                        {serviceMode === "subscription" && subscribeType === "monthly" && (
+                          <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
+                            {tw.tierFixedMonthlyFee}
+                          </p>
+                        )}
+                      </div>
+                      <div className="shrink-0 ml-4 text-right">
+                        <span className={cn("font-extrabold block", serviceMode === "subscription" && subscribeType === "monthly" ? "text-[var(--brand-accent)] text-base" : "text-gray-400 text-sm")}>
+                          Fixed fee
+                        </span>
+                        {serviceMode === "subscription" && subscribeType === "monthly" && (
+                          <span className="text-[10px] text-gray-400">Pre-paid</span>
+                        )}
+                      </div>
+                    </button>
+                  )}
+                </>)}
               </div>
             </div>
-            )}
 
             {/* ── Monthly plan panel (no booking form needed) ── */}
             {serviceMode === "subscription" && subscribeType === "monthly" && monthlyPlanEnabled && (
