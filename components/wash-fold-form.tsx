@@ -273,6 +273,15 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   const totalBagQty = Object.values(bagQtys).reduce((a, b) => a + b, 0)
   const bagSubtotalCents = bagConfig.bagSizes.reduce((sum, b) => sum + (bagQtys[b.id] ?? 0) * b.priceCents, 0)
 
+  // Tenants who offer BOTH per-pound and per-bag pricing get one upfront,
+  // impossible-to-miss "What's your preferred system?" choice (Per Pound /
+  // Per Bag / Monthly Subscription) instead of discovering the pay-by-bag
+  // toggle buried after the frequency cards. Tenants who only offer one
+  // pricing method never see this extra step — nothing changes for them.
+  const showsSystemPicker = bagConfig.mode === "both"
+  const [systemChoice, setSystemChoice] = useState<"per_lb" | "per_bag" | "monthly" | null>(null)
+  const showTierAndBookingForm = !showsSystemPicker || (systemChoice !== null && systemChoice !== "monthly")
+
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "payment">(1)
   const [serviceMode, setServiceMode] = useState<"paygo" | "subscription">("paygo")
   const [subscribeType, setSubscribeType] = useState<"weekly" | "biweekly" | "monthly">("weekly")
@@ -575,6 +584,21 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
     if (t !== "monthly") setFormData(p => ({ ...p, frequency: t as "weekly" | "biweekly" }))
   }
 
+  // Top-level "What's your preferred system?" choice for tenants who offer
+  // both per-pound and per-bag pricing. Picking Per Pound/Per Bag resets to
+  // a clean one-time state and lets the existing frequency cards (One-Time /
+  // Weekly / Biweekly) take it from there; picking Monthly Subscription
+  // jumps straight to the existing monthly-plan panel.
+  function selectSystem(choice: "per_lb" | "per_bag" | "monthly") {
+    setSystemChoice(choice)
+    if (choice === "monthly") {
+      selectSubscribeType("monthly")
+    } else {
+      setBothModeChoice(choice)
+      selectPaygo()
+    }
+  }
+
   function buildAddr(street: string, unit: string, city: string, state: string, zip: string) {
     // Apt/unit gets its own comma-delimited segment right after the street —
     // what USPS, Google Maps and Shipday all expect. Dropped entirely when
@@ -790,7 +814,47 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
         {step === 1 && (
           <div className="space-y-7">
 
+            {/* ── System picker: only for tenants offering BOTH per-pound and per-bag pricing ── */}
+            {showsSystemPicker && systemChoice === null && (
+              <div className="space-y-3">
+                <h3 className="text-xl font-extrabold text-[var(--brand-primary)]">What's your preferred system?</h3>
+                <p className="text-sm text-gray-400">Pick how you'd like to be charged — you can change this anytime before checkout.</p>
+                <div className="space-y-2.5">
+                  <button type="button" onClick={() => selectSystem("per_lb")}
+                    className="w-full text-left p-4 rounded-2xl border-2 border-gray-200 bg-white hover:border-[var(--brand-accent)] transition-colors">
+                    <p className="font-extrabold text-base text-[var(--brand-primary)]">Per Pound</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Pay by weight — {freqPricing.one_time.label}</p>
+                  </button>
+                  <button type="button" onClick={() => selectSystem("per_bag")}
+                    className="w-full text-left p-4 rounded-2xl border-2 border-gray-200 bg-white hover:border-[var(--brand-accent)] transition-colors">
+                    <p className="font-extrabold text-base text-[var(--brand-primary)]">Per Bag</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Flat price per bag size</p>
+                  </button>
+                  {monthlyPlanEnabled && (
+                    <button type="button" onClick={() => selectSystem("monthly")}
+                      className="w-full text-left p-4 rounded-2xl border-2 border-gray-200 bg-white hover:border-[var(--brand-accent)] transition-colors">
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-extrabold text-base text-[var(--brand-primary)]">Monthly Subscription</p>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 uppercase tracking-wide">
+                          {tw.tierBestValue}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">Fixed pre-paid monthly fee</p>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {showsSystemPicker && systemChoice !== null && (
+              <button type="button" onClick={() => setSystemChoice(null)}
+                className="text-xs font-bold text-gray-400 hover:text-[var(--brand-primary)] transition-colors -mb-2">
+                ← Change system ({systemChoice === "per_lb" ? "Per Pound" : systemChoice === "per_bag" ? "Per Bag" : "Monthly Subscription"})
+              </button>
+            )}
+
             {/* ── Tier selector ── */}
+            {showTierAndBookingForm && (
             <div className="space-y-3">
               <h3 className="text-xl font-extrabold text-[var(--brand-primary)]">{tw.howToBook}</h3>
               {topSlot}
@@ -886,8 +950,8 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                   </div>
                 )}
 
-                {/* ── Option 3: Monthly pre-paid plan ── */}
-                {monthlyPlanEnabled && (
+                {/* ── Option 3: Monthly pre-paid plan (hidden when the top-level system picker already covers it) ── */}
+                {!showsSystemPicker && monthlyPlanEnabled && (
                   <button type="button" onClick={() => selectSubscribeType("monthly")}
                     className={cn(
                       "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
@@ -928,6 +992,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                 )}
               </div>
             </div>
+            )}
 
             {/* ── Monthly plan panel (no booking form needed) ── */}
             {serviceMode === "subscription" && subscribeType === "monthly" && monthlyPlanEnabled && (
@@ -950,30 +1015,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
             )}
 
             {/* ── Booking form: shown for paygo (one-time) OR subscribe weekly/biweekly ── */}
-            {(serviceMode === "paygo" || (serviceMode === "subscription" && subscribeType !== "monthly")) && (<>
-
-            {/* When the tenant offers both pricing modes, let the customer choose up front */}
-            {bagConfig.mode === "both" && bagConfig.bagSizes.length > 0 && (
-              <div className="space-y-2.5">
-                <h3 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">How would you like to pay?</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <button type="button"
-                    onClick={() => setBothModeChoice("per_lb")}
-                    className={cn("text-left p-4 rounded-2xl border-2 transition-colors",
-                      bothModeChoice === "per_lb" ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300")}>
-                    <p className="font-extrabold text-sm text-[var(--brand-primary)]">Pay by the pound</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{priceLabel}</p>
-                  </button>
-                  <button type="button"
-                    onClick={() => setBothModeChoice("per_bag")}
-                    className={cn("text-left p-4 rounded-2xl border-2 transition-colors",
-                      bothModeChoice === "per_bag" ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-200 bg-white hover:border-gray-300")}>
-                    <p className="font-extrabold text-sm text-[var(--brand-primary)]">Pay by the bag</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Flat price per bag size</p>
-                  </button>
-                </div>
-              </div>
-            )}
+            {showTierAndBookingForm && (serviceMode === "paygo" || (serviceMode === "subscription" && subscribeType !== "monthly")) && (<>
 
             {/* Bag counter (per_lb tenants) OR bag-size picker (per_bag tenants) */}
             {!isBagMode ? (<>

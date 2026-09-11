@@ -167,7 +167,9 @@ export async function getWashFoldBagConfig(): Promise<WashFoldBagConfig> {
     const map: Record<string, string> = {}
     for (const row of data ?? []) map[row.key] = row.value
 
-    const mode: WashFoldPricingMode = map[WASH_FOLD_MODE_KEY] === "per_bag" ? "per_bag" : "per_lb"
+    const rawMode = map[WASH_FOLD_MODE_KEY]
+    const mode: WashFoldPricingMode =
+      rawMode === "per_bag" || rawMode === "both" ? rawMode : "per_lb"
     let bagSizes = DEFAULT_BAG_SIZES
     if (map[WASH_FOLD_BAG_SIZES_KEY]) {
       try {
