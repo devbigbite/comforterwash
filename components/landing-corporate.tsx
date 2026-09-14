@@ -8,7 +8,7 @@ import Link from "next/link"
 import { useLang } from "@/components/lang-provider"
 import { useState, useEffect } from "react"
 import { getLandingOffers, getSiteImages, getSiteText, getServicesConfig, getMonthlyPlanEnabled, type ServicesConfig } from "@/app/actions/settings"
-import { getPricingConfig } from "@/app/actions/pricing"
+import { getPricingConfig, getWashFoldBagConfig, getWashOnlyBagConfig, type WashFoldBagConfig, type WashOnlyBagConfig } from "@/app/actions/pricing"
 import { getBrandingSettings } from "@/app/actions/branding"
 import { PRICING_DEFAULTS } from "@/lib/pricing-defaults"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
@@ -34,6 +34,8 @@ export function CorporateLanding({ initialImages }: { initialImages?: SiteImages
   const [siteText, setSiteText] = useState<SiteText>(DEFAULT_TEXT)
   const [services, setServices] = useState<ServicesConfig | null>(null)
   const [livePricing, setLivePricing] = useState<PricingConfig>(PRICING_DEFAULTS)
+  const [washFoldBags, setWashFoldBags] = useState<WashFoldBagConfig | null>(null)
+  const [washOnlyBags, setWashOnlyBags] = useState<WashOnlyBagConfig | null>(null)
   // null until loaded -- prevents flash of the monthly-plan CTA on first render
   const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState<boolean | null>(null)
   const [businessName, setBusinessName] = useState("WashFold Orlando")
@@ -44,6 +46,8 @@ export function CorporateLanding({ initialImages }: { initialImages?: SiteImages
     getSiteText().then(setSiteText)
     getServicesConfig().then(setServices)
     getPricingConfig().then(setLivePricing)
+    getWashFoldBagConfig().then(setWashFoldBags)
+    getWashOnlyBagConfig().then(setWashOnlyBags)
     getMonthlyPlanEnabled().then(setMonthlyPlanEnabled)
     getBrandingSettings().then(b => {
       setBusinessName(b.business_name)
@@ -289,7 +293,20 @@ export function CorporateLanding({ initialImages }: { initialImages?: SiteImages
                 href: "/book/wash-fold",
                 icon: "👕",
                 title: tr.pricing.washFoldTitle,
-                content: (
+                content: washFoldBags && washFoldBags.mode !== "per_lb" ? (() => {
+                  const enabledBags = washFoldBags.bagSizes.filter(b => b.enabled)
+                  const lowest = enabledBags.reduce(
+                    (min, b) => (b.priceCents < min ? b.priceCents : min),
+                    enabledBags[0]?.priceCents ?? 0,
+                  )
+                  return (
+                    <>
+                      <p className="text-gray-400 text-sm mb-4">{enabledBags.length} bag size{enabledBags.length === 1 ? "" : "s"} available</p>
+                      <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1"><span className="text-base font-bold mr-1">from</span>${(lowest / 100).toFixed(2)}</p>
+                      <p className="text-gray-400 text-xs mb-6">per bag</p>
+                    </>
+                  )
+                })() : (
                   <>
                     <p className="text-gray-400 text-sm mb-4">{livePricing.washFoldMinLbs} lb minimum</p>
                     <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1">${(livePricing.washFoldOneTimeCents / 100).toFixed(2)}<span className="text-2xl">/lb</span></p>
@@ -302,7 +319,20 @@ export function CorporateLanding({ initialImages }: { initialImages?: SiteImages
                 href: "/book/wash-only",
                 icon: "🧺",
                 title: tr.pricing.washOnlyTitle,
-                content: (
+                content: washOnlyBags && washOnlyBags.mode !== "per_lb" ? (() => {
+                  const enabledBags = washOnlyBags.bagSizes.filter(b => b.enabled)
+                  const lowest = enabledBags.reduce(
+                    (min, b) => (b.priceCents < min ? b.priceCents : min),
+                    enabledBags[0]?.priceCents ?? 0,
+                  )
+                  return (
+                    <>
+                      <p className="text-gray-400 text-sm mb-4">{enabledBags.length} bag size{enabledBags.length === 1 ? "" : "s"} available</p>
+                      <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1"><span className="text-base font-bold mr-1">from</span>${(lowest / 100).toFixed(2)}</p>
+                      <p className="text-gray-400 text-xs mb-6">per bag</p>
+                    </>
+                  )
+                })() : (
                   <>
                     <p className="text-gray-400 text-sm mb-4">{livePricing.washOnlyMinLbs} lb minimum</p>
                     <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1">${(livePricing.washOnlyCents / 100).toFixed(2)}<span className="text-2xl">/lb</span></p>
