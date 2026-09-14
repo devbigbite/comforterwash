@@ -27,11 +27,13 @@ export function CorporateLanding({
   initialPricing,
   initialWashFoldBags,
   initialWashOnlyBags,
+  initialSiteText,
 }: {
   initialImages?: SiteImages
   initialPricing?: PricingConfig
   initialWashFoldBags?: WashFoldBagConfig
   initialWashOnlyBags?: WashOnlyBagConfig
+  initialSiteText?: SiteText
 } = {}) {
   const { translations: tr, locale } = useLang()
   // null until loaded — prevents flash of disabled offers on first render
@@ -41,7 +43,7 @@ export function CorporateLanding({
   // first paint instead of a generic default that gets swapped a moment
   // later once the client fetch resolves.
   const [images, setImages] = useState<SiteImages | null>(initialImages ?? null)
-  const [siteText, setSiteText] = useState<SiteText>(DEFAULT_TEXT)
+  const [siteText, setSiteText] = useState<SiteText>(initialSiteText ?? DEFAULT_TEXT)
   const [services, setServices] = useState<ServicesConfig | null>(null)
   // Seeded from the server when available -- same reasoning as `images`
   // above: without this, every visitor briefly saw the generic per-lb

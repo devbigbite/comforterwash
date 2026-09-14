@@ -169,7 +169,13 @@ export async function getSiteText(): Promise<SiteText> {
     if (data) {
       data.forEach(({ key, value }: { key: string; value: string }) => {
         const textKey = key.replace(/^txt_/, "") as keyof SiteText
-        if (textKey in text && value) text[textKey] = value
+        // A saved row always wins, even an intentionally-cleared empty
+        // string -- a tenant clearing a field (e.g. turning off the offer
+        // strip promo) must stay off, not silently fall back to the
+        // hardcoded default (which used to make every tenant who'd never
+        // touched, or had explicitly cleared, this field show a "$20 OFF"
+        // promo strip they never configured).
+        if (textKey in text && value !== undefined && value !== null) text[textKey] = value
       })
     }
     return text
