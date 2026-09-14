@@ -43,6 +43,7 @@ export default async function PromotionsPage() {
           initialText={siteText.offer_strip_text}
           initialTextEs={siteText.offer_strip_text_es}
           initialCode={siteText.offer_strip_code}
+          initialEnabled={siteText.offer_strip_enabled}
           promoCodes={active}
         />
       </section>

@@ -88,6 +88,7 @@ export function CorporateLanding({
 
       {/* ── Offer strip — thin promo bar right under the hero ───────────── */}
       {(() => {
+        if (siteText.offer_strip_enabled === "false") return null
         const offerText = (locale === "es" ? siteText.offer_strip_text_es : siteText.offer_strip_text) || siteText.offer_strip_text
         if (!offerText) return null
         const offerCode = siteText.offer_strip_code

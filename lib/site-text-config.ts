@@ -58,6 +58,7 @@ export interface SiteText {
   why_photo_headline_es: string
   why_photo_cta_es: string
   // Offer strip (below hero) — EN + ES
+  offer_strip_enabled: string  // "true" | "false" -- explicit on/off, independent of the text fields
   offer_strip_text: string
   offer_strip_text_es: string
   offer_strip_code: string
@@ -137,6 +138,7 @@ export const DEFAULT_TEXT: SiteText = {
   why_photo_headline_es: "",
   why_photo_cta_es:      "",
 
+  offer_strip_enabled: "true",
   offer_strip_text: "$20 OFF Your First Order",
   offer_strip_text_es: "",
   offer_strip_code: "",

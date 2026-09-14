@@ -14,22 +14,30 @@ export function OfferStripEditor({
   initialText,
   initialTextEs,
   initialCode,
+  initialEnabled,
   promoCodes,
 }: {
   initialText: string
   initialTextEs: string
   initialCode: string
+  initialEnabled: string
   promoCodes: PromoCodeOption[]
 }) {
   const [text, setText] = useState(initialText)
   const [textEs, setTextEs] = useState(initialTextEs)
   const [code, setCode] = useState(initialCode)
+  // Explicit on/off, independent of the text fields -- previously "blank
+  // text" was the only way to turn this off, and a bug meant an
+  // intentionally-cleared blank silently fell back to the default promo
+  // text anyway. A real toggle removes any ambiguity.
+  const [enabled, setEnabled] = useState(initialEnabled !== "false")
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   async function handleSave() {
     setSaving(true)
     await Promise.all([
+      setSiteTextValue("offer_strip_enabled", enabled ? "true" : "false"),
       setSiteTextValue("offer_strip_text", text),
       setSiteTextValue("offer_strip_text_es", textEs),
       setSiteTextValue("offer_strip_code", code),
@@ -44,9 +52,21 @@ export function OfferStripEditor({
   return (
     <div className="rounded-2xl border-2 border-[#0D2240]/10 bg-white shadow-sm overflow-hidden">
       <div className="p-5 space-y-4">
-        <div>
-          <p className="font-extrabold text-[#0D2240] text-sm">Homepage Offer Strip</p>
-          <p className="text-xs text-gray-400 mt-0.5">The thin promo bar shown right below the homepage hero. Leave the text blank to hide it entirely.</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-extrabold text-[#0D2240] text-sm">Homepage Offer Strip</p>
+            <p className="text-xs text-gray-400 mt-0.5">The thin promo bar shown right below the homepage hero.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEnabled(v => !v)}
+            className={`shrink-0 flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+              enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${enabled ? "bg-green-500" : "bg-gray-400"}`} />
+            {enabled ? "ON" : "OFF"}
+          </button>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
