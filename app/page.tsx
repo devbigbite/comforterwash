@@ -1,7 +1,7 @@
 import { CorporateLanding } from "@/components/landing-corporate"
 import { OperatorLanding } from "@/components/landing-operator"
 import { getOperatorLandingProfile } from "@/app/actions/branding"
-import { getSiteImages, getSiteText } from "@/app/actions/settings"
+import { getSiteImages, getSiteText, getLandingOffers } from "@/app/actions/settings"
 import { getPricingConfig, getWashFoldBagConfig, getWashOnlyBagConfig } from "@/app/actions/pricing"
 
 // Server component: fetches the tenant's chosen homepage layout
@@ -20,12 +20,13 @@ export default async function Home() {
     return <OperatorLanding />
   }
 
-  const [images, pricing, washFoldBags, washOnlyBags, siteText] = await Promise.all([
+  const [images, pricing, washFoldBags, washOnlyBags, siteText, offers] = await Promise.all([
     getSiteImages(),
     getPricingConfig(),
     getWashFoldBagConfig(),
     getWashOnlyBagConfig(),
     getSiteText(),
+    getLandingOffers(),
   ])
   return (
     <CorporateLanding
@@ -34,6 +35,7 @@ export default async function Home() {
       initialWashFoldBags={washFoldBags}
       initialWashOnlyBags={washOnlyBags}
       initialSiteText={siteText}
+      initialOffers={offers}
     />
   )
 }

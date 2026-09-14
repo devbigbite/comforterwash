@@ -28,16 +28,18 @@ export function CorporateLanding({
   initialWashFoldBags,
   initialWashOnlyBags,
   initialSiteText,
+  initialOffers,
 }: {
   initialImages?: SiteImages
   initialPricing?: PricingConfig
   initialWashFoldBags?: WashFoldBagConfig
   initialWashOnlyBags?: WashOnlyBagConfig
   initialSiteText?: SiteText
+  initialOffers?: LandingOffer[]
 } = {}) {
   const { translations: tr, locale } = useLang()
   // null until loaded — prevents flash of disabled offers on first render
-  const [offers, setOffers] = useState<LandingOffer[] | null>(null)
+  const [offers, setOffers] = useState<LandingOffer[] | null>(initialOffers ?? null)
   // Seeded from the server (app/page.tsx) when available, so the hero,
   // "why us," and offer images are already the tenant's real photos on
   // first paint instead of a generic default that gets swapped a moment
@@ -238,7 +240,10 @@ export function CorporateLanding({
       </section>
 
 
-      {/* ── Special Offers ─────────────────────────────────────────────── */}
+      {/* ── Special Offers -- hidden entirely when the tenant has no
+          enabled offers, instead of showing an empty "Special Offers"
+          heading with no cards underneath it. ─────────────────────── */}
+      {visibleOffers.length > 0 && (
       <section className="bg-[#f7f8fb] px-4 py-16">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-3xl font-extrabold text-[var(--brand-primary)] uppercase tracking-wide text-center mb-2">
@@ -274,6 +279,7 @@ export function CorporateLanding({
           </div>
         </div>
       </section>
+      )}
 
       {/* ── ZIP checker ────────────────────────────────────────────────── */}
       <section id="areas" className="bg-[var(--brand-primary)] px-4 py-14">
