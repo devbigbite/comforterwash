@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 
-export function AgreementLinkCopy({ url }: { url: string }) {
+export function AgreementLinkCopy({ url, label = "Copy Agreement Link" }: { url: string; label?: string }) {
   const [copied, setCopied] = useState(false)
   function copy() {
     navigator.clipboard.writeText(url).then(() => {
@@ -19,7 +19,7 @@ export function AgreementLinkCopy({ url }: { url: string }) {
           copied ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
         }`}
       >
-        {copied ? "✓ Copied" : "Copy Agreement Link"}
+        {copied ? "✓ Copied" : label}
       </button>
     </div>
   )

@@ -263,11 +263,12 @@ export default async function CommercialAccountsPage() {
                     {a.minimum_amount_cents ? ` · min $${(a.minimum_amount_cents / 100).toFixed(2)}` : ""}
                   </p>
                 </div>
-                {!a.agreement_signed_at && (
-                  <div className="mt-2">
-                    <AgreementLinkCopy url={agreementLink(a.access_code)} />
-                  </div>
-                )}
+                <div className="mt-2">
+                  <AgreementLinkCopy
+                    url={agreementLink(a.access_code)}
+                    label={a.agreement_signed_at ? "Copy Portal Link (update card / view history)" : "Copy Agreement Link"}
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <form action={toggleCommercialAccountStatus}>
