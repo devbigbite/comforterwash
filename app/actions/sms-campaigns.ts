@@ -3,7 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId, getBranding } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
-import { sendSMS } from "@/lib/sms"
+import { sendPromotionalSMS } from "@/lib/ready-sms"
 import { computeSegment, type Segment } from "@/lib/customer-segments"
 import { revalidatePath } from "next/cache"
 
@@ -101,7 +101,7 @@ export async function sendSmsCampaign(params: {
         const personalized = params.message
           .replace(/\{name\}/g, r.name?.split(" ")[0] ?? "there")
           .replace(/\{code\}/g, params.promoCode ?? "")
-        return sendSMS(r.phone as string, personalized)
+        return sendPromotionalSMS(r.phone as string, personalized)
       })
     )
     for (const r of results) r.success ? sent++ : failed++
