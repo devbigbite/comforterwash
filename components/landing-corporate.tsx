@@ -294,13 +294,23 @@ export function CorporateLanding({
                 href: "/book/comforter-wash",
                 icon: "🛏️",
                 title: tr.pricing.comforterTitle,
-                content: (
-                  <>
-                    <p className="text-gray-400 text-sm mb-4">{tr.pricing.comforterDesc}</p>
-                    <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1"><span className="text-base font-bold mr-1">{tr.pricing.comforterFrom}</span>{tr.pricing.comforterPrice}</p>
-                    <p className="text-gray-400 text-xs mb-6">{tr.pricing.comforterUnit}</p>
-                  </>
-                ),
+                content: (() => {
+                  // Lowest size price is what "from $X" should reflect --
+                  // comforterPrice/tr.pricing.comforterPrice used to be a
+                  // hardcoded "$33" shown identically for every tenant
+                  // regardless of what they'd actually configured on
+                  // /admin/pricing, which could misrepresent a tenant's
+                  // real (often lower) rates.
+                  const lowest = livePricing.comforterTwinCents
+                  const displayPrice = lowest % 100 === 0 ? (lowest / 100).toFixed(0) : (lowest / 100).toFixed(2)
+                  return (
+                    <>
+                      <p className="text-gray-400 text-sm mb-4">{tr.pricing.comforterDesc}</p>
+                      <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1 whitespace-nowrap"><span className="text-base font-bold mr-1">{tr.pricing.comforterFrom}</span>${displayPrice}</p>
+                      <p className="text-gray-400 text-xs mb-6">{tr.pricing.comforterUnit}</p>
+                    </>
+                  )
+                })(),
               },
               {
                 key: "wash_fold" as keyof ServicesConfig,
