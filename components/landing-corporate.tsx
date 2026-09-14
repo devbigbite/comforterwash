@@ -8,7 +8,7 @@ import Link from "next/link"
 import { useLang } from "@/components/lang-provider"
 import { useState, useEffect } from "react"
 import { getLandingOffers, getSiteImages, getSiteText, getServicesConfig, getMonthlyPlanEnabled, type ServicesConfig } from "@/app/actions/settings"
-import { getPricingConfig, getWashFoldBagConfig, getWashOnlyBagConfig, type WashFoldBagConfig, type WashOnlyBagConfig } from "@/app/actions/pricing"
+import { getPricingConfig, getWashFoldBagConfig, getWashOnlyBagConfig, type PricingConfig, type WashFoldBagConfig, type WashOnlyBagConfig } from "@/app/actions/pricing"
 import { getBrandingSettings } from "@/app/actions/branding"
 import { PRICING_DEFAULTS } from "@/lib/pricing-defaults"
 import { DEFAULT_OFFERS, type LandingOffer } from "@/lib/offers-config"
@@ -22,7 +22,17 @@ const OFFER_OVERLAYS = ["bg-[var(--brand-primary)]/60", "bg-[var(--brand-accent)
 // templates existed. See lib/location.ts's landing_page_template field and
 // components/landing-operator.tsx for the alternate personal/solo-operator
 // template; app/page.tsx picks between the two.
-export function CorporateLanding({ initialImages }: { initialImages?: SiteImages } = {}) {
+export function CorporateLanding({
+  initialImages,
+  initialPricing,
+  initialWashFoldBags,
+  initialWashOnlyBags,
+}: {
+  initialImages?: SiteImages
+  initialPricing?: PricingConfig
+  initialWashFoldBags?: WashFoldBagConfig
+  initialWashOnlyBags?: WashOnlyBagConfig
+} = {}) {
   const { translations: tr, locale } = useLang()
   // null until loaded — prevents flash of disabled offers on first render
   const [offers, setOffers] = useState<LandingOffer[] | null>(null)
@@ -33,9 +43,13 @@ export function CorporateLanding({ initialImages }: { initialImages?: SiteImages
   const [images, setImages] = useState<SiteImages | null>(initialImages ?? null)
   const [siteText, setSiteText] = useState<SiteText>(DEFAULT_TEXT)
   const [services, setServices] = useState<ServicesConfig | null>(null)
-  const [livePricing, setLivePricing] = useState<PricingConfig>(PRICING_DEFAULTS)
-  const [washFoldBags, setWashFoldBags] = useState<WashFoldBagConfig | null>(null)
-  const [washOnlyBags, setWashOnlyBags] = useState<WashOnlyBagConfig | null>(null)
+  // Seeded from the server when available -- same reasoning as `images`
+  // above: without this, every visitor briefly saw the generic per-lb
+  // default rate before their tenant's real (possibly per-bag) pricing
+  // loaded in client-side and swapped it out a moment later.
+  const [livePricing, setLivePricing] = useState<PricingConfig>(initialPricing ?? PRICING_DEFAULTS)
+  const [washFoldBags, setWashFoldBags] = useState<WashFoldBagConfig | null>(initialWashFoldBags ?? null)
+  const [washOnlyBags, setWashOnlyBags] = useState<WashOnlyBagConfig | null>(initialWashOnlyBags ?? null)
   // null until loaded -- prevents flash of the monthly-plan CTA on first render
   const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState<boolean | null>(null)
   const [businessName, setBusinessName] = useState("WashFold Orlando")
