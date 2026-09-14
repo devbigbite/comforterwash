@@ -1070,24 +1070,26 @@ export default function PricingPage() {
 
         {/* ── Same-Day Delivery ───────────────────────── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xl">⚡</span>
-            <h2 className="font-extrabold text-[#0D2240] text-base">Same-Day Delivery</h2>
+          <div className="flex items-start justify-between gap-4 mb-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">⚡</span>
+              <h2 className="font-extrabold text-[#0D2240] text-base">Same-Day Delivery</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSameDayState(s => ({ ...s, enabled: !s.enabled }))}
+              className={`shrink-0 flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+                sameDay.enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${sameDay.enabled ? "bg-green-500" : "bg-gray-400"}`} />
+              {sameDay.enabled ? "ON" : "OFF"}
+            </button>
           </div>
           <p className="text-xs text-gray-400 mb-5">
             Let customers pay extra to get same-day pickup + delivery instead of the normal turnaround. Only offered on
             routes where you&apos;ve checked &quot;Allow same-day&quot; (Routes page), and only until the cutoff time below.
           </p>
-
-          <label className="flex items-center gap-2 text-sm font-bold text-[#0D2240] mb-5">
-            <input
-              type="checkbox"
-              checked={sameDay.enabled}
-              onChange={e => setSameDayState(s => ({ ...s, enabled: e.target.checked }))}
-              className="rounded"
-            />
-            Enable same-day delivery option at checkout
-          </label>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
             <div className="border border-gray-100 rounded-xl p-4 bg-[#f7f8fb]">
