@@ -22,11 +22,15 @@ const OFFER_OVERLAYS = ["bg-[var(--brand-primary)]/60", "bg-[var(--brand-accent)
 // templates existed. See lib/location.ts's landing_page_template field and
 // components/landing-operator.tsx for the alternate personal/solo-operator
 // template; app/page.tsx picks between the two.
-export function CorporateLanding() {
+export function CorporateLanding({ initialImages }: { initialImages?: SiteImages } = {}) {
   const { translations: tr, locale } = useLang()
   // null until loaded — prevents flash of disabled offers on first render
   const [offers, setOffers] = useState<LandingOffer[] | null>(null)
-  const [images, setImages] = useState<SiteImages | null>(null)
+  // Seeded from the server (app/page.tsx) when available, so the hero,
+  // "why us," and offer images are already the tenant's real photos on
+  // first paint instead of a generic default that gets swapped a moment
+  // later once the client fetch resolves.
+  const [images, setImages] = useState<SiteImages | null>(initialImages ?? null)
   const [siteText, setSiteText] = useState<SiteText>(DEFAULT_TEXT)
   const [services, setServices] = useState<ServicesConfig | null>(null)
   const [livePricing, setLivePricing] = useState<PricingConfig>(PRICING_DEFAULTS)
