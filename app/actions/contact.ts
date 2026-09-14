@@ -2,9 +2,9 @@
 
 import { Resend } from "resend"
 import { getBranding } from "@/lib/location"
+import { adminAlertRecipients } from "@/lib/email"
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing")
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
 // Sending domain is deliberately fixed for now — real per-tenant sending
 // domains are a bigger future lift (see lib/email.ts SEND_DOMAIN). The
 // display name and body copy below use the tenant's own branding.
@@ -23,9 +23,10 @@ export async function sendContactMessage(formData: FormData) {
   try {
     const branding = await getBranding()
     const businessName = branding.business_name || "WashFoldClean"
+    const recipients = await adminAlertRecipients()
     const result = await resend.emails.send({
       from: `${businessName} <${SEND_ADDRESS}>`,
-      to: [ADMIN_EMAIL],
+      to: recipients,
       ...(email ? { replyTo: email } : {}),
       subject: `\u{1F4AC} New message from ${name}`,
       html: `

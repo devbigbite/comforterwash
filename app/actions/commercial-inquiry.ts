@@ -2,11 +2,11 @@
 
 import { Resend } from "resend"
 import { getBranding } from "@/lib/location"
+import { adminAlertRecipients } from "@/lib/email"
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "re_missing")
 // Sending domain is deliberately fixed for now — see note in contact.ts.
 const SEND_ADDRESS = "clean@washfoldorlando.com"
-const TO     = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
 
 export async function submitCommercialInquiry(
   formData: FormData,
@@ -95,9 +95,10 @@ export async function submitCommercialInquiry(
   `
 
   try {
+    const recipients = await adminAlertRecipients()
     const result = await resend.emails.send({
       from:    `${businessName2} <${SEND_ADDRESS}>`,
-      to:      TO,
+      to:      recipients,
       replyTo: email,
       subject: `Commercial Inquiry: ${businessName} (${businessType})`,
       html,

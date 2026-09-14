@@ -46,7 +46,7 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "jbtanon@gmail.com"
 // Orlando is deliberately special-cased to keep ADMIN_EMAIL on the list: it is
 // the platform owner's own business, and silently rerouting their existing
 // alerts to a different inbox would be a surprise, not a fix.
-async function adminAlertRecipients(overrideLocationId?: string): Promise<string[]> {
+export async function adminAlertRecipients(overrideLocationId?: string): Promise<string[]> {
   try {
     const locationId = overrideLocationId ?? (await getLocationId())
     const supabase = createAdminClient()
