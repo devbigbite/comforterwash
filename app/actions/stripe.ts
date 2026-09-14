@@ -568,6 +568,7 @@ export async function handleSuccessfulPayment(sessionId: string, stripeAccountId
         extras:              meta.extras ?? undefined,
         comforterSizes:      meta.comforterSizes ?? undefined,
         specialInstructions: meta.specialInstructions ?? undefined,
+        smsConsent:          meta.smsConsent === "true",
       })
 
       // ── Save payment method for future overage charges ──────────────────────

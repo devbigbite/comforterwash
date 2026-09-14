@@ -39,10 +39,14 @@ export async function getRecipientCount(segment: Segment | "all"): Promise<numbe
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   const { data } = await supabase
     .from("customers")
-    .select("id, total_bookings, last_booking_at, phone, sms_opt_out")
+    .select("id, total_bookings, last_booking_at, phone, sms_opt_out, sms_marketing_consent")
     .eq("location_id", locationId)
 
-  return (data ?? []).filter(c => c.phone && !c.sms_opt_out && (segment === "all" || computeSegment(c) === segment)).length
+  // Marketing sends require real recorded opt-in (sms_marketing_consent), not
+  // just the absence of an opt-out -- see customers.sms_marketing_consent.
+  return (data ?? []).filter(c =>
+    c.phone && c.sms_marketing_consent && !c.sms_opt_out && (segment === "all" || computeSegment(c) === segment)
+  ).length
 }
 
 /**
@@ -62,11 +66,13 @@ export async function sendSmsCampaign(params: {
 
   const { data: customers } = await supabase
     .from("customers")
-    .select("id, name, phone, total_bookings, last_booking_at, sms_opt_out")
+    .select("id, name, phone, total_bookings, last_booking_at, sms_opt_out, sms_marketing_consent")
     .eq("location_id", locationId)
 
+  // Marketing sends require real recorded opt-in (sms_marketing_consent), not
+  // just the absence of an opt-out -- see customers.sms_marketing_consent.
   const recipients = (customers ?? []).filter(c =>
-    c.phone && !c.sms_opt_out && (params.segment === "all" || computeSegment(c) === params.segment)
+    c.phone && c.sms_marketing_consent && !c.sms_opt_out && (params.segment === "all" || computeSegment(c) === params.segment)
   )
 
   const { data: campaign } = await supabase

@@ -19,6 +19,9 @@ export interface Customer {
   referral_code: string | null
   referred_by_customer_id: string | null
   sms_opt_out: boolean
+  sms_marketing_consent: boolean
+  sms_marketing_consent_source: string | null
+  sms_marketing_consent_at: string | null
   last_reengagement_sent_at: string | null
   created_at: string
 }
@@ -36,6 +39,13 @@ export async function syncCustomerFromBooking(params: {
   amountCents: number
   bookingCreatedAt: string
   referredByCode?: string | null
+  // Positive marketing-SMS consent captured at booking time (the required
+  // checkbox in booking-form.tsx / wash-fold-form.tsx / wash-only-form.tsx).
+  // Only ever moves false -> true here: a customer who didn't check the box
+  // on THIS booking should not have a prior real consent overwritten to
+  // false, and re-booking without re-checking it shouldn't revoke consent
+  // either -- revocation happens explicitly via toggleCustomerSmsOptOut/STOP.
+  smsMarketingConsent?: boolean
 }): Promise<{ customerId: string | null }> {
   try {
     if (!params.email) return { customerId: null }
@@ -70,6 +80,13 @@ export async function syncCustomerFromBooking(params: {
           total_spent_cents: existing.total_spent_cents + params.amountCents,
           updated_at: new Date().toISOString(),
           ...(referredByCustomerId ? { referred_by_customer_id: referredByCustomerId } : {}),
+          ...(params.smsMarketingConsent
+            ? {
+                sms_marketing_consent: true,
+                sms_marketing_consent_source: "booking_form",
+                sms_marketing_consent_at: new Date().toISOString(),
+              }
+            : {}),
         })
         .eq("id", existing.id)
         .select("id")
@@ -89,6 +106,13 @@ export async function syncCustomerFromBooking(params: {
         total_bookings: 1,
         total_spent_cents: params.amountCents,
         referred_by_customer_id: referredByCustomerId,
+        ...(params.smsMarketingConsent
+          ? {
+              sms_marketing_consent: true,
+              sms_marketing_consent_source: "booking_form",
+              sms_marketing_consent_at: new Date().toISOString(),
+            }
+          : {}),
       })
       .select("id")
       .single()

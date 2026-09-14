@@ -50,6 +50,7 @@ export interface BookingData {
   washOnlyBagSelection?: { id: string; qty: number }[]  // wash_only "per_bag"/"both" mode — mirrors bagSelection above but for Wash Only's own separate bag-size list. Server re-resolves each id's current priceCents/label from getWashOnlyBagConfig() at booking time (see createBooking); never trusts a price the client sends.
   paymentStatusOverride?: string // e.g. "pending_weight" for commercial orders where nothing is charged until weigh-in
   locationId?: string  // explicit tenant override — REQUIRED from cron/background contexts (recurring-engine), where there's no request hostname for getLocationId() to resolve from. Without it every cron-created booking would silently land on the Orlando fallback.
+  smsConsent?: boolean  // true only when the customer checked the marketing-SMS consent box on this booking (see BookingData -> syncCustomerFromBooking -> customers.sms_marketing_consent)
 }
 
 function toDateString(val: string): string {
@@ -258,6 +259,7 @@ export async function createBooking(data: BookingData) {
     amountCents: data.totalAmount,
     bookingCreatedAt: booking.created_at ?? new Date().toISOString(),
     referredByCode: data.promoCode ?? null,
+    smsMarketingConsent: data.smsConsent === true,
   }).then(({ customerId }) => {
     if (!customerId) return
     return createAdminClient()
