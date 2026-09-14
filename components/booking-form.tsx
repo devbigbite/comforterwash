@@ -18,7 +18,7 @@ import { PromoCodeField } from "./promo-code-field"
 import { GiftCardField } from "./gift-card-field"
 import { useLang } from "@/components/lang-provider"
 import { getComforterPromo, getDeliveryFeeSettings, getTipsEnabled } from "@/app/actions/settings"
-import { getPricingConfig } from "@/app/actions/pricing"
+import { getPricingConfig, type PricingConfig } from "@/app/actions/pricing"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { effectivePriceForOrder, unitSuffix } from "@/lib/service-option-utils"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
@@ -122,7 +122,7 @@ function TimeSlotPicker({ value, onChange, label, windows }: { value: string; on
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
-export function BookingForm({ topSlot, timezone }: { topSlot?: ReactNode; timezone?: string } = {}) {
+export function BookingForm({ topSlot, timezone, initialPricing }: { topSlot?: ReactNode; timezone?: string; initialPricing?: PricingConfig } = {}) {
   const { translations: tr, locale } = useLang()
   const tf = tr.form
   // Detergent/extra/accessory names & descriptions are admin-entered per option
@@ -300,8 +300,18 @@ export function BookingForm({ topSlot, timezone }: { topSlot?: ReactNode; timezo
   const [tipsEnabled, setTipsEnabled] = useState(true)
   const [customTipCents, setCustomTipCents] = useState(0)
   const [feeConfig, setFeeConfig] = useState<DeliveryFeeConfig>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
-  const [comforterSizes, setComforterSizes] = useState(buildSizes())
-  const [promoPriceCents, setPromoPriceCents] = useState(PROMO_PRICE_CENTS)
+  const [comforterSizes, setComforterSizes] = useState(() => {
+    if (initialPricing) {
+      return [
+        { id: "twin",  label: "Twin",  note: "Up to 50\"×70\"",  cents: initialPricing.comforterTwinCents },
+        { id: "full",  label: "Full",  note: "Up to 54\"×75\"",  cents: initialPricing.comforterFullCents },
+        { id: "queen", label: "Queen", note: "Up to 60\"×80\"",  cents: initialPricing.comforterQueenCents },
+        { id: "king",  label: "King",  note: "Up to 108\"×90\"", cents: initialPricing.comforterKingCents },
+      ]
+    }
+    return buildSizes()
+  })
+  const [promoPriceCents, setPromoPriceCents] = useState(initialPricing ? initialPricing.comforterPromoCents : PROMO_PRICE_CENTS)
   const [detergentOptions, setDetergentOptions] = useState<ServiceOption[]>([])
   const [extraOptions, setExtraOptions] = useState<ServiceOption[]>([])
   const [accessoryOptions, setAccessoryOptions] = useState<ServiceOption[]>([])
@@ -313,12 +323,20 @@ export function BookingForm({ topSlot, timezone }: { topSlot?: ReactNode; timezo
     getComforterPromo().then(setPromoActive)
     getDeliveryFeeSettings().then(s => setFeeConfig(s))
     getTipsEnabled().then(setTipsEnabled)
-    getPricingConfig().then(cfg => {
-      PROMO_PRICE_CENTS = cfg.comforterPromoCents
-      SIZE_CENTS = { twin: cfg.comforterTwinCents, full: cfg.comforterFullCents, queen: cfg.comforterQueenCents, king: cfg.comforterKingCents }
-      setPromoPriceCents(cfg.comforterPromoCents)
-      setComforterSizes(buildSizes())
-    })
+    if (initialPricing) {
+      // Already seeded from server-fetched props — keep the module-level
+      // defaults in sync for any other reads of SIZE_CENTS/PROMO_PRICE_CENTS,
+      // but skip the client refetch that used to cause a visible price flash.
+      PROMO_PRICE_CENTS = initialPricing.comforterPromoCents
+      SIZE_CENTS = { twin: initialPricing.comforterTwinCents, full: initialPricing.comforterFullCents, queen: initialPricing.comforterQueenCents, king: initialPricing.comforterKingCents }
+    } else {
+      getPricingConfig().then(cfg => {
+        PROMO_PRICE_CENTS = cfg.comforterPromoCents
+        SIZE_CENTS = { twin: cfg.comforterTwinCents, full: cfg.comforterFullCents, queen: cfg.comforterQueenCents, king: cfg.comforterKingCents }
+        setPromoPriceCents(cfg.comforterPromoCents)
+        setComforterSizes(buildSizes())
+      })
+    }
     Promise.all([getServiceOptions("detergent"), getServiceOptions("extra"), getServiceOptions("accessory")]).then(([dets, exts, accs]) => {
       setDetergentOptions(dets)
       setExtraOptions(exts)

@@ -112,7 +112,7 @@ export function ServiceSwitcher({
             <WashOnlyForm initialPricing={pricing} topSlot={picker} timezone={timezone} />
           </>
         )}
-        {service === "comforter_wash" && <BookingForm topSlot={picker} timezone={timezone} />}
+        {service === "comforter_wash" && <BookingForm topSlot={picker} timezone={timezone} initialPricing={pricing} />}
       </div>
     </>
   )
