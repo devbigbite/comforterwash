@@ -5,6 +5,23 @@
 // picked up and what's in it." Used both as a standalone card on the order
 // detail page and as the expandable panel on the Orders list row.
 
+// pickup_date/delivery_date are stored as plain "YYYY-MM-DD" strings (no
+// time, no zone) -- `new Date("2026-09-11")` parses that as UTC midnight,
+// which .toLocaleDateString() then renders back in the BROWSER's local zone
+// and can print the wrong day (a night-shift admin in a zone behind UTC
+// would see "Thu" for a date meant to read "Fri"). Parsing the digits
+// directly and building the weekday off them sidesteps that entirely.
+function weekdayAbbrev(dateStr: string | null): string | null {
+  if (!dateStr) return null
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!m) return null
+  const [, y, mo, d] = m
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  // Date.UTC keeps this a pure calendar calculation -- no local-zone
+  // involved at any step, in or out.
+  return days[new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d))).getUTCDay()]
+}
+
 const SERVICE_LABEL: Record<string, string> = {
   comforter_wash: "🛏️ Comforter Wash",
   wash_fold:      "👕 Wash & Fold",
@@ -127,12 +144,12 @@ export function OrderSnapshot({ order, compact }: { order: OrderSnapshotData; co
 
         <Field label="Pickup" value={
           order.pickup_date
-            ? <>{order.pickup_date}<span className="block text-xs font-normal text-gray-400">{order.pickup_time_window ?? "—"}</span></>
+            ? <>{order.pickup_date} <span className="font-normal text-gray-400">({weekdayAbbrev(order.pickup_date)})</span><span className="block text-xs font-normal text-gray-400">{order.pickup_time_window ?? "—"}</span></>
             : "—"
         } />
         <Field label="Delivery" value={
           order.delivery_date
-            ? <>{order.delivery_date}<span className="block text-xs font-normal text-gray-400">{order.delivery_time_window ?? "—"}</span></>
+            ? <>{order.delivery_date} <span className="font-normal text-gray-400">({weekdayAbbrev(order.delivery_date)})</span><span className="block text-xs font-normal text-gray-400">{order.delivery_time_window ?? "—"}</span></>
             : "—"
         } />
         <Field label="Bags / Comforters" value={
