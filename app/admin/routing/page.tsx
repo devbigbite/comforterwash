@@ -1,9 +1,16 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import { RoutingClient } from "./routing-client"
 
 export default async function RoutingPage() {
+  await requireAdmin()
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
 
+  // Unscoped, this page (and the "assign to facility" actions it drives)
+  // showed and let a tenant route EVERY tenant's in-progress bookings
+  // against EVERY tenant's facilities -- not just their own.
   const [{ data: rawOrders }, { data: facilities }] = await Promise.all([
     supabase
       .from("bookings")
@@ -13,11 +20,13 @@ export default async function RoutingPage() {
         assigned_facility_id,
         facilities:assigned_facility_id ( name )
       `)
+      .eq("location_id", locationId)
       .in("status", ["confirmed", "picked_up", "at_warehouse", "at_facility"])
       .order("pickup_date", { ascending: true }),
     supabase
       .from("facilities")
       .select("id, name, processing_mode, rate_per_lb, minimum_lbs")
+      .eq("location_id", locationId)
       .eq("active", true)
       .order("name"),
   ])

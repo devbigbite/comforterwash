@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { notFound, redirect } from "next/navigation"
 import { isAdminForCurrentLocation } from "@/lib/auth-guard"
+import { getLocationId, getLocation } from "@/lib/location"
 
 export default async function PrintLabelsPage({ params }: { params: Promise<{ id: string }> }) {
   // Unlike every other /admin/** page, this one queried booking/order data
@@ -11,8 +12,15 @@ export default async function PrintLabelsPage({ params }: { params: Promise<{ id
 
   const { id } = await params
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  const location = await getLocation()
 
-  const { data: booking } = await supabase.from("bookings").select("*").eq("id", id).single()
+  // The admin auth check above only proves the visitor is an admin for
+  // SOME tenant -- it never confirmed this booking id actually belongs to
+  // that tenant. Without this, one tenant's admin could view and print
+  // another tenant's shipping labels (customer name, order contents) just
+  // by knowing or guessing a booking id.
+  const { data: booking } = await supabase.from("bookings").select("*").eq("id", id).eq("location_id", locationId).single()
   if (!booking) notFound()
 
   const { data: bags } = await supabase
@@ -371,6 +379,7 @@ export default async function PrintLabelsPage({ params }: { params: Promise<{ id
 
         <script dangerouslySetInnerHTML={{ __html: `
           var BAGS = ${bagsJson};
+          var BRAND = ${JSON.stringify(location?.business_name || "WashFold")};
           var ORDER_CODE = ${JSON.stringify(orderCode)};
           var CUSTOMER   = ${JSON.stringify(booking.customer_name ?? "")};
           var SERVICE    = ${JSON.stringify(serviceLabel)};
@@ -466,7 +475,7 @@ export default async function PrintLabelsPage({ params }: { params: Promise<{ id
 
               return '<div class="label">' +
                 '<div class="label-top">' +
-                  '<span class="label-brand">WashFold Orlando</span>' +
+                  '<span class="label-brand">' + escapeHtml(BRAND) + '</span>' +
                   '<span class="label-bag-badge">BAG ' + bag.bag_number + ' / ' + BAGS.length + '</span>' +
                 '</div>' +
                 '<div class="label-order-code">' + ORDER_CODE + '</div>' +

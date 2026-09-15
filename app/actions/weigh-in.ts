@@ -18,6 +18,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { sendSMS, sendBookingNotification } from "@/lib/sms"
 import { sendWeightConfirmedEmail } from "@/lib/email"
 import { calculateOrderBilling } from "@/lib/order-billing"
+import { getLocationId } from "@/lib/location"
 
 export interface WeighInResult {
   success?: boolean
@@ -40,14 +41,20 @@ export async function recordWeightAndCharge(
   if (!(weightLbs > 0)) return { error: "Enter a weight greater than 0 lbs" }
 
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("actual_weight_lbs, assigned_facility_id, stripe_payment_intent_id, customer_final_cents, service_type, commercial_account_id, recurring_subscription_id, price_per_lb_cents, wash_fold_bag_selection, wash_only_bag_selection, short_code, customer_name, customer_email, customer_phone")
+    .select("actual_weight_lbs, assigned_facility_id, stripe_payment_intent_id, customer_final_cents, service_type, commercial_account_id, recurring_subscription_id, price_per_lb_cents, wash_fold_bag_selection, wash_only_bag_selection, short_code, customer_name, customer_email, customer_phone, location_id")
     .eq("id", bookingId)
     .single()
 
-  if (!booking) return { error: "Order not found" }
+  // The operator/admin session this action runs in belongs to ONE tenant
+  // (getLocationId()), but bookingId is just a value the client sends --
+  // without this check, a valid operator PIN or admin session at one
+  // tenant could weigh in and trigger a real charge on another tenant's
+  // order just by knowing/guessing its id.
+  if (!booking || booking.location_id !== locationId) return { error: "Order not found" }
   if (booking.actual_weight_lbs) return { skipped: true, customerFinalCents: booking.customer_final_cents ?? undefined }
 
   // Pricing lives in lib/order-billing.ts so this path and the driver app's
