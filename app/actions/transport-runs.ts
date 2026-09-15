@@ -213,10 +213,14 @@ export async function createTransportRun(formData: FormData) {
 // ── Cancel a run (admin) ──────────────────────────────────────────────────────
 export async function cancelTransportRun(runId: string) {
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  // runId is caller-supplied -- without this, any tenant could cancel
+  // another tenant's transport run.
   await supabase
     .from("transport_runs")
     .update({ status: "cancelled" })
     .eq("id", runId)
+    .eq("location_id", locationId)
   revalidatePath("/admin/runs")
 }
 
@@ -229,11 +233,14 @@ export async function completeTransportRun(formData: FormData) {
   const completedBy = formData.get("workerName") as string
   const photoUrl    = (formData.get("photoUrl")  as string) || null
 
-  // Load the run
+  // Load the run -- runId is caller-supplied, so this must be scoped or
+  // one tenant could advance/complete (with real facility-cost calc and
+  // customer notifications) another tenant's transport run.
   const { data: run, error: runErr } = await supabase
     .from("transport_runs")
     .select("*")
     .eq("id", runId)
+    .eq("location_id", locationId)
     .single()
 
   if (runErr || !run) return { error: "Run not found" }

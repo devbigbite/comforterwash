@@ -246,6 +246,7 @@ export async function createStripeConnectAccount(workerId: string) {
       .from("workers")
       .update({ stripe_account_id: accountId })
       .eq("id", workerId)
+      .eq("location_id", locationId)
   }
 
   // Generate fresh onboarding link (valid for 24h)

@@ -98,10 +98,15 @@ export async function addCommercialAccount(formData: FormData) {
 export async function updateCommercialAccount(formData: FormData) {
   await requireAdmin()
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
   const id = formData.get("id") as string
   const business_name = (formData.get("business_name") as string)?.trim()
   if (!id || !business_name) return { error: "Missing fields" }
 
+  // id is caller-supplied -- without the location_id filter, any tenant's
+  // admin session could edit, disable, or delete another tenant's
+  // commercial account (with its saved card + billing config) just by
+  // knowing/guessing its id.
   const { error } = await supabase.from("commercial_accounts").update({
     business_name,
     contact_name: (formData.get("contact_name") as string)?.trim() || null,
@@ -118,7 +123,7 @@ export async function updateCommercialAccount(formData: FormData) {
     fabric_softener: formData.get("fabric_softener") === "on",
     oxi_clean: formData.get("oxi_clean") === "on",
     color_safe_bleach: formData.get("color_safe_bleach") === "on",
-  }).eq("id", id)
+  }).eq("id", id).eq("location_id", locationId)
 
   if (error) return { error: error.message }
   revalidatePath("/admin/commercial")
@@ -128,17 +133,19 @@ export async function updateCommercialAccount(formData: FormData) {
 export async function toggleCommercialAccountStatus(formData: FormData) {
   await requireAdmin()
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
   const id = formData.get("id") as string
   const newStatus = formData.get("new_status") as string
-  await supabase.from("commercial_accounts").update({ status: newStatus }).eq("id", id)
+  await supabase.from("commercial_accounts").update({ status: newStatus }).eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/commercial")
 }
 
 export async function deleteCommercialAccount(formData: FormData) {
   await requireAdmin()
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
   const id = formData.get("id") as string
-  await supabase.from("commercial_accounts").delete().eq("id", id)
+  await supabase.from("commercial_accounts").delete().eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/commercial")
 }
 
@@ -366,10 +373,12 @@ export async function getCommercialAccountByCode(code: string): Promise<Commerci
 export async function sendPaymentUpdateLink(accountId: string): Promise<{ success?: boolean; error?: string }> {
   await requireAdmin()
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
   const { data: account } = await supabase
     .from("commercial_accounts")
     .select("access_code, business_name, contact_email, contact_phone")
     .eq("id", accountId)
+    .eq("location_id", locationId)
     .maybeSingle()
 
   if (!account) return { error: "Account not found" }
@@ -576,6 +585,7 @@ function nextOccurrenceOnOrAfterToday(dayId: string | null): string {
 export async function saveCommercialRecurringRule(formData: FormData): Promise<{ success?: boolean; error?: string }> {
   await requireAdmin()
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
   const accountId = formData.get("account_id") as string
 
   const recurringEnabled = formData.get("recurring_enabled") === "on"
@@ -593,6 +603,7 @@ export async function saveCommercialRecurringRule(formData: FormData): Promise<{
     .from("commercial_accounts")
     .select("status, stripe_payment_method_id, next_pickup_date")
     .eq("id", accountId)
+    .eq("location_id", locationId)
     .single()
 
   if (!account) return { error: "Account not found" }
@@ -618,6 +629,7 @@ export async function saveCommercialRecurringRule(formData: FormData): Promise<{
       ...(seedNextPickup ? { next_pickup_date: nextOccurrenceOnOrAfterToday(pickupDayOfWeek) } : {}),
     })
     .eq("id", accountId)
+    .eq("location_id", locationId)
 
   if (error) return { error: error.message }
 
@@ -635,12 +647,17 @@ export async function saveCommercialRecurringRule(formData: FormData): Promise<{
 export async function createCommercialOrder(formData: FormData): Promise<{ success?: boolean; error?: string; bookingId?: string }> {
   await requireAdmin()
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
   const accountId = formData.get("account_id") as string
 
+  // accountId is caller-supplied -- without this, one tenant's admin could
+  // create a real order (and eventually a real charge) against ANOTHER
+  // tenant's commercial account and its saved card.
   const { data: account } = await supabase
     .from("commercial_accounts")
     .select("id, business_name, contact_name, contact_email, contact_phone, address, status, stripe_payment_method_id, access_instructions, detergent, fabric_softener, oxi_clean, color_safe_bleach")
     .eq("id", accountId)
+    .eq("location_id", locationId)
     .single()
 
   if (!account) return { error: "Account not found" }
@@ -701,10 +718,12 @@ export async function createCommercialOrder(formData: FormData): Promise<{ succe
 export async function getCommercialInvoices(accountId: string): Promise<CommercialInvoice[]> {
   await requireAdmin()
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
   const { data } = await supabase
     .from("commercial_invoices")
     .select("*")
     .eq("commercial_account_id", accountId)
+    .eq("location_id", locationId)
     .order("created_at", { ascending: false })
     .limit(24)
   return (data ?? []) as CommercialInvoice[]
@@ -721,10 +740,14 @@ export async function issueCommercialInvoice(formData: FormData): Promise<{ succ
 
   if (!accountId || !amount || amount <= 0) return { error: "Enter a valid amount" }
 
+  const locationId = await getLocationId()
+  // accountId is caller-supplied -- without this, one tenant's admin could
+  // invoice/charge another tenant's commercial customer.
   const { data: account } = await supabase
     .from("commercial_accounts")
     .select("id, location_id, business_name, stripe_customer_id, contact_email, status")
     .eq("id", accountId)
+    .eq("location_id", locationId)
     .single()
 
   if (!account) return { error: "Account not found" }

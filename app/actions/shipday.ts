@@ -1,12 +1,32 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getShipdayConfig } from "@/lib/location"
+import { getShipdayConfig, getLocationId } from "@/lib/location"
 import {
   patchShipdayOrder,
   deleteShipdayOrder,
   assignShipdayDriver,
 } from "@/lib/shipday"
+
+// Every exported action here takes a bare bookingId from the caller and
+// either writes to it or pushes a change to Shipday (reschedule, reassign
+// driver, cancel, change address). None of that previously checked that the
+// booking belonged to the tenant the acting admin session is actually
+// scoped to -- so one tenant's admin could reschedule, reassign, or cancel
+// another tenant's delivery, or push an address change to their Shipday
+// order, just by knowing/guessing a booking id. ownedBookingId() is the one
+// gate every action below goes through first.
+async function ownedBookingId(bookingId: string): Promise<boolean> {
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  const { data } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("id", bookingId)
+    .eq("location_id", locationId)
+    .single()
+  return !!data
+}
 
 /** Fetch the stored Shipday IDs for a booking. */
 async function getShipdayIds(bookingId: string) {
@@ -37,6 +57,7 @@ export async function reschedulePickup(
   newPickupDate: string,         // YYYY-MM-DD
   newPickupTimeWindow: string    // "9am-1pm" | "3pm-7pm"
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!(await ownedBookingId(bookingId))) return { ok: false, error: "Order not found" }
   const supabase = createAdminClient()
 
   // Update DB first
@@ -70,6 +91,7 @@ export async function rescheduleDelivery(
   newDeliveryDate: string,
   newDeliveryTimeWindow: string
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!(await ownedBookingId(bookingId))) return { ok: false, error: "Order not found" }
   const supabase = createAdminClient()
 
   const { error: dbError } = await supabase
@@ -106,6 +128,7 @@ export async function switchPickupDropoff(
   bookingId: string,
   newFacilityAddress: string
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!(await ownedBookingId(bookingId))) return { ok: false, error: "Order not found" }
   const { pickupId } = await getShipdayIds(bookingId)
 
   if (!pickupId) {
@@ -131,6 +154,7 @@ export async function assignDriver(
   bookingId: string,
   driverEmail: string
 ): Promise<{ ok: boolean; pickupAssigned: boolean; deliveryAssigned: boolean }> {
+  if (!(await ownedBookingId(bookingId))) return { ok: false, pickupAssigned: false, deliveryAssigned: false }
   const { pickupId, deliveryId } = await getShipdayIds(bookingId)
   const { apiKey } = await getShipdayConfig()
 
@@ -147,6 +171,7 @@ export async function assignPickupDriver(
   bookingId: string,
   driverEmail: string
 ): Promise<{ ok: boolean }> {
+  if (!(await ownedBookingId(bookingId))) return { ok: false }
   const { pickupId } = await getShipdayIds(bookingId)
   if (!pickupId) return { ok: false }
   const { apiKey } = await getShipdayConfig()
@@ -159,6 +184,7 @@ export async function assignDeliveryDriver(
   bookingId: string,
   driverEmail: string
 ): Promise<{ ok: boolean }> {
+  if (!(await ownedBookingId(bookingId))) return { ok: false }
   const { deliveryId } = await getShipdayIds(bookingId)
   if (!deliveryId) return { ok: false }
   const { apiKey } = await getShipdayConfig()
@@ -173,6 +199,7 @@ export async function assignDeliveryDriver(
 export async function cancelShipdayOrders(
   bookingId: string
 ): Promise<{ ok: boolean; pickupCancelled: boolean; deliveryCancelled: boolean }> {
+  if (!(await ownedBookingId(bookingId))) return { ok: false, pickupCancelled: false, deliveryCancelled: false }
   const { pickupId, deliveryId } = await getShipdayIds(bookingId)
   const { apiKey } = await getShipdayConfig()
 
@@ -213,10 +240,12 @@ export async function updateOrderAddress(
 
   const supabase = createAdminClient()
 
+  const locationId = await getLocationId()
   const { data: before, error: readError } = await supabase
     .from("bookings")
     .select("customer_address, delivery_address, status")
     .eq("id", bookingId)
+    .eq("location_id", locationId)
     .single()
 
   if (readError || !before) return { ok: false, error: "Order not found." }

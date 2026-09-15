@@ -410,17 +410,21 @@ export async function getBookings() {
 }
 
 export async function updateBookingStatus(bookingId: string, status: string, notes?: string) {
-  const supabase = createAdminClient()
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
   const updateData: Record<string, unknown> = { status }
   if (notes !== undefined) {
     updateData.notes = notes
   }
 
+  // bookingId is caller-supplied -- without the location_id filter, any
+  // tenant's admin session could change the status of (and trigger customer
+  // SMS for) another tenant's order just by knowing/guessing its id.
   const { data: booking, error } = await supabase
     .from("bookings")
     .update(updateData)
     .eq("id", bookingId)
+    .eq("location_id", locationId)
     .select()
     .single()
 
@@ -489,12 +493,14 @@ export async function setBookingFacilityRouting(
   needsFacilityWash: boolean,
   facilityId: string | null,
 ): Promise<{ error?: string }> {
-  const supabase = createAdminClient()
-  const { error } = await supabase
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { error, count } = await supabase
     .from("bookings")
-    .update({ needs_facility_wash: needsFacilityWash, routed_facility_id: needsFacilityWash ? facilityId : null })
+    .update({ needs_facility_wash: needsFacilityWash, routed_facility_id: needsFacilityWash ? facilityId : null }, { count: "exact" })
     .eq("id", bookingId)
+    .eq("location_id", locationId)
   if (error) return { error: error.message }
+  if (!count) return { error: "Order not found" }
   return {}
 }
 
