@@ -66,6 +66,7 @@ async function advanceOrder(formData: FormData) {
   const operatorName = (formData.get("operatorName") as string) || "operator"
   const machineIds   = formData.getAll("machineId").filter(Boolean) as string[]
   const outputBags   = formData.get("output_bags") ? parseInt(formData.get("output_bags") as string) : null
+  const hangerCount  = formData.get("hanger_count") ? parseInt(formData.get("hanger_count") as string) : null
   const weightStr    = formData.get("weight_lbs") as string | null
 
   const supabase = createAdminClient()
@@ -100,6 +101,15 @@ async function advanceOrder(formData: FormData) {
     await supabase.from("bookings").update({ output_bags: outputBags }).eq("id", bookingId)
   }
 
+  // Hangers are only known at this same folding/finishing moment — charged
+  // as a separate add-on (see app/actions/hangers.ts) since the main
+  // weight-based charge has almost always already captured by now.
+  if (hangerCount && hangerCount > 0) {
+    const { recordHangerCountAndCharge } = await import("@/app/actions/hangers")
+    const result = await recordHangerCountAndCharge(bookingId, hangerCount, operatorName)
+    if (result.error) console.error("[operator] recordHangerCountAndCharge failed:", result.error)
+  }
+
   // Save machine label to booking for chip display
   if (nextStatus === "in_washer" && machineIds.length > 0) {
     await supabase.from("bookings").update({ washer_label: machineIds.join(", ") }).eq("id", bookingId)
@@ -122,6 +132,7 @@ async function advanceOrder(formData: FormData) {
     notes: [
       machineIds.length > 0 ? `Machines: ${machineIds.join(", ")}` : null,
       outputBags ? `Output bags: ${outputBags}` : null,
+      hangerCount ? `Hangers: ${hangerCount}` : null,
     ].filter(Boolean).join(" · ") || null,
     created_by: operatorName,
   })
@@ -627,6 +638,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
                 buttonColor={step.buttonColor}
                 advanceOrder={advanceOrder}
                 recordFoldingPhoto={recordFoldingPhoto}
+                hangerItemsNote={booking.hanger_items_note as string | null}
               />
             )}
           </div>

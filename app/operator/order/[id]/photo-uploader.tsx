@@ -11,6 +11,12 @@ import { createClient } from "@/lib/supabase/client"
 interface SavedPhoto {
   id: string
   url: string
+  // Already-formatted, tenant-timezone label (e.g. "Sep 15, 2:47 PM") for
+  // when this photo was taken -- computed server-side (formatEventTime in
+  // app/admin/orders/[id]/page.tsx) so this client component never has to
+  // do its own timezone math. Absent for a photo just uploaded in this
+  // browser session before the next page load picks up its real timestamp.
+  takenAt?: string
 }
 
 interface Props {
@@ -93,7 +99,7 @@ export default function PhotoUploader({
       .from("order-photos")
       .getPublicUrl(path)
 
-    setPhotos((prev) => [...prev, { id: "", url: publicUrl }])
+    setPhotos((prev) => [...prev, { id: "", url: publicUrl, takenAt: "Just now" }])
     setUploading(false)
     if (inputRef.current) inputRef.current.value = ""
     onPhotoUploaded?.()
@@ -137,26 +143,29 @@ export default function PhotoUploader({
         {photos.length > 0 && (
           <div className="grid grid-cols-4 gap-1.5">
             {photos.map((p, i) => (
-              <div key={p.id || i} className="relative">
-                <a href={p.url} target="_blank" rel="noreferrer">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={p.url}
-                    alt={`Photo ${i + 1}`}
-                    className="w-full aspect-square object-cover rounded-lg border border-gray-100"
-                  />
-                </a>
-                {onDeletePhoto && p.id && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(p.id)}
-                    disabled={deletingId === p.id}
-                    title="Delete photo"
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-900/80 hover:bg-red-600 text-white text-xs leading-none flex items-center justify-center disabled:opacity-50"
-                  >
-                    {deletingId === p.id ? "…" : "×"}
-                  </button>
-                )}
+              <div key={p.id || i}>
+                <div className="relative">
+                  <a href={p.url} target="_blank" rel="noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.url}
+                      alt={`Photo ${i + 1}`}
+                      className="w-full aspect-square object-cover rounded-lg border border-gray-100"
+                    />
+                  </a>
+                  {onDeletePhoto && p.id && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(p.id)}
+                      disabled={deletingId === p.id}
+                      title="Delete photo"
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-900/80 hover:bg-red-600 text-white text-xs leading-none flex items-center justify-center disabled:opacity-50"
+                    >
+                      {deletingId === p.id ? "…" : "×"}
+                    </button>
+                  )}
+                </div>
+                {p.takenAt && <p className="text-[9px] text-gray-400 mt-0.5 text-center truncate">{p.takenAt}</p>}
               </div>
             ))}
           </div>
@@ -197,26 +206,29 @@ export default function PhotoUploader({
       {photos.length > 0 && (
         <div className="p-3 grid grid-cols-3 gap-2">
           {photos.map((p, i) => (
-            <div key={p.id || i} className="relative">
-              <a href={p.url} target="_blank" rel="noreferrer">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={p.url}
-                  alt={`Photo ${i + 1}`}
-                  className="w-full aspect-square object-cover rounded-xl border border-gray-100"
-                />
-              </a>
-              {onDeletePhoto && p.id && (
-                <button
-                  type="button"
-                  onClick={() => handleDelete(p.id)}
-                  disabled={deletingId === p.id}
-                  title="Delete photo"
-                  className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-gray-900/80 hover:bg-red-600 text-white text-sm leading-none flex items-center justify-center disabled:opacity-50"
-                >
-                  {deletingId === p.id ? "…" : "×"}
-                </button>
-              )}
+            <div key={p.id || i}>
+              <div className="relative">
+                <a href={p.url} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.url}
+                    alt={`Photo ${i + 1}`}
+                    className="w-full aspect-square object-cover rounded-xl border border-gray-100"
+                  />
+                </a>
+                {onDeletePhoto && p.id && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(p.id)}
+                    disabled={deletingId === p.id}
+                    title="Delete photo"
+                    className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-gray-900/80 hover:bg-red-600 text-white text-sm leading-none flex items-center justify-center disabled:opacity-50"
+                  >
+                    {deletingId === p.id ? "…" : "×"}
+                  </button>
+                )}
+              </div>
+              {p.takenAt && <p className="text-[10px] text-gray-400 mt-1 text-center">{p.takenAt}</p>}
             </div>
           ))}
         </div>

@@ -427,6 +427,34 @@ export async function setFreePickupDeliveryLineEnabled(enabled: boolean): Promis
   revalidatePath("/admin/settings")
 }
 
+// ── Operator geofencing (per-tenant opt-in) ───────────────────────────────
+// Off by default -- JB doesn't want this for WashFold Orlando, but Cassie
+// wants it on for Perfect Spin. Facility-level geofence_lat/lng/radius_miles
+// (app/admin/facilities/page.tsx) stay configured either way; this is the
+// master switch checkGeofence() and the /staff clock-in page's geolocation
+// prompt both check before doing anything with them, so a tenant that never
+// turns this on never triggers a location permission prompt for their
+// operators at all.
+export async function getGeofencingEnabled(): Promise<boolean> {
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  const { data } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "geofencing_enabled")
+    .eq("location_id", locationId)
+    .maybeSingle()
+  return data?.value === "true"   // default false
+}
+
+export async function setGeofencingEnabled(enabled: boolean): Promise<void> {
+  await requireAdmin()
+  const locationId = await getLocationId()
+  await upsertSetting("geofencing_enabled", String(enabled), locationId)
+  revalidatePath("/admin/facilities")
+  revalidatePath("/staff")
+}
+
 export async function getTipsEnabled(): Promise<boolean> {
   const supabase = createAdminClient()
   const locationId = await getLocationId()

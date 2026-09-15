@@ -1377,6 +1377,10 @@ function AdminScheduleInner() {
                             const noteBits: string[] = []
                             if (punch.schedule_flag) noteBits.push(`⚠ ${flagText[punch.schedule_flag] ?? punch.schedule_flag}${punch.flag_minutes ? ` ${punch.flag_minutes}m` : ""}`)
                             if (punchMiles > 0) noteBits.push(`🚗 ${punchMiles.toFixed(1)} mi${mileCents > 0 ? ` · $${(mileCents / 100).toFixed(2)}` : ""}`)
+                            // Geofence flag -- operator clock-in/out outside every configured
+                            // facility radius. Informational only, never blocks the punch.
+                            if (punch.clock_in_out_of_range) noteBits.push(`📍 Clocked in ${punch.clock_in_distance_miles ?? "?"} mi from facility`)
+                            if (punch.clock_out_out_of_range) noteBits.push(`📍 Clocked out ${punch.clock_out_distance_miles ?? "?"} mi from facility`)
 
                             return (
                               <div key={punch.id} className="grid gap-2 items-center px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm"

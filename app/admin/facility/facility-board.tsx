@@ -161,7 +161,7 @@ function OrderDrawer({
       // Get public URL from Supabase
       const supabase = createClient()
       const { data: { publicUrl } } = supabase.storage.from("worker-docs").getPublicUrl(path)
-      await saveField({ facility_floor_photo_url: publicUrl })
+      await saveField({ facility_floor_photo_url: publicUrl, facility_floor_photo_taken_at: new Date().toISOString() })
       setMsg({ type: "ok", text: "Photo saved." })
     } catch (err) {
       setMsg({ type: "err", text: err instanceof Error ? err.message : "Upload failed" })

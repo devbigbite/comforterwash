@@ -10,6 +10,8 @@ import {
 import { sendScheduleAlertEmail } from "@/lib/email"
 import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
+import { distanceMiles, type LatLng } from "@/lib/geocoding"
+import { getGeofencingEnabled } from "@/app/actions/settings"
 
 export interface TimePunch {
   id: string
@@ -23,6 +25,56 @@ export interface TimePunch {
   flag_minutes: number | null
   /** Driver mileage for this shift. Null on non-driver punches. */
   miles: number | null
+  // Geofencing (operator clock-ins only -- see checkGeofence below). Null
+  // whenever no coordinates were captured or no facility has a geofence
+  // configured; flag-only, never blocks a punch.
+  clock_in_distance_miles: number | null
+  clock_in_out_of_range: boolean | null
+  clock_out_distance_miles: number | null
+  clock_out_out_of_range: boolean | null
+}
+
+// ── Geofencing ─────────────────────────────────────────────────────────────
+// Checks a worker's coordinates against every active facility that has a
+// geofence configured (geofence_lat/lng/radius_miles -- set from the
+// facility's address in app/admin/facilities/page.tsx) and returns the
+// closest one. Deliberately flag-only: mobile geolocation is unreliable
+// indoors at a concrete facility, so this never blocks a punch -- it just
+// records how far out the worker was so Cassie/admin can see it on the
+// timesheet. A facility with no geofence configured (no address on file
+// yet, e.g. Perfect Spin) is skipped entirely, never treated as "0 miles
+// away" or forced into range.
+async function checkGeofence(
+  coords: LatLng | null,
+  locationId: string,
+): Promise<{ distanceMiles: number | null; outOfRange: boolean | null }> {
+  if (!coords) return { distanceMiles: null, outOfRange: null }
+  // Defense in depth -- the /staff page itself never requests geolocation
+  // for a tenant with this off, but a stale client or a direct action call
+  // must not compute/flag anything either if the tenant has since disabled it.
+  if (!(await getGeofencingEnabled())) return { distanceMiles: null, outOfRange: null }
+
+  const supabase = createAdminClient()
+  const { data: facilities } = await supabase
+    .from("facilities")
+    .select("geofence_lat, geofence_lng, geofence_radius_miles")
+    .eq("location_id", locationId)
+    .eq("active", true)
+    .not("geofence_lat", "is", null)
+    .not("geofence_lng", "is", null)
+    .not("geofence_radius_miles", "is", null)
+
+  if (!facilities?.length) return { distanceMiles: null, outOfRange: null }
+
+  let nearestMiles = Infinity
+  let withinAny = false
+  for (const f of facilities) {
+    const d = distanceMiles(coords, { lat: Number(f.geofence_lat), lng: Number(f.geofence_lng) })
+    if (d < nearestMiles) nearestMiles = d
+    if (d <= Number(f.geofence_radius_miles)) withinAny = true
+  }
+
+  return { distanceMiles: Math.round(nearestMiles * 100) / 100, outOfRange: !withinAny }
 }
 
 export type ScheduleFlag = "unscheduled" | "early_in" | "late_in" | "early_out" | "late_out"
@@ -279,6 +331,13 @@ export async function clockIn(formData: FormData) {
   const notes       = (formData.get("notes") as string) || null
   // "confirmed" is set by the UI after the worker acknowledges a Level 2 warning
   const confirmed   = formData.get("confirmed") === "true"
+  // Best-effort browser geolocation, captured by the /staff clock-in page
+  // only for the operator role (drivers legitimately work off-site). Absent
+  // whenever the worker denied the permission prompt or the device has no
+  // GPS -- never required to clock in.
+  const latStr = formData.get("lat") as string | null
+  const lngStr = formData.get("lng") as string | null
+  const coords: LatLng | null = (latStr && lngStr) ? { lat: parseFloat(latStr), lng: parseFloat(lngStr) } : null
 
   if (!workerName || !role) return { error: "Missing required fields" }
 
@@ -294,6 +353,8 @@ export async function clockIn(formData: FormData) {
     return { scheduleWarning: warning }
   }
 
+  const geofence = await checkGeofence(coords, locationId)
+
   const { data, error } = await supabase
     .from("staff_time_punches")
     .insert({
@@ -303,6 +364,10 @@ export async function clockIn(formData: FormData) {
       notes,
       schedule_flag:  warning?.flag  ?? null,
       flag_minutes:   warning?.flagMinutes ?? null,
+      clock_in_lat:              coords?.lat ?? null,
+      clock_in_lng:              coords?.lng ?? null,
+      clock_in_distance_miles:   geofence.distanceMiles,
+      clock_in_out_of_range:     geofence.outOfRange,
     })
     .select()
     .single()
@@ -335,6 +400,9 @@ export async function clockOut(formData: FormData) {
   const breakMinutes  = parseInt(formData.get("breakMinutes") as string || "0", 10)
   const notes         = (formData.get("notes") as string) || null
   const confirmed     = formData.get("confirmed") === "true"
+  const latStr = formData.get("lat") as string | null
+  const lngStr = formData.get("lng") as string | null
+  const coords: LatLng | null = (latStr && lngStr) ? { lat: parseFloat(latStr), lng: parseFloat(lngStr) } : null
 
   if (!punchId) return { error: "Missing punch ID" }
 
@@ -371,6 +439,8 @@ export async function clockOut(formData: FormData) {
     }
   }
 
+  const geofence = await checkGeofence(coords, locationId)
+
   const { error } = await supabase
     .from("staff_time_punches")
     .update({
@@ -379,6 +449,10 @@ export async function clockOut(formData: FormData) {
       ...(notes ? { notes } : {}),
       // Only set out-flag if no in-flag was already recorded
       ...(outFlag ? { schedule_flag: outFlag, flag_minutes: outFlagMinutes } : {}),
+      clock_out_lat:              coords?.lat ?? null,
+      clock_out_lng:              coords?.lng ?? null,
+      clock_out_distance_miles:   geofence.distanceMiles,
+      clock_out_out_of_range:     geofence.outOfRange,
     })
     .eq("id", punchId)
     .eq("location_id", locationId)

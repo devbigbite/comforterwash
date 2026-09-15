@@ -34,6 +34,10 @@ export interface PricingConfig {
   comforterFacilityQueenCents: number   // default 1440
   comforterFacilityKingCents:  number   // default 1590
   comforterFacilityPromoCents: number   // default 1300
+  // Hangers — added at folding/finishing time, quantity unknown until then.
+  // Billed as a separate off-session charge (lib/hanger-billing.ts /
+  // app/actions/hangers.ts), never folded into calculateOrderBilling.
+  hangerPriceCents:     number   // default 22
 }
 
 const DEFAULTS: PricingConfig = {
@@ -53,6 +57,7 @@ const DEFAULTS: PricingConfig = {
   comforterFacilityQueenCents: 1440,
   comforterFacilityKingCents:  1590,
   comforterFacilityPromoCents: 1300,
+  hangerPriceCents:     22,
 }
 
 const KEY_MAP: Record<keyof PricingConfig, string> = {
@@ -72,6 +77,7 @@ const KEY_MAP: Record<keyof PricingConfig, string> = {
   comforterFacilityQueenCents: "facility_comforter_queen_cents",
   comforterFacilityKingCents:  "facility_comforter_king_cents",
   comforterFacilityPromoCents: "facility_comforter_promo_cents",
+  hangerPriceCents:     "hanger_price_cents",
 }
 
 export async function getPricingConfig(): Promise<PricingConfig> {

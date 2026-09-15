@@ -316,6 +316,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
     frequency:   "one_time" as "one_time" | "weekly" | "biweekly",
     detergentId:    "" as string,
     selectedExtras: {} as Record<string, boolean>,
+    hangerItemsNote: "",  // free text: which items to place on hangers, shown only when the "Hangers" accessory is checked
     specialInstructions: "",
     savePreferencesForFuture: true,
     signature:        "",
@@ -694,6 +695,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
     sameDayFeeCents:     String(sameDayFeeCents),
     tipCents:            String(tipCents),
     specialInstructions: formData.specialInstructions,
+    hangerItemsNote:     formData.hangerItemsNote,
   }
   if (isRecurring) {
     checkoutMeta.recurringPickupDay      = formData.recurringPickupDay
@@ -1482,29 +1484,46 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                     .map((addon) => {
                       const saleOn = isSaleActive(addon)
                       const price = effectivePrice(addon)
+                      // Matched by name rather than a fixed id — this row is admin-configured
+                      // data (Admin -> Pricing -> Hangers / service_options), not a hardcoded
+                      // option, so there's no stable id to key off of.
+                      const isHangers = optName(addon).toLowerCase().includes("hanger")
                       return (
-                        <label key={addon.id}
-                          className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
-                            formData.selectedExtras[addon.id] ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
-                          <Checkbox
-                            checked={!!formData.selectedExtras[addon.id]}
-                            onCheckedChange={(c) => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [addon.id]: c as boolean } }))}
-                            className="shrink-0" />
-                          <div className="flex-1">
-                            <p className="font-semibold text-[var(--brand-primary)] text-sm">{optName(addon)}</p>
-                            {addon.description && <p className="text-xs text-gray-400">{optDesc(addon)}</p>}
-                          </div>
-                          {price === 0 ? (
-                            <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
-                          ) : saleOn ? (
-                            <div className="flex flex-col items-end gap-0.5">
-                              <span className="text-[10px] font-bold text-[var(--brand-accent)] bg-[#fdf6f3] px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
-                              <span className="text-[10px] text-gray-400 line-through">+${(addon.price_cents / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
+                        <div key={addon.id}>
+                          <label
+                            className={cn("flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                              formData.selectedExtras[addon.id] ? "border-[var(--brand-accent)] bg-[#fdf6f3]" : "border-gray-100 bg-white hover:border-gray-200")}>
+                            <Checkbox
+                              checked={!!formData.selectedExtras[addon.id]}
+                              onCheckedChange={(c) => setFormData(p => ({ ...p, selectedExtras: { ...p.selectedExtras, [addon.id]: c as boolean } }))}
+                              className="shrink-0" />
+                            <div className="flex-1">
+                              <p className="font-semibold text-[var(--brand-primary)] text-sm">{optName(addon)}</p>
+                              {addon.description && <p className="text-xs text-gray-400">{optDesc(addon)}</p>}
                             </div>
-                          ) : (
-                            <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
+                            {price === 0 ? (
+                              <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{tf.freeBadge}</span>
+                            ) : saleOn ? (
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="text-[10px] font-bold text-[var(--brand-accent)] bg-[#fdf6f3] px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
+                                <span className="text-[10px] text-gray-400 line-through">+${(addon.price_cents / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold text-[var(--brand-primary)] bg-gray-100 px-2 py-0.5 rounded-full">+${(price / 100).toFixed(2)}{unitSuffix(addon.pricing_unit, locale)}</span>
+                            )}
+                          </label>
+                          {isHangers && formData.selectedExtras[addon.id] && (
+                            <div className="mt-2 ml-1">
+                              <textarea
+                                value={formData.hangerItemsNote}
+                                onChange={e => setFormData(p => ({ ...p, hangerItemsNote: e.target.value.slice(0, 300) }))}
+                                placeholder={locale === "es" ? "ej. camisas de vestir, blusas, pantalones de vestir" : "e.g. dress shirts, blouses, slacks"}
+                                rows={2}
+                                className="w-full rounded-xl border-2 border-gray-200 px-3 py-2 text-sm text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] resize-none" />
+                              <p className="text-[11px] text-gray-300 mt-1 text-right">{formData.hangerItemsNote.length}/300</p>
+                            </div>
                           )}
-                        </label>
+                        </div>
                       )
                     })}
                 </div>

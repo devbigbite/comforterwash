@@ -17,7 +17,7 @@ import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { recordWeightAndCharge } from "@/app/actions/weigh-in"
 import { calculateOrderBilling } from "@/lib/order-billing"
-import { capturePayment, chargeCommercialAccountOrder } from "@/app/actions/stripe"
+import { capturePayment, chargeCommercialAccountOrder, chargeHangerAddon } from "@/app/actions/stripe"
 import { sendPaymentUpdateLink } from "@/app/actions/commercial-accounts"
 import { updateFacilityDetails } from "@/app/actions/facility-board"
 import PhotoUploader from "@/app/operator/order/[id]/photo-uploader"
@@ -446,6 +446,29 @@ async function retryCommercialChargeAction(formData: FormData) {
   redirect(`/admin/orders/${bookingId}?billingMsg=${encodeURIComponent(msg)}`)
 }
 
+// Manual "Retry Hanger Charge" — hangers are billed as a separate add-on
+// charge (see app/actions/hangers.ts / chargeHangerAddon in stripe.ts) that
+// can decline independently of the main weight-based charge. Same
+// idempotency as the commercial retry above: chargeHangerAddon creates a
+// fresh PaymentIntent each call and only marks hanger_charge_status
+// "charged" on success, so this is safe to click again after the customer
+// fixes their card.
+async function retryHangerChargeAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  await assertBookingOwnership(bookingId)
+  const supabase = createAdminClient()
+  const result = await chargeHangerAddon(bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId, event_type: "hangers_recorded",
+    notes: result.success ? "Hanger charge retried by admin — succeeded" : `Hanger charge retry failed: ${result.error}`,
+    created_by: "admin",
+  })
+  const msg = result.success ? "ok:Hanger charge succeeded." : `err:Hanger charge failed — ${result.error}`
+  revalidatePath(`/admin/orders/${bookingId}`)
+  redirect(`/admin/orders/${bookingId}?billingMsg=${encodeURIComponent(msg)}`)
+}
+
 // Sends the commercial account's existing self-serve access_code link (see
 // /commercial-agreement/[code], which now offers an "Update Payment Method"
 // option even once a card is already on file) so a customer whose card is
@@ -576,7 +599,10 @@ async function logFinishedProductPhoto(formData: FormData) {
   const bookingId = formData.get("bookingId") as string
   const photoUrl = formData.get("photoUrl") as string
   await assertBookingOwnership(bookingId)
-  await updateFacilityDetails(bookingId, { facility_floor_photo_url: photoUrl })
+  await updateFacilityDetails(bookingId, {
+    facility_floor_photo_url: photoUrl,
+    facility_floor_photo_taken_at: new Date().toISOString(),
+  })
   revalidatePath(`/admin/orders/${bookingId}`)
 }
 
@@ -652,7 +678,11 @@ export default async function OrderDetailPage({
   const photosByEvent = (eventType: string) =>
     (events ?? [])
       .filter(e => e.event_type === eventType && e.photo_url)
-      .map(e => ({ id: e.id as string, url: e.photo_url as string }))
+      .map(e => ({
+        id: e.id as string,
+        url: e.photo_url as string,
+        takenAt: formatEventTime(e.created_at as string, tenantTimeZone),
+      }))
 
   // short_code is the one real order number staff and customers both use
   // (matches the Order Snapshot card, receipts, dispatch, etc). Only fall
@@ -937,6 +967,35 @@ export default async function OrderDetailPage({
           </div>
         )}
 
+        {/* Hanger charge failed. Gated on hanger_charge_status, NOT
+            payment_status — hangers are a separate charge from the main
+            weight-based one and can fail independently (declined card,
+            expired card) while the main charge sits perfectly fine at
+            "captured". Same lesson as the commercial payment block above:
+            gating on the wrong field makes the retry control unreachable
+            exactly when it's needed. */}
+        {booking.hanger_charge_status === "failed" && !!booking.hanger_charge_cents && (
+          <div className="rounded-2xl border p-4 mb-6 bg-red-50 border-red-200">
+            <p className="text-sm font-bold text-red-700">
+              🧷 Hanger charge failed — {booking.hanger_count} hanger{booking.hanger_count === 1 ? "" : "s"}, ${((booking.hanger_charge_cents as number) / 100).toFixed(2)}
+            </p>
+            <p className="text-xs text-red-600/80 mt-1">
+              The main order charge is unaffected — this is only the separate hanger add-on charge, and it did not go through.
+              {booking.hanger_entered_by ? ` Entered by ${booking.hanger_entered_by}` : ""}
+              {booking.hanger_entered_at ? ` on ${formatDate(booking.hanger_entered_at as string, tenantTimeZone)}` : ""}.
+            </p>
+            <div className="mt-3">
+              <form action={retryHangerChargeAction}>
+                <input type="hidden" name="bookingId" value={booking.id} />
+                <button type="submit"
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors">
+                  🧷 Retry Hanger Charge — ${((booking.hanger_charge_cents as number) / 100).toFixed(2)}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Weight entry — one field per bag (matches how weighing actually
             happens at the scale, and surfaces a bag miscount before billing)
             summed into the total that recordWeightAndCharge expects. */}
@@ -979,6 +1038,11 @@ export default async function OrderDetailPage({
                 alt="Finished product and location"
                 className="w-full rounded-xl border border-gray-100 max-h-56 object-cover"
               />
+              {booking.facility_floor_photo_taken_at && (
+                <p className="text-xs text-gray-400 mt-1.5">
+                  Taken {formatEventTime(booking.facility_floor_photo_taken_at as string, tenantTimeZone)}
+                </p>
+              )}
             </div>
           )}
           <div className="p-4">

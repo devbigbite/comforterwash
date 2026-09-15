@@ -1013,6 +1013,28 @@ export default function PricingPage() {
             </div>
           </div>
 
+          {/* ── Hangers ─────────────────────────────────── */}
+          <div className="border-t border-gray-100 pt-6">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xl">🧷</span>
+              <h2 className="font-extrabold text-[#0D2240] text-base">Hangers</h2>
+            </div>
+            <p className="text-xs text-gray-400 mb-5">
+              Charged as a separate add-on after folding, once the operator counts how many hangers an order used —
+              the quantity isn't known until then, so it can't be part of the weight-based charge.
+            </p>
+            <div className="max-w-[200px]">
+              <label className={labelCls}>Price per hanger</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                <PriceInput className={inputCls + " pl-7"}
+                  cents={config.hangerPriceCents}
+                  onChange={c => setFieldCents("hangerPriceCents", c ?? 0)} />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Currently {cents(config.hangerPriceCents)}/hanger</p>
+            </div>
+          </div>
+
           {/* ── Save pricing ────────────────────────────── */}
           <div className="flex items-center gap-4">
             <button type="submit" disabled={saving}

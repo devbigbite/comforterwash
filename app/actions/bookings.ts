@@ -45,6 +45,7 @@ export interface BookingData {
   extras?: string
   comforterSizes?: string   // e.g. "Queen:1,King:2"
   specialInstructions?: string  // customer-supplied note at booking time — surfaced to the operator, distinct from the internal status-timeline `notes` column
+  hangerItemsNote?: string  // customer-supplied note on which items to place on hangers, entered when the "Hangers" accessory checkbox is checked at checkout — surfaced to the operator at folding, distinct from the general specialInstructions box
   commercialAccountId?: string  // links this booking to a commercial_accounts row — pay-at-weigh-in via saved card, no consumer pre-auth
   bagSelection?: { id: string; qty: number }[]  // wash_fold "per_bag" mode only — customer-picked bag size ids + quantities. Server re-resolves each id's current priceCents/label from getWashFoldBagConfig() at booking time (see createBooking); never trusts a price the client sends.
   washOnlyBagSelection?: { id: string; qty: number }[]  // wash_only "per_bag"/"both" mode — mirrors bagSelection above but for Wash Only's own separate bag-size list. Server re-resolves each id's current priceCents/label from getWashOnlyBagConfig() at booking time (see createBooking); never trusts a price the client sends.
@@ -219,6 +220,7 @@ export async function createBooking(data: BookingData) {
       extras: data.extras ?? null,
       comforter_sizes: data.comforterSizes ?? null,
       customer_instructions: data.specialInstructions?.trim() || null,
+      hanger_items_note: data.hangerItemsNote?.trim() || null,
       color_key: colorKey,
       assigned_facility_id: defaultFacilityId,
       facility_cost_cents: comforterFacilityCostCents,

@@ -27,6 +27,7 @@ export interface BoardOrder {
   hold_at_facility: boolean
   color_key: string | null
   facility_floor_photo_url: string | null
+  facility_floor_photo_taken_at: string | null
 }
 
 // ── Get all orders for the facility board ─────────────────────────────────────
@@ -37,7 +38,7 @@ export async function getFacilityBoardOrders(facilityId?: string): Promise<Recor
 
   let query = supabase
     .from("bookings")
-    .select("id, short_code, customer_name, service_type, num_bags, folded_bag_count, phase, phase_updated_at, assigned_facility_id, actual_weight_lbs, status, pickup_date, delivery_date, created_at, hold_at_facility, color_key, facility_floor_photo_url")
+    .select("id, short_code, customer_name, service_type, num_bags, folded_bag_count, phase, phase_updated_at, assigned_facility_id, actual_weight_lbs, status, pickup_date, delivery_date, created_at, hold_at_facility, color_key, facility_floor_photo_url, facility_floor_photo_taken_at")
     .eq("location_id", locationId)
     .not("phase", "in", '("booked","delivered","cancelled")')
     .order("phase_updated_at", { ascending: true })
@@ -166,6 +167,7 @@ export async function updateFacilityDetails(
     hold_at_facility?: boolean
     color_key?: string | null
     facility_floor_photo_url?: string | null
+    facility_floor_photo_taken_at?: string | null
     folded_bag_count?: number | null
   }
 ): Promise<{ error?: string }> {

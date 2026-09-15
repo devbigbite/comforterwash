@@ -388,6 +388,131 @@ export async function chargeSubscriptionOrder(bookingId: string): Promise<{ succ
   }
 }
 
+// ── Charge the hanger add-on after folding/finishing ──────────────────────────
+// Hangers are only known once the operator counts them at the folding step —
+// almost always after the main weight-based charge has already been
+// captured (capturePayment / chargeCommercialAccountOrder /
+// chargeSubscriptionOrder). So this is always a second, separate
+// PaymentIntent against whatever card is already saved on the booking,
+// never a modification of the original charge. Mirrors the overage-charge
+// shape in capturePayment() above almost exactly.
+export async function chargeHangerAddon(bookingId: string): Promise<{ success?: boolean; error?: string }> {
+  const supabase = createAdminClient()
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("hanger_charge_cents, hanger_charge_status, stripe_customer_id, stripe_payment_method_id, stripe_payment_intent_id, location_id, customer_name, customer_email, commercial_account_id")
+    .eq("id", bookingId)
+    .single()
+
+  if (!booking) return { error: "Order not found" }
+  if (booking.hanger_charge_status === "charged") return { success: true } // already charged — idempotent
+
+  const chargeCents = booking.hanger_charge_cents
+  if (!chargeCents || chargeCents <= 0) return { error: "No hanger charge amount set" }
+
+  // Commercial accounts keep their saved card on the platform account
+  // (see chargeCommercialAccountOrder above) — a direct charge on the
+  // tenant's connected account cannot see it.
+  let pmId = booking.stripe_payment_method_id
+  let customerId = booking.stripe_customer_id
+  let opts: { stripeAccount: string } | undefined
+
+  if (booking.commercial_account_id) {
+    const { data: account } = await supabase
+      .from("commercial_accounts")
+      .select("stripe_customer_id, stripe_payment_method_id, business_name")
+      .eq("id", booking.commercial_account_id)
+      .single()
+    pmId = account?.stripe_payment_method_id ?? null
+    customerId = account?.stripe_customer_id ?? null
+    const destination = booking.location_id ? await connectDestinationFor(booking.location_id) : undefined
+    opts = undefined // destination charge stays on the platform account
+    if (!pmId || !customerId) {
+      return { error: `${account?.business_name ?? "This commercial account"} has no payment method on file — cannot charge for hangers.` }
+    }
+
+    try {
+      const pi = await stripe.paymentIntents.create({
+        amount: chargeCents,
+        currency: "usd",
+        customer: customerId,
+        payment_method: pmId,
+        confirm: true,
+        off_session: true,
+        description: `Hanger charge — ${account?.business_name ?? ""} — booking ${bookingId}`,
+        metadata: { bookingId, type: "hanger_addon" },
+        ...(destination ? { transfer_data: { destination } } : {}),
+      })
+      await supabase.from("bookings").update({
+        hanger_payment_intent_id: pi.id,
+        hanger_charge_status: pi.status === "succeeded" ? "charged" : "failed",
+      }).eq("id", bookingId)
+      if (pi.status !== "succeeded") return { error: `Charge did not complete — Stripe status: ${pi.status}` }
+      return { success: true }
+    } catch (err) {
+      console.error("[stripe] chargeHangerAddon (commercial) failed:", err)
+      await supabase.from("bookings").update({ hanger_charge_status: "failed" }).eq("id", bookingId)
+      return { error: err instanceof Error ? err.message : "Charge failed" }
+    }
+  }
+
+  // Consumer / subscription bookings: same account scope as the original
+  // charge (direct charge on the tenant's connected account).
+  const acct = booking.location_id ? await directChargeAccountFor(booking.location_id) : null
+  opts = acctOpts(acct)
+
+  if (!pmId && booking.stripe_payment_intent_id) {
+    const originalPI = await stripe.paymentIntents.retrieve(
+      booking.stripe_payment_intent_id,
+      { expand: ["payment_method"] },
+      opts,
+    )
+    pmId = typeof originalPI.payment_method === "string"
+      ? originalPI.payment_method
+      : (originalPI.payment_method as { id: string } | null)?.id ?? null
+  }
+
+  if (!pmId) return { error: "No payment method on file for this order — cannot charge for hangers." }
+
+  if (pmId && !customerId) {
+    const cust = await stripe.customers.create({
+      name: booking.customer_name ?? undefined,
+      email: booking.customer_email ?? undefined,
+      payment_method: pmId,
+    }, opts)
+    customerId = cust.id
+    await supabase.from("bookings").update({
+      stripe_customer_id: customerId,
+      stripe_payment_method_id: pmId,
+    }).eq("id", bookingId)
+  }
+
+  try {
+    const pi = await stripe.paymentIntents.create({
+      amount: chargeCents,
+      currency: "usd",
+      customer: customerId ?? undefined,
+      payment_method: pmId,
+      confirm: true,
+      off_session: true,
+      description: `Hanger charge — booking ${bookingId}`,
+      metadata: { bookingId, type: "hanger_addon" },
+    }, opts)
+
+    await supabase.from("bookings").update({
+      hanger_payment_intent_id: pi.id,
+      hanger_charge_status: pi.status === "succeeded" ? "charged" : "failed",
+    }).eq("id", bookingId)
+
+    if (pi.status !== "succeeded") return { error: `Charge did not complete — Stripe status: ${pi.status}` }
+    return { success: true }
+  } catch (err) {
+    console.error("[stripe] chargeHangerAddon failed:", err)
+    await supabase.from("bookings").update({ hanger_charge_status: "failed" }).eq("id", bookingId)
+    return { error: err instanceof Error ? err.message : "Charge failed" }
+  }
+}
+
 // ── Save payment method after checkout completes ──────────────────────────────
 // Called inside handleSuccessfulPayment to persist the card for future charges.
 async function saveBookingPaymentMethod(
@@ -568,6 +693,7 @@ export async function handleSuccessfulPayment(sessionId: string, stripeAccountId
         extras:              meta.extras ?? undefined,
         comforterSizes:      meta.comforterSizes ?? undefined,
         specialInstructions: meta.specialInstructions ?? undefined,
+        hangerItemsNote:     meta.hangerItemsNote ?? undefined,
         smsConsent:          meta.smsConsent === "true",
       })
 

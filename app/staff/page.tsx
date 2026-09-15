@@ -14,6 +14,7 @@ import {
   getTimeSheet,
 } from "@/app/actions/staff"
 import { getBrandingSettings } from "@/app/actions/branding"
+import { getGeofencingEnabled } from "@/app/actions/settings"
 import { minutesBetween, formatDuration } from "@/lib/staff-utils"
 import { getTranslations } from "@/lib/i18n"
 import type { Locale } from "@/lib/i18n"
@@ -31,6 +32,24 @@ function isoToLocal(iso: string) {
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, "0")
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// Best-effort browser geolocation for operator geofencing (see
+// checkGeofence in app/actions/staff.ts). Resolves to null -- never
+// rejects -- whenever the worker denies the permission prompt, the device
+// has no GPS, or it just takes too long; clocking in/out must never be
+// blocked on this. Only called for the operator role -- drivers
+// legitimately work off-site all day.
+function getCoordsBestEffort(): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) { resolve(null); return }
+    const timeout = setTimeout(() => resolve(null), 5000)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { clearTimeout(timeout); resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }) },
+      ()    => { clearTimeout(timeout); resolve(null) },
+      { enableHighAccuracy: false, timeout: 4500, maximumAge: 60000 },
+    )
+  })
 }
 
 // ── Punch Edit Modal ──────────────────────────────────────────────────────────
@@ -318,9 +337,15 @@ export default function StaffClockPage() {
   const [warning, setWarning]   = useState<ScheduleWarning | null>(null)
   const [lang, setLang]         = useState<Locale>("en")
   const [businessName, setBusinessName] = useState<string | null>(null)
+  // Off by default -- some tenants (WashFold Orlando) don't want operator
+  // geofencing at all, others (Perfect Spin) do. Gates the geolocation
+  // permission prompt itself: a tenant with this off never asks an
+  // operator's browser for location, full stop.
+  const [geofencingEnabled, setGeofencingEnabled] = useState(false)
 
   useEffect(() => {
     getBrandingSettings().then(b => setBusinessName(b.business_name))
+    getGeofencingEnabled().then(setGeofencingEnabled)
   }, [])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -382,6 +407,12 @@ export default function StaffClockPage() {
     const fd = new FormData()
     fd.append("workerName", selectedName); fd.append("role", selectedRole)
     if (confirmed) fd.append("confirmed", "true")
+    // Only operators geofence-check -- drivers work off-site by design --
+    // and only when this tenant has geofencing turned on.
+    if (geofencingEnabled && selectedRole === "operator") {
+      const coords = await getCoordsBestEffort()
+      if (coords) { fd.append("lat", String(coords.lat)); fd.append("lng", String(coords.lng)) }
+    }
     const result = await clockIn(fd)
     setSubmitting(false)
     if (!result) return
@@ -408,6 +439,10 @@ export default function StaffClockPage() {
     const fd = new FormData()
     fd.append("punchId", openPunch.id); fd.append("breakMinutes", breakMinutes)
     if (confirmed) fd.append("confirmed", "true")
+    if (geofencingEnabled && openPunch.role === "operator") {
+      const coords = await getCoordsBestEffort()
+      if (coords) { fd.append("lat", String(coords.lat)); fd.append("lng", String(coords.lng)) }
+    }
     const result = await clockOut(fd)
     setSubmitting(false)
     if (!result) return

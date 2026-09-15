@@ -18,6 +18,8 @@ import {
 import { PAYMENT_METHOD_LABEL } from "@/lib/facility-payment-methods"
 import { FacilityPayoutForms } from "@/components/admin/FacilityPayoutForms"
 import { todayET } from "@/lib/pickup-cutoff"
+import { geocodeAddress } from "@/lib/geocoding"
+import { getGeofencingEnabled, setGeofencingEnabled } from "@/app/actions/settings"
 
 // ── shared field CSS ─────────────────────────────────────────────────────────
 const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-full"
@@ -39,10 +41,19 @@ async function addFacility(formData: FormData) {
 
   const hasLimit = formData.get("has_processing_limit") === "on"
 
+  // Geofence center is derived from the address, not entered separately —
+  // best-effort (see lib/geocoding.ts): a missing/unresolvable address just
+  // means geofencing stays off for this facility, never blocks the save.
+  const addressForGeocode = (formData.get("address") as string)?.trim() || null
+  const geofenceCenter = addressForGeocode ? await geocodeAddress(addressForGeocode) : null
+
   await supabase.from("facilities").insert({
     location_id: locationId,
     name,
-    address:                  (formData.get("address") as string)?.trim() || null,
+    address:                  addressForGeocode,
+    geofence_lat:              geofenceCenter?.lat ?? null,
+    geofence_lng:              geofenceCenter?.lng ?? null,
+    geofence_radius_miles:     parseFloat(formData.get("geofence_radius_miles") as string) || null,
     phone:                    (formData.get("phone") as string)?.trim() || null,
     contact_email:            (formData.get("contact_email") as string)?.trim() || null,
     manager:                  (formData.get("manager") as string)?.trim() || null,
@@ -71,9 +82,15 @@ async function editFacility(formData: FormData) {
   const hasLimit = formData.get("has_processing_limit") === "on"
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
 
+  const addressForGeocode = (formData.get("address") as string)?.trim() || null
+  const geofenceCenter = addressForGeocode ? await geocodeAddress(addressForGeocode) : null
+
   await supabase.from("facilities").update({
     name,
-    address:                  (formData.get("address") as string)?.trim() || null,
+    address:                  addressForGeocode,
+    geofence_lat:              geofenceCenter?.lat ?? null,
+    geofence_lng:              geofenceCenter?.lng ?? null,
+    geofence_radius_miles:     parseFloat(formData.get("geofence_radius_miles") as string) || null,
     phone:                    (formData.get("phone") as string)?.trim() || null,
     contact_email:            (formData.get("contact_email") as string)?.trim() || null,
     manager:                  (formData.get("manager") as string)?.trim() || null,
@@ -89,6 +106,17 @@ async function editFacility(formData: FormData) {
     minimum_lbs:   parseFloat(formData.get("minimum_lbs") as string) || 0,
   }).eq("id", id).eq("location_id", locationId)
   revalidatePath("/admin/facilities")
+}
+
+// Per-tenant master switch for operator geofencing (checkGeofence in
+// app/actions/staff.ts). Off by default -- some tenants (WashFold Orlando)
+// don't want it, others (Perfect Spin) do. Facility-level radius/location
+// stays configured either way; this alone decides whether the /staff
+// clock-in page ever asks an operator's browser for location.
+async function toggleGeofencing(formData: FormData) {
+  "use server"
+  const enabled = formData.get("enabled") === "true"
+  await setGeofencingEnabled(!enabled)
 }
 
 async function toggleFacility(formData: FormData) {
@@ -195,6 +223,18 @@ function FacilityFields({ f }: { f?: Record<string, unknown> }) {
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            Geofence radius (mi)
+            <span className="text-gray-300 ml-1 normal-case">flags, doesn't block</span>
+          </label>
+          <input name="geofence_radius_miles" type="number" step="0.05" min="0" placeholder="e.g. 0.25"
+            defaultValue={val("geofence_radius_miles")} className={inp} />
+          <p className="text-[10px] text-gray-300">
+            {f?.geofence_lat ? "📍 Located from the address above" : "Set an address above to enable"}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
             Storage Availability
             <span className="text-gray-300 ml-1 normal-case">(1 = low, 3 = high)</span>
           </label>
@@ -252,12 +292,13 @@ export default async function FacilitiesPage() {
   // tenant's own evening, prefilling the wrong month.
   const payoutPeriodTo   = todayET(await getLocationTimezone(locationId))
   const payoutPeriodFrom = `${payoutPeriodTo.slice(0, 7)}-01`
-  const [{ data: facilities }, { data: allWindows }, { data: allStorageSpaces }, { data: allEntryWindows }, { data: allPayouts }] = await Promise.all([
+  const [{ data: facilities }, { data: allWindows }, { data: allStorageSpaces }, { data: allEntryWindows }, { data: allPayouts }, geofencingEnabled] = await Promise.all([
     supabase.from("facilities").select("*, machine_groups(count)").eq("location_id", locationId).order("name"),
     supabase.from("facility_access_windows").select("*").eq("location_id", locationId).eq("active", true).order("start_time"),
     supabase.from("storage_spaces").select("*").eq("location_id", locationId).order("active", { ascending: false }).order("name"),
     supabase.from("storage_entry_windows").select("*").eq("location_id", locationId).eq("active", true).order("start_time"),
     supabase.from("facility_payouts").select("id, facility_id, amount_cents, period_from, period_to, orders_count, total_lbs, stripe_transfer_id, status, payment_method, notes, created_at").eq("location_id", locationId).order("created_at", { ascending: false }).limit(200),
+    getGeofencingEnabled(),
   ])
   const storageByFacility = (allStorageSpaces ?? []).reduce<Record<string, StorageSpace[]>>((acc, s) => {
     if (!acc[s.facility_id]) acc[s.facility_id] = []
@@ -290,6 +331,24 @@ export default async function FacilitiesPage() {
           <p className="text-sm text-gray-400 mt-1">{facilities?.filter(f => f.active).length ?? 0} active locations</p>
         </div>
       </div>
+
+      {/* ── Operator Geofencing — per-tenant master switch ── */}
+      <form action={toggleGeofencing} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-bold text-[#0D2240] text-sm">📍 Operator Geofencing</h2>
+          <p className="text-xs text-gray-400 mt-1 max-w-md">
+            When on, the staff clock-in page asks operators (not drivers) for their location and flags a punch made
+            outside every facility&apos;s radius below — it never blocks clocking in or out. Off by default.
+          </p>
+        </div>
+        <input type="hidden" name="enabled" value={String(geofencingEnabled)} />
+        <button
+          type="submit"
+          className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${geofencingEnabled ? "bg-[#0D2240]" : "bg-gray-200"}`}
+        >
+          <span className={`pointer-events-none inline-block h-6 w-6 rounded-full bg-white shadow-lg ring-0 transition-transform ${geofencingEnabled ? "translate-x-5" : "translate-x-0"}`} />
+        </button>
+      </form>
 
       {/* ── Partner Portal Links ── */}
       {facilities && facilities.some(f => f.active && f.partner_access_code) && (
