@@ -1,14 +1,28 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getLocationId, getLocation } from "@/lib/location"
+import { requireAdmin } from "@/lib/auth-guard"
 import Link from "next/link"
 
 export const dynamic = "force-dynamic"
 
 export default async function HiringHubPage() {
+  await requireAdmin()
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  const location = await getLocation()
+
+  // Admin runs on a canonical shared domain (see middleware.ts), so a plain
+  // relative "/apply" link would resolve against THAT domain's own tenant
+  // (WashFold Orlando) instead of the tenant actually viewing this page --
+  // this is what sent Cassie's "View Apply Page" click to washfoldorlando.com
+  // instead of her own site. Build an absolute link to this tenant's real
+  // public domain instead.
+  const applyUrl = `https://${location?.website_domain ?? process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? "washfoldclean.com"}/apply`
 
   const { data: counts } = await supabase
     .from("workers")
     .select("status, created_at")
+    .eq("location_id", locationId)
 
   const tally = { pending: 0, approved: 0, active: 0, rejected: 0 }
   counts?.forEach((w) => {
@@ -22,6 +36,7 @@ export default async function HiringHubPage() {
   const { data: recent } = await supabase
     .from("workers")
     .select("id, name, roles, status, created_at, ic_agreement_role")
+    .eq("location_id", locationId)
     .eq("status", "pending")
     .order("created_at", { ascending: false })
     .limit(3)
@@ -93,7 +108,7 @@ export default async function HiringHubPage() {
           )}
 
           <div className="mt-4 pt-4 border-t border-gray-50">
-            <a href="/apply" target="_blank"
+            <a href={applyUrl} target="_blank"
               className="flex items-center justify-center gap-2 w-full text-xs font-bold text-[#0D2240] border border-gray-200 px-4 py-2.5 rounded-xl hover:border-[#0D2240] transition-colors">
               View Apply Page ↗
             </a>
