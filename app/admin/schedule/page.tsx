@@ -164,7 +164,7 @@ function AdminScheduleInner() {
   const [tsWorkers, setTsWorkers] = useState<ActiveWorker[]>([])
   const [tsLoading, setTsLoading] = useState(false)
   const [editPunchId, setEditPunchId] = useState<string | null>(null)
-  const [editForm, setEditForm]   = useState({ clockedInAt: "", clockedOutAt: "", breakMinutes: "0", miles: "" })
+  const [editForm, setEditForm]   = useState({ clockedInAt: "", clockedOutAt: "", breakMinutes: "0", miles: "", role: "" })
   const [deletePunchId, setDeletePunchId] = useState<string | null>(null)
   // Which side of the currently-edited punch (if any) has the circular clock
   // picker open -- only one at a time, keyed by which field it edits.
@@ -340,9 +340,13 @@ function AdminScheduleInner() {
     fd.append("clockedInAt",    editForm.clockedInAt)
     fd.append("clockedOutAt",   editForm.clockedOutAt)
     fd.append("breakMinutes",   editForm.breakMinutes)
+    fd.append("role",           editForm.role || punch.role)
     // Only drivers earn mileage; sending "" for anyone else clears the column
     // rather than leaving a stale number behind after a role correction.
-    fd.append("miles",          punch.role === "driver" ? editForm.miles : "")
+    // Uses the (possibly just-corrected) role, not the punch's original one
+    // -- otherwise switching a punch to "driver" and entering miles in the
+    // same save would still wipe them out against the stale role.
+    fd.append("miles",          (editForm.role || punch.role) === "driver" ? editForm.miles : "")
     await updatePunch(fd)
     setEditPunchId(null)
     loadTimeSheet()
@@ -1302,7 +1306,7 @@ function AdminScheduleInner() {
 
                             if (isEditing) return (
                               <div key={punch.id} className="px-4 py-3 bg-blue-50">
-                                <div className={`grid gap-2 items-end ${punch.role === "driver" ? "grid-cols-4" : "grid-cols-3"}`}>
+                                <div className={`grid gap-2 items-end ${editForm.role === "driver" ? "grid-cols-5" : "grid-cols-4"}`}>
                                   <div>
                                     <label className="text-xs text-gray-400 font-bold">Clock In</label>
                                     <div className="flex gap-1 mt-0.5">
@@ -1341,7 +1345,29 @@ function AdminScheduleInner() {
                                       onChange={e => setEditForm(f => ({ ...f, breakMinutes: e.target.value }))}
                                       className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5" />
                                   </div>
-                                  {punch.role === "driver" && (
+                                  <div>
+                                    <label className="text-xs text-gray-400 font-bold">Role</label>
+                                    {/* This punch's role was fixed at clock-in and (until now) could
+                                        never be corrected here -- so a punch that should have been
+                                        logged as "driver" (mileage) sat stuck as "operator" (no mileage
+                                        field at all) with no way to fix it short of deleting and
+                                        re-adding it by hand. Options come from this worker's actual
+                                        assigned roles; falls back to driver/operator if that worker
+                                        record can't be found (e.g. deactivated since). */}
+                                    <select value={editForm.role}
+                                      onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}
+                                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none mt-0.5 bg-white">
+                                      {(tsWorkers.find(w => w.name === punch.worker_name)?.roles ?? ["driver", "operator", "admin"])
+                                        .map(r => <option key={r} value={r}>{r}</option>)}
+                                      {/* Always include the punch's current role even if it's since
+                                          fallen off the worker's active role list, so opening Edit
+                                          never silently changes it out from under the admin. */}
+                                      {!(tsWorkers.find(w => w.name === punch.worker_name)?.roles ?? []).includes(punch.role) && (
+                                        <option value={punch.role}>{punch.role}</option>
+                                      )}
+                                    </select>
+                                  </div>
+                                  {editForm.role === "driver" && (
                                     <div>
                                       <label className="text-xs text-gray-400 font-bold">Miles</label>
                                       <input type="number" min="0" step="0.1" placeholder="0.0" value={editForm.miles}
@@ -1350,7 +1376,7 @@ function AdminScheduleInner() {
                                     </div>
                                   )}
                                 </div>
-                                {punch.role === "driver" && mileRateCents > 0 && (
+                                {editForm.role === "driver" && mileRateCents > 0 && (
                                   <p className="text-[10px] text-gray-400 mt-1.5">
                                     {(parseFloat(editForm.miles || "0") || 0).toFixed(1)} mi × ${(mileRateCents / 100).toFixed(2)}/mi ={" "}
                                     <span className="font-bold text-green-600">
@@ -1429,6 +1455,7 @@ function AdminScheduleInner() {
                                         clockedOutAt: punch.clocked_out_at ?? "",
                                         breakMinutes: String(punch.break_minutes ?? 0),
                                         miles:        punch.miles != null ? String(punch.miles) : "",
+                                        role:         punch.role,
                                       })
                                     }}
                                     className="text-gray-300 hover:text-gray-500 text-xs font-bold transition-colors"

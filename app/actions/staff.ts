@@ -594,6 +594,7 @@ export async function updatePunch(formData: FormData) {
   const clockedInAt    = formData.get("clockedInAt")    as string
   const clockedOutAt   = (formData.get("clockedOutAt")  as string) || null
   const breakMinutes   = parseInt(formData.get("breakMinutes") as string || "0", 10)
+  const role           = (formData.get("role") as string) || null
   const miles          = parseMiles(formData.get("miles"))
 
   if (!punchId || !clockedInAt) return { error: "Missing fields" }
@@ -604,6 +605,13 @@ export async function updatePunch(formData: FormData) {
       clocked_in_at:  clockedInAt,
       clocked_out_at: clockedOutAt || null,
       break_minutes:  isNaN(breakMinutes) ? 0 : breakMinutes,
+      // Lets a punch's role be corrected after the fact -- e.g. a driver
+      // shift that was accidentally clocked in as "operator" and so had no
+      // mileage field at all (app/admin/schedule/page.tsx's inline editor).
+      // Omitted entirely (rather than forced null) whenever the client
+      // doesn't send one, so no other caller of this action can accidentally
+      // wipe a punch's role.
+      ...(role ? { role } : {}),
       miles,
     })
     .eq("id", punchId)
