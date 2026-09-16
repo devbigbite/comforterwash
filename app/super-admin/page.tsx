@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
-import { getAllLocations, updateLocation, inviteLocationAdmin, setLocationAdminPassword, getLocationAdmins, removeLocationAdmin, deleteLocation, enterTenantAdmin, pauseLocation, resumeLocation, type DeleteLocationResult } from "@/app/actions/super-admin"
+import { getAllLocations, updateLocation, inviteLocationAdmin, setLocationAdminPassword, getLocationAdmins, removeLocationAdmin, deleteLocation, enterTenantAdmin, pauseLocation, resumeLocation, restartDemo, type DeleteLocationResult } from "@/app/actions/super-admin"
 import { setLocationPlanPrice, createBillingCheckoutLink, cancelLocationBilling, sendBillingCheckoutEmail } from "@/app/actions/platform-billing"
 
 // Mirrors middleware.ts's PLATFORM_DOMAIN — used here just to build the
@@ -482,6 +482,20 @@ export default function SuperAdminPage() {
                             >
                               Billing
                             </button>
+                            {loc.plan === "demo" && (
+                              <button
+                                onClick={async () => {
+                                  setMenuForId(null)
+                                  const res = await restartDemo(loc.id)
+                                  if (res.error) { setError(res.error); return }
+                                  startTransition(() => { load() })
+                                }}
+                                className="block w-full text-left px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                                title="Gives this demo a fresh 14-day window -- same site, same slug"
+                              >
+                                🔄 Restart Demo
+                              </button>
+                            )}
                             <div className="border-t border-slate-100 my-1" />
                             <button
                               onClick={() => { setDeleteForId(loc.id); setDeleteResult(null); setMenuForId(null) }}

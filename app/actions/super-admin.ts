@@ -541,6 +541,33 @@ export async function updateLocation(
   return {}
 }
 
+// ── Restart a stale demo's evaluation clock ────────────────────────────────
+// A prospect's demo (locations.plan === "demo") self-expires 14 days after
+// demo_started_at (DEMO_TRIAL_DAYS / isDemoExpired in lib/location.ts) --
+// middleware.ts then redirects every public page on their subdomain to
+// /demo-expired, independent of the location's own status column (which can
+// still read "active" the whole time -- that field means something else
+// entirely: it's not what gates demo access). There was previously no way
+// to undo that short of hand-editing the database; this just bumps
+// demo_started_at back to now, giving the prospect a fresh 14-day window on
+// the same site (same slug, same data) rather than provisioning a new one.
+export async function restartDemo(locationId: string): Promise<{ error?: string }> {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+
+  const { data: loc } = await supabase.from("locations").select("plan").eq("id", locationId).maybeSingle()
+  if (loc?.plan !== "demo") return { error: "Not a demo tenant" }
+
+  const { error } = await supabase
+    .from("locations")
+    .update({ demo_started_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", locationId)
+
+  if (error) return { error: error.message }
+  revalidatePath("/super-admin")
+  return {}
+}
+
 // ── Pause / resume a single location's public site ────────────────────────
 // Blocks booking, tracking, and the marketing site for JUST this
 // `locations` row (see isLocationPaused in middleware.ts) -- /admin stays
