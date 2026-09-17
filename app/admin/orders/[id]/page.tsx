@@ -1268,9 +1268,9 @@ export default async function OrderDetailPage({
                     pickup. */}
                 <div className="rounded-xl border border-gray-100 bg-[#f7f8fb] p-3">
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">📦 Bags Picked Up</p>
-                  <form action={adjustBagCountAction} className="flex items-end gap-2">
+                  <form action={adjustBagCountAction} className="flex flex-col gap-2">
                     <input type="hidden" name="bookingId" value={booking.id} />
-                    <div className="flex-1 max-w-[110px]">
+                    <div>
                       <label className="text-xs text-gray-400 mb-1 block">Bag count</label>
                       <input
                         type="number"
@@ -1283,7 +1283,7 @@ export default async function OrderDetailPage({
                     </div>
                     <button
                       type="submit"
-                      className="rounded-xl bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-xs px-4 py-2.5 transition-colors"
+                      className="w-full rounded-xl bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-xs px-4 py-2.5 transition-colors"
                     >
                       Update Count
                     </button>
@@ -1295,9 +1295,9 @@ export default async function OrderDetailPage({
                     just the one field. */}
                 <div className="rounded-xl border border-gray-100 bg-[#f7f8fb] p-3">
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🚚 Bags Delivered</p>
-                  <form action={adjustOutputBagsAction} className="flex items-end gap-2">
+                  <form action={adjustOutputBagsAction} className="flex flex-col gap-2">
                     <input type="hidden" name="bookingId" value={booking.id} />
-                    <div className="flex-1 max-w-[110px]">
+                    <div>
                       <label className="text-xs text-gray-400 mb-1 block">Bag count</label>
                       <input
                         type="number"
@@ -1310,7 +1310,7 @@ export default async function OrderDetailPage({
                     </div>
                     <button
                       type="submit"
-                      className="rounded-xl bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-xs px-4 py-2.5 transition-colors"
+                      className="w-full rounded-xl bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-xs px-4 py-2.5 transition-colors"
                     >
                       Update Count
                     </button>
