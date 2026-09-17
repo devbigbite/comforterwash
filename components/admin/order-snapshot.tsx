@@ -57,6 +57,7 @@ export interface OrderSnapshotData {
   delivery_date: string | null
   delivery_time_window: string | null
   num_bags: number | null
+  output_bags?: number | null
   num_comforters: number | null
   comforter_size?: string | null
   comforter_sizes?: string | null
@@ -152,14 +153,34 @@ export function OrderSnapshot({ order, compact }: { order: OrderSnapshotData; co
             ? <>{order.delivery_date} <span className="font-normal text-gray-400">({weekdayAbbrev(order.delivery_date)})</span><span className="block text-xs font-normal text-gray-400">{order.delivery_time_window ?? "—"}</span></>
             : "—"
         } />
-        <Field label="Bags / Comforters" value={
+        {order.service_type === "comforter_wash" ? (
+          <Field label="Comforters" value={
+            <>
+              {bagCount != null ? `${bagCount} ${countUnit}${bagCount !== 1 ? "s" : ""}` : "Not yet counted"}
+              {(order.comforter_size || order.comforter_sizes) && (
+                <span className="block text-xs font-normal text-gray-400 capitalize">{order.comforter_sizes || order.comforter_size}</span>
+              )}
+            </>
+          } />
+        ) : (
           <>
-            {bagCount != null ? `${bagCount} ${countUnit}${bagCount !== 1 ? "s" : ""}` : "Not yet counted"}
-            {(order.comforter_size || order.comforter_sizes) && (
-              <span className="block text-xs font-normal text-gray-400 capitalize">{order.comforter_sizes || order.comforter_size}</span>
-            )}
+            {/* num_bags starts as the customer's checkout estimate, then gets
+                overwritten with the driver's actual count once pickup is
+                confirmed (see confirmPickup in app/driver/order/[id]/page.tsx)
+                -- so by the time an order is past "picked_up" this is the
+                real pickup count, not the original guess. output_bags is set
+                separately by the wash operator at folding/finishing, and can
+                legitimately differ (extra bag needed, items combined, etc). */}
+            <Field label="Bags at Pickup" value={
+              bagCount != null ? `${bagCount} bag${bagCount !== 1 ? "s" : ""}` : "Not yet counted"
+            } />
+            <Field label="Bags Delivered" value={
+              order.output_bags != null
+                ? `${order.output_bags} bag${order.output_bags !== 1 ? "s" : ""}`
+                : "Not yet folded"
+            } />
           </>
-        } />
+        )}
 
         {(order.detergent || order.extras) && (
           <Field label="Preferences" value={

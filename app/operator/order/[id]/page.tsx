@@ -71,6 +71,38 @@ async function advanceOrder(formData: FormData) {
 
   const supabase = createAdminClient()
 
+  // Marking an order Ready is the folding/finishing step — the output bag
+  // count and a photo of the packed bags are both required so the delivered
+  // count is never a guess and there's proof of what actually left the
+  // facility (see FoldingForm / recordFoldingPhoto). The client already
+  // gates the button on hasPhoto and pre-fills the count, but that's just
+  // UX — enforce both server-side too, since this action can be hit directly.
+  if (nextStatus === "ready") {
+    const { data: photoEvent } = await supabase
+      .from("order_events")
+      .select("id")
+      .eq("booking_id", bookingId)
+      .eq("event_type", "folding_photo")
+      .limit(1)
+      .maybeSingle()
+
+    const missing = [
+      (!outputBags || outputBags <= 0) ? "an output bag count" : null,
+      !photoEvent ? "a folding photo" : null,
+    ].filter(Boolean)
+
+    if (missing.length > 0) {
+      await supabase.from("order_events").insert({
+        booking_id: bookingId,
+        event_type: "blocked_ready_transition",
+        notes: `Couldn't mark Ready — missing ${missing.join(" and ")}.`,
+        created_by: operatorName,
+      })
+      revalidatePath(`/operator/order/${bookingId}`)
+      return
+    }
+  }
+
   // Handle weight entry if needed (first washer load) — the actual pricing
   // math and charge dispatch live in recordWeightAndCharge (app/actions/weigh-in.ts)
   // so this and the admin order page's standalone weight card share one

@@ -38,7 +38,7 @@ export function FoldingForm({ bookingId, pickupBagCount, buttonColor, advanceOrd
           How many bags are packed for delivery?
         </label>
         <div className="flex items-center gap-3">
-          <input name="output_bags" type="number" min="1" defaultValue={pickupBagCount}
+          <input name="output_bags" type="number" min="1" required defaultValue={pickupBagCount}
             className="w-24 rounded-xl border-2 border-gray-200 px-3 py-2.5 text-2xl font-extrabold text-[#0D2240] text-center focus:outline-none focus:border-[#E8726A]" />
           <p className="text-sm text-gray-400">bags out<br /><span className="text-gray-300">(picked up: {pickupBagCount})</span></p>
         </div>
