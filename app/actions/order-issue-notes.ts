@@ -65,6 +65,36 @@ export async function createOrderIssueNote(bookingId: string, note: string): Pro
   return { success: true }
 }
 
+export async function updateOrderIssueNote(noteId: string, bookingId: string, note: string): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin()
+  const trimmed = note.trim()
+  if (!trimmed) return { error: "Note can't be empty" }
+
+  const supabase = createAdminClient()
+
+  // Sent notes are a record of what the customer was actually told — only
+  // drafts can be revised.
+  const { data: existing } = await supabase
+    .from("order_issue_notes")
+    .select("status")
+    .eq("id", noteId)
+    .single()
+  if (existing?.status === "sent") return { error: "Can't edit a note that's already been sent" }
+
+  const { error } = await supabase
+    .from("order_issue_notes")
+    .update({ note: trimmed })
+    .eq("id", noteId)
+
+  if (error) {
+    console.error("[order-issue-notes] update failed:", error)
+    return { error: "Failed to save changes" }
+  }
+
+  revalidatePath(`/admin/orders/${bookingId}`)
+  return { success: true }
+}
+
 export async function deleteOrderIssueNote(noteId: string, bookingId: string): Promise<{ success?: boolean; error?: string }> {
   await requireAdmin()
   const supabase = createAdminClient()

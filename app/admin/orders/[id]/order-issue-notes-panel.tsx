@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import {
   createOrderIssueNote,
+  updateOrderIssueNote,
   deleteOrderIssueNote,
   sendOrderIssueNote,
   type OrderIssueNote,
@@ -30,6 +31,9 @@ export function OrderIssueNotesPanel({
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [sendingId, setSendingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState("")
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -71,6 +75,33 @@ export function OrderIssueNotesPanel({
     setNotes(prev => prev.map(n => n.id === noteId
       ? { ...n, status: "sent", sent_at: new Date().toISOString(), sent_email: !!result.sentEmail, sent_sms: !!result.sentSms }
       : n))
+  }
+
+  function startEdit(note: OrderIssueNote) {
+    setEditingId(note.id)
+    setEditText(note.note)
+    setError(null)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditText("")
+  }
+
+  async function handleSaveEdit(noteId: string) {
+    const trimmed = editText.trim()
+    if (!trimmed) return
+    setIsSavingEdit(true)
+    setError(null)
+    const result = await updateOrderIssueNote(noteId, bookingId, trimmed)
+    setIsSavingEdit(false)
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+    setNotes(prev => prev.map(n => (n.id === noteId ? { ...n, note: trimmed } : n)))
+    setEditingId(null)
+    setEditText("")
   }
 
   async function handleDelete(noteId: string) {
@@ -126,14 +157,42 @@ export function OrderIssueNotesPanel({
                 </span>
               </div>
 
-              <p className="text-sm text-[#0D2240] whitespace-pre-wrap">{note.note}</p>
+              {editingId === note.id ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={editText}
+                    onChange={e => setEditText(e.target.value)}
+                    rows={3}
+                    autoFocus
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleSaveEdit(note.id)}
+                      disabled={isSavingEdit || !editText.trim()}
+                      className="px-3 py-1.5 rounded-lg bg-[#0D2240] hover:bg-[#1a3a5c] disabled:opacity-40 text-white text-[10px] font-bold transition-colors"
+                    >
+                      {isSavingEdit ? "Saving…" : "Save Changes"}
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      disabled={isSavingEdit}
+                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 text-[10px] font-bold transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-[#0D2240] whitespace-pre-wrap">{note.note}</p>
+              )}
 
               {note.status === "sent" ? (
                 <p className="text-[10px] text-gray-400 mt-1.5">
                   Sent via {[note.sent_email && "email", note.sent_sms && "SMS"].filter(Boolean).join(" + ") || "—"}
                   {note.sent_at && ` · ${new Date(note.sent_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`}
                 </p>
-              ) : (
+              ) : editingId !== note.id ? (
                 <div className="flex items-center gap-2 mt-2">
                   <button
                     onClick={() => handleSend(note.id)}
@@ -144,13 +203,19 @@ export function OrderIssueNotesPanel({
                     {sendingId === note.id ? "Sending…" : `Send to Customer (${[hasEmail && "email", hasPhone && "SMS"].filter(Boolean).join(" + ")})`}
                   </button>
                   <button
+                    onClick={() => startEdit(note)}
+                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-[#0D2240] hover:border-gray-300 text-[10px] font-bold transition-colors"
+                  >
+                    Edit
+                  </button>
+                  <button
                     onClick={() => handleDelete(note.id)}
                     className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200 text-[10px] font-bold transition-colors"
                   >
                     Discard
                   </button>
                 </div>
-              )}
+              ) : null}
             </div>
           ))}
         </div>
