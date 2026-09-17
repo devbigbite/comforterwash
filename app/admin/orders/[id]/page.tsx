@@ -535,6 +535,39 @@ async function adjustBagCountAction(formData: FormData) {
   revalidatePath(`/admin/orders/${bookingId}`)
 }
 
+// Bags Delivered adjustment — this is the wash operator's folded/packed
+// output count (bookings.output_bags), a separate number from Bags Picked
+// Up (num_bags / order_bags rows above). No per-bag records exist for the
+// output side, it's just the one field the operator normally sets from the
+// folding step (app/operator/order/[id]/folding-form.tsx) — this lets an
+// admin fix it directly, e.g. after a call with the customer about a
+// pickup/delivery bag-count mismatch.
+async function adjustOutputBagsAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  const newCount = parseInt(formData.get("outputBagCount") as string, 10)
+  await assertBookingOwnership(bookingId)
+  if (isNaN(newCount) || newCount < 1) return
+
+  const supabase = createAdminClient()
+  const { data: existing } = await supabase
+    .from("bookings")
+    .select("output_bags")
+    .eq("id", bookingId)
+    .single()
+  const previous = existing?.output_bags ?? null
+
+  await supabase.from("bookings").update({ output_bags: newCount }).eq("id", bookingId)
+  await supabase.from("order_events").insert({
+    booking_id: bookingId,
+    event_type: "output_bags_adjusted",
+    notes: `Bags Delivered adjusted by admin: ${previous ?? "not set"} → ${newCount}`,
+    created_by: "admin",
+  })
+
+  revalidatePath(`/admin/orders/${bookingId}`)
+}
+
 // Photo-capture actions — one per event type, matching the driver/operator
 // flow's existing conventions (same event_type strings, so timeline icons
 // and downstream reporting already handle these). Lets an admin acting on
@@ -1221,28 +1254,72 @@ export default async function OrderDetailPage({
                 Bags ({bags?.length ?? 0})
               </h2>
 
-              {/* Adjust bag count — inserts/removes order_bags rows to match,
-                  same reconciliation logic the driver app uses at pickup. */}
-              <form action={adjustBagCountAction} className="flex items-end gap-2 mb-4">
-                <input type="hidden" name="bookingId" value={booking.id} />
-                <div className="flex-1 max-w-[110px]">
-                  <label className="text-xs text-gray-400 mb-1 block">Bag count</label>
-                  <input
-                    type="number"
-                    name="bagCount"
-                    min="1"
-                    step="1"
-                    defaultValue={bags?.length || booking.num_bags || 1}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
-                  />
+              {/* Two independent counts on the same order: Bags Picked Up is
+                  what the driver collected at the customer (num_bags /
+                  order_bags rows — normally set by confirmPickup's
+                  discrepancy stepper), Bags Delivered is what the wash
+                  operator packed back up (output_bags — normally set at the
+                  folding step). They can legitimately differ, and both are
+                  editable here directly for when a fix doesn't need to go
+                  through the driver/operator apps. */}
+              <div className="grid sm:grid-cols-2 gap-4 mb-5">
+                {/* Adjust bag count — inserts/removes order_bags rows to
+                    match, same reconciliation logic the driver app uses at
+                    pickup. */}
+                <div className="rounded-xl border border-gray-100 bg-[#f7f8fb] p-3">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">📦 Bags Picked Up</p>
+                  <form action={adjustBagCountAction} className="flex items-end gap-2">
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <div className="flex-1 max-w-[110px]">
+                      <label className="text-xs text-gray-400 mb-1 block">Bag count</label>
+                      <input
+                        type="number"
+                        name="bagCount"
+                        min="1"
+                        step="1"
+                        defaultValue={bags?.length || booking.num_bags || 1}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="rounded-xl bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-xs px-4 py-2.5 transition-colors"
+                    >
+                      Update Count
+                    </button>
+                  </form>
                 </div>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-[#0D2240] hover:bg-[#1a3a5c] text-white font-bold text-xs px-4 py-2.5 transition-colors"
-                >
-                  Update Count
-                </button>
-              </form>
+
+                {/* Adjust output_bags directly — the wash operator's folded
+                    count. No order_bags rows to reconcile on this side, it's
+                    just the one field. */}
+                <div className="rounded-xl border border-gray-100 bg-[#f7f8fb] p-3">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🚚 Bags Delivered</p>
+                  <form action={adjustOutputBagsAction} className="flex items-end gap-2">
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <div className="flex-1 max-w-[110px]">
+                      <label className="text-xs text-gray-400 mb-1 block">Bag count</label>
+                      <input
+                        type="number"
+                        name="outputBagCount"
+                        min="1"
+                        step="1"
+                        defaultValue={(booking.output_bags as number | null) || bags?.length || booking.num_bags || 1}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="rounded-xl bg-[#E8726A] hover:bg-[#d45f57] text-white font-bold text-xs px-4 py-2.5 transition-colors"
+                    >
+                      Update Count
+                    </button>
+                  </form>
+                  <p className="text-[10px] text-gray-400 mt-2">
+                    {booking.output_bags != null ? `Currently: ${booking.output_bags} bag(s) delivered` : "Not yet folded/counted"}
+                  </p>
+                </div>
+              </div>
 
               <div className="space-y-3">
                 {bags?.map((bag) => (
