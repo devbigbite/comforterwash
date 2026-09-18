@@ -64,10 +64,20 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
    */
   async function isPageStale(): Promise<boolean> {
     try {
-      const res = await fetch(window.location.pathname + window.location.search, {
-        cache: "no-store",
-        headers: { purpose: "prefetch" },
-      })
+      // Same class of bug as attemptUpload below: on a dead cellular spot
+      // this fetch can hang with no timeout of its own, which would leave
+      // "+ Add Photo" doing nothing at all when tapped (worse than the
+      // upload hang, since it happens before the camera even opens).
+      // Bounding it with withTimeout guarantees this always resolves.
+      const res = await withTimeout(
+        fetch(window.location.pathname + window.location.search, {
+          cache: "no-store",
+          headers: { purpose: "prefetch" },
+        }),
+        5000,
+        null
+      )
+      if (!res) return false
       const html = await res.text()
       const liveBuildId = extractBuildId(html)
       if (!liveBuildId || !buildIdRef.current) return false
@@ -129,24 +139,26 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
   // show and no way for the retry loop below to know it should give up and
   // try again. AbortController forces it to fail fast instead of hanging.
   async function attemptUpload(file: File, path: string, contentType: string): Promise<string | null> {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 20000)
-    try {
-      const supabase = createClient()
-      const { error: uploadError } = await supabase.storage
-        .from("order-photos")
-        .upload(path, file, { upsert: false, contentType })
-      // NOTE: supabase-js's storage upload() doesn't currently accept an
-      // AbortSignal directly, so the timeout above guards the case where
-      // fetch itself would otherwise hang; abort() firing here just lets
-      // this attempt's promise settle (with uploadError set) instead of
-      // leaving the driver stuck, and the retry loop below moves on.
-      return uploadError ? uploadError.message : null
-    } catch (err) {
-      return err instanceof Error ? err.message : String(err)
-    } finally {
-      clearTimeout(timer)
-    }
+    const supabase = createClient()
+    const uploadPromise = supabase.storage
+      .from("order-photos")
+      .upload(path, file, { upsert: false, contentType })
+      .then(({ error }) => (error ? error.message : null))
+      .catch((err) => (err instanceof Error ? err.message : String(err)))
+
+    // supabase-js's storage upload() doesn't accept an AbortSignal, so on a
+    // real cellular dead spot this fetch can hang indefinitely with nothing
+    // to show the driver and nothing to make the retry loop below move on
+    // -- confirmed in the field as "took the pickup photo, then the app
+    // just sits there and won't let her do anything else." A previous
+    // version of this used an AbortController whose signal was never
+    // actually attached to the upload call, so its abort() firing did
+    // nothing -- the promise it was meant to cancel just kept hanging.
+    // Racing the promise itself against a plain timeout (same technique as
+    // withTimeout() above) actually unblocks the UI: after 20s this attempt
+    // is treated as failed and the retry loop tries again, instead of the
+    // spinner running forever.
+    return withTimeout(uploadPromise, 20000, "Upload timed out — check your signal and try again")
   }
 
   async function uploadFile(file: File) {
