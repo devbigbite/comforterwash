@@ -96,16 +96,18 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
    * then had to be re-downloaded just to render the small thumbnail preview,
    * and on a driver's weak cellular signal out on a route that redundant
    * multi-megabyte fetch would time out with a generic "Load failed", making
-   * a perfectly good upload look broken. Capping the longest edge at 1600px
-   * and re-encoding as JPEG q=0.75 is more than enough detail for proof-of-
-   * delivery/pickup photos and shrinks most captures to a few hundred KB.
+   * a perfectly good upload look broken. Capping the longest edge at 800px
+   * and re-encoding as JPEG q=0.75 is still enough detail to visually count
+   * bags for proof-of-pickup/delivery, while shrinking most captures well
+   * below the old 1600px cap for faster, more reliable uploads on weak
+   * cellular signal (see driver photo-upload hang investigation).
    * Falls back to the original file if compression fails for any reason
    * (e.g. an unsupported format) — never blocks the upload over this.
    */
   async function compressImage(file: File): Promise<File> {
     try {
       const bitmap = await createImageBitmap(file)
-      const MAX_EDGE = 1600
+      const MAX_EDGE = 800
       const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height))
       const w = Math.round(bitmap.width * scale)
       const h = Math.round(bitmap.height * scale)
