@@ -196,10 +196,18 @@ async function recordFoldingPhoto(formData: FormData) {
   const bookingId = formData.get("bookingId") as string
   const photoUrl  = formData.get("photoUrl") as string
   const supabase  = createAdminClient()
+  // Was writing the URL into `notes` instead of the `photo_url` column that
+  // every other photo checkpoint uses (see recordPhotoEvent in
+  // app/driver/order/[id]/page.tsx). The Order Timeline on the admin order
+  // page only renders an <img> when event.photo_url is set -- with the URL
+  // sitting in `notes` instead, a folding photo an operator took (and which
+  // is REQUIRED before "Mark Ready", see advanceOrder's server-side guard
+  // above) silently showed up as a wall of plain text instead of a photo,
+  // making it look like the photo was never taken at all.
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "folding_photo",
-    notes: photoUrl,
+    photo_url: photoUrl,
     created_by: "operator",
   })
 }
