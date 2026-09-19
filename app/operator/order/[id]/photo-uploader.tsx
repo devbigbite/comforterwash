@@ -3,6 +3,54 @@
 import { useState, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 
+// Races a promise against a plain timeout, resolving to `fallback` if the
+// promise hasn't settled in time. Same technique as the driver app's
+// photo-uploader.tsx -- some phones/formats leave createImageBitmap()
+// neither resolving nor rejecting, and Supabase's storage upload() has no
+// timeout of its own, so anything that awaits a real network call on this
+// facility's WiFi needs a hard backstop or it can hang the "Uploading..."
+// spinner indefinitely with nothing for the operator to do about it.
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise(resolve => {
+    const timer = setTimeout(() => resolve(fallback), ms)
+    promise.then(value => { clearTimeout(timer); resolve(value) }, () => { clearTimeout(timer); resolve(fallback) })
+  })
+}
+
+// Downscales + re-encodes a phone-camera photo before upload. This uploader
+// previously sent the raw camera capture straight through -- 3+ MB per
+// folding photo, uncompressed -- which made the photo slow to render on the
+// admin Order Timeline (looking, to a non-technical eye, like "the photo
+// isn't there") and slow to upload on a facility's WiFi. Matches the same
+// 800px-long-edge / JPEG q=0.75 setting used by the driver app's photo
+// uploader -- still plenty of detail to confirm bag counts and general
+// condition, a fraction of the file size. Falls back to the original file
+// if compression fails for any reason (e.g. an unsupported format).
+async function compressImage(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file)
+    const MAX_EDGE = 800
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height))
+    const w = Math.round(bitmap.width * scale)
+    const h = Math.round(bitmap.height * scale)
+
+    const canvas = document.createElement("canvas")
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return file
+    ctx.drawImage(bitmap, 0, 0, w, h)
+
+    const blob: Blob | null = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.75))
+    if (!blob) return file
+
+    const compressedName = file.name.replace(/\.\w+$/, "") + ".jpg"
+    return new File([blob], compressedName, { type: "image/jpeg" })
+  } catch {
+    return file
+  }
+}
+
 // A photo the uploader already knows is saved to order_events -- carries
 // the event id so it can be deleted. A photo just uploaded in this browser
 // session (see handleFile) has no id yet, since the insert action here
@@ -74,22 +122,35 @@ export default function PhotoUploader({
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
 
     setUploading(true)
     setError(null)
 
+    // Bound the compression step the same way the driver app does -- a hang
+    // in createImageBitmap() degrades to "use the original file" instead of
+    // stranding the operator on a spinner forever.
+    const file = await withTimeout(compressImage(rawFile), 8000, rawFile)
+
     const supabase = createClient()
     const safeName = file.name.replace(/[^a-z0-9.]/gi, "_").toLowerCase()
     const path = `${bookingId}/${Date.now()}-${safeName}`
+    const contentType = file.type && file.type.startsWith("image/") ? file.type : "image/jpeg"
 
-    const { error: uploadError } = await supabase.storage
+    const uploadPromise = supabase.storage
       .from("order-photos")
-      .upload(path, file, { upsert: false })
+      .upload(path, file, { upsert: false, contentType })
+      .then(({ error }) => (error ? error.message : null))
+      .catch((err) => (err instanceof Error ? err.message : String(err)))
 
-    if (uploadError) {
-      setError(uploadError.message)
+    // Same fix as the driver app's attemptUpload -- bound the upload call
+    // itself against a timeout so a dead connection can't hang this forever
+    // with no error and no way to retry.
+    const uploadErrorMessage = await withTimeout(uploadPromise, 20000, "Upload timed out — check your connection and try again")
+
+    if (uploadErrorMessage) {
+      setError(uploadErrorMessage)
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ""
       return
