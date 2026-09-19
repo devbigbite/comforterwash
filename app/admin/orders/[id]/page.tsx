@@ -25,6 +25,16 @@ import { WeightEntryForm } from "@/components/admin/WeightEntryForm"
 import { OrderSnapshot } from "@/components/admin/order-snapshot"
 import { AddressEditPanel } from "./address-edit-panel"
 
+// Forces this page to render fresh on every request instead of being
+// eligible for Vercel/Next's Full Route Cache. Without this, an order page
+// visited once can get cached at the edge and keep serving that stale
+// snapshot to every admin who opens it afterward -- no client-side hard
+// refresh can bypass a server-side cache hit. app/book/wash-fold/page.tsx
+// already sets this for the same reason. Order detail pages are inherently
+// live (photos, notes, statuses, bag counts all change constantly), so
+// there's no upside to caching this one.
+export const dynamic = "force-dynamic"
+
 // This page runs server-side on Vercel, whose default runtime clock is UTC
 // -- date-fns' format() has no timezone awareness, so it was rendering every
 // order-timeline timestamp (and the weigh-in date below) several hours off

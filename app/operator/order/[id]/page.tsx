@@ -210,6 +210,23 @@ async function recordFoldingPhoto(formData: FormData) {
     photo_url: photoUrl,
     created_by: "operator",
   })
+
+  // This is operationally the SAME photo the driver app's "Finished Product
+  // & Facility Location Photo" card is asking for ("shows the driver what
+  // to grab and where") -- but that card reads booking.facility_floor_photo_url,
+  // a completely separate column only ever written by the Facility Board's
+  // own uploader (see updateFacilityDetails in app/actions/facility-board.ts).
+  // Nothing connected the two, so an operator completing the *required*
+  // folding-step photo here never populated what the driver actually sees,
+  // making it look like no photo was taken at all even though one was.
+  // Writing it here too means one photo now satisfies both.
+  await supabase
+    .from("bookings")
+    .update({
+      facility_floor_photo_url: photoUrl,
+      facility_floor_photo_taken_at: new Date().toISOString(),
+    })
+    .eq("id", bookingId)
 }
 
 const COLOR_KEYS = [
