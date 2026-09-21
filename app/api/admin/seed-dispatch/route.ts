@@ -1,16 +1,22 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/auth-guard"
+import { getLocationId, getLocationTimezone } from "@/lib/location"
 
 export async function POST() {
+  await requireAdmin()
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  const timezone = await getLocationTimezone(locationId)
 
-  // Today in Eastern Time
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date())
+  // Today in the current tenant's configured timezone.
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date())
 
   // Grab WF- sample orders that are confirmed or picked_up
   const { data: bookings, error } = await supabase
     .from("bookings")
     .select("id, short_code, status")
+    .eq("location_id", locationId)
     .like("short_code", "WF-%")
     .in("status", ["confirmed", "picked_up", "in_progress"])
     .order("short_code")
@@ -33,6 +39,7 @@ export async function POST() {
       .from("bookings")
       .update(update)
       .eq("id", b.id)
+      .eq("location_id", locationId)
 
     results.push({ short_code: b.short_code, status: b.status, ok: !updateErr, error: updateErr?.message })
   }
@@ -41,5 +48,5 @@ export async function POST() {
 }
 
 export async function GET() {
-  return NextResponse.json({ info: "POST to this endpoint to set today's date on WF- sample orders for dispatch demo" })
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 })
 }

@@ -114,9 +114,8 @@ New tenants run on `<slug>.washfoldclean.com`. To move them to their own domain:
 2. Add the domain in Vercel
 3. Only then have them point DNS
 
-Getting this backwards is a real failure mode: `middleware.ts` falls back to
-**WashFold Orlando** for an unrecognized custom domain, so their visitors land
-on Orlando's live site rather than an error page.
+Unrecognized custom domains fail closed with a 404. Set `custom_domain` before
+pointing DNS so the new hostname resolves to the intended tenant immediately.
 
 **Tell the tenant upfront: their custom domain only covers the customer-facing
 site.** `/admin` and `/super-admin` always redirect to `comforterwash.com`
