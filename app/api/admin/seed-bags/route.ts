@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/auth-guard"
+import { getLocationId } from "@/lib/location"
 
 // Maps booking status → what bag status to create
 const BOOKING_TO_BAG_STATUS: Record<string, string> = {
@@ -14,12 +16,15 @@ const BOOKING_TO_BAG_STATUS: Record<string, string> = {
 const IN_PROGRESS_STAGES = ["at_facility", "in_washer", "in_dryer", "folded"]
 
 export async function POST() {
+  await requireAdmin()
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
 
   // Get all WF- sample orders
   const { data: bookings } = await supabase
     .from("bookings")
     .select("id, short_code, status, service_type, num_bags, num_comforters")
+    .eq("location_id", locationId)
     .like("short_code", "WF-%")
     .order("short_code")
 

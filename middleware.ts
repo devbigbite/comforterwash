@@ -81,7 +81,19 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
-async function getLocationIdForHost(hostname: string): Promise<{ id: string; demoExpired: boolean }> {
+type HostLocation = { id: string; demoExpired: boolean } | null
+
+function isOrlandoPlatformHost(host: string): boolean {
+  if (host === "comforterwash.com" || host === "www.comforterwash.com") return true
+
+  // Vercel's deployment hostname is infrastructure owned by this app, not a
+  // customer-supplied custom domain. Preserve preview/production deployment
+  // access without treating arbitrary *.vercel.app hosts as Orlando.
+  const vercelHost = process.env.VERCEL_URL?.split(":")[0]?.toLowerCase()
+  return !!vercelHost && host === vercelHost
+}
+
+async function getLocationIdForHost(hostname: string): Promise<HostLocation> {
   const host = hostname.split(":")[0] // strip port for local dev
 
   // Local development: always use Orlando
@@ -106,17 +118,81 @@ async function getLocationIdForHost(hostname: string): Promise<{ id: string; dem
   } else {
     // No matching tenant. A *subdomain* of the platform domain that doesn't
     // match any real slug (e.g. a stale/mistyped or made-up demo link) falls
-    // back to the internal WashFoldDemo sandbox — never to Orlando's real,
-    // paying-customer site. The bare platform domain / an unmatched custom
-    // domain still falls back to Orlando, same as before.
+    // back to the internal WashFoldDemo sandbox. The canonical platform host
+    // remains Orlando for backward compatibility. Every other unknown custom
+    // domain fails closed instead of silently rendering Orlando's business.
     const isUnmatchedSubdomain = new RegExp(`^[a-z0-9-]+\.${PLATFORM_DOMAIN.replace(".", "\.")}$`).test(host)
-    id = isUnmatchedSubdomain ? WASHFOLD_DEMO_LOCATION_ID : ORLANDO_LOCATION_ID
+    if (isUnmatchedSubdomain) {
+      id = WASHFOLD_DEMO_LOCATION_ID
+    } else if (isOrlandoPlatformHost(host)) {
+      id = ORLANDO_LOCATION_ID
+    } else {
+      return null
+    }
   }
 
   // Cache the result
   locationCache.set(host, { id, demoExpired, expiresAt: Date.now() + CACHE_TTL_MS })
 
   return { id, demoExpired }
+}
+
+function tenantNotFoundResponse() {
+  return new NextResponse("This tenant site is not configured.", {
+    status: 404,
+    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+  })
+}
+
+async function isAuthorizedForAdminLocation(request: NextRequest, locationId: string): Promise<boolean> {
+  if (request.cookies.get("admin_auth")?.value !== "authenticated") return false
+
+  // Preserve the platform owner's existing super-admin "Enter Admin" flow.
+  // Both markers are httpOnly and are set together only after the super-admin
+  // action has authorized the impersonation target.
+  if (
+    request.cookies.get("super_admin_auth")?.value === "authenticated" &&
+    request.cookies.get("super_admin_impersonating")?.value === "1"
+  ) return true
+
+  // Preserve the original WashFold Orlando owner login, but never let that
+  // legacy cookie authorize a different tenant.
+  if (locationId === ORLANDO_LOCATION_ID && !request.cookies.get("admin_location_id")) return true
+
+  const sessionClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => request.cookies.getAll(),
+        setAll: () => {},
+      },
+    },
+  )
+  const { data: { user } } = await sessionClient.auth.getUser()
+  if (!user) return false
+
+  const admin = createEdgeAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+  const { data: membership } = await admin
+    .from("location_users")
+    .select("role, is_super_admin")
+    .eq("user_id", user.id)
+    .eq("location_id", locationId)
+    .maybeSingle()
+
+  if (membership?.role === "admin" || membership?.is_super_admin) return true
+
+  const { data: superAdmin } = await admin
+    .from("location_users")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("is_super_admin", true)
+    .limit(1)
+    .maybeSingle()
+  return !!superAdmin
 }
 
 // Both domains point at this same deployment, but browser cookies can't be
@@ -148,7 +224,9 @@ export async function middleware(request: NextRequest) {
     url.port = ""
     const res = NextResponse.redirect(url, 308)
     if (pathname.startsWith("/admin")) {
-      const { id: tenantLocationId } = await getLocationIdForHost(rawHost)
+      const resolvedTenant = await getLocationIdForHost(rawHost)
+      if (!resolvedTenant) return tenantNotFoundResponse()
+      const { id: tenantLocationId } = resolvedTenant
       res.cookies.set("admin_location_id", tenantLocationId, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -182,7 +260,9 @@ export async function middleware(request: NextRequest) {
 
   // ── 1. Resolve location from hostname ────────────────────────────────────
   const hostname = request.headers.get("host") ?? "localhost"
-  const { id: hostResolvedLocationId, demoExpired: hostDemoExpired } = await getLocationIdForHost(hostname)
+  const hostLocation = await getLocationIdForHost(hostname)
+  if (!hostLocation) return tenantNotFoundResponse()
+  const { id: hostResolvedLocationId, demoExpired: hostDemoExpired } = hostLocation
 
   // Public-facing demo override — set by /demo (see app/demo/route.ts) so a
   // prospect exploring the sandbox sees the isolated WashFoldDemo tenant
@@ -258,8 +338,7 @@ export async function middleware(request: NextRequest) {
     return res
   }
   if (pathname.startsWith("/admin")) {
-    const authCookie = request.cookies.get("admin_auth")
-    if (!authCookie || authCookie.value !== "authenticated") {
+    if (!(await isAuthorizedForAdminLocation(request, effectiveAdminLocationId))) {
       return NextResponse.redirect(new URL("/admin/login", request.url))
     }
     // Forward location header into admin too
