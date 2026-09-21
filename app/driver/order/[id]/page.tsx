@@ -10,6 +10,7 @@ import { sendBookingNotification } from "@/lib/sms"
 import { sendWeightConfirmedEmail } from "@/lib/email"
 import { syncPhaseFromStatus } from "@/lib/order-status-sync"
 import { calculateOrderBilling } from "@/lib/order-billing"
+import { getLocationId } from "@/lib/location"
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pending", picked_up: "Picked Up",
@@ -32,6 +33,19 @@ const STATUS_COLOR: Record<string, string> = {
 }
 const ALL_STATUSES = ["pending","picked_up","at_warehouse","at_facility","in_washer","in_dryer","folded","ready","ready_at_warehouse","out_for_delivery","delivered"]
 
+async function requireCurrentLocationBooking(bookingId: string) {
+  const locationId = await getLocationId()
+  const supabase = createAdminClient()
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("id", bookingId)
+    .eq("location_id", locationId)
+    .maybeSingle()
+  if (!booking) notFound()
+  return locationId
+}
+
 // ── Notify customer the driver is on the way for pickup ──────────────────────
 // Fired BEFORE the driver arrives (not after collecting bags), so the
 // customer has a chance to actually put the laundry out. Just an SMS + an
@@ -41,11 +55,13 @@ async function notifyPickupEnroute(formData: FormData) {
   const bookingId  = formData.get("bookingId") as string
   const driverName = (formData.get("driverName") as string) || "driver"
   const supabase   = createAdminClient()
+  const locationId = await requireCurrentLocationBooking(bookingId)
 
   const { data: booking } = await supabase
     .from("bookings")
     .select("customer_name, pickup_time_window")
     .eq("id", bookingId)
+    .eq("location_id", locationId)
     .single()
 
   if (booking) {
@@ -75,6 +91,7 @@ async function confirmPickup(formData: FormData) {
   const actualBagCount = parseInt(formData.get("actualBagCount") as string, 10)
   const colorKey       = (formData.get("colorKey") as string) || null
   const supabase       = createAdminClient()
+  const locationId     = await requireCurrentLocationBooking(bookingId)
 
   // Fetch existing bags so we can reconcile the count
   const { data: existingBags } = await supabase
@@ -124,6 +141,7 @@ async function confirmPickup(formData: FormData) {
     num_bags:  isNaN(actualBagCount) ? bookedCount : actualBagCount,
     ...(colorKey ? { color_key: colorKey } : {}),
   }).eq("id", bookingId)
+    .eq("location_id", locationId)
 
   // Sets status to "picked_up" and fires the "we've got your laundry" SMS.
   await updateBookingStatus(bookingId, "picked_up")
@@ -147,12 +165,14 @@ async function confirmDropoff(formData: FormData) {
   if (isNaN(weightLbs) || weightLbs <= 0) return
 
   const supabase = createAdminClient()
+  const locationId = await requireCurrentLocationBooking(bookingId)
 
   // Look up booking to get locked-in rate for customer billing
   const { data: bk } = await supabase
     .from("bookings")
     .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents, assigned_facility_id, location_id, short_code, customer_name, customer_email, customer_phone, commercial_account_id, wash_fold_bag_selection, wash_only_bag_selection")
     .eq("id", bookingId)
+    .eq("location_id", locationId)
     .single()
 
   // Auto-assign the tenant's own facility if this booking isn't pointed at
@@ -204,6 +224,7 @@ async function confirmDropoff(formData: FormData) {
     status:                 newStatus,
     ...(assignedFacilityId ? { assigned_facility_id: assignedFacilityId } : {}),
   }).eq("id", bookingId)
+    .eq("location_id", locationId)
 
   // This update was previously unchecked — if it failed, the driver still
   // saw a "Dropped at facility" success screen and the timeline still logged
@@ -293,6 +314,7 @@ async function confirmDelivery(formData: FormData) {
   const bookingId  = formData.get("bookingId") as string
   const driverName = (formData.get("driverName") as string) || "driver"
   const supabase   = createAdminClient()
+  await requireCurrentLocationBooking(bookingId)
 
   // Start delivery run — advance ready bags to out_for_delivery
   const nextStatus = formData.get("nextStatus") as string
@@ -327,6 +349,7 @@ async function recordPhotoEvent(formData: FormData) {
     photo_customer_delivery:"Photo at customer — bags delivered",
   }
   const supabase = createAdminClient()
+  await requireCurrentLocationBooking(bookingId)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: eventType,
@@ -342,8 +365,9 @@ async function recordPhotoEvent(formData: FormData) {
 export default async function DriverOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
 
-  const { data: booking } = await supabase.from("bookings").select("*").eq("id", id).single()
+  const { data: booking } = await supabase.from("bookings").select("*").eq("id", id).eq("location_id", locationId).single()
   if (!booking) notFound()
 
   // Facility is the default drop-off for every tenant, home-based or not.
@@ -388,6 +412,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
   const { data: sameDay } = await supabase
     .from("bookings")
     .select("color_key")
+    .eq("location_id", locationId)
     .eq("pickup_date", booking.pickup_date)
     .neq("id", id)
     .not("color_key", "is", null)

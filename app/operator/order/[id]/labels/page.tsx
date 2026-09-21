@@ -5,7 +5,7 @@ import { OperatorOrderGate } from "@/components/operator-order-gate"
 import { PrintReceiptsButton } from "@/components/print-receipts-button"
 import type { ReceiptData } from "@/lib/escpos"
 import { getReceiptText } from "@/app/actions/settings"
-import { getBranding } from "@/lib/location"
+import { getBranding, getLocationId } from "@/lib/location"
 import { loyaltyNoticeFor } from "@/lib/receipt-text-config"
 
 // Color keys are physical stickers applied by hand — the thermal printer is
@@ -19,7 +19,8 @@ const COLOR_LABEL: Record<string, string> = {
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createAdminClient()
-  const { data: booking } = await supabase.from("bookings").select("short_code").eq("id", id).single()
+  const locationId = await getLocationId()
+  const { data: booking } = await supabase.from("bookings").select("short_code").eq("id", id).eq("location_id", locationId).single()
   const orderCode = (booking?.short_code ?? id.slice(0, 8)).toUpperCase()
   return { title: `Bag Receipts — ${orderCode}` }
 }
@@ -45,8 +46,9 @@ export default async function OperatorLabelsPage({
   const { id } = await params
   const { autoprint } = await searchParams
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
 
-  const { data: booking } = await supabase.from("bookings").select("*").eq("id", id).single()
+  const { data: booking } = await supabase.from("bookings").select("*").eq("id", id).eq("location_id", locationId).single()
   if (!booking) notFound()
 
   // Which visit (loyalty count) this is for this customer — drives the

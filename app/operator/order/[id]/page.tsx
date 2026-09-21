@@ -8,6 +8,7 @@ import { FoldingForm } from "./folding-form"
 import { PinGate } from "@/components/pin-gate"
 import { OperatorOrderGate } from "@/components/operator-order-gate"
 import { syncPhaseFromStatus } from "@/lib/order-status-sync"
+import { getLocationId } from "@/lib/location"
 
 const STATUS_LABEL: Record<string, string> = {
   pending:          "Pending",
@@ -57,6 +58,19 @@ const STAGE_CONFIG_WASH_ONLY: Record<string, StageConfig> = {
   in_dryer:    { action: "Mark Ready (No Fold)",next: "ready",     buttonColor: "bg-green-600 hover:bg-green-700",   needsMachines: false, needsOutputBags: true },
 }
 
+async function requireCurrentLocationBooking(bookingId: string) {
+  const locationId = await getLocationId()
+  const supabase = createAdminClient()
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("id", bookingId)
+    .eq("location_id", locationId)
+    .maybeSingle()
+  if (!booking) notFound()
+  return locationId
+}
+
 // ── Server actions ─────────────────────────────────────────────────────────────
 
 async function advanceOrder(formData: FormData) {
@@ -70,6 +84,7 @@ async function advanceOrder(formData: FormData) {
   const weightStr    = formData.get("weight_lbs") as string | null
 
   const supabase = createAdminClient()
+  const locationId = await requireCurrentLocationBooking(bookingId)
 
   // Marking an order Ready is the folding/finishing step — the output bag
   // count and a photo of the packed bags are both required so the delivered
@@ -124,13 +139,13 @@ async function advanceOrder(formData: FormData) {
   // operator actually got, so nothing else that reads the booking status
   // (Aerial View, Driver Routes, the facility board) ever saw the order
   // move past the first stage.
-  const { error: bookingStatusErr } = await supabase.from("bookings").update({ status: nextStatus }).eq("id", bookingId)
+  const { error: bookingStatusErr } = await supabase.from("bookings").update({ status: nextStatus }).eq("id", bookingId).eq("location_id", locationId)
   if (bookingStatusErr) console.error("[operator advanceOrder] bookings status update failed:", bookingStatusErr)
   await syncPhaseFromStatus(supabase, bookingId, nextStatus)
 
   // Save output bag count at folding/ready step
   if (outputBags && outputBags > 0) {
-    await supabase.from("bookings").update({ output_bags: outputBags }).eq("id", bookingId)
+    await supabase.from("bookings").update({ output_bags: outputBags }).eq("id", bookingId).eq("location_id", locationId)
   }
 
   // Hangers are only known at this same folding/finishing moment — charged
@@ -144,10 +159,10 @@ async function advanceOrder(formData: FormData) {
 
   // Save machine label to booking for chip display
   if (nextStatus === "in_washer" && machineIds.length > 0) {
-    await supabase.from("bookings").update({ washer_label: machineIds.join(", ") }).eq("id", bookingId)
+    await supabase.from("bookings").update({ washer_label: machineIds.join(", ") }).eq("id", bookingId).eq("location_id", locationId)
   }
   if (nextStatus === "in_dryer" && machineIds.length > 0) {
-    await supabase.from("bookings").update({ dryer_label: machineIds.join(", ") }).eq("id", bookingId)
+    await supabase.from("bookings").update({ dryer_label: machineIds.join(", ") }).eq("id", bookingId).eq("location_id", locationId)
   }
 
   // Log event with machine assignments
@@ -178,8 +193,9 @@ async function setOrderStage(formData: FormData) {
   const stage      = formData.get("stage") as string
   const operator   = (formData.get("operatorName") as string) || "operator"
   const supabase   = createAdminClient()
+  const locationId = await requireCurrentLocationBooking(bookingId)
   await supabase.from("order_bags").update({ status: stage }).eq("booking_id", bookingId)
-  const { error: bookingStatusErr } = await supabase.from("bookings").update({ status: stage }).eq("id", bookingId)
+  const { error: bookingStatusErr } = await supabase.from("bookings").update({ status: stage }).eq("id", bookingId).eq("location_id", locationId)
   if (bookingStatusErr) console.error("[operator setOrderStage] bookings status update failed:", bookingStatusErr)
   await syncPhaseFromStatus(supabase, bookingId, stage)
   await supabase.from("order_events").insert({
@@ -196,6 +212,7 @@ async function recordFoldingPhoto(formData: FormData) {
   const bookingId = formData.get("bookingId") as string
   const photoUrl  = formData.get("photoUrl") as string
   const supabase  = createAdminClient()
+  const locationId = await requireCurrentLocationBooking(bookingId)
   // Was writing the URL into `notes` instead of the `photo_url` column that
   // every other photo checkpoint uses (see recordPhotoEvent in
   // app/driver/order/[id]/page.tsx). The Order Timeline on the admin order
@@ -227,6 +244,7 @@ async function recordFoldingPhoto(formData: FormData) {
       facility_floor_photo_taken_at: new Date().toISOString(),
     })
     .eq("id", bookingId)
+    .eq("location_id", locationId)
 }
 
 const COLOR_KEYS = [
@@ -247,9 +265,10 @@ async function setFacilityDecision(formData: FormData) {
   const holdAtFacility  = formData.get("hold_at_facility") === "true"
   const colorKey        = formData.get("color_key") as string | null
   const supabase        = createAdminClient()
+  const locationId      = await requireCurrentLocationBooking(bookingId)
   const updates: Record<string, unknown> = { hold_at_facility: holdAtFacility }
   if (colorKey) updates.color_key = colorKey
-  await supabase.from("bookings").update(updates).eq("id", bookingId)
+  await supabase.from("bookings").update(updates).eq("id", bookingId).eq("location_id", locationId)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
     event_type: "facility_decision",
@@ -264,11 +283,13 @@ async function setFacilityDecision(formData: FormData) {
 export default async function OperatorOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createAdminClient()
+  const locationId = await getLocationId()
 
   const { data: booking } = await supabase
     .from("bookings")
     .select(`*, assigned_facility:facilities!assigned_facility_id(id, name, processing_mode, rate_per_lb, minimum_lbs)`)
     .eq("id", id)
+    .eq("location_id", locationId)
     .single()
 
   if (!booking) notFound()
@@ -290,6 +311,7 @@ export default async function OperatorOrderPage({ params }: { params: Promise<{ 
   const { data: allFacilities } = await supabase
     .from("facilities")
     .select("id, name, machine_groups(id, name, type, machines(id, name, status))")
+    .eq("location_id", locationId)
     .eq("active", true).order("name")
 
   const orderCode      = booking.id.slice(0, 8).toUpperCase()
