@@ -40,22 +40,10 @@ create index if not exists bookings_delivery_date_idx on public.bookings(deliver
 create index if not exists bookings_status_idx on public.bookings(status);
 create index if not exists bookings_created_at_idx on public.bookings(created_at desc);
 
--- Enable RLS (but allow public access for now since this is a service business)
--- In production, you'd want admin authentication
+-- All application booking access goes through server-side actions using the
+-- service-role client. Keep the table closed to anon/authenticated PostgREST
+-- callers so one tenant can never read or update another tenant's orders by
+-- calling Supabase directly.
 alter table public.bookings enable row level security;
 
--- Allow anyone to insert bookings (customer orders)
-create policy "Allow public to create bookings"
-  on public.bookings for insert
-  with check (true);
-
--- For now, allow reading all bookings (admin will need this)
--- In production, add admin authentication
-create policy "Allow reading all bookings"
-  on public.bookings for select
-  using (true);
-
--- Allow updating bookings (for status changes, admin only in production)
-create policy "Allow updating bookings"
-  on public.bookings for update
-  using (true);
+revoke all on table public.bookings from anon, authenticated;
