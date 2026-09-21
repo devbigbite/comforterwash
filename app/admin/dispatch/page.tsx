@@ -369,6 +369,7 @@ export default async function DispatchPage({
       assigned_operator_id,
       assigned_facility:facilities!assigned_facility_id(id, name)
     `)
+    .eq("location_id", locationId)
     .in("status", ["at_facility", "in_washer", "in_dryer", "folded"])
     .order("customer_name")
 
