@@ -50,5 +50,29 @@ assertContains(
   "production hardening migration revokes direct booking access",
 )
 
+for (const file of [
+  "app/driver/order/[id]/page.tsx",
+  "app/operator/order/[id]/page.tsx",
+]) {
+  assertContains(file, /requireCurrentLocationBooking\(bookingId\)/, "order mutations verify tenant ownership")
+  assertContains(file, /\.eq\("id", id\)\s*\.eq\("location_id", locationId\)/, "order detail read is tenant scoped")
+}
+
+assertContains(
+  "app/driver/order/[id]/page.tsx",
+  /\.select\("color_key"\)\s*\.eq\("location_id", locationId\)/,
+  "same-day color lookup is tenant scoped",
+)
+assertContains(
+  "app/operator/order/[id]/page.tsx",
+  /\.from\("facilities"\)[\s\S]{0,180}\.eq\("location_id", locationId\)/,
+  "operator facility lookup is tenant scoped",
+)
+assertContains(
+  "app/operator/order/[id]/labels/page.tsx",
+  /\.select\("\*"\)\.eq\("id", id\)\.eq\("location_id", locationId\)/,
+  "printable customer order data is tenant scoped",
+)
+
 if (process.exitCode) process.exit(process.exitCode)
 console.log("OK — critical tenant isolation guards are present")
