@@ -73,6 +73,16 @@ assertContains(
   /\.select\("\*"\)\.eq\("id", id\)\.eq\("location_id", locationId\)/,
   "printable customer order data is tenant scoped",
 )
+assertContains(
+  "app/api/admin/seed-dispatch/route.ts",
+  /\.eq\("customer_email", demoEmail\)/,
+  "dispatch demo loader never selects real orders by short-code prefix",
+)
+assertContains(
+  "app/admin/dispatch/page.tsx",
+  /\.eq\("location_id", locationId\)\s*\.in\("status", \["at_facility"/,
+  "operator dispatch queue is tenant scoped",
+)
 
 if (process.exitCode) process.exit(process.exitCode)
 console.log("OK — critical tenant isolation guards are present")
