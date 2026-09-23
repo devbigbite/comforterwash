@@ -84,22 +84,35 @@ export function OrderRow({
         <td className="px-4 py-3 font-semibold text-[#0D2240] whitespace-nowrap">
           ${(((b.customer_final_cents ?? b.total_amount) ?? 0) / 100).toFixed(2)}
         </td>
+        {/* Dedicated Paid column -- a single-letter green P / red F, always
+            visible without hovering or expanding the row, so a scan down a
+            long list surfaces every failed charge. Only an actual failed
+            charge renders red -- an order that's simply not due to be
+            charged yet (future pickup, still pending, cancelled) renders a
+            neutral gray dash instead, so "everything not green is a
+            problem" stays true and the F doesn't cry wolf on normal orders. */}
+        <td className="px-4 py-3 text-center">
+          <span
+            title={b.payment_status ? `Payment: ${b.payment_status.replace(/_/g, " ")}` : "Payment: not charged"}
+            className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-extrabold ${
+              b.payment_status === "captured" || b.payment_status === "paid"
+                ? "bg-green-100 text-green-700"
+                : b.payment_status === "failed"
+                ? "bg-red-100 text-red-700"
+                : "bg-gray-100 text-gray-400"
+            }`}
+          >
+            {b.payment_status === "captured" || b.payment_status === "paid"
+              ? "P"
+              : b.payment_status === "failed"
+              ? "F"
+              : "–"}
+          </span>
+        </td>
         <td className="px-4 py-3 whitespace-nowrap">
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${STATUS_BADGE[b.status] ?? "bg-gray-100 text-gray-500"}`}>
             {b.status?.replace(/_/g, " ")}
           </span>
-          {/* Card on file failed to charge -- easy to miss scrolling a long
-              list, which is exactly how 2 of 21 failed charges got lost in
-              a recent batch. A payment_status of "failed" always means a
-              human needs to go retry or collect payment another way. */}
-          {b.payment_status === "failed" && (
-            <span
-              title="Card on file failed to charge — needs to be retried"
-              className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase bg-red-100 text-red-700 whitespace-nowrap"
-            >
-              ⚠ Charge Failed
-            </span>
-          )}
         </td>
         <td className="px-4 py-3">
           <Link
@@ -113,7 +126,7 @@ export function OrderRow({
       </tr>
       {open && (
         <tr className="bg-[#f7f8fb] border-t border-b border-gray-100">
-          <td colSpan={9} className="p-0">
+          <td colSpan={10} className="p-0">
             <OrderSnapshot order={b} compact />
           </td>
         </tr>

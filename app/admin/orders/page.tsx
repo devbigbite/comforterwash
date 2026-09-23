@@ -139,7 +139,7 @@ export default async function OrdersPage({
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {["Order ID", "Customer", "Phone", "Service", "Bags", "Pickup", "Delivery", "Amount", "Status", ""].map((h) => (
+                {["Order ID", "Customer", "Phone", "Service", "Bags", "Pickup", "Delivery", "Amount", "Paid", "Status", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
