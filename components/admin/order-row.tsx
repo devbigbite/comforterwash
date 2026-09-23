@@ -88,6 +88,18 @@ export function OrderRow({
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${STATUS_BADGE[b.status] ?? "bg-gray-100 text-gray-500"}`}>
             {b.status?.replace(/_/g, " ")}
           </span>
+          {/* Card on file failed to charge -- easy to miss scrolling a long
+              list, which is exactly how 2 of 21 failed charges got lost in
+              a recent batch. A payment_status of "failed" always means a
+              human needs to go retry or collect payment another way. */}
+          {b.payment_status === "failed" && (
+            <span
+              title="Card on file failed to charge — needs to be retried"
+              className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase bg-red-100 text-red-700 whitespace-nowrap"
+            >
+              ⚠ Charge Failed
+            </span>
+          )}
         </td>
         <td className="px-4 py-3">
           <Link

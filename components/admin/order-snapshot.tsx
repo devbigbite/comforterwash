@@ -69,6 +69,7 @@ export interface OrderSnapshotData {
   promo_discount_cents?: number | null
   subscription_frequency?: string | null
   commercial_account_id?: string | null
+  payment_status?: string | null
   assigned_driver?: { name: string } | null
   assigned_delivery_driver?: { name: string } | null
   assigned_operator?: { name: string } | null

@@ -35,7 +35,7 @@ export default async function OrdersPage({
       pickup_date, pickup_time_window, delivery_date, delivery_time_window,
       status, service_type, customer_final_cents, total_amount, num_comforters, comforter_size,
       comforter_sizes, num_bags, output_bags, detergent, extras, promo_code, promo_discount_cents,
-      subscription_frequency, commercial_account_id,
+      subscription_frequency, commercial_account_id, payment_status,
       assigned_driver:workers!assigned_driver_id(name),
       assigned_delivery_driver:workers!assigned_delivery_driver_id(name),
       assigned_operator:workers!assigned_operator_id(name)
