@@ -545,7 +545,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
         </div>
 
         {/* ── Facility specs — shown when order is finished and ready for pickup ── */}
-        {(booking.color_key || booking.facility_floor_photo_url || booking.folded_bag_count || booking.hold_at_facility != null) &&
+        {(booking.color_key || booking.facility_floor_photo_url || booking.folded_bag_count || booking.output_bags || booking.hold_at_facility != null) &&
          ["ready","staged","ready_at_warehouse","out_for_delivery"].some(s => booking.status === s || (bags ?? []).some(b => b.status === s)) && (() => {
           const COLOR_HEX: Record<string, string> = {
             red:"#ef4444", blue:"#3b82f6", sky:"#38bdf8", green:"#22c55e",
@@ -558,8 +558,19 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
             orange:"Orange", yellow:"Yellow", purple:"Purple",
           }
           const hex = booking.color_key ? (COLOR_HEX[booking.color_key] ?? "#d1d5db") : null
-          const foldedCount = booking.folded_bag_count ?? bags?.length ?? 0
-          const pickedUpCount = bags?.length ?? 0
+          // The operator's normal "Bags Delivered" flow (adjustOutputBagsAction
+          // in the admin order page, used every time output is counted)
+          // writes to bookings.output_bags. folded_bag_count is a *separate*
+          // column only the Facility Board's manual override field ever
+          // writes -- same disconnected-columns bug pattern as the
+          // facility_floor_photo_url/order_events photo issue. The driver
+          // page was reading folded_bag_count only, so it stayed stale/null
+          // for every order processed through the normal operator flow and
+          // the driver never saw the real folded count. Prefer output_bags
+          // (the live, routinely-updated field), fall back to folded_bag_count
+          // (facility manual override, still respected if set), then to the
+          // picked-up count.
+          const foldedCount = booking.output_bags ?? booking.folded_bag_count ?? bags?.length ?? 0
           return (
             <div className="rounded-2xl overflow-hidden border-2 border-[#0D2240] shadow-sm">
               <div className="bg-[#0D2240] px-4 py-3 flex items-center gap-2">
@@ -597,24 +608,20 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
                   </div>
                 )}
 
-                {/* Bag count */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100 text-center">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Picked Up</p>
-                    <p className="text-[#0D2240] font-extrabold text-2xl">{pickedUpCount}</p>
-                    <p className="text-gray-400 text-[10px]">bags</p>
-                  </div>
-                  <div className={`rounded-xl px-3 py-2.5 border text-center ${foldedCount !== pickedUpCount ? "bg-purple-50 border-purple-200" : "bg-gray-50 border-gray-100"}`}>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{booking.service_type === "comforter_wash" ? "Washed" : "Folded"}</p>
-                    <p className={`font-extrabold text-2xl ${foldedCount !== pickedUpCount ? "text-purple-600" : "text-[#0D2240]"}`}>{foldedCount}</p>
-                    <p className="text-gray-400 text-[10px]">bags{foldedCount !== pickedUpCount ? " ← use this count" : ""}</p>
-                  </div>
-                </div>
-                {foldedCount !== pickedUpCount && (
-                  <p className="text-sm text-purple-600 font-semibold bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
-                    ⚠️ Folded count differs from pickup — deliver <strong>{foldedCount} bag{foldedCount !== 1 ? "s" : ""}</strong> to the customer.
+                {/* Bag count -- delivery-facing, so this only shows the
+                    operator's final folded/washed count. Pickup count is a
+                    separate step's data (shown there, not here); JB asked to
+                    drop the pickup-vs-folded comparison from this card so a
+                    driver isn't second-guessing a number that isn't
+                    relevant to what they're doing right now: delivering
+                    what the operator packaged. */}
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100 text-center">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+                    {booking.service_type === "comforter_wash" ? "Washed" : "Folded"} — Deliver
                   </p>
-                )}
+                  <p className="text-[#0D2240] font-extrabold text-2xl">{foldedCount}</p>
+                  <p className="text-gray-400 text-[10px]">bags</p>
+                </div>
 
                 {/* Finished product & facility location photo */}
                 {booking.facility_floor_photo_url && (

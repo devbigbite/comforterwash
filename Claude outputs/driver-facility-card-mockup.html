@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Driver Facility Specs — mockup</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #f7f8fb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .note {
+    max-width: 380px;
+    font-size: 13px;
+    color: #6b7280;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .card {
+    width: 100%;
+    max-width: 380px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 2px solid #0D2240;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    background: #fff;
+  }
+  .card-header {
+    background: #0D2240;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-header .icon { font-size: 22px; }
+  .card-header h3 {
+    margin: 0;
+    color: #fff;
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .card-header p {
+    margin: 2px 0 0;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+  }
+  .card-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .location {
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+  }
+  .location .icon { font-size: 22px; }
+  .location .title { margin: 0; font-weight: 800; font-size: 15px; color: #047857; }
+  .location .sub { margin: 2px 0 0; font-size: 13px; color: #059669; }
+  .colorkey {
+    display: flex; align-items: center; gap: 12px;
+    background: #fafafa; border: 1px solid #f3f4f6; border-radius: 12px;
+    padding: 12px 16px;
+  }
+  .swatch {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: #a855f7;
+    box-shadow: 0 0 0 2px #fff, 0 2px 4px rgba(0,0,0,0.15);
+  }
+  .colorkey .label { margin: 0; font-size: 10px; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.04em; }
+  .colorkey .value { margin: 2px 0 0; font-size: 18px; font-weight: 800; color: #0D2240; }
+  .bagbox {
+    border-radius: 12px; padding: 10px 12px; text-align: center;
+    background: #fafafa; border: 1px solid #f3f4f6;
+  }
+  .bagbox .label { margin: 0 0 2px; font-size: 10px; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.04em; }
+  .bagbox .num { margin: 0; font-size: 26px; font-weight: 800; color: #0D2240; }
+  .bagbox .unit { margin: 0; font-size: 10px; color: #9ca3af; }
+  .caption { max-width: 380px; font-size: 12px; color: #9ca3af; text-align: center; }
+</style>
+</head>
+<body>
+
+  <div class="note">
+    Mock-up with example numbers — not live data. Same simplified card that's now in the driver app: just the operator's final count, no pickup comparison.
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🏭</span>
+      <div>
+        <h3>Facility Specs</h3>
+        <p>Set by the washing operator — use to locate this order</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="location">
+        <span class="icon">📍</span>
+        <div>
+          <p class="title">On facility floor</p>
+          <p class="sub">Look for this order in the floor temp area — color key sticker.</p>
+        </div>
+      </div>
+
+      <div class="colorkey">
+        <span class="swatch"></span>
+        <div>
+          <p class="label">Color Key Sticker</p>
+          <p class="value">Purple</p>
+        </div>
+      </div>
+
+      <div class="bagbox">
+        <p class="label">Folded — Deliver</p>
+        <p class="num">8</p>
+        <p class="unit">bags</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="caption">Pickup count and the mismatch comparison are gone from this card — it now just tells the driver the one number that matters at delivery: what the operator packaged.</p>
+
+</body>
+</html>
