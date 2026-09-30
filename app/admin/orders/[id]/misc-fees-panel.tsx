@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { chargeMiscFee, waiveMiscFee, markFeePaid, type MiscFee } from "@/app/actions/fees"
+import { chargeMiscFeeToCardOnFile, waiveMiscFee, markFeePaid, type MiscFee } from "@/app/actions/fees"
 import { FEE_PRESETS } from "@/lib/fee-presets"
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700 border border-amber-200",
   paid:    "bg-green-50 text-green-700 border border-green-100",
   waived:  "bg-gray-100 text-gray-400",
+  failed:  "bg-red-50 text-red-700 border border-red-200",
 }
 
 export function MiscFeesPanel({
@@ -23,7 +24,7 @@ export function MiscFeesPanel({
   const [customLabel, setCustomLabel] = useState("")
   const [customAmount, setCustomAmount] = useState("")
   const [notes, setNotes]           = useState("")
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
+  const [justCharged, setJustCharged] = useState<{ label: string; amountCents: number } | null>(null)
   const [error, setError]           = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [copiedId, setCopiedId]     = useState<string | null>(null)
@@ -46,20 +47,27 @@ export function MiscFeesPanel({
     fd.set("notes",       notes)
 
     startTransition(async () => {
-      const result = await chargeMiscFee(fd)
+      // Charges the card already on file immediately, rather than handing
+      // back a payment link -- a link only collects if the customer clicks
+      // and pays it, which for something like a missed-pickup fee is
+      // effectively "probably goes uncollected." See chargeMiscFeeToCardOnFile
+      // in app/actions/fees.ts.
+      const result = await chargeMiscFeeToCardOnFile(fd)
       if (result.error) {
         setError(result.error)
+        // Still show it in the list as failed -- the row below reflects
+        // what the server actually recorded on refresh, but the banner here
+        // tells the admin right away what to do next (add a card, or waive).
       } else {
-        setPaymentUrl(result.paymentUrl ?? null)
-        // Optimistically prepend the new fee
+        setJustCharged({ label, amountCents })
         setFees(prev => [{
           id: crypto.randomUUID(),
           booking_id: bookingId,
           label,
           amount_cents: amountCents,
-          payment_url: result.paymentUrl ?? null,
+          payment_url: null,
           stripe_session_id: null,
-          status: "pending",
+          status: "paid",
           notes: notes || null,
           created_by: "admin",
           created_at: new Date().toISOString(),
@@ -103,25 +111,11 @@ export function MiscFeesPanel({
         )}
       </div>
 
-      {/* Payment link banner */}
-      {paymentUrl && (
+      {/* Charge confirmation banner */}
+      {justCharged && (
         <div className="mb-4 bg-green-50 border border-green-200 rounded-xl p-4">
-          <p className="text-xs font-bold text-green-700 mb-2">✅ Payment link ready — copy and send to customer</p>
-          <div className="flex items-center gap-2">
-            <input
-              readOnly
-              value={paymentUrl}
-              className="flex-1 text-xs font-mono bg-white border border-green-200 rounded-lg px-3 py-2 text-[#0D2240] focus:outline-none"
-            />
-            <button
-              onClick={() => copyUrl(paymentUrl, "banner")}
-              className="shrink-0 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-colors"
-            >
-              {copiedId === "banner" ? "Copied!" : "Copy"}
-            </button>
-          </div>
-          <p className="text-[10px] text-green-600 mt-1.5">
-            Customer pays securely via Stripe. Fee will auto-update to Paid when completed.
+          <p className="text-xs font-bold text-green-700">
+            ✅ Charged ${(justCharged.amountCents / 100).toFixed(2)} for {justCharged.label} to the card on file.
           </p>
         </div>
       )}
@@ -214,7 +208,7 @@ export function MiscFeesPanel({
               disabled={isPending || selectedPreset === null || !label || amountCents < 50}
               className="px-4 py-2 rounded-lg bg-[#E8726A] hover:bg-[#d45f57] disabled:opacity-40 text-white text-xs font-bold transition-colors"
             >
-              {isPending ? "Creating…" : `Generate Payment Link — $${(amountCents / 100).toFixed(2)}`}
+              {isPending ? "Charging…" : `Charge Card on File — $${(amountCents / 100).toFixed(2)}`}
             </button>
             <button
               type="button"
@@ -257,11 +251,11 @@ export function MiscFeesPanel({
                     {copiedId === fee.id ? "Copied!" : "📋 Copy Link"}
                   </button>
                 )}
-                {fee.status === "pending" && (
+                {(fee.status === "pending" || fee.status === "failed") && (
                   <>
                     <button
                       onClick={() => handleMarkPaid(fee.id)}
-                      title="Mark as paid manually"
+                      title="Mark as paid manually — e.g. collected cash/Venmo after the card charge failed"
                       className="px-2.5 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold transition-colors"
                     >
                       ✓ Mark Paid
