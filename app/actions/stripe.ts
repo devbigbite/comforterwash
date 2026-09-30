@@ -256,6 +256,51 @@ export async function capturePayment(bookingId: string) {
   return { captured: captureAmt, overageCents }
 }
 
+// ── Release an uncaptured pre-authorization ─────────────────────────────────
+// Cancels the PaymentIntent outright instead of capturing it -- for an order
+// that's been cancelled before weight was ever entered (e.g. the pickup
+// never happened), the original pre-auth hold has nothing to capture against
+// and would otherwise just sit on the customer's card until it expires on
+// its own in ~5-7 days. Safe to call on a PI that's already been captured,
+// canceled, or doesn't support cancellation -- those just return the
+// existing state rather than throwing, since "already resolved" isn't an
+// error here.
+export async function releasePreAuth(bookingId: string): Promise<{ success?: boolean; alreadyResolved?: boolean; error?: string }> {
+  const supabase = createAdminClient()
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("stripe_payment_intent_id, payment_status, location_id")
+    .eq("id", bookingId)
+    .single()
+
+  if (!booking?.stripe_payment_intent_id) {
+    return { error: "No payment intent found for this booking" }
+  }
+  if (booking.payment_status === "captured" || booking.payment_status === "paid") {
+    return { error: "This payment was already captured/charged — there's no pre-authorization left to release." }
+  }
+
+  const acct = booking.location_id ? await directChargeAccountFor(booking.location_id) : null
+  const opts = acctOpts(acct)
+
+  try {
+    await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id, undefined, opts)
+    await supabase.from("bookings").update({ payment_status: "released" }).eq("id", bookingId)
+    return { success: true }
+  } catch (err) {
+    // Stripe throws if the PI is already in a terminal state (succeeded,
+    // already canceled) -- treat that as "nothing left to do" rather than
+    // a failure the admin needs to act on.
+    const message = err instanceof Error ? err.message : "Release failed"
+    if (/already been captured|already canceled|no longer cancelable/i.test(message)) {
+      await supabase.from("bookings").update({ payment_status: "released" }).eq("id", bookingId)
+      return { success: true, alreadyResolved: true }
+    }
+    console.error("[stripe] releasePreAuth failed:", err)
+    return { error: message }
+  }
+}
+
 // ── Charge a commercial account's saved card at weigh-in ─────────────────────
 // Commercial pay-at-time-of-service orders never get a consumer-style
 // pre-auth at booking time (there's no checkout session) — the entire

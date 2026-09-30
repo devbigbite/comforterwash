@@ -17,7 +17,7 @@ import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import { recordWeightAndCharge } from "@/app/actions/weigh-in"
 import { calculateOrderBilling } from "@/lib/order-billing"
-import { capturePayment, chargeCommercialAccountOrder, chargeHangerAddon } from "@/app/actions/stripe"
+import { capturePayment, chargeCommercialAccountOrder, chargeHangerAddon, releasePreAuth } from "@/app/actions/stripe"
 import { sendPaymentUpdateLink } from "@/app/actions/commercial-accounts"
 import { updateFacilityDetails } from "@/app/actions/facility-board"
 import PhotoUploader from "@/app/operator/order/[id]/photo-uploader"
@@ -80,6 +80,7 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
   pending_weight: "not charged yet",
   pending:        "charge pending",
   failed:         "charge failed",
+  released:       "pre-authorization released — nothing charged",
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -431,6 +432,34 @@ async function captureNowAction(formData: FormData) {
       created_by: "admin",
     })
     msg = `err:Capture failed — ${errMsg}`
+  }
+  revalidatePath(`/admin/orders/${bookingId}`)
+  redirect(`/admin/orders/${bookingId}?billingMsg=${encodeURIComponent(msg)}`)
+}
+
+async function releasePreAuthAction(formData: FormData) {
+  "use server"
+  const bookingId = formData.get("bookingId") as string
+  await assertBookingOwnership(bookingId)
+  const supabase = createAdminClient()
+  const result = await releasePreAuth(bookingId)
+  let msg: string
+  if (result.success) {
+    await supabase.from("order_events").insert({
+      booking_id: bookingId, event_type: "weight_confirmed",
+      notes: result.alreadyResolved
+        ? "Pre-authorization release requested by admin — payment was already resolved, nothing to release."
+        : "Pre-authorization released by admin — nothing charged for this order.",
+      created_by: "admin",
+    })
+    msg = "ok:Pre-authorization released — nothing will be charged."
+  } else {
+    await supabase.from("order_events").insert({
+      booking_id: bookingId, event_type: "weight_confirmed",
+      notes: `Pre-authorization release failed: ${result.error}`,
+      created_by: "admin",
+    })
+    msg = `err:${result.error}`
   }
   revalidatePath(`/admin/orders/${bookingId}`)
   redirect(`/admin/orders/${bookingId}?billingMsg=${encodeURIComponent(msg)}`)
@@ -951,6 +980,21 @@ export default async function OrderDetailPage({
               <span className="font-bold">⚖️ Billing pending</span> — weight not yet entered.
               Billing will be calculated once the driver or operator records the actual weight.
               {preAuthCents && ` Pre-authorized: $${(preAuthCents / 100).toFixed(2)}.`}
+              {/* Cancelled orders never get weight entered, so this banner
+                  (and the pre-auth hold underneath it) would otherwise sit
+                  here indefinitely -- most card issuers release an
+                  uncaptured pre-auth on their own in ~5-7 days, but there's
+                  no reason to make the customer wait that out. */}
+              {booking.status === "cancelled" && booking.payment_status === "pre_authorized" && (
+                <form action={releasePreAuthAction} className="mt-3">
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <button type="submit"
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors">
+                    🔓 Release Pre-Authorization
+                  </button>
+                  <p className="text-[11px] text-amber-600/80 mt-1">Cancels the hold on the customer's card — nothing will be charged.</p>
+                </form>
+              )}
             </div>
           )
         )}
