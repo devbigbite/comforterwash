@@ -40,7 +40,7 @@ export async function getOrderIssueNotes(bookingId: string): Promise<OrderIssueN
   return (data ?? []) as OrderIssueNote[]
 }
 
-export async function createOrderIssueNote(bookingId: string, note: string): Promise<{ success?: boolean; error?: string }> {
+export async function createOrderIssueNote(bookingId: string, note: string): Promise<{ success?: boolean; error?: string; id?: string }> {
   await requireAdmin()
   const trimmed = note.trim()
   if (!trimmed) return { error: "Note can't be empty" }
@@ -48,21 +48,24 @@ export async function createOrderIssueNote(bookingId: string, note: string): Pro
   const supabase = createAdminClient()
   const locationId = await getLocationId()
 
-  const { error } = await supabase.from("order_issue_notes").insert({
+  // Return the real row id: the panel previously invented a client-side
+  // UUID for the new draft, so Send/Edit/Discard on it hit "Note not found"
+  // until the page was reloaded.
+  const { data: inserted, error } = await supabase.from("order_issue_notes").insert({
     booking_id: bookingId,
     location_id: locationId,
     note: trimmed,
     status: "draft",
     created_by: "admin",
-  })
+  }).select("id").single()
 
-  if (error) {
+  if (error || !inserted) {
     console.error("[order-issue-notes] insert failed:", error)
     return { error: "Failed to save note" }
   }
 
   revalidatePath(`/admin/orders/${bookingId}`)
-  return { success: true }
+  return { success: true, id: inserted.id }
 }
 
 export async function updateOrderIssueNote(noteId: string, bookingId: string, note: string): Promise<{ success?: boolean; error?: string }> {

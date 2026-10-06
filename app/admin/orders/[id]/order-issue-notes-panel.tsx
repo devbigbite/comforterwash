@@ -48,7 +48,7 @@ export function OrderIssueNotesPanel({
         return
       }
       setNotes(prev => [{
-        id: crypto.randomUUID(),
+        id: result.id ?? crypto.randomUUID(),
         booking_id: bookingId,
         note: trimmed,
         status: "draft",
