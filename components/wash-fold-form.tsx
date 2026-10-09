@@ -15,7 +15,7 @@ import { PromoCodeField } from "@/components/promo-code-field"
 import { GiftCardField } from "@/components/gift-card-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig, getWashFoldBagConfig, type WashFoldBagConfig } from "@/app/actions/pricing"
-import { getMonthlyPlanEnabled, getComforterPromo, getFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
+import { getMonthlyPlanEnabled, getRecurringEnabled, getComforterPromo, getFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
 import { effectivePrice, effectivePriceForOrder, isSaleActive, unitSuffix } from "@/lib/service-option-utils"
@@ -223,7 +223,7 @@ function WeekdayPicker({
 }
 
 // ─── main component ───────────────────────────────────────────────────────────
-export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnabled, initialBagConfig, timezone }: { initialPricing?: PricingConfig; topSlot?: ReactNode; initialMonthlyPlanEnabled?: boolean; initialBagConfig?: WashFoldBagConfig; timezone?: string }) {
+export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnabled, initialRecurringEnabled, initialBagConfig, timezone }: { initialPricing?: PricingConfig; topSlot?: ReactNode; initialMonthlyPlanEnabled?: boolean; initialRecurringEnabled?: boolean; initialBagConfig?: WashFoldBagConfig; timezone?: string }) {
   const { translations: tr, locale } = useLang()
   const tf = tr.form
   const tw = tr.washFoldForm
@@ -298,6 +298,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   const [serviceMode, setServiceMode] = useState<"paygo" | "subscription">("paygo")
   const [subscribeType, setSubscribeType] = useState<"weekly" | "biweekly" | "monthly">("weekly")
   const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState(initialMonthlyPlanEnabled ?? true)
+  const [recurringEnabled, setRecurringEnabled] = useState(initialRecurringEnabled ?? true)
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "",
     pickupStreet: "", pickupUnit: "", pickupCity: "", pickupState: "FL", pickupZip: "",
@@ -419,6 +420,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
     // mount is what caused the Monthly plan card to flash true, then
     // disappear a beat later for any tenant with it turned off.
     if (initialMonthlyPlanEnabled === undefined) getMonthlyPlanEnabled().then(setMonthlyPlanEnabled)
+    if (initialRecurringEnabled === undefined) getRecurringEnabled().then(setRecurringEnabled)
     getComforterPromo().then(setComforterPromo)
     getDeliveryFeeSettings().then(s => setFeeConfig(s))
     getTipsEnabled().then(setTipsEnabled)
@@ -624,11 +626,12 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   }
   const currentFrequency: "one_time" | "weekly" | "biweekly" =
     serviceMode === "paygo" ? "one_time" : (subscribeType === "monthly" ? "one_time" : subscribeType)
-  const FREQUENCY_OPTIONS = [
+  const ALL_FREQUENCY_OPTIONS = [
     { value: "one_time" as const, label: tw.tierOneTimeLabel, note: tw.tierNoCommitment || "Single pickup" },
     { value: "weekly"   as const, label: tw.tierWeekly,       note: tw.tierEveryWeek },
     { value: "biweekly" as const, label: tw.tierBiweekly,     note: tw.tierEveryTwoWeeks },
   ]
+  const FREQUENCY_OPTIONS = recurringEnabled ? ALL_FREQUENCY_OPTIONS : ALL_FREQUENCY_OPTIONS.filter(o => o.value === "one_time")
 
   function buildAddr(street: string, unit: string, city: string, state: string, zip: string) {
     // Apt/unit gets its own comma-delimited segment right after the street —
@@ -875,7 +878,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                   </button>
 
                   {/* Frequency choice, expands directly under Per Pound once it's selected */}
-                  {systemChoice === "per_lb" && (
+                  {recurringEnabled && systemChoice === "per_lb" && (
                     <div className="grid grid-cols-3 gap-2 px-1 pb-1">
                       {FREQUENCY_OPTIONS.map(opt => (
                         <button key={opt.value} type="button" onClick={() => selectFrequency(opt.value)}
@@ -981,7 +984,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                   </button>
 
                   {/* ── Option 2: Subscribe by weight (weekly / biweekly) ── */}
-                  <button type="button"
+                  {recurringEnabled && <button type="button"
                     onClick={() => selectSubscribeType(subscribeType === "monthly" ? "weekly" : subscribeType)}
                     className={cn(
                       "w-full flex items-center justify-between rounded-2xl border-2 text-left transition-all duration-200",
@@ -1017,10 +1020,10 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                         {freqPricing.weekly.label}
                       </span>
                     )}
-                  </button>
+                  </button>}
 
                   {/* Weekly / Biweekly toggle — shown when subscribe-by-weight is active */}
-                  {serviceMode === "subscription" && subscribeType !== "monthly" && (
+                  {recurringEnabled && serviceMode === "subscription" && subscribeType !== "monthly" && (
                     <div className="grid grid-cols-2 gap-2 px-1 pb-1">
                       {([
                         { value: "weekly"   as const, label: tw.tierWeekly,    note: tw.tierEveryWeek },

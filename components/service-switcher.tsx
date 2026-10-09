@@ -31,6 +31,7 @@ export function ServiceSwitcher({
   pricing,
   washFoldBagConfig,
   monthlyPlanEnabled,
+  recurringEnabled,
   timezone,
 }: {
   defaultService: ServiceKey
@@ -38,6 +39,7 @@ export function ServiceSwitcher({
   pricing: PricingConfig
   washFoldBagConfig?: WashFoldBagConfig
   monthlyPlanEnabled?: boolean
+  recurringEnabled?: boolean
   timezone?: string
 }) {
   const [service, setService] = useState<ServiceKey>(defaultService)
@@ -105,7 +107,7 @@ export function ServiceSwitcher({
           step, so it moved down into the card where the actual choice
           happens. */}
       <div className="mx-auto max-w-2xl px-4 py-10">
-        {service === "wash_fold" && <WashFoldForm initialPricing={pricing} topSlot={picker} initialMonthlyPlanEnabled={monthlyPlanEnabled} initialBagConfig={washFoldBagConfig} timezone={timezone} />}
+        {service === "wash_fold" && <WashFoldForm initialPricing={pricing} topSlot={picker} initialMonthlyPlanEnabled={monthlyPlanEnabled} initialRecurringEnabled={recurringEnabled} initialBagConfig={washFoldBagConfig} timezone={timezone} />}
         {service === "wash_only" && (
           <>
             <WashOnlyInfoBox />

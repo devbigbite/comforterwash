@@ -8,7 +8,7 @@ import { createShipdayOrder } from "@/lib/shipday"
 import { format } from "date-fns"
 import { todayET } from "@/lib/date-et"
 import { recordPromoRedemption } from "@/app/actions/promos"
-import { getComforterPromo } from "@/app/actions/settings"
+import { getComforterPromo, getRecurringEnabled } from "@/app/actions/settings"
 import { getPricingConfig, getWashFoldBagConfig, getWashOnlyBagConfig } from "@/app/actions/pricing"
 import { computeComforterFacilityCostCents } from "@/lib/facility-comforter-cost"
 import { syncCustomerFromBooking } from "@/app/actions/customers"
@@ -206,7 +206,7 @@ export async function createBooking(data: BookingData) {
       pre_auth_cents: data.preAuthCents ?? null,
       payment_status: data.paymentStatusOverride ?? (data.isManualCapture ? "pre_authorized" : "paid"),
       commercial_account_id: data.commercialAccountId ?? null,
-      subscription_frequency: data.subscriptionFrequency ?? "one_time",
+      subscription_frequency: (!data.locationId && !(await getRecurringEnabled())) ? "one_time" : (data.subscriptionFrequency ?? "one_time"),
       price_per_lb_cents: data.pricePerLbCents ?? null,
       comforter_size: data.comforterSize ?? null,
       promo_code: data.promoCode ?? null,

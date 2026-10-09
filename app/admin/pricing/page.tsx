@@ -8,7 +8,7 @@ import { getPricingConfig, setPricingConfig, type PricingConfig, getWashFoldBagC
 const MAX_BAG_SIZES = 5
 import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, type ServiceOption } from "@/app/actions/service-options"
 import { isSaleActive } from "@/lib/service-option-utils"
-import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getTipsEnabled, setTipsEnabled, getFreePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
+import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getRecurringEnabled, setRecurringEnabled, getTipsEnabled, setTipsEnabled, getFreePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
 import { getSameDayConfig, setSameDayConfig, type SameDayConfig } from "@/app/actions/same-day"
 import Link from "next/link"
 
@@ -353,6 +353,8 @@ export default function PricingPage() {
   const [svcs, setSvcs] = useState<ServicesConfig>({ comforter_wash: true, wash_fold: true, wash_only: true })
   const [savingSvcKey, setSavingSvcKey] = useState<keyof ServicesConfig | null>(null)
   const [monthlyPlanEnabled, setMonthlyPlanEnabledState] = useState(true)
+  const [recurringEnabled, setRecurringEnabledState] = useState(true)
+  const [savingRecurring, setSavingRecurring] = useState(false)
   const [tipsEnabled, setTipsEnabledState] = useState(true)
   const [savingTipsToggle, setSavingTipsToggle] = useState(false)
   const [savingPlanToggle, setSavingPlanToggle] = useState(false)
@@ -388,6 +390,7 @@ export default function PricingPage() {
     setBagConfig(bagCfg)
     setWashOnlyBagConfigState(woBagCfg)
     setSameDayState(sameDayCfg)
+    getRecurringEnabled().then(setRecurringEnabledState)
     getTipsEnabled().then(setTipsEnabledState)
     getFreePickupDeliveryLineEnabled().then(setFreePickupDeliveryLineEnabledState)
   }
@@ -580,6 +583,33 @@ export default function PricingPage() {
                 aria-checked={monthlyPlanEnabled}
               >
                 <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${monthlyPlanEnabled ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </div>
+
+            {/* Recurring subscription (weekly / biweekly by weight) toggle */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#f0f4f9] border border-blue-100">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🔁</span>
+                <div>
+                  <p className="font-bold text-sm text-[#0D2240]">Recurring Subscription</p>
+                  <p className="text-xs text-gray-400">Allow weekly / biweekly recurring pickups (per-pound subscription rate). Existing subscribers are not affected.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={savingRecurring}
+                onClick={async () => {
+                  setSavingRecurring(true)
+                  const next = !recurringEnabled
+                  setRecurringEnabledState(next)
+                  await setRecurringEnabled(next)
+                  setSavingRecurring(false)
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${recurringEnabled ? "bg-[#0D2240]" : "bg-gray-200"}`}
+                role="switch"
+                aria-checked={recurringEnabled}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${recurringEnabled ? "translate-x-5" : "translate-x-0"}`} />
               </button>
             </div>
 

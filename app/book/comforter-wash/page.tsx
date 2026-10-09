@@ -2,7 +2,7 @@ import { ServiceSwitcher } from "@/components/service-switcher"
 import { LangToggle } from "@/components/lang-toggle"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getServicesConfig, getMonthlyPlanEnabled } from "@/app/actions/settings"
+import { getServicesConfig, getMonthlyPlanEnabled, getRecurringEnabled } from "@/app/actions/settings"
 import { getPricingConfig, getWashFoldBagConfig } from "@/app/actions/pricing"
 import { getBranding, getLocationTimezone } from "@/lib/location"
 
@@ -15,7 +15,7 @@ export async function generateMetadata() {
 }
 
 export default async function ComforterWashPage() {
-  const [services, pricing, washFoldBagConfig, monthlyPlanEnabled, timezone] = await Promise.all([getServicesConfig(), getPricingConfig(), getWashFoldBagConfig(), getMonthlyPlanEnabled(), getLocationTimezone()])
+  const [services, pricing, washFoldBagConfig, monthlyPlanEnabled, recurringEnabled, timezone] = await Promise.all([getServicesConfig(), getPricingConfig(), getWashFoldBagConfig(), getMonthlyPlanEnabled(), getRecurringEnabled(), getLocationTimezone()])
   if (!services.comforter_wash) redirect("/")
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
@@ -39,7 +39,7 @@ export default async function ComforterWashPage() {
         </div>
       </header>
 
-      <ServiceSwitcher defaultService="comforter_wash" services={services} pricing={pricing} washFoldBagConfig={washFoldBagConfig} monthlyPlanEnabled={monthlyPlanEnabled} timezone={timezone} />
+      <ServiceSwitcher defaultService="comforter_wash" services={services} pricing={pricing} washFoldBagConfig={washFoldBagConfig} monthlyPlanEnabled={monthlyPlanEnabled} recurringEnabled={recurringEnabled} timezone={timezone} />
     </main>
   )
 }
