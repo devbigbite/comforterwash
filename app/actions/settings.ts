@@ -434,6 +434,36 @@ export async function setRecurringEnabled(enabled: boolean): Promise<void> {
   revalidatePath("/book", "layout")
 }
 
+// ─── "Make this recurring?" opt-in at checkout ───────────────────────────────
+// Separate from the Recurring Subscription toggle above: that one gates the
+// discounted subscribe-by-weight picker at the START of booking. This one gates
+// a checkbox on the LAST step that turns a normal one-time order into a
+// recurring pickup at the regular rate. Default OFF so a deploy never exposes it.
+
+export async function getRecurringOptinEnabled(): Promise<boolean> {
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  const { data } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "recurring_optin_enabled")
+    .eq("location_id", locationId)
+    .maybeSingle()
+  return data?.value === "true"   // default false
+}
+
+export async function setRecurringOptinEnabled(enabled: boolean): Promise<void> {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  await supabase.from("settings").upsert(
+    { key: "recurring_optin_enabled", value: String(enabled), location_id: locationId, updated_at: new Date().toISOString() },
+    { onConflict: "location_id,key" }
+  )
+  revalidatePath("/admin/settings")
+  revalidatePath("/book", "layout")
+}
+
 export async function getFreePickupDeliveryLineEnabled(): Promise<boolean> {
   const supabase = createAdminClient()
   const locationId = await getLocationId()

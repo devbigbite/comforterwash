@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import { format } from "date-fns"
 import Link from "next/link"
 import LogoutButton from "./logout-button"
+import { cancelMyRecurringSubscription } from "@/app/actions/subscriptions"
 
 const STATUS_COLOR: Record<string, string> = {
   pending: "bg-gray-100 text-gray-500",
@@ -56,6 +57,13 @@ function formatPickupDate(d: string | null) {
   if (!d) return null
   try { return new Date(d + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) }
   catch { return d }
+}
+
+async function cancelRecurring(formData: FormData) {
+  "use server"
+  const id = (formData.get("id") as string) ?? ""
+  if (id) await cancelMyRecurringSubscription(id)
+  revalidatePath("/account")
 }
 
 async function saveAddress(formData: FormData) {
@@ -128,6 +136,16 @@ export default async function AccountPage() {
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
+
+  // Weekly / biweekly recurring pickups (not monthly plans) — customer can cancel anytime.
+  const { data: recurringSubs } = await admin
+    .from("subscriptions")
+    .select("id, frequency, pickup_day_of_week, pickup_time_window, next_pickup_date, status")
+    .eq("location_id", locationId)
+    .eq("customer_email", user.email ?? "")
+    .neq("subscription_type", "monthly_plan")
+    .in("status", ["active", "paused"])
+    .order("created_at", { ascending: false })
 
   const activeOrder = bookings?.find(
     (b) => b.status !== "delivered" && b.status !== "cancelled"
@@ -280,6 +298,28 @@ export default async function AccountPage() {
             </div>
           </div>
         )}
+
+        {/* ── Recurring pickups (weekly / biweekly) ── */}
+        {(recurringSubs ?? []).map((sub) => (
+          <div key={sub.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between gap-4">
+            <div>
+              <p className="font-bold text-[#0D2240] text-sm">
+                Recurring pickup · {sub.frequency === "biweekly" ? "every 2 weeks" : "every week"}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {sub.pickup_day_of_week ? sub.pickup_day_of_week.charAt(0).toUpperCase() + sub.pickup_day_of_week.slice(1) : ""}
+                {sub.pickup_time_window ? ` · ${sub.pickup_time_window}` : ""}
+                {sub.next_pickup_date ? ` · next: ${formatPickupDate(sub.next_pickup_date)}` : ""}
+              </p>
+            </div>
+            <form action={cancelRecurring}>
+              <input type="hidden" name="id" value={sub.id} />
+              <button type="submit" className="text-xs font-bold text-red-500 hover:text-red-600 border border-red-200 rounded-lg px-3 py-2">
+                Cancel recurring
+              </button>
+            </form>
+          </div>
+        ))}
 
         {/* ── Monthly Plan Usage Widget ── */}
         {monthlyPlan && (() => {

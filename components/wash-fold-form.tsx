@@ -15,7 +15,7 @@ import { PromoCodeField } from "@/components/promo-code-field"
 import { GiftCardField } from "@/components/gift-card-field"
 import { getExcludedDates } from "@/app/actions/holidays"
 import { getPricingConfig, type PricingConfig, getWashFoldBagConfig, type WashFoldBagConfig } from "@/app/actions/pricing"
-import { getMonthlyPlanEnabled, getRecurringEnabled, getComforterPromo, getFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
+import { getMonthlyPlanEnabled, getRecurringEnabled, getRecurringOptinEnabled, getComforterPromo, getFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
 import { getServiceOptions, type ServiceOption } from "@/app/actions/service-options"
 import { getCustomerPreferences, saveCustomerPreferences } from "@/app/actions/customer-preferences"
 import { effectivePrice, effectivePriceForOrder, isSaleActive, unitSuffix } from "@/lib/service-option-utils"
@@ -299,6 +299,8 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   const [subscribeType, setSubscribeType] = useState<"weekly" | "biweekly" | "monthly">("weekly")
   const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState(initialMonthlyPlanEnabled ?? true)
   const [recurringEnabled, setRecurringEnabled] = useState(initialRecurringEnabled ?? true)
+  const [recurOptinEnabled, setRecurOptinEnabled] = useState(false)
+  const [recurOpt, setRecurOpt] = useState<"none" | "weekly" | "biweekly">("none")
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "",
     pickupStreet: "", pickupUnit: "", pickupCity: "", pickupState: "FL", pickupZip: "",
@@ -422,6 +424,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
     // disappear a beat later for any tenant with it turned off.
     if (initialMonthlyPlanEnabled === undefined) getMonthlyPlanEnabled().then(setMonthlyPlanEnabled)
     if (initialRecurringEnabled === undefined) getRecurringEnabled().then(setRecurringEnabled)
+    getRecurringOptinEnabled().then(setRecurOptinEnabled)
     getComforterPromo().then(setComforterPromo)
     getDeliveryFeeSettings().then(s => setFeeConfig(s))
     getTipsEnabled().then(setTipsEnabled)
@@ -702,6 +705,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
     specialInstructions: formData.specialInstructions,
     hangerItemsNote:     formData.hangerItemsNote,
   }
+  if (!isRecurring && recurOptinEnabled && recurOpt !== "none") checkoutMeta.recurOptIn = recurOpt
   if (isRecurring) {
     checkoutMeta.recurringPickupDay      = formData.recurringPickupDay
     checkoutMeta.recurringPickupTime     = formData.recurringPickupTime
@@ -1885,6 +1889,32 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
               </div>
               <p className="text-[10px] text-gray-400">{tw.finalChargeNote}</p>
             </div>
+
+            {!isRecurring && recurOptinEnabled && (
+              <div className="rounded-2xl border-2 border-gray-100 bg-[#f7f8fb] p-4 space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <Checkbox
+                    checked={recurOpt !== "none"}
+                    onCheckedChange={c => setRecurOpt(c ? "weekly" : "none")}
+                    className="mt-0.5 shrink-0" />
+                  <span className="text-sm text-[var(--brand-primary)]">
+                    <span className="font-semibold">Want to make this a recurring service?</span>
+                    <span className="block text-xs text-gray-400 mt-0.5">We&apos;ll repeat this same pickup day and time at the regular rate. Cancel anytime from your account.</span>
+                  </span>
+                </label>
+                {recurOpt !== "none" && (
+                  <div className="grid grid-cols-2 gap-2 pl-8">
+                    {([{ v: "weekly" as const, l: "Every week" }, { v: "biweekly" as const, l: "Every 2 weeks" }]).map(o => (
+                      <button key={o.v} type="button" onClick={() => setRecurOpt(o.v)}
+                        className={cn("rounded-xl border-2 py-2 text-sm font-extrabold transition-all",
+                          recurOpt === o.v ? "border-[var(--brand-accent)] bg-[#fdf6f3] text-[var(--brand-primary)]" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300")}>
+                        {o.l}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {isRecurring && (
               <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3">

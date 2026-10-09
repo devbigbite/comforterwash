@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createBooking } from "./bookings"
 import { createSubscription } from "./subscriptions"
+import { signRecurringCancelToken } from "@/lib/recurring-cancel-token"
 import { sendBookingConfirmationEmail, sendAdminNewOrderEmail } from "@/lib/email"
 import { getLocationId } from "@/lib/location"
 import { getConnectStatusForLocation, isCheckoutBlockedByConnectRequirement, directChargeAccountFor, acctOpts } from "@/lib/stripe-connect"
@@ -786,6 +787,41 @@ export async function handleSuccessfulPayment(sessionId: string, stripeAccountId
         }).catch(err => console.error("[stripe] createSubscription failed:", err))
       }
 
+      // ── Customer ticked "make this recurring?" at checkout. The first order is a
+      // normal one-time booking; this just starts a subscription that repeats the
+      // same pickup/delivery weekdays + windows at the order's own $/lb (the regular
+      // rate — no subscription discount). Cancel anytime. ──
+      let recurringCancelToken: string | undefined
+      if (frequency === "one_time" && (meta.recurOptIn === "weekly" || meta.recurOptIn === "biweekly") && booking?.id && meta.pickupDate && meta.deliveryDate) {
+        // Dates are stamped as ISO at local midnight; +12h keeps the UTC weekday == the local weekday.
+        const dayName = (iso: string) =>
+          new Date(new Date(iso).getTime() + 12 * 3600 * 1000)
+            .toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" }).toLowerCase()
+        const optInSub = await createSubscription({
+          bookingId:             booking.id,
+          customerName:          meta.customerName,
+          customerEmail:         meta.customerEmail,
+          customerPhone:         meta.customerPhone,
+          customerAddress:       meta.address,
+          frequency:             meta.recurOptIn,
+          pickupDayOfWeek:       dayName(meta.pickupDate),
+          pickupTimeWindow:      meta.pickupTimeWindow,
+          deliveryDayOfWeek:     dayName(meta.deliveryDate),
+          deliveryTimeWindow:    meta.deliveryTimeWindow,
+          pricePerLbCents:       meta.pricePerLbCents ? parseInt(meta.pricePerLbCents) : 279,
+          detergent:             meta.detergent ?? "standard",
+          fabricSoftener:        meta.fabricSoftener === "true",
+          oxiClean:              meta.oxiClean === "true",
+          colorSafeBleach:       meta.colorSafeBleach === "true",
+          stripePaymentIntentId: paymentIntent,
+          firstPickupDateStr:    meta.pickupDate,
+          firstDeliveryDateStr:  meta.deliveryDate,
+          stripeAccountId:       acct,
+          locationId:            meta.locationId || undefined,
+        }).catch(err => { console.error("[stripe] opt-in createSubscription failed:", err); return null })
+        if (optInSub?.ok && optInSub.id) recurringCancelToken = signRecurringCancelToken(optInSub.id)
+      }
+
       // ── Send confirmation emails (fire-and-forget, don't block payment) ──
       if (meta.customerEmail) {
         const estimatedTotal = `$${(preAuthCents / 100).toFixed(2)}`
@@ -804,6 +840,7 @@ export async function handleSuccessfulPayment(sessionId: string, stripeAccountId
           estimatedTotal,
           bookingId:       booking?.id ?? "",
           shortCode:       booking?.short_code ?? undefined,
+          recurringCancelToken,
         }
 
         // Customer confirmation (don't await — keeps payment flow fast)

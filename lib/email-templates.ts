@@ -150,6 +150,7 @@ export interface BookingConfirmationData {
   estimatedTotal: string   // e.g. "$48.00"
   bookingId: string
   shortCode?: string       // 6-digit track code, e.g. "523847"
+  recurringCancelToken?: string // set when the customer opted into a recurring pickup at checkout
   timezone?: string        // IANA tz (locations.timezone) -- appends "(CT)" etc. so the pickup time is never ambiguous
 }
 
@@ -193,6 +194,11 @@ export function buildBookingConfirmationEmail(d: BookingConfirmationData, ov: Em
       <div class="alert-box">
         <p>💡 <strong>Heads up:</strong> Your card is pre-authorized. For Wash &amp; Fold and Wash Only orders, the final charge is based on actual weight — so you only pay for what you send.</p>
       </div>
+
+      ${d.recurringCancelToken ? `
+      <div class="alert-box">
+        <p>🔁 <strong>Recurring pickup:</strong> you asked to repeat this pickup. No commitment — <a href="https://${branding.websiteDomain}/cancel-recurring/${encodeURIComponent(d.recurringCancelToken)}" style="color:${branding.accentColor};font-weight:600;">cancel your recurring pickup anytime</a>.</p>
+      </div>` : ""}
 
       <p style="font-size:14px;color:#374151;margin-bottom:8px;">Questions? Reply to this email anytime.</p>
       <p style="font-size:14px;color:#374151;"><strong>✉️ ${branding.supportEmail}</strong></p>

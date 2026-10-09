@@ -8,7 +8,7 @@ import { getPricingConfig, setPricingConfig, type PricingConfig, getWashFoldBagC
 const MAX_BAG_SIZES = 5
 import { getAllServiceOptions, upsertServiceOption, deleteServiceOption, toggleServiceOption, setHypoallergenic, type ServiceOption } from "@/app/actions/service-options"
 import { isSaleActive } from "@/lib/service-option-utils"
-import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getRecurringEnabled, setRecurringEnabled, getTipsEnabled, setTipsEnabled, getFreePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
+import { getDeliveryFeeSettings, setDeliveryFeeSettings, type DeliveryFeeSettings, getServicesConfig, setServicesConfig, type ServicesConfig, getMonthlyPlanEnabled, setMonthlyPlanEnabled, getRecurringEnabled, setRecurringEnabled, getRecurringOptinEnabled, setRecurringOptinEnabled, getTipsEnabled, setTipsEnabled, getFreePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled } from "@/app/actions/settings"
 import { getSameDayConfig, setSameDayConfig, type SameDayConfig } from "@/app/actions/same-day"
 import Link from "next/link"
 
@@ -355,6 +355,8 @@ export default function PricingPage() {
   const [monthlyPlanEnabled, setMonthlyPlanEnabledState] = useState(true)
   const [recurringEnabled, setRecurringEnabledState] = useState(true)
   const [savingRecurring, setSavingRecurring] = useState(false)
+  const [recurOptin, setRecurOptinState] = useState(false)
+  const [savingRecurOptin, setSavingRecurOptin] = useState(false)
   const [tipsEnabled, setTipsEnabledState] = useState(true)
   const [savingTipsToggle, setSavingTipsToggle] = useState(false)
   const [savingPlanToggle, setSavingPlanToggle] = useState(false)
@@ -391,6 +393,7 @@ export default function PricingPage() {
     setWashOnlyBagConfigState(woBagCfg)
     setSameDayState(sameDayCfg)
     getRecurringEnabled().then(setRecurringEnabledState)
+    getRecurringOptinEnabled().then(setRecurOptinState)
     getTipsEnabled().then(setTipsEnabledState)
     getFreePickupDeliveryLineEnabled().then(setFreePickupDeliveryLineEnabledState)
   }
@@ -614,6 +617,33 @@ export default function PricingPage() {
                 aria-checked={recurringEnabled}
               >
                 <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${recurringEnabled ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </div>
+
+            {/* "Make this recurring?" checkbox at checkout */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#f0f4f9] border border-blue-100">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">☑️</span>
+                <div>
+                  <p className="font-bold text-sm text-[#0D2240]">Recurring Option at Checkout</p>
+                  <p className="text-xs text-gray-400">Show a &quot;Want to make this a recurring service?&quot; checkbox on the last step. Follow-up orders use the regular rate; customers can cancel anytime from their account.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={savingRecurOptin}
+                onClick={async () => {
+                  setSavingRecurOptin(true)
+                  const next = !recurOptin
+                  setRecurOptinState(next)
+                  await setRecurringOptinEnabled(next)
+                  setSavingRecurOptin(false)
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${recurOptin ? "bg-[#0D2240]" : "bg-gray-200"}`}
+                role="switch"
+                aria-checked={recurOptin}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${recurOptin ? "translate-x-5" : "translate-x-0"}`} />
               </button>
             </div>
 

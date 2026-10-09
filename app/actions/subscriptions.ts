@@ -4,12 +4,13 @@ import Stripe from "stripe"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
+import { createClient } from "@/lib/supabase/server"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-04-10" })
 
 // Day-of-week → JS getDay() number
 const DAY_NUMS: Record<string, number> = {
-  monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5,
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
 }
 
 /** Returns the next calendar date for a given weekday ID, starting from `after` (exclusive). */
@@ -65,7 +66,7 @@ export async function createSubscription(params: {
   stripeAccountId?:      string | null
   /** Explicit tenant, for webhook contexts where getLocationId() can't resolve. */
   locationId?:           string
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; id?: string; error?: string }> {
   try {
     const supabase   = createAdminClient()
     const locationId = params.locationId ?? (await getLocationId())
@@ -109,7 +110,7 @@ export async function createSubscription(params: {
     const nextPickupDate = nextPickup.toISOString().split("T")[0]
 
     // ── 5. Insert subscription record ────────────────────────────────────────
-    const { error } = await supabase.from("subscriptions").insert({
+    const { data: inserted, error } = await supabase.from("subscriptions").insert({
       location_id:             locationId,
       customer_name:           params.customerName,
       customer_email:          params.customerEmail,
@@ -130,11 +131,11 @@ export async function createSubscription(params: {
       status:                  "active",
       next_pickup_date:        nextPickupDate,
       first_booking_id:        params.bookingId,
-    })
+    }).select("id").single()
 
     if (error) throw error
 
-    return { ok: true }
+    return { ok: true, id: inserted?.id }
   } catch (err: unknown) {
     console.error("[createSubscription]", err)
     return { ok: false, error: (err as Error).message }
@@ -155,7 +156,13 @@ async function getSubscription(supabase: ReturnType<typeof createAdminClient>, i
   return data
 }
 
-function isInCommitment(sub: { pickups_completed?: number | null; subscription_type?: string | null }): boolean {
+// No minimum-pickup commitment any more — recurring pickups can be cancelled or
+// paused anytime. Kept as a function so the callers below don't need to change.
+function isInCommitment(_sub: { pickups_completed?: number | null; subscription_type?: string | null }): boolean {
+  return false
+}
+
+function _legacyIsInCommitment(sub: { pickups_completed?: number | null; subscription_type?: string | null }): boolean {
   // Only weekly/biweekly subscriptions have the 3-pickup minimum.
   // Monthly plans use commitment_ends_at instead (separate flow).
   if (sub.subscription_type === "monthly_plan") return false
@@ -197,6 +204,30 @@ export async function cancelSubscription(id: string): Promise<{ ok: boolean; err
     }
   }
 
+  await supabase.from("subscriptions").update({ status: "cancelled" }).eq("id", id)
+  return { ok: true }
+}
+
+/**
+ * Customer self-service cancel for a weekly/biweekly recurring pickup.
+ * No commitment — cancel anytime. Verifies the signed-in user owns it (by email,
+ * same tenant) before touching anything.
+ */
+export async function cancelMyRecurringSubscription(id: string): Promise<{ ok: boolean; error?: string }> {
+  const userClient = await createClient()
+  const { data: { user } } = await userClient.auth.getUser()
+  if (!user?.email) return { ok: false, error: "Please sign in." }
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("id, customer_email, status, subscription_type")
+    .eq("id", id)
+    .eq("location_id", locationId)
+    .maybeSingle()
+  if (!sub || sub.customer_email?.toLowerCase() !== user.email.toLowerCase() || sub.subscription_type === "monthly_plan") {
+    return { ok: false, error: "Subscription not found." }
+  }
   await supabase.from("subscriptions").update({ status: "cancelled" }).eq("id", id)
   return { ok: true }
 }
