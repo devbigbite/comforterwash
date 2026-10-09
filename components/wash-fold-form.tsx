@@ -624,6 +624,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
     if (f === "one_time") selectPaygo()
     else selectSubscribeType(f)
   }
+  const onlyPayGo = !recurringEnabled && !monthlyPlanEnabled
   const currentFrequency: "one_time" | "weekly" | "biweekly" =
     serviceMode === "paygo" ? "one_time" : (subscribeType === "monthly" ? "one_time" : subscribeType)
   const ALL_FREQUENCY_OPTIONS = [
@@ -851,9 +852,11 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
 
             {/* ── Tier selector ── */}
             <div className="space-y-3">
+              {!(onlyPayGo && !showsSystemPicker) && (
               <h3 className="text-xl font-extrabold text-[var(--brand-primary)]">
                 {showsSystemPicker ? "What's your preferred system?" : tw.howToBook}
               </h3>
+              )}
               {topSlot}
 
               <div className="space-y-2">
@@ -953,7 +956,15 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                       </div>
                     </button>
                   )}
-                </>) : (<>
+                </>) : onlyPayGo ? (
+                  /* Recurring + monthly both OFF: only one way to book, so no picker — just show the rate */
+                  !isBagMode ? (
+                    <div className="flex items-center justify-between rounded-2xl bg-[#f7f8fb] px-4 py-3">
+                      <span className="text-sm font-bold text-gray-500">{tw.tierPayAsYouGo}</span>
+                      <span className="font-extrabold text-[var(--brand-accent)] text-lg">{freqPricing.one_time.label}</span>
+                    </div>
+                  ) : null
+                ) : (<>
                   {/* ── Option 1: One-Time ── */}
                   <button type="button" onClick={selectPaygo}
                     className={cn(

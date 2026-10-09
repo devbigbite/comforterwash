@@ -278,7 +278,7 @@ export function SiteImagesEditor({
                     <>
                       <p className="text-[10px] text-gray-400 italic">Leave blank to use Spanish translation automatically.</p>
                       <TextField label="Titular (ES)" value={text.slide_1_headline_es} defaultValue="" placeholder="Tu Ropa. Lista." onSave={v => saveText("slide_1_headline_es", v)} />
-                      <TextField label="Subtítulo (ES)" value={text.slide_1_subline_es} defaultValue="" placeholder="La recogemos en tu puerta y te la devolvemos limpia, doblada y lista para guardar. Recogida y Entrega Gratis · Desde $2.69/lb" onSave={v => saveText("slide_1_subline_es", v)} multiline />
+                      <TextField label="Subtítulo (ES)" value={text.slide_1_subline_es} defaultValue="" placeholder="La recogemos en tu puerta y te la devolvemos limpia, doblada y lista para guardar. Recogida y Entrega Gratis · Desde $2.79/lb" onSave={v => saveText("slide_1_subline_es", v)} multiline />
                       <TextField label="Botón (ES)" value={text.slide_1_cta_es} defaultValue="" placeholder="Programar Recogida" onSave={v => saveText("slide_1_cta_es", v)} />
                     </>
                   )}

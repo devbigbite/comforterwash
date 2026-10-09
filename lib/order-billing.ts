@@ -112,7 +112,7 @@ export async function calculateOrderBilling(
       : `commercial ${commercial.rate_type} rate @ $${(rateAmount / 100).toFixed(2)}`
   } else {
     // Consumer rate: this booking's own locked-in price_per_lb_cents (set at
-    // checkout — a customer quoted $2.69/lb must always be billed $2.69/lb)
+    // checkout — a customer quoted a given $/lb rate must always be billed that same rate)
     // takes priority over the current default.
     const rateCents = Number(
       booking.price_per_lb_cents

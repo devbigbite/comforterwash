@@ -399,6 +399,9 @@ export default function PricingPage() {
     if (!bagConfig) return
     setSavingBagConfig(true)
     await setWashFoldBagConfig(bagConfig)
+    // This card also holds the $/lb rate + minimum lbs — save them together so
+    // this button doesn't silently drop edits made to those fields.
+    if (config) await setPricingConfig(config)
     setSavingBagConfig(false)
     setSavedBagConfig(true)
     setTimeout(() => setSavedBagConfig(false), 3000)
@@ -427,6 +430,7 @@ export default function PricingPage() {
     if (!washOnlyBagConfig) return
     setSavingWashOnlyBagConfig(true)
     await setWashOnlyBagConfig(washOnlyBagConfig)
+    if (config) await setPricingConfig(config)
     setSavingWashOnlyBagConfig(false)
     setSavedWashOnlyBagConfig(true)
     setTimeout(() => setSavedWashOnlyBagConfig(false), 3000)

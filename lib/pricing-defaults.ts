@@ -1,7 +1,7 @@
 export const PRICING_DEFAULTS = {
-  washFoldOneTimeCents: 269,
+  washFoldOneTimeCents: 279,
   washFoldSubCents:     255,
-  washFoldMinLbs:       18,
+  washFoldMinLbs:       24,
   washOnlyCents:        219,
   washOnlyMinLbs:       18,
   // Customer-facing comforter prices — these must match the "struck

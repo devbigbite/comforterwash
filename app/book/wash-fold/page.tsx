@@ -12,7 +12,7 @@ export async function generateMetadata() {
   const branding = await getBranding()
   return {
     title: `Book Wash & Fold — ${branding.business_name || "WashFold Orlando"}`,
-    description: "Clothes washed, dried, and folded with free pickup & delivery. $2.69/lb, 18 lb minimum.",
+    description: "Clothes washed, dried, and folded with free pickup & delivery. $2.79/lb, 24 lb minimum.",
   }
 }
 

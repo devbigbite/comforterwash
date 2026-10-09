@@ -116,7 +116,7 @@ export const DEFAULT_TEXT: SiteText = {
   slide_2_p4_desc_es:  "",
 
   slide_3_headline: "We Come to You. You Enjoy Life.",
-  slide_3_subline:  "Professional wash & fold starting at $2.69/lb · Comforters from $35",
+  slide_3_subline:  "Professional wash & fold starting at $2.79/lb · Comforters from $35",
   slide_3_cta:      "See Pricing",
   slide_3_headline_es: "",
   slide_3_subline_es:  "",
