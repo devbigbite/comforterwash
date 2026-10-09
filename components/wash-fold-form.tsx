@@ -499,8 +499,8 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   const totalCents       = totalBeforeGiftCardCents - giftCardDiscountCents
   // Bag-mode pricing is a flat, known-in-advance total — no weight
   // uncertainty to buffer for, unlike per-lb where the scale reading can
-  // come in over the estimate. Only the per-lb path gets the 1.25x cushion.
-  const preAuthCentsRaw  = Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * (isBagMode ? 1 : 1.25))) + comforterSubtotalCents + tipCents + sameDayFeeCents
+  // come in over the estimate. Only the per-lb path gets the 1.10x cushion.
+  const preAuthCentsRaw  = Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * (isBagMode ? 1 : 1.10))) + comforterSubtotalCents + tipCents + sameDayFeeCents
   const preAuthCents     = Math.max(50, preAuthCentsRaw - giftCardDiscountCents)
   const totalDisplay     = (totalCents / 100).toFixed(2)
   const priceLabel      = freqPricing[formData.frequency as keyof typeof freqPricing].label
@@ -1215,8 +1215,9 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">{isBagMode ? "Estimated Total" : tw.preAuth}</p>
-                  <p className="text-2xl font-extrabold text-[var(--brand-accent)]">${(isBagMode ? baseCents / 100 : preAuthCents / 100).toFixed(2)}</p>
+                  <p className="text-xs text-[var(--brand-primary)]/50 font-medium uppercase tracking-wide">Estimated Price</p>
+                  <p className="text-2xl font-extrabold text-[var(--brand-accent)]">${(baseCents / 100).toFixed(2)}</p>
+                  {!isBagMode && <p className="text-[11px] text-gray-400 mt-0.5">at {priceLabel} · {minLbs} lb min</p>}
                 </div>
               </div>
               {!isBagMode && (

@@ -349,7 +349,7 @@ export function WashOnlyForm({ initialPricing, topSlot, timezone }: { initialPri
   // cushion needed (mirrors wash-fold-form.tsx's isBagMode handling).
   const preAuthCentsRaw    = isBagMode
     ? Math.ceil((laundrySubtotalCents - discountCents + deliveryFeeCents)) + comforterSubtotalCents + tipCents + sameDayFeeCents
-    : Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * 1.25)) + comforterSubtotalCents + tipCents + sameDayFeeCents
+    : Math.ceil(((laundrySubtotalCents - discountCents + deliveryFeeCents) * 1.10)) + comforterSubtotalCents + tipCents + sameDayFeeCents
   const preAuthCents       = Math.max(50, preAuthCentsRaw - giftCardDiscountCents)
   const totalDisplay       = (totalCents / 100).toFixed(2)
 
