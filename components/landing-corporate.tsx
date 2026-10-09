@@ -7,7 +7,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useLang } from "@/components/lang-provider"
 import { useState, useEffect } from "react"
-import { getLandingOffers, getSiteImages, getSiteText, getServicesConfig, getMonthlyPlanEnabled, type ServicesConfig } from "@/app/actions/settings"
+import { getLandingOffers, getSiteImages, getSiteText, getServicesConfig, getMonthlyPlanEnabled, getRecurringEnabled, type ServicesConfig } from "@/app/actions/settings"
 import { getPricingConfig, getWashFoldBagConfig, getWashOnlyBagConfig, type PricingConfig, type WashFoldBagConfig, type WashOnlyBagConfig } from "@/app/actions/pricing"
 import { getBrandingSettings } from "@/app/actions/branding"
 import { PRICING_DEFAULTS } from "@/lib/pricing-defaults"
@@ -56,6 +56,7 @@ export function CorporateLanding({
   const [washOnlyBags, setWashOnlyBags] = useState<WashOnlyBagConfig | null>(initialWashOnlyBags ?? null)
   // null until loaded -- prevents flash of the monthly-plan CTA on first render
   const [monthlyPlanEnabled, setMonthlyPlanEnabled] = useState<boolean | null>(null)
+  const [recurringEnabled, setRecurringEnabled] = useState<boolean | null>(null)
   const [businessName, setBusinessName] = useState("WashFold Orlando")
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   useEffect(() => {
@@ -67,6 +68,7 @@ export function CorporateLanding({
     getWashFoldBagConfig().then(setWashFoldBags)
     getWashOnlyBagConfig().then(setWashOnlyBags)
     getMonthlyPlanEnabled().then(setMonthlyPlanEnabled)
+    getRecurringEnabled().then(setRecurringEnabled)
     getBrandingSettings().then(b => {
       setBusinessName(b.business_name)
       setLogoUrl(b.logo_url ?? null)
@@ -343,7 +345,9 @@ export function CorporateLanding({
                   <>
                     <p className="text-gray-400 text-sm mb-4">{livePricing.washFoldMinLbs} lb minimum</p>
                     <p className="text-5xl font-extrabold text-[var(--brand-accent)] mb-1">${(livePricing.washFoldOneTimeCents / 100).toFixed(2)}<span className="text-2xl">/lb</span></p>
-                    <p className="text-gray-400 text-xs mb-6">${(livePricing.washFoldSubCents / 100).toFixed(2)}/lb with weekly/biweekly subscription</p>
+                    {recurringEnabled === true
+                      ? <p className="text-gray-400 text-xs mb-6">${(livePricing.washFoldSubCents / 100).toFixed(2)}/lb with weekly/biweekly subscription</p>
+                      : <div className="mb-6" />}
                   </>
                 ),
               },
@@ -488,7 +492,7 @@ export function CorporateLanding({
           <div className="w-16 h-0.5 bg-[var(--brand-accent)] mx-auto mb-10" />
           <div className="space-y-3">
             {[
-              { q: tr.faq.q1, a: tr.faq.a1 },
+              { q: tr.faq.q1, a: recurringEnabled === true ? tr.faq.a1 : tr.faq.a1.replace(/ \((?:or|o) \$[\d.]+\/lb (?:with a weekly\/biweekly subscription|con suscripción)\)/, "") },
               { q: tr.faq.q2, a: tr.faq.a2 },
               { q: tr.faq.q3, a: tr.faq.a3 },
               { q: tr.faq.q4, a: tr.faq.a4 },

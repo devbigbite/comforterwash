@@ -89,6 +89,7 @@ export function ServiceSwitcher({
             minLbs={pricing.washFoldMinLbs}
             bagMode={washFoldBagConfig?.mode}
             bagSizes={washFoldBagConfig?.bagSizes}
+            recurringEnabled={recurringEnabled ?? true}
           />
         )}
         {service === "wash_only" && (

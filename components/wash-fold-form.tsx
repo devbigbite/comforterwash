@@ -1899,7 +1899,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                     className="mt-0.5 shrink-0" />
                   <span className="text-sm text-[var(--brand-primary)]">
                     <span className="font-semibold">Want to make this a recurring service?</span>
-                    <span className="block text-xs text-gray-400 mt-0.5">We&apos;ll repeat this same pickup day and time at the regular rate. Cancel anytime from your account.</span>
+                    <span className="block text-xs text-gray-400 mt-0.5">We&apos;ll repeat this same pickup day and time. Cancel anytime from your account.</span>
                   </span>
                 </label>
                 {recurOpt !== "none" && (

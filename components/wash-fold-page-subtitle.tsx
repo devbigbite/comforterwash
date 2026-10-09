@@ -16,9 +16,11 @@ interface Props {
   // below doesn't apply -- see app/actions/pricing.ts WashFoldBagConfig.
   bagMode?: WashFoldPricingMode
   bagSizes?: BagSize[]
+  // false => hide the discounted subscription rate (recurring picker is off)
+  recurringEnabled?: boolean
 }
 
-export function WashFoldPageSubtitle({ oneTimeCents, subCents, minLbs, bagMode, bagSizes }: Props) {
+export function WashFoldPageSubtitle({ oneTimeCents, subCents, minLbs, bagMode, bagSizes, recurringEnabled = true }: Props) {
   const { locale } = useLang()
   const s = STRINGS[locale] ?? STRINGS.en
 
@@ -39,8 +41,8 @@ export function WashFoldPageSubtitle({ oneTimeCents, subCents, minLbs, bagMode, 
 
   return (
     <p className="text-white/60 text-sm">
-      ${(oneTimeCents / 100).toFixed(2)}/lb {s.once}
-      {" · "}${(subCents / 100).toFixed(2)}/lb {s.sub}
+      ${(oneTimeCents / 100).toFixed(2)}/lb{recurringEnabled ? ` ${s.once}` : ""}
+      {recurringEnabled && <>{" · "}${(subCents / 100).toFixed(2)}/lb {s.sub}</>}
       {" · "}{minLbs} {s.min}
     </p>
   )
