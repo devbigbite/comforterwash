@@ -285,8 +285,8 @@ const en = {
     weekly:        "Weekly",
     biweekly:      "Biweekly",
     save10:        "Save 10%",
-    howManyBags:   "We'll weigh your laundry before processing. How many bags should we pick up this time?",
-    bagWeightNote: "One standard bag holds about 18 lbs. Final charge is adjusted to actual weight.",
+    howManyBags:   "We'll weigh your laundry before processing. How many bags should we pick up?",
+    bagWeightNote: "Final charge is adjusted to actual weight.",
     // booking tier selector
     howToBook:             "How would you like to book?",
     tierOneTimeLabel:      "One-time",

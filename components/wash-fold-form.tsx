@@ -958,13 +958,8 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                     </button>
                   )}
                 </>) : onlyPayGo ? (
-                  /* Recurring + monthly both OFF: only one way to book, so no picker — just show the rate */
-                  !isBagMode ? (
-                    <div className="flex items-center justify-between rounded-2xl bg-[#f7f8fb] px-4 py-3">
-                      <span className="text-sm font-bold text-gray-500">{tw.tierPayAsYouGo}</span>
-                      <span className="font-extrabold text-[var(--brand-accent)] text-lg">{freqPricing.one_time.label}</span>
-                    </div>
-                  ) : null
+                  /* Recurring + monthly both OFF: only one way to book — no picker, no rate bar */
+                  null
                 ) : (<>
                   {/* ── Option 1: One-Time ── */}
                   <button type="button" onClick={selectPaygo}
