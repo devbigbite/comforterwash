@@ -733,7 +733,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
             <h3 className="font-bold text-[var(--brand-primary)] text-sm uppercase tracking-wide mb-3">{tw.orderSummary}</h3>
             {[
               { label: tf.labelService,    value: tw.washFoldLabel },
-              { label: tf.labelFrequency,  value: formData.frequency === "one_time" ? tw.oneTimeLabel : formData.frequency === "weekly" ? tw.weeklyLabel : tw.biweeklyLabel },
+              ...((recurringEnabled || formData.frequency !== "one_time") ? [{ label: tf.labelFrequency, value: formData.frequency === "one_time" ? tw.oneTimeLabel : formData.frequency === "weekly" ? tw.weeklyLabel : tw.biweeklyLabel }] : []),
               { label: tf.labelPickup,    value: pickupSummary },
               { label: tf.labelDelivery,  value: deliverySummary },
               { label: "Pickup Address",  value: buildAddr(formData.pickupStreet, formData.pickupUnit, formData.pickupCity, formData.pickupState, formData.pickupZip) },
@@ -758,7 +758,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
               {!isBagMode ? (<>
               <p>
                 Estimated charge: <strong className="text-[var(--brand-primary)]">${totalDisplay}</strong> ({formData.numBags} {formData.numBags > 1 ? tf.bags : tf.bag} · {minLbs} lb minimum · {priceLabel}).
-                You&apos;re only charged this amount, based on the actual weight once it&apos;s picked up and weighed — nothing is charged today.
+                You&apos;re only charged the corresponding amount based on the actual weight once it&apos;s picked up and weighed.
               </p>
               <p>
                 Stripe will show a temporary hold of <strong className="text-[var(--brand-primary)]">${(preAuthCents / 100).toFixed(2)}</strong> below to confirm your card — that&apos;s just a safety buffer in case your order weighs more than expected, not the actual charge.
