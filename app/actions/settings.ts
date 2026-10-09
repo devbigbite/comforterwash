@@ -244,12 +244,14 @@ export interface DeliveryFeeSettings {
   comforterCents: number   // flat fee for comforter wash (0 = no fee)
   washFoldCents:  number   // flat fee for wash & fold   (0 = no fee)
   washOnlyCents:  number   // flat fee for wash only     (0 = no fee)
+  label?: string           // custom customer-facing name (blank = "Delivery fee")
 }
 
 const DELIVERY_FEE_KEYS = [
   "delivery_fee_comforter_cents",
   "delivery_fee_washfold_cents",
   "delivery_fee_washonly_cents",
+  "delivery_fee_label",
 ] as const
 
 export async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
@@ -266,9 +268,10 @@ export async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
       comforterCents: parseInt(map["delivery_fee_comforter_cents"] ?? "0"),
       washFoldCents:  parseInt(map["delivery_fee_washfold_cents"]  ?? "0"),
       washOnlyCents:  parseInt(map["delivery_fee_washonly_cents"]   ?? "0"),
+      label:          (map["delivery_fee_label"] ?? "").trim(),
     }
   } catch {
-    return { comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 }
+    return { comforterCents: 0, washFoldCents: 0, washOnlyCents: 0, label: "" }
   }
 }
 
@@ -282,6 +285,7 @@ export async function setDeliveryFeeSettings(settings: DeliveryFeeSettings): Pro
       { key: "delivery_fee_comforter_cents", value: String(settings.comforterCents), location_id: locationId, updated_at: new Date().toISOString() },
       { key: "delivery_fee_washfold_cents",  value: String(settings.washFoldCents),  location_id: locationId, updated_at: new Date().toISOString() },
       { key: "delivery_fee_washonly_cents",  value: String(settings.washOnlyCents),  location_id: locationId, updated_at: new Date().toISOString() },
+      { key: "delivery_fee_label",           value: (settings.label ?? "").trim().slice(0, 40), location_id: locationId, updated_at: new Date().toISOString() },
     ],
     { onConflict: "location_id,key" }
   )

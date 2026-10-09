@@ -10,6 +10,7 @@ export interface DeliveryFeeConfig {
   comforterCents: number   // fee for comforter wash
   washFoldCents:  number   // fee for wash & fold
   washOnlyCents:  number   // fee for wash only
+  label?: string           // custom display name; blank = "Delivery fee"
 }
 
 /** Returns the delivery fee cents for a given service type */

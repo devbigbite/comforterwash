@@ -507,7 +507,7 @@ export function BookingForm({ topSlot, timezone, initialPricing }: { topSlot?: R
             )}
             {deliveryFeeCents > 0 && (
               <div className="flex justify-between gap-4 text-gray-600 text-sm">
-                <span>Delivery fee</span>
+                <span>{feeConfig.label || "Delivery fee"}</span>
                 <span className="font-semibold">${(deliveryFeeCents / 100).toFixed(2)}</span>
               </div>
             )}

@@ -344,7 +344,7 @@ export default function PricingPage() {
   const [accessories, setAccessories] = useState<ServiceOption[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [deliveryFee, setDeliveryFee] = useState<DeliveryFeeSettings>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
+  const [deliveryFee, setDeliveryFee] = useState<DeliveryFeeSettings>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0, label: "" })
   const [savingFee, setSavingFee] = useState(false)
   const [savedFee, setSavedFee] = useState(false)
   const [sameDay, setSameDayState] = useState<SameDayConfig>({ enabled: false, feeCents: 1000, cutoffHour: 12 })
@@ -1084,6 +1084,19 @@ export default function PricingPage() {
           <p className="text-xs text-gray-400 mb-5">
             Set a flat delivery fee per service type. Set to <strong>$0.00</strong> to charge no fee for that service.
           </p>
+
+          <div className="mb-5">
+            <label className="block text-xs font-bold text-[#0D2240] mb-1">Fee name (shown to customers)</label>
+            <input
+              type="text"
+              maxLength={40}
+              className={inputCls}
+              placeholder="Delivery fee"
+              value={deliveryFee.label ?? ""}
+              onChange={e => setDeliveryFee(f => ({ ...f, label: e.target.value }))}
+            />
+            <p className="text-[10px] text-gray-400 mt-1.5">Appears at checkout and on receipts. Leave blank to use &quot;Delivery fee&quot;.</p>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
             {([

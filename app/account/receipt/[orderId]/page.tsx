@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getLocationId, getBranding } from "@/lib/location"
 import { resolveMinLbs } from "@/lib/order-minimum"
+import { getDeliveryFeeSettings } from "@/app/actions/settings"
 import { ReceiptPrintButton } from "@/components/receipt-print-button"
 
 const SERVICE_LABEL: Record<string, string> = {
@@ -39,6 +40,7 @@ export default async function AccountReceiptPage({
 
   if (!booking) notFound()
 
+  const feeLabel = (await getDeliveryFeeSettings()).label
   const isCharged = booking.payment_status === "captured" || booking.payment_status === "paid"
   const totalCents = booking.customer_final_cents ?? booking.total_amount ?? null
 
@@ -148,7 +150,7 @@ export default async function AccountReceiptPage({
                 )}
                 {!!booking.delivery_fee_cents && (
                   <tr>
-                    <td className="px-4 py-2 text-gray-600">Delivery fee</td>
+                    <td className="px-4 py-2 text-gray-600">{feeLabel || "Delivery fee"}</td>
                     <td className="px-4 py-2 text-right text-gray-600">${(booking.delivery_fee_cents / 100).toFixed(2)}</td>
                   </tr>
                 )}
