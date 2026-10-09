@@ -1122,7 +1122,6 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
             {!isBagMode ? (<>
             <div>
               <h3 className="text-xl font-extrabold text-[var(--brand-primary)] mb-1">{tw.howManyBags}</h3>
-              <p className="text-sm text-gray-400">{tw.bagWeightNote}</p>
             </div>
 
             <div className="space-y-4">
