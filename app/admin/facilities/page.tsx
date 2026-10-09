@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { getLocationId, getLocationTimezone } from "@/lib/location"
 import { requireAdmin } from "@/lib/auth-guard"
 import Link from "next/link"
@@ -19,7 +20,7 @@ import { PAYMENT_METHOD_LABEL } from "@/lib/facility-payment-methods"
 import { FacilityPayoutForms } from "@/components/admin/FacilityPayoutForms"
 import { todayET } from "@/lib/pickup-cutoff"
 import { geocodeAddress } from "@/lib/geocoding"
-import { getGeofencingEnabled, setGeofencingEnabled } from "@/app/actions/settings"
+import { getGeofencingEnabled, setGeofencingEnabled, getDefaultFacilityId, setDefaultFacilityId } from "@/app/actions/settings"
 
 // ── shared field CSS ─────────────────────────────────────────────────────────
 const inp = "rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#0D2240] focus:outline-none focus:ring-2 focus:ring-[#E8726A]/30 bg-white w-full"
@@ -126,6 +127,51 @@ async function toggleFacility(formData: FormData) {
   const active = formData.get("active") === "true"
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   await supabase.from("facilities").update({ active: !active }).eq("id", id).eq("location_id", locationId)
+  revalidatePath("/admin/facilities")
+}
+
+// Permanently delete a facility — only when it is inactive AND nothing references
+// it (orders, routes, machines, storage, payouts, ...). Otherwise it stays and the
+// admin is told why; deactivating is the right move for anything with history.
+async function deleteFacility(formData: FormData) {
+  "use server"
+  await requireAdmin()
+  const id = formData.get("id") as string
+  const [supabase, locationId] = [createAdminClient(), await getLocationId()]
+  const { data: fac } = await supabase.from("facilities").select("id, active").eq("id", id).eq("location_id", locationId).maybeSingle()
+  if (!fac) redirect("/admin/facilities")
+  if (fac.active) redirect("/admin/facilities?facilityError=" + encodeURIComponent("Deactivate the facility before deleting it."))
+
+  const count = async (table: string, col: string) => {
+    const { count: c, error } = await supabase.from(table).select("id", { count: "exact", head: true }).eq(col, id)
+    if (error) throw new Error(`${table}: ${error.message}`)
+    return c ?? 0
+  }
+  const checks: [string, string][] = [
+    ["machine_groups", "facility_id"], ["bookings", "assigned_facility_id"], ["bookings", "routed_facility_id"],
+    ["transport_runs", "facility_id"], ["facility_access_windows", "facility_id"], ["routes", "facility_id"],
+    ["transfer_sessions", "facility_id"], ["storage_spaces", "facility_id"], ["facility_payouts", "facility_id"],
+  ]
+  let used = 0
+  try {
+    for (const [t, c] of checks) used += await count(t, c)
+  } catch (e) {
+    redirect("/admin/facilities?facilityError=" + encodeURIComponent("Could not verify the facility is unused, so it was not deleted."))
+  }
+  if (used > 0) {
+    redirect("/admin/facilities?facilityError=" + encodeURIComponent("This facility has orders, routes, machines, storage or payouts attached, so it can't be deleted. Keep it deactivated instead."))
+  }
+  const { error } = await supabase.from("facilities").delete().eq("id", id).eq("location_id", locationId)
+  if (error) redirect("/admin/facilities?facilityError=" + encodeURIComponent("Delete failed: " + error.message))
+  revalidatePath("/admin/facilities")
+  redirect("/admin/facilities")
+}
+
+async function saveDefaultFacility(formData: FormData) {
+  "use server"
+  await requireAdmin()
+  const id = ((formData.get("facilityId") as string) ?? "").trim()
+  await setDefaultFacilityId(id || null)
   revalidatePath("/admin/facilities")
 }
 
@@ -285,8 +331,10 @@ const STORAGE_LABEL: Record<number, { label: string; color: string }> = {
 
 // ── page ─────────────────────────────────────────────────────────────────────
 
-export default async function FacilitiesPage() {
+export default async function FacilitiesPage({ searchParams }: { searchParams?: Promise<{ facilityError?: string }> }) {
   await requireAdmin()
+  const facilityError = (await searchParams)?.facilityError
+  const defaultFacilityId = await getDefaultFacilityId()
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
   // Tenant-local date — a UTC date can roll over hours before or after the
   // tenant's own evening, prefilling the wrong month.
@@ -325,6 +373,21 @@ export default async function FacilitiesPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
+      {facilityError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{facilityError}</div>
+      )}
+      <form action={saveDefaultFacility} className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="flex-1 min-w-[200px]">
+          <p className="font-bold text-sm text-[#0D2240]">Default facility for new orders</p>
+          <p className="text-xs text-gray-400">New orders (including recurring) are assigned here automatically. You can still change any single order.</p>
+        </div>
+        <select name="facilityId" defaultValue={defaultFacilityId ?? ""} className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-[#0D2240]">
+          <option value="">None (only if one facility)</option>
+          {(facilities ?? []).filter(f => f.active).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+        </select>
+        <button type="submit" className="rounded-xl bg-[#0D2240] px-4 py-2 text-xs font-bold text-white hover:bg-[#1a3a5c]">Save</button>
+      </form>
+
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-extrabold text-[#0D2240]">Laundromat Facilities</h1>
@@ -524,6 +587,16 @@ export default async function FacilitiesPage() {
                     {f.active ? "Deactivate" : "Activate"}
                   </button>
                 </form>
+                {!f.active && (
+                  <details className="relative">
+                    <summary className="text-xs text-red-400 hover:text-red-600 underline cursor-pointer list-none">Delete</summary>
+                    <form action={deleteFacility} className="absolute right-0 top-6 z-10 w-56 rounded-xl border border-red-100 bg-white p-3 shadow-lg">
+                      <input type="hidden" name="id" value={f.id} />
+                      <p className="text-[11px] text-gray-500 mb-2">Permanently delete this facility? Only works if nothing is attached to it.</p>
+                      <button type="submit" className="w-full rounded-lg bg-red-500 text-white text-xs font-bold py-1.5 hover:bg-red-600">Yes, delete</button>
+                    </form>
+                  </details>
+                )}
               </div>
             </div>
 

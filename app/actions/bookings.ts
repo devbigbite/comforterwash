@@ -8,7 +8,7 @@ import { createShipdayOrder } from "@/lib/shipday"
 import { format } from "date-fns"
 import { todayET } from "@/lib/date-et"
 import { recordPromoRedemption } from "@/app/actions/promos"
-import { getComforterPromo, getRecurringEnabled } from "@/app/actions/settings"
+import { getComforterPromo, getRecurringEnabled, getDefaultFacilityId } from "@/app/actions/settings"
 import { getPricingConfig, getWashFoldBagConfig, getWashOnlyBagConfig } from "@/app/actions/pricing"
 import { computeComforterFacilityCostCents } from "@/lib/facility-comforter-cost"
 import { syncCustomerFromBooking } from "@/app/actions/customers"
@@ -93,6 +93,9 @@ async function resolveSoleFacilityId(
   supabase: ReturnType<typeof createAdminClient>,
   locationId: string,
 ): Promise<string | null> {
+  // An explicit admin-chosen default facility wins over the sole-facility guess.
+  const preferred = await getDefaultFacilityId(locationId)
+  if (preferred) return preferred
   const { data: facilities } = await supabase
     .from("facilities")
     .select("id")

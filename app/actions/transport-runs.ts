@@ -287,8 +287,8 @@ export async function completeTransportRun(formData: FormData) {
         // can only raise the payout, never let it undercut the order minimum
         // the customer was billed at. Both read that minimum from the same
         // admin pricing settings so they cannot drift apart.
-        const minLbs = await resolveMinLbs(bk.service_type ?? null)
-        const facilityLbs = Math.max(bk.actual_weight_lbs, facility.minimum_lbs ?? 0, minLbs)
+        // Facilities are paid on their own minimum_lbs only, not the customer order minimum.
+        const facilityLbs = Math.max(bk.actual_weight_lbs, facility.minimum_lbs ?? 0)
         facilityCostCents = Math.round(facilityLbs * facility.rate_per_lb * 100)
       }
 

@@ -11,6 +11,7 @@ import { sendWeightConfirmedEmail } from "@/lib/email"
 import { syncPhaseFromStatus } from "@/lib/order-status-sync"
 import { calculateOrderBilling } from "@/lib/order-billing"
 import { getLocationId } from "@/lib/location"
+import { getDefaultFacilityId } from "@/app/actions/settings"
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pending", picked_up: "Picked Up",
@@ -186,7 +187,9 @@ async function confirmDropoff(formData: FormData) {
       .from("facilities")
       .select("id")
       .eq("location_id", bk.location_id)
-    if (facilities?.length === 1) assignedFacilityId = facilities[0].id
+    const preferredFacilityId = await getDefaultFacilityId(bk.location_id)
+    if (preferredFacilityId) assignedFacilityId = preferredFacilityId
+    else if (facilities?.length === 1) assignedFacilityId = facilities[0].id
   }
 
   // Both money figures are computed here, by the same helper the admin and

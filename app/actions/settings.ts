@@ -464,6 +464,39 @@ export async function setRecurringOptinEnabled(enabled: boolean): Promise<void> 
   revalidatePath("/book", "layout")
 }
 
+// ─── Default facility for new orders ─────────────────────────────────────────
+// Where new orders (web, recurring engine, commercial) are assigned unless an
+// admin/driver picks otherwise. Falls back to "the only active facility" when
+// unset, which is the old behaviour. Stored as the facility id.
+
+export async function getDefaultFacilityId(locationIdOverride?: string): Promise<string | null> {
+  const supabase = createAdminClient()
+  const locationId = locationIdOverride ?? (await getLocationId())
+  const { data } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "default_facility_id")
+    .eq("location_id", locationId)
+    .maybeSingle()
+  const id = data?.value?.trim()
+  if (!id) return null
+  // Only honour it if it still points at an active facility of this tenant.
+  const { data: fac } = await supabase
+    .from("facilities").select("id").eq("id", id).eq("location_id", locationId).eq("active", true).maybeSingle()
+  return fac?.id ?? null
+}
+
+export async function setDefaultFacilityId(facilityId: string | null): Promise<void> {
+  await requireAdmin()
+  const supabase = createAdminClient()
+  const locationId = await getLocationId()
+  await supabase.from("settings").upsert(
+    { key: "default_facility_id", value: facilityId ?? "", location_id: locationId, updated_at: new Date().toISOString() },
+    { onConflict: "location_id,key" }
+  )
+  revalidatePath("/admin/facilities")
+}
+
 export async function getFreePickupDeliveryLineEnabled(): Promise<boolean> {
   const supabase = createAdminClient()
   const locationId = await getLocationId()

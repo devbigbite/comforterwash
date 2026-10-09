@@ -144,7 +144,9 @@ export async function calculateOrderBilling(
       //
       // Commercial orders have no lb minimum of their own (they floor on a
       // dollar amount), so the facility floors on the standard order minimum.
-      const facilityBillableLbs = Math.max(weightLbs, Number(facility?.minimum_lbs ?? 0), minLbs)
+      // UPDATE: facilities are now paid on their OWN minimum_lbs only (weight vs
+      // the facility's contractual floor) — never on the customer's order minimum.
+      const facilityBillableLbs = Math.max(weightLbs, Number(facility?.minimum_lbs ?? 0))
       facilityCostCents = Math.round(facilityBillableLbs * ratePerLb * 100)
     }
   }
