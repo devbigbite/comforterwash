@@ -333,7 +333,8 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   const [giftCard, setGiftCard] = useState<{ code: string; discountCents: number } | null>(null)
   const [tipOption, setTipOption] = useState<TipOption>("none")
   const [tipsEnabled, setTipsEnabled] = useState(true)
-  const [freePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled] = useState(true)
+  // Default false: showing it before the setting loads made it flash, then vanish, when the tenant has it turned off.
+  const [freePickupDeliveryLineEnabled, setFreePickupDeliveryLineEnabled] = useState(false)
   const [customTipCents, setCustomTipCents] = useState(0)
   const [feeConfig, setFeeConfig] = useState<DeliveryFeeConfig>({ comforterCents: 0, washFoldCents: 0, washOnlyCents: 0 })
 
@@ -1203,7 +1204,12 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
             </div>
             </>)}
 
-            {/* Estimate card */}
+            {/* Per-lb: no estimate card — customer just picks bag count, then the date. */}
+            {!isBagMode && freePickupDeliveryLineEnabled && (
+              <p className="text-xs font-semibold text-green-600">{tw.freePickupDelivery}</p>
+            )}
+            {/* Estimate card (flat bag pricing only — the total is the real price) */}
+            {isBagMode && (
             <div className="bg-[#fdf6f5] rounded-xl p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -1244,6 +1250,7 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
                 <p className="text-xs font-semibold text-green-600 pt-1">{tw.freePickupDelivery}</p>
               )}
             </div>
+            )}
 
             {/* ── DATE / SCHEDULE SECTION ── */}
             <div className="border-t border-gray-100 pt-6">
