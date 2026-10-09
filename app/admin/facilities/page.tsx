@@ -66,6 +66,9 @@ async function addFacility(formData: FormData) {
     processing_limit_hours:   hasLimit ? (parseFloat(formData.get("processing_limit_hours") as string) || null) : null,
     supports_own_operator,
     supports_partner_attendant,
+    // processing_mode (what the order page / transport runs read) must follow the
+    // checkboxes above, or a partner-only facility is shown as Own Operator.
+    processing_mode: supports_partner_attendant && !supports_own_operator ? "partner_attendant" : "own_operator",
     rate_per_lb:   parseFloat(formData.get("rate_per_lb") as string) || null,
     minimum_lbs:   parseFloat(formData.get("minimum_lbs") as string) || 0,
     partner_access_code: code,
@@ -103,6 +106,9 @@ async function editFacility(formData: FormData) {
     processing_limit_hours:   hasLimit ? (parseFloat(formData.get("processing_limit_hours") as string) || null) : null,
     supports_own_operator:      formData.get("supports_own_operator") === "on",
     supports_partner_attendant: formData.get("supports_partner_attendant") === "on",
+    // Keep processing_mode in step with the checkboxes when only one is ticked (both ticked = leave as is).
+    ...(formData.get("supports_partner_attendant") === "on" && formData.get("supports_own_operator") !== "on" ? { processing_mode: "partner_attendant" } : {}),
+    ...(formData.get("supports_own_operator") === "on" && formData.get("supports_partner_attendant") !== "on" ? { processing_mode: "own_operator" } : {}),
     rate_per_lb:   parseFloat(formData.get("rate_per_lb") as string) || null,
     minimum_lbs:   parseFloat(formData.get("minimum_lbs") as string) || 0,
   }).eq("id", id).eq("location_id", locationId)
@@ -165,6 +171,17 @@ async function deleteFacility(formData: FormData) {
   if (error) redirect("/admin/facilities?facilityError=" + encodeURIComponent("Delete failed: " + error.message))
   revalidatePath("/admin/facilities")
   redirect("/admin/facilities")
+}
+
+// <form action> must return void; the storage-space actions return a result object,
+// so these thin wrappers satisfy the form type without changing behaviour.
+async function addStorageSpaceForm(formData: FormData): Promise<void> {
+  "use server"
+  await addStorageSpace(formData)
+}
+async function updateStorageSpaceForm(formData: FormData): Promise<void> {
+  "use server"
+  await updateStorageSpace(formData)
 }
 
 async function saveDefaultFacility(formData: FormData) {
@@ -630,7 +647,7 @@ export default async function FacilitiesPage({ searchParams }: { searchParams?: 
                       </div>
                     </summary>
                     <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-                      <form action={updateStorageSpace} className="space-y-2">
+                      <form action={updateStorageSpaceForm} className="space-y-2">
                         <input type="hidden" name="id" value={s.id} />
                         <input type="hidden" name="facility_id" value={f.id} />
                         <div className="grid grid-cols-2 gap-2">
@@ -735,7 +752,7 @@ export default async function FacilitiesPage({ searchParams }: { searchParams?: 
                     <span className="text-sm font-bold">+ Add Storage Space</span>
                   </summary>
                   <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-                    <form action={addStorageSpace} className="space-y-2">
+                    <form action={addStorageSpaceForm} className="space-y-2">
                       <input type="hidden" name="facility_id" value={f.id} />
                       <div className="grid grid-cols-2 gap-2">
                         <div>
