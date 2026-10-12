@@ -163,7 +163,7 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
     return withTimeout(uploadPromise, 20000, "Upload timed out — check your signal and try again")
   }
 
-  async function uploadFile(file: File) {
+  async function uploadFile(file: File): Promise<boolean> {
     const safeName = file.name.replace(/[^a-z0-9.]/gi, "_").toLowerCase()
     const path = `${bookingId}/${Date.now()}-${safeName}`
 
@@ -201,7 +201,7 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
       setUploading(false)
       setPendingFile(file)
       if (inputRef.current) inputRef.current.value = ""
-      return
+      return false
     }
 
     const supabase = createClient()
@@ -230,6 +230,64 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
       setError(`Photo saved, but this page needs to refresh to continue (${err instanceof Error ? err.message : String(err)}). Tap Refresh below.`)
       setStaleReload(true)
     }
+    return true
+  }
+
+  // Quick photo: take the picture and save it to the phone only -- no upload,
+  // so a dead cellular spot costs the driver nothing. The browser can't write
+  // straight into the camera roll, so use the share sheet (iPhone: "Save
+  // Image") and fall back to a normal download (Android: lands in the
+  // gallery). Upload it later with "From gallery".
+  const quickInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+  const [savedNote, setSavedNote] = useState<string | null>(null)
+
+  async function handleQuickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setError(null)
+    setSavedNote(null)
+    try {
+      const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean }
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        await nav.share({ files: [file] })
+      } else {
+        const url = URL.createObjectURL(file)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = file.name || `photo-${Date.now()}.jpg`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 10000)
+      }
+      setSavedNote("Photo saved on your phone. When you have signal, tap \"From gallery\" to upload it.")
+    } catch (err) {
+      // Closing the share sheet throws AbortError -- not a real failure.
+      if (!(err instanceof Error && err.name === "AbortError")) {
+        setError("Couldn't save the photo to your phone. Try again.")
+      }
+    }
+    if (quickInputRef.current) quickInputRef.current.value = ""
+  }
+
+  async function handleGalleryFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0) return
+    setError(null)
+    setSavedNote(null)
+    try {
+      for (const raw of files) {
+        setUploading(true)
+        const file = await withTimeout(compressImage(raw), 8000, raw)
+        const ok = await uploadFile(file)
+        if (!ok) break
+      }
+    } catch (err) {
+      setError(`Something went wrong (${err instanceof Error ? err.message : String(err)}). Try again.`)
+      setUploading(false)
+    }
+    if (galleryInputRef.current) galleryInputRef.current.value = ""
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -295,6 +353,28 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
           {uploading ? "Uploading…" : "+ Add Photo"}
         </button>
       </div>
+
+      {/* Offline-friendly options: save a photo to the phone without uploading,
+          or upload photos already on the phone. */}
+      <div className="px-4 py-2 flex gap-2 border-b border-gray-50">
+        <button
+          onClick={() => quickInputRef.current?.click()}
+          disabled={uploading}
+          className="flex-1 border border-gray-200 text-[#0D2240] font-bold text-xs px-3 py-2 rounded-xl disabled:opacity-50"
+        >
+          📱 Quick photo (save to phone)
+        </button>
+        <button
+          onClick={() => galleryInputRef.current?.click()}
+          disabled={uploading}
+          className="flex-1 border border-gray-200 text-[#0D2240] font-bold text-xs px-3 py-2 rounded-xl disabled:opacity-50"
+        >
+          🖼️ From gallery
+        </button>
+      </div>
+      {savedNote && <p className="px-4 py-2 text-xs text-green-600">{savedNote}</p>}
+      <input ref={quickInputRef} type="file" accept="image/*" capture="environment" onChange={handleQuickPhoto} className="hidden" />
+      <input ref={galleryInputRef} type="file" accept="image/*" multiple onChange={handleGalleryFiles} className="hidden" />
 
       {/* Hidden file input — capture=environment opens rear camera on mobile */}
       <input
