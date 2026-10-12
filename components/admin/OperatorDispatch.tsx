@@ -198,13 +198,15 @@ function OperatorCard({
 
 function OperatorColumn({
   operator,
+  facility,
   orders,
   allOperators,
   date,
   assignOperatorAction,
   setOrderStageAction,
 }: {
-  operator: { id: string; name: string } | null  // null = Unassigned
+  operator: { id: string; name: string } | null  // null = Unassigned (or a partner facility column)
+  facility?: { id: string; name: string } // partner-attendant facility column
   orders: FacilityOrder[]
   allOperators: { id: string; name: string }[]
   date: string
@@ -212,7 +214,7 @@ function OperatorColumn({
   setOrderStageAction: (fd: FormData) => Promise<void>
 }) {
   const router = useRouter()
-  const isUnassigned = operator === null
+  const isUnassigned = operator === null && !facility
   const [isDragOver, setIsDragOver] = useState(false)
   const [dropPending, startDropTransition] = useTransition()
 
@@ -233,7 +235,7 @@ function OperatorColumn({
     const bookingId = e.dataTransfer.getData(DRAG_ORDER_MIME)
     const sourceOperatorId = e.dataTransfer.getData(DRAG_SOURCE_MIME)
     if (!bookingId) return
-    const targetOperatorId = operator?.id ?? ""
+    const targetOperatorId = facility ? `facility:${facility.id}` : (operator?.id ?? "")
     if (sourceOperatorId === targetOperatorId) return // already in this column
 
     const fd = new FormData()
@@ -263,13 +265,18 @@ function OperatorColumn({
       <div className={`px-3 py-3 border-b ${isUnassigned ? "border-amber-200" : "border-gray-100"}`}>
         <div className="flex items-center gap-2">
           <span className={`text-sm font-black ${isUnassigned ? "text-amber-700" : "text-[#0D2240]"}`}>
-            {isUnassigned ? "Unassigned" : operator!.name}
+            {isUnassigned ? "Unassigned" : facility ? `${facility.name} (partner staff)` : operator!.name}
           </span>
           <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${
             isUnassigned ? "bg-amber-200 text-amber-700" : "bg-gray-100 text-gray-500"
           }`}>{orders.length}</span>
         </div>
-        {!isUnassigned && (
+        {facility && (
+          <p className="text-[10px] text-gray-400 mt-0.5">
+            Handled by the facility's own staff
+          </p>
+        )}
+        {!isUnassigned && !facility && (
           <p className="text-[10px] text-gray-400 mt-0.5">
             {orders.length} order{orders.length !== 1 ? "s" : ""} assigned
           </p>
@@ -309,18 +316,22 @@ export function OperatorDispatch({
   date,
   orders,
   operators,
-  facilities: _unused,
+  facilities,
   assignOperatorAction,
   setOrderStageAction,
 }: {
   date: string
   orders: FacilityOrder[]
   operators: { id: string; name: string }[]
-  facilities: { id: string; name: string }[]
+  facilities: { id: string; name: string; processing_mode?: string | null }[]
   assignOperatorAction: (fd: FormData) => Promise<void>
   setOrderStageAction: (fd: FormData) => Promise<void>
 }) {
-  const unassigned = orders.filter(o => !o.assigned_operator_id)
+  const partnerFacilities = facilities.filter(f => f.processing_mode === "partner_attendant")
+  const partnerIds = new Set(partnerFacilities.map(f => f.id))
+  const inPartner = (o: FacilityOrder) =>
+    !o.assigned_operator_id && !!o.assigned_facility && partnerIds.has(o.assigned_facility.id)
+  const unassigned = orders.filter(o => !o.assigned_operator_id && !inPartner(o))
 
   return (
     <div>
@@ -334,6 +345,20 @@ export function OperatorDispatch({
           assignOperatorAction={assignOperatorAction}
           setOrderStageAction={setOrderStageAction}
         />
+
+        {/* One column per partner-attendant facility (their own staff does the work) */}
+        {partnerFacilities.map(f => (
+          <OperatorColumn
+            key={f.id}
+            operator={null}
+            facility={{ id: f.id, name: f.name }}
+            orders={orders.filter(o => inPartner(o) && o.assigned_facility!.id === f.id)}
+            allOperators={operators}
+            date={date}
+            assignOperatorAction={assignOperatorAction}
+            setOrderStageAction={setOrderStageAction}
+          />
+        ))}
 
         {/* One column per operator */}
         {operators.map(op => {

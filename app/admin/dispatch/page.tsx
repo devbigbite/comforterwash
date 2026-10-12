@@ -152,11 +152,17 @@ async function assignOperatorAction(formData: FormData) {
   const operatorId  = formData.get("operatorId")  as string
   const date        = formData.get("date")         as string
   const [supabase, locationId] = [createAdminClient(), await getLocationId()]
-  await supabase.from("bookings").update({ assigned_operator_id: operatorId || null }).eq("id", bookingId).eq("location_id", locationId)
+  // "facility:<id>" = hand the order to a partner facility's own staff
+  const toFacility = operatorId?.startsWith("facility:") ? operatorId.slice(9) : null
+  await supabase.from("bookings").update(
+    toFacility
+      ? { assigned_operator_id: null, assigned_facility_id: toFacility }
+      : { assigned_operator_id: operatorId || null }
+  ).eq("id", bookingId).eq("location_id", locationId)
   await supabase.from("order_events").insert({
     booking_id: bookingId,
-    event_type: "operator_assigned",
-    notes: operatorId ? `Operator assigned: ${operatorId}` : "Operator unassigned",
+    event_type: toFacility ? "facility_assigned" : "operator_assigned",
+    notes: toFacility ? "Assigned to partner facility staff" : operatorId ? `Operator assigned: ${operatorId}` : "Operator unassigned",
     created_by: "admin",
   })
   revalidatePath(`/admin/dispatch?date=${date}`)
@@ -276,7 +282,7 @@ export default async function DispatchPage({
 
   const { data: facilities } = await supabase
     .from("facilities")
-    .select("id, name")
+    .select("id, name, processing_mode")
     .eq("location_id", locationId)
     .order("name")
 
@@ -367,7 +373,7 @@ export default async function DispatchPage({
     .select(`
       id, short_code, customer_name, service_type, num_bags, num_comforters, status,
       assigned_operator_id,
-      assigned_facility:facilities!assigned_facility_id(id, name)
+      assigned_facility:facilities!assigned_facility_id(id, name, processing_mode)
     `)
     .eq("location_id", locationId)
     .in("status", ["at_facility", "in_washer", "in_dryer", "folded"])
@@ -508,7 +514,7 @@ export default async function DispatchPage({
             date={today}
             orders={allFacilityOrders}
             operators={operators}
-            facilities={(facilities ?? []) as { id: string; name: string }[]}
+            facilities={(facilities ?? []) as { id: string; name: string; processing_mode?: string | null }[]}
             assignOperatorAction={assignOperatorAction}
             setOrderStageAction={setOrderStageAdminAction}
           />
@@ -552,6 +558,6 @@ export type FacilityOrder = {
   num_comforters: number | null
   status: string
   assigned_operator_id: string | null
-  assigned_facility: { id: string; name: string } | null
+  assigned_facility: { id: string; name: string; processing_mode?: string | null } | null
   current_stage: string | null
 }
