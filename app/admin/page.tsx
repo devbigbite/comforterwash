@@ -271,6 +271,7 @@ export default async function AdminHub() {
         { label: "FAQ Editor", href: "/admin/faq" },
         { label: "Docs & FAQ", href: "/admin/docs" },
         { label: "Receipt Text", href: "/admin/receipt-text" },
+        { label: "Printer Setup & Print Tickets", href: "/admin/print-station" },
       ],
     },
     {

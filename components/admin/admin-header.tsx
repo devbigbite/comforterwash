@@ -124,6 +124,7 @@ function buildNav(lang: "en" | "es", operatingMode: OperatingMode): NavItem[] {
         { href: "/admin/faq",       label: es ? "Editor de FAQ" : "FAQ Editor" },
         { href: "/admin/docs",      label: es ? "Docs y FAQ" : "Docs & FAQ" },
         { href: "/admin/receipt-text", label: es ? "Texto del Recibo" : "Receipt Text" },
+        { href: "/admin/print-station", label: es ? "Impresora y Tickets" : "Printer Setup & Print Tickets" },
       ],
     },
     {
