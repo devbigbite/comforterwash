@@ -56,6 +56,34 @@ export interface OrderBilling {
   basis: string
 }
 
+// A commercial account can opt in (commercial_accounts.charge_delivery_fee) to
+// the same flat per-service delivery fee consumers pay at checkout, read from
+// the account's own location settings. Zero when the account hasn't opted in.
+async function resolveCommercialDeliveryFee(
+  supabase: AdminClient,
+  accountId: string,
+  serviceType: string | null,
+): Promise<number> {
+  const { data: acct } = await supabase
+    .from("commercial_accounts")
+    .select("charge_delivery_fee, location_id")
+    .eq("id", accountId)
+    .single()
+  if (!acct?.charge_delivery_fee || !acct.location_id) return 0
+  const key =
+    serviceType === "comforter_wash" ? "delivery_fee_comforter_cents" :
+    serviceType === "wash_only"      ? "delivery_fee_washonly_cents" :
+                                       "delivery_fee_washfold_cents"
+  const { data: row } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("location_id", acct.location_id)
+    .eq("key", key)
+    .maybeSingle()
+  const cents = parseInt(row?.value ?? "0")
+  return Number.isFinite(cents) && cents > 0 ? cents : 0
+}
+
 export async function calculateOrderBilling(
   supabase: AdminClient,
   booking: OrderBillingInput,
@@ -110,6 +138,13 @@ export async function calculateOrderBilling(
     basis = customerFinalCents > rawCents
       ? `commercial ${commercial.rate_type} rate, billed at the $${(minimumCents / 100).toFixed(2)} account minimum`
       : `commercial ${commercial.rate_type} rate @ $${(rateAmount / 100).toFixed(2)}`
+    const deliveryFeeCents = booking.commercial_account_id
+      ? await resolveCommercialDeliveryFee(supabase, booking.commercial_account_id, booking.service_type)
+      : 0
+    if (deliveryFeeCents > 0) {
+      customerFinalCents += deliveryFeeCents
+      basis += ` + $${(deliveryFeeCents / 100).toFixed(2)} delivery fee`
+    }
   } else {
     // Consumer rate: this booking's own locked-in price_per_lb_cents (set at
     // checkout — a customer quoted a given $/lb rate must always be billed that same rate)

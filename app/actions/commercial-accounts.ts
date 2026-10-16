@@ -47,6 +47,7 @@ export interface CommercialAccount {
   fabric_softener: boolean
   oxi_clean: boolean
   color_safe_bleach: boolean
+  charge_delivery_fee: boolean
 }
 
 export interface CommercialInvoice {
@@ -88,6 +89,7 @@ export async function addCommercialAccount(formData: FormData) {
     fabric_softener: formData.get("fabric_softener") === "on",
     oxi_clean: formData.get("oxi_clean") === "on",
     color_safe_bleach: formData.get("color_safe_bleach") === "on",
+    charge_delivery_fee: formData.get("charge_delivery_fee") === "on",
   })
 
   if (error) return { error: error.message }
@@ -123,6 +125,7 @@ export async function updateCommercialAccount(formData: FormData) {
     fabric_softener: formData.get("fabric_softener") === "on",
     oxi_clean: formData.get("oxi_clean") === "on",
     color_safe_bleach: formData.get("color_safe_bleach") === "on",
+    charge_delivery_fee: formData.get("charge_delivery_fee") === "on",
   }).eq("id", id).eq("location_id", locationId)
 
   if (error) return { error: error.message }
@@ -272,6 +275,7 @@ export async function createCommercialAccountSelfServe(formData: FormData) {
       fabric_softener: formData.get("fabric_softener") === "on",
       oxi_clean: formData.get("oxi_clean") === "on",
       color_safe_bleach: formData.get("color_safe_bleach") === "on",
+    charge_delivery_fee: formData.get("charge_delivery_fee") === "on",
     })
     .select("access_code")
     .single()

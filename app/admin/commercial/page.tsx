@@ -111,6 +111,10 @@ function AccountFields({ a }: { a?: CommercialAccount }) {
           </div>
         </div>
       </div>
+      <label className="flex items-center gap-2 text-sm text-[#0D2240]">
+        <input type="checkbox" name="charge_delivery_fee" defaultChecked={a?.charge_delivery_fee ?? false} className="rounded border-gray-300" />
+        Add the delivery fee (set in Pricing) to every order for this account
+      </label>
       <p className="text-[11px] text-gray-400 -mt-2">Applied automatically to every order created for this account — manual or auto-recurring.</p>
     </>
   )
