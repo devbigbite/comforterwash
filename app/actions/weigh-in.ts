@@ -45,7 +45,7 @@ export async function recordWeightAndCharge(
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("actual_weight_lbs, assigned_facility_id, stripe_payment_intent_id, customer_final_cents, service_type, commercial_account_id, recurring_subscription_id, price_per_lb_cents, wash_fold_bag_selection, wash_only_bag_selection, short_code, customer_name, customer_email, customer_phone, location_id")
+    .select("actual_weight_lbs, assigned_facility_id, stripe_payment_intent_id, customer_final_cents, service_type, commercial_account_id, recurring_subscription_id, price_per_lb_cents, wash_fold_bag_selection, wash_only_bag_selection, created_at, short_code, customer_name, customer_email, customer_phone, location_id")
     .eq("id", bookingId)
     .single()
 
@@ -70,6 +70,7 @@ export async function recordWeightAndCharge(
       assigned_facility_id:  booking.assigned_facility_id ?? null,
       wash_fold_bag_selection: booking.wash_fold_bag_selection ?? null,
       wash_only_bag_selection: booking.wash_only_bag_selection ?? null,
+      created_at:            booking.created_at ?? null,
     },
     weightLbs,
   )
