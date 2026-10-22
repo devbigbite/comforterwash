@@ -142,7 +142,7 @@ export function DispatchOrderCard({
             className="text-[10px] text-gray-400 hover:text-[#0D2240] font-semibold transition-colors">
             View order
           </Link>
-          <Link href={`/admin/orders/${b.id}/labels`}
+          <Link href={`/operator/order/${b.id}/labels?as=owner`}
             className="text-[10px] text-gray-400 hover:text-[#0D2240] font-semibold transition-colors">
             🏷️ Labels
           </Link>

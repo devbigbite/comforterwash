@@ -840,7 +840,7 @@ export default async function OrderDetailPage({
             <p className="text-[10px] text-gray-300 font-mono mt-0.5">internal id: {booking.id}</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href={`/admin/orders/${id}/labels`}
+            <Link href={`/operator/order/${id}/labels?as=owner`}
               className="rounded-xl border-2 border-[#0D2240] text-[#0D2240] font-bold text-sm px-4 py-2 hover:bg-[#0D2240] hover:text-white transition-all">
               🏷️ Print Labels
             </Link>
