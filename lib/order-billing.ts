@@ -46,6 +46,11 @@ export interface OrderBillingInput {
   // wash_fold_bag_selection above but for Wash Only's own separate bag-size
   // list. Never conflated with the Wash & Fold field.
   wash_only_bag_selection?: string | null
+  // When the booking was created -- commercial delivery fee only applies to
+  // orders created on/after the day it was enabled for the account.
+  created_at?: string | null
+  // Fuel Provision recorded on the booking at checkout (consumer orders).
+  delivery_fee_cents?: number | null
 }
 
 export interface OrderBilling {
@@ -63,13 +68,19 @@ async function resolveCommercialDeliveryFee(
   supabase: AdminClient,
   accountId: string,
   serviceType: string | null,
+  bookingCreatedAt: string | null | undefined,
 ): Promise<number> {
   const { data: acct } = await supabase
     .from("commercial_accounts")
-    .select("charge_delivery_fee, location_id")
+    .select("charge_delivery_fee, delivery_fee_from, location_id")
     .eq("id", accountId)
     .single()
   if (!acct?.charge_delivery_fee || !acct.location_id) return 0
+  // Only orders created on/after the day the fee was switched on for this
+  // account pay it (see trigger set_commercial_delivery_fee_from). An order
+  // with no known creation time is left alone rather than guessed at.
+  if (!bookingCreatedAt || !acct.delivery_fee_from) return 0
+  if (new Date(bookingCreatedAt).getTime() < new Date(acct.delivery_fee_from).getTime()) return 0
   const key =
     serviceType === "comforter_wash" ? "delivery_fee_comforter_cents" :
     serviceType === "wash_only"      ? "delivery_fee_washonly_cents" :
@@ -139,7 +150,7 @@ export async function calculateOrderBilling(
       ? `commercial ${commercial.rate_type} rate, billed at the $${(minimumCents / 100).toFixed(2)} account minimum`
       : `commercial ${commercial.rate_type} rate @ $${(rateAmount / 100).toFixed(2)}`
     const deliveryFeeCents = booking.commercial_account_id
-      ? await resolveCommercialDeliveryFee(supabase, booking.commercial_account_id, booking.service_type)
+      ? await resolveCommercialDeliveryFee(supabase, booking.commercial_account_id, booking.service_type, booking.created_at)
       : 0
     if (deliveryFeeCents > 0) {
       customerFinalCents += deliveryFeeCents
@@ -159,6 +170,17 @@ export async function calculateOrderBilling(
     basis = chargedLbs > weightLbs
       ? `consumer rate @ $${(rateCents / 100).toFixed(2)}/lb, billed at the ${minLbs} lb minimum`
       : `consumer rate @ $${(rateCents / 100).toFixed(2)}/lb`
+  }
+
+  // Consumer Fuel Provision: added to every non-commercial order created on/after
+  // the cutoff (Oct 22 2026, ET midnight). Earlier orders keep the old behavior.
+  if (!commercial) {
+    const fee = Number(booking.delivery_fee_cents ?? 0)
+    const created = booking.created_at ? new Date(booking.created_at).getTime() : 0
+    if (fee > 0 && created >= Date.parse("2026-10-22T04:00:00Z")) {
+      customerFinalCents += fee
+      basis += ` + $${(fee / 100).toFixed(2)} fuel provision`
+    }
   }
 
   let facilityCostCents = 0

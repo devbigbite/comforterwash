@@ -171,7 +171,7 @@ async function confirmDropoff(formData: FormData) {
   // Look up booking to get locked-in rate for customer billing
   const { data: bk } = await supabase
     .from("bookings")
-    .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents, assigned_facility_id, location_id, short_code, customer_name, customer_email, customer_phone, commercial_account_id, wash_fold_bag_selection, wash_only_bag_selection, created_at")
+    .select("price_per_lb_cents, service_type, stripe_payment_intent_id, pre_auth_cents, assigned_facility_id, location_id, short_code, customer_name, customer_email, customer_phone, commercial_account_id, wash_fold_bag_selection, wash_only_bag_selection, delivery_fee_cents, created_at")
     .eq("id", bookingId)
     .eq("location_id", locationId)
     .single()
@@ -211,6 +211,7 @@ async function confirmDropoff(formData: FormData) {
       wash_fold_bag_selection: bk?.wash_fold_bag_selection ?? null,
       wash_only_bag_selection: bk?.wash_only_bag_selection ?? null,
       created_at:            bk?.created_at ?? null,
+      delivery_fee_cents:    bk?.delivery_fee_cents ?? null,
     },
     weightLbs,
   )
