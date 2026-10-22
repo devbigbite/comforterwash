@@ -75,6 +75,10 @@ export function SearchRow({
             className="text-[#E8726A] text-xs font-bold hover:underline">
             View →
           </Link>
+          <Link href={`/admin/orders/${b.id}/labels`} onClick={e => e.stopPropagation()}
+            className="ml-3 text-[#0D2240] text-xs font-bold hover:underline">
+            🏷️ Labels
+          </Link>
         </td>
       </tr>
       {open && (
