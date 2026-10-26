@@ -92,7 +92,9 @@ function OrderDrawer({
   onClose,
   onPhaseMove,
   onOrderUpdated,
+  photoOptional = false,
 }: {
+  photoOptional?: boolean
   order: BoardOrder
   allOrdersInPhase: BoardOrder[]
   onClose: () => void
@@ -174,7 +176,7 @@ function OrderDrawer({
   // Must have color key before advancing INTO ready
   const advanceBlockedNoColorKey = nextPhase?.key === REQUIRES_COLOR_KEY_BEFORE && !order.color_key
   // Must have photo before advancing OUT OF ready (or any finished phase)
-  const advanceBlockedNoPhoto = isFinished && !order.facility_floor_photo_url
+  const advanceBlockedNoPhoto = !photoOptional && isFinished && !order.facility_floor_photo_url
 
   return (
     <>
@@ -307,7 +309,7 @@ function OrderDrawer({
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Finished Product &amp; Facility Location Photo</p>
-                {!order.facility_floor_photo_url && (
+                {!photoOptional && !order.facility_floor_photo_url && (
                   <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-red-500 text-white uppercase tracking-wide">Required</span>
                 )}
               </div>
@@ -334,7 +336,7 @@ function OrderDrawer({
                   {uploadingPhoto ? (
                     <><span className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> Uploading…</>
                   ) : (
-                    <>📷 Take placement photo (required)</>
+                    <>📷 Take placement photo{photoOptional ? " (optional)" : " (required)"}</>
                   )}
                 </button>
               )}
@@ -679,7 +681,7 @@ export function FacilityBoard({ initialGrouped, facilities, selectedFacilityId, 
                             <span title="Held at facility floor" className="text-emerald-500 text-xs shrink-0">📍</span>
                           )}
                           {/* Missing photo warning — all finished orders */}
-                          {FINISHED_PHASES.has(order.phase) && !order.facility_floor_photo_url && (
+                          {FINISHED_PHASES.has(order.phase) && !order.facility_floor_photo_url && facilities.find(f => f.id === order.assigned_facility_id)?.processing_mode !== "partner_attendant" && (
                             <span title="Placement photo required" className="text-red-500 text-xs shrink-0">📷</span>
                           )}
                           {/* Missing color key warning — all finished orders */}
@@ -742,6 +744,7 @@ export function FacilityBoard({ initialGrouped, facilities, selectedFacilityId, 
       {selectedOrder && (
         <OrderDrawer
           order={selectedOrder}
+          photoOptional={facilities.find(f => f.id === selectedOrder.assigned_facility_id)?.processing_mode === "partner_attendant"}
           allOrdersInPhase={grouped[selectedOrder.phase] ?? []}
           onClose={() => setSelectedOrder(null)}
           onPhaseMove={async (id, phase) => {

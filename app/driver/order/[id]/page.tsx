@@ -375,6 +375,13 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
   const { data: booking } = await supabase.from("bookings").select("*").eq("id", id).eq("location_id", locationId).single()
   if (!booking) notFound()
 
+  // Partner-staffed facilities (e.g. Spin Cycle) don't use our app, so no finished-product photo exists or is expected.
+  let partnerFacility = false
+  if (booking.assigned_facility_id) {
+    const { data: fac } = await supabase.from("facilities").select("processing_mode").eq("id", booking.assigned_facility_id).maybeSingle()
+    partnerFacility = fac?.processing_mode === "partner_attendant"
+  }
+
   // Facility is the default drop-off for every tenant, home-based or not.
   // For a home operator, "their facility" is almost always just their own
   // home setup — the "Warehouse"/"transport run" path only makes sense once
@@ -640,7 +647,7 @@ export default async function DriverOrderPage({ params }: { params: Promise<{ id
                     <p className="text-sm text-gray-500 text-center">Use this photo to find the finished bags on arrival</p>
                   </div>
                 )}
-                {!booking.facility_floor_photo_url && (
+                {!booking.facility_floor_photo_url && !partnerFacility && (
                   <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                     ⚠️ No finished-product photo yet — ask the operator before heading out.
                   </p>

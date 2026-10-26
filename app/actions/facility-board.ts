@@ -157,6 +157,7 @@ export interface FacilitySummary {
   id: string
   name: string
   address: string | null
+  processing_mode?: string | null
 }
 
 // ── Update facility floor details (hold, color key, photo, folded bag count) ──
@@ -207,7 +208,7 @@ export async function getActiveFacilities(): Promise<FacilitySummary[]> {
   const locationId = await getLocationId()
   const { data } = await supabase
     .from("facilities")
-    .select("id, name, address")
+    .select("id, name, address, processing_mode")
     .eq("location_id", locationId)
     .eq("active", true)
     .order("name")
