@@ -78,7 +78,7 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
         null
       )
       if (!res) return false
-      const html = await res.text()
+      const html = await withTimeout(res.text(), 5000, "")
       const liveBuildId = extractBuildId(html)
       if (!liveBuildId || !buildIdRef.current) return false
       return liveBuildId !== buildIdRef.current
@@ -242,33 +242,52 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
   const galleryInputRef = useRef<HTMLInputElement>(null)
   const [savedNote, setSavedNote] = useState<string | null>(null)
 
-  async function handleQuickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+  // iPhone only allows the "Save Image" share sheet from a fresh tap, not
+  // right after the camera closes. So the photo is shown first with a
+  // "Save to Photos" button (a fresh tap -> share works), and the photo itself
+  // can also be long-pressed to save.
+  const [quickFile, setQuickFile] = useState<File | null>(null)
+  const [quickUrl, setQuickUrl] = useState<string | null>(null)
+
+  function handleQuickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setError(null)
     setSavedNote(null)
+    if (quickUrl) URL.revokeObjectURL(quickUrl)
+    setQuickFile(file)
+    setQuickUrl(URL.createObjectURL(file))
+    if (quickInputRef.current) quickInputRef.current.value = ""
+  }
+
+  function closeQuick() {
+    if (quickUrl) URL.revokeObjectURL(quickUrl)
+    setQuickFile(null)
+    setQuickUrl(null)
+  }
+
+  async function saveQuickToPhone() {
+    if (!quickFile) return
+    setError(null)
     try {
       const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean }
-      if (nav.canShare && nav.canShare({ files: [file] })) {
-        await nav.share({ files: [file] })
+      if (nav.canShare && nav.canShare({ files: [quickFile] })) {
+        await nav.share({ files: [quickFile] })
       } else {
-        const url = URL.createObjectURL(file)
         const a = document.createElement("a")
-        a.href = url
-        a.download = file.name || `photo-${Date.now()}.jpg`
+        a.href = quickUrl ?? ""
+        a.download = quickFile.name || `photo-${Date.now()}.jpg`
         document.body.appendChild(a)
         a.click()
         a.remove()
-        setTimeout(() => URL.revokeObjectURL(url), 10000)
       }
       setSavedNote("Photo saved on your phone. When you have signal, tap \"From gallery\" to upload it.")
+      closeQuick()
     } catch (err) {
-      // Closing the share sheet throws AbortError -- not a real failure.
       if (!(err instanceof Error && err.name === "AbortError")) {
-        setError("Couldn't save the photo to your phone. Try again.")
+        setError("Couldn't save automatically. Press and hold the photo, then tap Save to Photos.")
       }
     }
-    if (quickInputRef.current) quickInputRef.current.value = ""
   }
 
   async function handleGalleryFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -315,12 +334,17 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
   async function handleAddPhotoTap() {
     if (uploading) return
     setError(null)
-    if (await isPageStale()) {
-      setStaleReload(true)
-      setError("There's a newer version of this page. Tap Refresh below, then take the photo again.")
-      return
-    }
+    // Open the camera immediately, inside the tap. Awaiting the stale-page
+    // check first (a network call) burns the browser's tap permission, so on
+    // weak signal the camera silently never opened. The check now runs in the
+    // background and only shows the refresh prompt if a newer build exists.
     inputRef.current?.click()
+    void isPageStale().then(stale => {
+      if (stale) {
+        setStaleReload(true)
+        setError("There's a newer version of this page. After this photo, tap Refresh below if it doesn't save.")
+      }
+    })
   }
 
   async function handleRetry() {
@@ -373,6 +397,17 @@ export default function PhotoUploader({ bookingId, action, onPhotoUploaded, even
         </button>
       </div>
       {savedNote && <p className="px-4 py-2 text-xs text-green-600">{savedNote}</p>}
+      {quickUrl && (
+        <div className="mx-4 my-2 rounded-xl border border-gray-200 p-3 space-y-2 bg-white">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={quickUrl} alt="Photo to save" className="w-full max-h-72 object-contain rounded-lg" />
+          <p className="text-xs text-gray-500 text-center">Tap Save, then choose &quot;Save Image&quot;. Or press and hold the photo.</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={saveQuickToPhone} className="flex-1 bg-[#0D2240] text-white text-sm font-bold py-3 rounded-xl">Save to Photos</button>
+            <button type="button" onClick={closeQuick} className="px-4 text-sm font-semibold text-gray-500 border border-gray-200 rounded-xl">Close</button>
+          </div>
+        </div>
+      )}
       <input ref={quickInputRef} type="file" accept="image/*" capture="environment" onChange={handleQuickPhoto} className="hidden" />
       <input ref={galleryInputRef} type="file" accept="image/*" multiple onChange={handleGalleryFiles} className="hidden" />
 
