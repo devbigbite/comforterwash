@@ -518,10 +518,28 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
     return isPickupDay(d, activeRoutes)
   }
 
+  // Holiday shift: when the next day is a closed holiday that would have been a
+  // delivery day (e.g. Thanksgiving Thursday), the open day right before it
+  // (Wednesday) is allowed as a delivery date so customers aren't pushed past it.
+  const isHolidayShiftDay = (d: Date) => {
+    if (isExcluded(d) || d.getDay() === 0) return false
+    const next = new Date(d); next.setDate(next.getDate() + 1)
+    if (!isExcluded(next)) return false
+    return activeRoutes.length > 0 ? isDeliveryDay(next, activeRoutes) : isWeekday(next)
+  }
+
   const isDeliveryAvailable = (d: Date) => {
     if (isExcluded(d)) return false
     const available = activeRoutes.length > 0 ? isDeliveryDay(d, activeRoutes) : isWeekday(d)
-    if (!available) return false
+    if (!available) {
+      if (isHolidayShiftDay(d) && formData.pickupDate) {
+        const dayAfterPickup = new Date(formData.pickupDate); dayAfterPickup.setHours(0, 0, 0, 0)
+        dayAfterPickup.setDate(dayAfterPickup.getDate() + 1)
+        const dd = new Date(d); dd.setHours(0, 0, 0, 0)
+        return dd >= dayAfterPickup
+      }
+      return false
+    }
     if (formData.pickupDate) {
       // Same turnaround rule the auto-suggested delivery date is computed
       // with (getEarliestRouteDelivery) -- previously this used a flat
@@ -547,7 +565,21 @@ export function WashFoldForm({ initialPricing, topSlot, initialMonthlyPlanEnable
   const handlePickupSelect = (date: Date) => {
     const isToday = date.toDateString() === today.toDateString()
     if (!isToday) setSameDay(false)
-    const delv = isToday && sameDay ? date : getEarliestRouteDelivery(date, activeRoutes)
+    let delv = isToday && sameDay ? date : getEarliestRouteDelivery(date, activeRoutes)
+    // Never auto-suggest a closed holiday: use the open day just before it
+    // (if it's after pickup), otherwise the next open delivery day after it.
+    if (!(isToday && sameDay) && isExcluded(delv)) {
+      const prev = new Date(delv); prev.setDate(prev.getDate() - 1)
+      const pk = new Date(date); pk.setHours(0, 0, 0, 0)
+      prev.setHours(0, 0, 0, 0)
+      if (prev > pk && prev.getDay() !== 0 && !isExcluded(prev)) {
+        delv = prev
+      } else {
+        const nx = new Date(delv)
+        for (let i = 0; i < 30 && (isExcluded(nx) || nx.getDay() === 0 || (activeRoutes.length > 0 && !isDeliveryDay(nx, activeRoutes))); i++) nx.setDate(nx.getDate() + 1)
+        delv = nx
+      }
+    }
     setFormData(p => ({ ...p, pickupDate: date, deliveryDate: delv }))
   }
 

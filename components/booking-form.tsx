@@ -384,6 +384,13 @@ export function BookingForm({ topSlot, timezone, initialPricing }: { topSlot?: R
     return isPickupDay(d, activeRoutes)
   }
 
+  // Never auto-suggest a closed holiday: roll forward to the next open delivery day.
+  const suggestDelivery = (pickup: Date): Date => {
+    const nx = new Date(getEarliestRouteDelivery(pickup, activeRoutes))
+    for (let i = 0; i < 30 && (isExcluded(nx) || nx.getDay() === 0 || (activeRoutes.length > 0 && !isDeliveryDay(nx, activeRoutes))); i++) nx.setDate(nx.getDate() + 1)
+    return nx
+  }
+
   const isDeliveryAvailable = (d: Date) => {
     if (isExcluded(d)) return false
     const available = activeRoutes.length > 0
@@ -410,7 +417,7 @@ export function BookingForm({ topSlot, timezone, initialPricing }: { topSlot?: R
     setFormData(p => ({
       ...p,
       pickupDate: date,
-      deliveryDate: isToday && sameDay ? date : getEarliestRouteDelivery(date, activeRoutes),
+      deliveryDate: isToday && sameDay ? date : suggestDelivery(date),
     }))
   }
 
