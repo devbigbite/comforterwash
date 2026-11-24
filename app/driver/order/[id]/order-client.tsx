@@ -206,7 +206,8 @@ export default function DriverOrderClient({
   async function handleDropoff(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     let valid = requireName()
-    if (!hasWarehouseDropoffPhoto) { setWarehouseDropoffPhotoErr(true); valid = false }
+    // Facility drop-offs (e.g. Spin Cycle's own staff) don't need a placement photo.
+    if (dropoffLocation !== "facility" && !hasWarehouseDropoffPhoto) { setWarehouseDropoffPhotoErr(true); valid = false }
     if (!allSlotsWeighed || totalWeight <= 0) { setWeightError(true); valid = false }
     if (!valid) return
     setWeightError(false)
@@ -449,7 +450,7 @@ export default function DriverOrderClient({
                     Step 2 — Weigh &amp; drop at {dropoffLocation === "facility" ? "facility" : "warehouse"}
                   </p>
                   <p className="text-sm text-gray-500">
-                    Weigh each bag, take a photo showing where you placed them, then confirm. <span className="font-bold text-[#E8726A]">Weighing is required.</span>
+                    Weigh each bag{dropoffLocation === "facility" ? "" : ", take a photo showing where you placed them"}, then confirm. <span className="font-bold text-[#E8726A]">Weighing is required.</span>
                   </p>
                 </div>
 
@@ -519,17 +520,17 @@ export default function DriverOrderClient({
                     confirm button, after weighing, so the driver photographs
                     the bags in their final placed/weighed state rather than
                     mid-process. */}
-                <div className={`rounded-xl overflow-hidden border-2 ${warehouseDropoffPhotoErr ? "border-red-400" : hasWarehouseDropoffPhoto ? "border-green-400" : "border-gray-200"}`}>
+                <div className={`rounded-xl overflow-hidden border-2 ${warehouseDropoffPhotoErr && dropoffLocation !== "facility" ? "border-red-400" : hasWarehouseDropoffPhoto ? "border-green-400" : "border-gray-200"}`}>
                   <PhotoUploader bookingId={bookingId} action={recordPhotoEvent}
                     eventType="photo_facility_dropoff"
-                    label={`📷 Photo — where you placed the bags at the ${dropoffLocation === "facility" ? "facility" : "warehouse"} (internal)`}
+                    label={dropoffLocation === "facility" ? "📷 Photo (optional)" : "📷 Photo — where you placed the bags at the warehouse (internal)"}
                     initialPhotoUrl={existingFloorPhotoUrl}
                     onPhotoUploaded={(url?: string) => {
                       setHasWarehouseDropoffPhoto(true)
                       setWarehouseDropoffPhotoErr(false)
                       if (url) setFloorPhotoUrl(url)
                     }} />
-                  <PhotoRequired taken={hasWarehouseDropoffPhoto} error={warehouseDropoffPhotoErr} />
+                  {dropoffLocation !== "facility" && <PhotoRequired taken={hasWarehouseDropoffPhoto} error={warehouseDropoffPhotoErr} />}
                   {hasWarehouseDropoffPhoto && (
                     <p className="text-[10px] text-gray-400 px-3 pb-2">🔒 Internal only — not visible to customer</p>
                   )}
