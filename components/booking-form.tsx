@@ -105,6 +105,12 @@ function DateStrip({
 }
 
 function TimeSlotPicker({ value, onChange, label, windows }: { value: string; onChange: (v: string) => void; label: string; windows: TimeWindow[] }) {
+  // Only one time slot on this day -> preselect it so the customer doesn't have to tap it.
+  useEffect(() => {
+    if (windows.length === 1 && value !== windows[0].label && value !== "ASAP" && value !== "Same day") {
+      onChange(windows[0].label)
+    }
+  }, [windows, value, onChange])
   return (
     <div>
       <p className="text-xs text-center text-gray-400 mb-3 mt-4">{label}</p>
