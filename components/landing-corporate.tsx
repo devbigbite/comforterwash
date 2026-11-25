@@ -115,10 +115,18 @@ export function CorporateLanding({
         <div className="mx-auto max-w-4xl">
           {/* CTA -- moved out of the hero image and placed here, centered,
               directly above the "Clean Laundry in N Simple Steps" heading. */}
-          <div className="flex justify-center mb-6">
+          <div className="flex justify-center mb-8">
+            <style>{`
+              @keyframes cta-blink {
+                0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+                50% { opacity: 0.72; transform: scale(1.06); box-shadow: 0 0 0 16px rgba(250, 204, 21, 0); }
+              }
+              .cta-blink { animation: cta-blink 1.3s ease-in-out infinite; }
+              @media (prefers-reduced-motion: reduce) { .cta-blink { animation: none; } }
+            `}</style>
             <a
               href="/book/wash-fold"
-              className="inline-block bg-[var(--brand-accent)] hover:bg-[#d45f57] text-white font-bold text-sm px-7 py-3 rounded-full uppercase tracking-wide transition-colors shadow-lg"
+              className="cta-blink inline-block bg-[#FACC15] hover:bg-[#EAB308] text-[#0D2240] font-extrabold text-xl sm:text-2xl px-12 py-5 rounded-full uppercase tracking-wide shadow-xl"
             >
               {(locale === "es" ? siteText.slide_1_cta_es : siteText.slide_1_cta) || tr.hero.slide1Cta || DEFAULT_TEXT.slide_1_cta}
             </a>
